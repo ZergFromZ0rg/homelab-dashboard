@@ -1,0 +1,32 @@
+services:
+  dashboard-api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: homelab-dashboard-api
+    restart: unless-stopped
+    environment:
+      PROMETHEUS_URL: http://prometheus:9090
+    networks:
+      - dashboard
+      - prometheus_net
+
+  dashboard-web:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: homelab-dashboard
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    depends_on:
+      - dashboard-api
+    networks:
+      - dashboard
+
+networks:
+  dashboard:
+
+  prometheus_net:
+    external: true
+    name: prometheus_default
