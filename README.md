@@ -42,6 +42,14 @@ container list — the Main System's own, and each node's — is collapsible
 and has its own independent sort control (name / CPU / RAM / status), so
 sorting one doesn't reorder the others.
 
+## History and sparklines
+
+CPU, RAM, and network cards carry a small trend line for the last 30
+minutes, sourced from Prometheus range queries (`get_machine_history` in
+`backend/prometheus.py`). That query is re-run at most once every 30s and
+cached — the `/ws` loop calls it every 2s like everything else, but reuses
+the cached series in between instead of re-hitting Prometheus every tick.
+
 ## Run
 
 ```bash
@@ -61,4 +69,5 @@ join it, not create it.
 - `DELETE /api/nodes/{name}` — deregister a node
 - `POST /api/containers/{host}/{container_id}/{start|stop|restart}` —
   proxies a control action to that host's agent
-- `GET /ws` — WebSocket, pushes `{type, machines, containers}` every 2s
+- `GET /ws` — WebSocket, pushes
+  `{type, machines, containers, main_host, history}` every 2s

@@ -1,6 +1,6 @@
 import MachineVitals from "./MachineVitals";
 
-function MachineCard({ name, machine }) {
+function MachineCard({ name, machine, history }) {
   return (
     <div className={`machine-card ${machine.online ? "online" : "offline"}`}>
       <div className="machine-header">
@@ -12,7 +12,7 @@ function MachineCard({ name, machine }) {
         </span>
       </div>
 
-      <MachineVitals machine={machine} />
+      <MachineVitals machine={machine} history={history} />
     </div>
   );
 }

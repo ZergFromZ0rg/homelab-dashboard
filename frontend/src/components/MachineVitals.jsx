@@ -1,3 +1,5 @@
+import Sparkline from "./Sparkline";
+
 function formatUptime(seconds) {
   if (seconds == null) return "—";
 
@@ -39,18 +41,26 @@ function diskName(filesystem) {
   return filesystem.mountpoint;
 }
 
-function MachineVitals({ machine }) {
+function MachineVitals({ machine, history }) {
+  const netMax = Math.max(
+    1,
+    ...(history?.network_rx || []).map((p) => p.v ?? 0),
+    ...(history?.network_tx || []).map((p) => p.v ?? 0)
+  ) * 1.15;
+
   return (
     <>
       <div className="stats">
         <div>
           <span>CPU</span>
           <strong>{machine.cpu != null ? `${machine.cpu}%` : "—"}</strong>
+          <Sparkline points={history?.cpu} max={100} variant="cpu" />
         </div>
 
         <div>
           <span>RAM</span>
           <strong>{machine.ram != null ? `${machine.ram}%` : "—"}</strong>
+          <Sparkline points={history?.ram} max={100} variant="ram" />
         </div>
 
         <div>
@@ -75,11 +85,13 @@ function MachineVitals({ machine }) {
         <div>
           <span>DOWNLOAD</span>
           <strong>↓ {formatSpeed(machine.network_rx)}</strong>
+          <Sparkline points={history?.network_rx} max={netMax} variant="rx" />
         </div>
 
         <div>
           <span>UPLOAD</span>
           <strong>↑ {formatSpeed(machine.network_tx)}</strong>
+          <Sparkline points={history?.network_tx} max={netMax} variant="tx" />
         </div>
       </div>
 

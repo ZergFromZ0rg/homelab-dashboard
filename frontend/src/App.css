@@ -498,6 +498,42 @@ h1 {
   font-weight: 600;
 }
 
+.sparkline,
+.sparkline-empty {
+  display: block;
+  width: 100%;
+  height: 26px;
+  margin-top: 2px;
+}
+
+.sparkline-empty {
+  border-bottom: 1px dashed var(--border);
+  align-self: flex-end;
+}
+
+.sparkline-fill {
+  fill: currentColor;
+  opacity: 0.12;
+  stroke: none;
+}
+
+.sparkline-line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  vector-effect: non-scaling-stroke;
+}
+
+.sparkline--cpu,
+.sparkline--rx {
+  color: var(--accent);
+}
+
+.sparkline--ram,
+.sparkline--tx {
+  color: var(--online);
+}
+
 .storage-section {
   margin-top: 14px;
   padding-top: 14px;

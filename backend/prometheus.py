@@ -1,5 +1,6 @@
 import os
 import re
+import time
 
 import requests
 
@@ -7,6 +8,17 @@ PROMETHEUS = os.getenv(
     "PROMETHEUS_URL",
     "http://localhost:9090",
 )
+
+# History charts cover the last 30 minutes at 1-minute resolution. The
+# range query is only re-run every HISTORY_REFRESH_SECONDS regardless of
+# how often get_machine_history() is called — the /ws loop calls it every
+# 2s, but re-running a 30-minute range query that often would just hammer
+# Prometheus for data that hasn't meaningfully changed.
+HISTORY_WINDOW_SECONDS = 30 * 60
+HISTORY_STEP_SECONDS = 60
+HISTORY_REFRESH_SECONDS = 30
+
+_history_cache = {"data": {}, "fetched_at": 0.0}
 
 # Virtual / container / VPN interfaces to keep out of host network totals.
 # RE2 anchors the whole string, so "lo" matches only "lo", real NICs
@@ -253,6 +265,98 @@ def get_cpu_temperatures() -> dict:
         temperatures[job] = max(temperatures.get(job, value), value)
 
     return temperatures
+
+
+def query_range(promql: str, start: float, end: float, step: int):
+    response = requests.get(
+        f"{PROMETHEUS}/api/v1/query_range",
+        params={"query": promql, "start": start, "end": end, "step": step},
+        timeout=10,
+    )
+    response.raise_for_status()
+    return response.json()["data"]["result"]
+
+
+def _series_by_job(promql: str, start: float, end: float, step: int) -> dict:
+    series = {}
+
+    for result in query_range(promql, start, end, step):
+        job = result["metric"].get("job")
+
+        if not job:
+            continue
+
+        series[job] = [
+            {"t": int(t), "v": None if v == "NaN" else float(v)}
+            for t, v in result["values"]
+        ]
+
+    return series
+
+
+def get_machine_history() -> dict:
+    """Per-job CPU/RAM/network time series for sparkline charts.
+
+    Re-queries Prometheus at most once every HISTORY_REFRESH_SECONDS;
+    calls in between return the cached result.
+    """
+    now = time.time()
+
+    if (
+        _history_cache["data"]
+        and now - _history_cache["fetched_at"] < HISTORY_REFRESH_SECONDS
+    ):
+        return _history_cache["data"]
+
+    end = now
+    start = now - HISTORY_WINDOW_SECONDS
+    step = HISTORY_STEP_SECONDS
+
+    cpu = _series_by_job(
+        '100 - (avg by(job) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)',
+        start,
+        end,
+        step,
+    )
+
+    ram = _series_by_job(
+        "100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)",
+        start,
+        end,
+        step,
+    )
+
+    network_rx = _series_by_job(
+        f'sum by(job) (irate(node_network_receive_bytes_total'
+        f'{{device!~"{VIRTUAL_IFACE_RE}"}}[5m]))',
+        start,
+        end,
+        step,
+    )
+
+    network_tx = _series_by_job(
+        f'sum by(job) (irate(node_network_transmit_bytes_total'
+        f'{{device!~"{VIRTUAL_IFACE_RE}"}}[5m]))',
+        start,
+        end,
+        step,
+    )
+
+    jobs = set(cpu) | set(ram) | set(network_rx) | set(network_tx)
+
+    history = {
+        job: {
+            "cpu": cpu.get(job, []),
+            "ram": ram.get(job, []),
+            "network_rx": network_rx.get(job, []),
+            "network_tx": network_tx.get(job, []),
+        }
+        for job in jobs
+    }
+
+    _history_cache["data"] = history
+    _history_cache["fetched_at"] = now
+    return history
 
 
 def get_machine_stats():

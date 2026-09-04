@@ -4,7 +4,7 @@ import ContainerRow from "./ContainerRow";
 import SortControl from "./SortControl";
 import { sortContainers } from "./containerSort";
 
-function MainSystem({ host, machine, containers, onControl }) {
+function MainSystem({ host, machine, containers, history, onControl }) {
   const [collapsed, setCollapsed] = useState(false);
   const [sortBy, setSortBy] = useState("name");
 
@@ -25,7 +25,7 @@ function MainSystem({ host, machine, containers, onControl }) {
         </span>
       </div>
 
-      <MachineVitals machine={machine} />
+      <MachineVitals machine={machine} history={history} />
 
       <div className="main-system-containers">
         <div

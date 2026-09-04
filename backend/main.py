@@ -5,7 +5,7 @@ from fastapi import FastAPI, Header, HTTPException, WebSocket, WebSocketDisconne
 
 import requests
 
-from backend.prometheus import get_machine_stats
+from backend.prometheus import get_machine_stats, get_machine_history
 from backend.docker import get_all_containers, control_container
 from backend.registry import NodeRegistry
 
@@ -160,6 +160,7 @@ async def websocket_endpoint(websocket: WebSocket):
             nodes = registry.all()
 
             machines = await asyncio.to_thread(get_machine_stats)
+            history = await asyncio.to_thread(get_machine_history)
 
             agent_data = await asyncio.to_thread(
                 get_all_containers,
@@ -185,6 +186,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 "machines": machines,
                 "containers": containers,
                 "main_host": main_host,
+                "history": history,
             })
 
             await asyncio.sleep(2)

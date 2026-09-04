@@ -38,6 +38,7 @@ function useContainerControl() {
 function App() {
   const [machines, setMachines] = useState({});
   const [containers, setContainers] = useState({});
+  const [history, setHistory] = useState({});
   const [mainHost, setMainHost] = useState(null);
   const [connected, setConnected] = useState(false);
 
@@ -57,6 +58,7 @@ function App() {
       if (data.type === "dashboard_update") {
         setMachines(data.machines);
         setContainers(data.containers);
+        setHistory(data.history ?? {});
         setMainHost(data.main_host ?? null);
       }
     };
@@ -98,6 +100,7 @@ function App() {
           host={mainHost}
           machine={machines[mainHost]}
           containers={containers[mainHost] || []}
+          history={history[mainHost]}
           onControl={control}
         />
       )}
@@ -113,7 +116,12 @@ function App() {
 
           <div className="machine-grid">
             {nodeNames.map((name) => (
-              <MachineCard key={name} name={name} machine={machines[name]} />
+              <MachineCard
+                key={name}
+                name={name}
+                machine={machines[name]}
+                history={history[name]}
+              />
             ))}
           </div>
         </section>
