@@ -9,6 +9,7 @@ services:
       PROMETHEUS_URL: ${PROMETHEUS_URL:-http://prometheus:9090}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:8081}
       REGISTER_TOKEN: ${REGISTER_TOKEN:-}
+      MAIN_HOST: ${MAIN_HOST:-}
     volumes:
       - dashboard-data:/data
     networks:

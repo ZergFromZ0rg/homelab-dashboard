@@ -27,6 +27,30 @@ h1 {
   letter-spacing: -0.02em;
 }
 
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.sort-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.sort-control select {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+
 .connection {
   display: flex;
   align-items: center;
@@ -51,6 +75,73 @@ h1 {
 .connection.connected {
   color: var(--online);
   background: var(--online-bg);
+}
+
+.main-system {
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 32px;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 40px;
+}
+
+.main-system.offline {
+  opacity: 0.55;
+}
+
+.main-system-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.main-system-header h2 {
+  margin: 4px 0 0;
+  text-transform: capitalize;
+  font-size: 28px;
+}
+
+.main-system .stats {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+.main-system .network-stats {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.main-system-containers {
+  margin-top: 32px;
+  padding-top: 28px;
+  border-top: 1px solid var(--border);
+}
+
+.main-system-containers-header {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.main-system-containers-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.main-system-containers-header .host-running-count {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.main-system .container-list {
+  border-radius: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.nodes-section {
+  margin-bottom: 40px;
 }
 
 .machine-grid {
@@ -567,6 +658,20 @@ h1 {
     flex-direction: column;
     align-items: flex-start;
     gap: 14px;
+  }
+
+  .header-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .main-system {
+    padding: 20px;
+  }
+
+  .main-system .stats,
+  .main-system .network-stats {
+    grid-template-columns: 1fr 1fr;
   }
 
   .container-row {

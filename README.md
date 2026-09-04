@@ -26,10 +26,21 @@ still shows host stats, just no container list or GPU. A machine with only
 an agent registered (no Prometheus target) shows containers/GPU with host
 stats blank. See homelab-agent's README for its full env var list.
 
+## Main System vs. Nodes
+
+Set `MAIN_HOST` to the Prometheus job / agent `HOST_NAME` of the machine
+this dashboard itself runs on, and the frontend gives that machine its own
+full-width section at the top ("Main System") instead of listing it as
+just another node in the "Nodes" grid below. Leave it unset and every
+machine renders the same way. Containers can be sorted (name / CPU / RAM /
+status) via the control in the header — the same sort applies to the Main
+System's own container list and every node's, and each node's container
+list is collapsible independently.
+
 ## Run
 
 ```bash
-cp .env.example .env   # adjust PROMETHEUS_URL / ALLOWED_ORIGINS / REGISTER_TOKEN
+cp .env.example .env   # adjust PROMETHEUS_URL / ALLOWED_ORIGINS / REGISTER_TOKEN / MAIN_HOST
 docker compose up -d --build
 ```
 

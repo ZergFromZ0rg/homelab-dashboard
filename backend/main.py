@@ -15,6 +15,11 @@ registry = NodeRegistry()
 
 REGISTER_TOKEN = os.getenv("REGISTER_TOKEN", "").strip()
 
+# The host the dashboard itself runs on, if any — set MAIN_HOST to that
+# machine's job/HOST_NAME so the frontend can give it its own top-level
+# section instead of showing it as just another node in the fleet.
+MAIN_HOST = os.getenv("MAIN_HOST", "").strip() or None
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -151,6 +156,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 "type": "dashboard_update",
                 "machines": machines,
                 "containers": containers,
+                "main_host": MAIN_HOST,
             })
 
             await asyncio.sleep(2)

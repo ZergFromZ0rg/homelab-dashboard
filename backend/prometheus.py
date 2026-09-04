@@ -217,6 +217,44 @@ def get_disk_io():
     return disk_io
 
 
+# hwmon driver names for the actual CPU package/die sensor. Without this,
+# "highest sensor on the box" just as easily picks an NVMe drive's temp3
+# (composite/max, often hotter than the CPU) or a laptop's chassis/ACPI
+# sensor over the real CPU reading.
+CPU_HWMON_CHIP_NAMES = {"k10temp", "coretemp", "zenpower", "cpu_thermal"}
+
+
+def get_cpu_temperatures() -> dict:
+    cpu_chips: dict[str, set] = {}
+
+    for result in query("node_hwmon_chip_names"):
+        metric = result["metric"]
+        job = metric.get("job")
+        chip = metric.get("chip")
+        chip_name = metric.get("chip_name")
+
+        if job and chip and chip_name in CPU_HWMON_CHIP_NAMES:
+            cpu_chips.setdefault(job, set()).add(chip)
+
+    if not cpu_chips:
+        return {}
+
+    temperatures: dict[str, float] = {}
+
+    for result in query(f"node_hwmon_temp_celsius < {MAX_TEMP_C}"):
+        metric = result["metric"]
+        job = metric.get("job")
+        chip = metric.get("chip")
+
+        if job not in cpu_chips or chip not in cpu_chips[job]:
+            continue
+
+        value = float(result["value"][1])
+        temperatures[job] = max(temperatures.get(job, value), value)
+
+    return temperatures
+
+
 def get_machine_stats():
     jobs = list_jobs()
 
@@ -244,9 +282,12 @@ def get_machine_stats():
         f'{{device!~"{VIRTUAL_IFACE_RE}"}}[1m]))'
     )
 
-    temperatures = value_by_job(
+    # Prefer the real CPU sensor (k10temp/coretemp/...); only fall back to
+    # "hottest sensor on the box" for a job with no recognized CPU chip.
+    fallback_temperatures = value_by_job(
         f"max by(job) (node_hwmon_temp_celsius < {MAX_TEMP_C})"
     )
+    temperatures = {**fallback_temperatures, **get_cpu_temperatures()}
 
     filesystems = get_filesystems()
     disk_io = get_disk_io()
