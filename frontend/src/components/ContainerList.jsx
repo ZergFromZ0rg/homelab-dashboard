@@ -35,25 +35,182 @@ function formatStartedAt(value) {
   return `${minutes}m`;
 }
 
+function ContainerRow({ container, host, pending, onControl }) {
+  const key = `${host}-${container.id}`;
+  const action = pending[key];
+  const busy = Boolean(action);
+
+  const protectedContainer =
+    container.protected || container.name === "homelab-agent";
+
+  const stats = container.stats;
+  const memory = stats?.memory;
+  const network = stats?.network;
+  const blockIo = stats?.block_io;
+
+  return (
+    <div className="container-row">
+      <div className="container-main">
+        <div className="container-title">
+          <div>
+            <strong>{container.name}</strong>
+            <span>{container.image}</span>
+          </div>
+
+          <div className="container-badges">
+            {container.health && (
+              <span className={`container-health ${container.health}`}>
+                {container.health}
+              </span>
+            )}
+
+            <span className={`container-status ${container.status}`}>
+              {action ? `${action}...` : container.status}
+            </span>
+          </div>
+        </div>
+
+        <div className="container-stats-grid">
+          <div>
+            <span>CPU</span>
+            <strong>
+              {stats?.cpu_percent != null ? `${stats.cpu_percent}%` : "—"}
+            </strong>
+          </div>
+
+          <div>
+            <span>RAM</span>
+            <strong>
+              {memory?.used_bytes != null
+                ? formatBytes(memory.used_bytes)
+                : "—"}
+            </strong>
+            <small>{memory?.percent != null ? `${memory.percent}%` : ""}</small>
+          </div>
+
+          <div>
+            <span>NET ↓</span>
+            <strong>
+              {network?.rx_bps != null
+                ? `${formatBytes(network.rx_bps)}/s`
+                : "—"}
+            </strong>
+          </div>
+
+          <div>
+            <span>NET ↑</span>
+            <strong>
+              {network?.tx_bps != null
+                ? `${formatBytes(network.tx_bps)}/s`
+                : "—"}
+            </strong>
+          </div>
+
+          <div>
+            <span>DISK ↓</span>
+            <strong>
+              {blockIo?.read_bps != null
+                ? `${formatBytes(blockIo.read_bps)}/s`
+                : "—"}
+            </strong>
+          </div>
+
+          <div>
+            <span>DISK ↑</span>
+            <strong>
+              {blockIo?.write_bps != null
+                ? `${formatBytes(blockIo.write_bps)}/s`
+                : "—"}
+            </strong>
+          </div>
+
+          <div>
+            <span>UPTIME</span>
+            <strong>{formatStartedAt(container.started_at)}</strong>
+          </div>
+
+          <div>
+            <span>RESTARTS</span>
+            <strong>{container.restart_count ?? "—"}</strong>
+          </div>
+
+          <div>
+            <span>IMAGE</span>
+            <strong>
+              {container.size?.image_bytes != null
+                ? formatBytes(container.size.image_bytes)
+                : "—"}
+            </strong>
+          </div>
+
+          <div>
+            <span>WRITABLE</span>
+            <strong>
+              {container.size?.writable_bytes != null
+                ? formatBytes(container.size.writable_bytes)
+                : "—"}
+            </strong>
+          </div>
+
+          <div>
+            <span>ROOTFS</span>
+            <strong>
+              {container.size?.rootfs_bytes != null
+                ? formatBytes(container.size.rootfs_bytes)
+                : "—"}
+            </strong>
+          </div>
+        </div>
+      </div>
+
+      <div className="container-actions">
+        {protectedContainer ? (
+          <span className="protected-label">Protected</span>
+        ) : (
+          <>
+            {container.status !== "running" && (
+              <button
+                disabled={busy}
+                onClick={() => onControl(host, container.id, "start")}
+              >
+                Start
+              </button>
+            )}
+
+            {container.status === "running" && (
+              <button
+                disabled={busy}
+                onClick={() => onControl(host, container.id, "stop")}
+              >
+                Stop
+              </button>
+            )}
+
+            <button
+              disabled={busy}
+              onClick={() => onControl(host, container.id, "restart")}
+            >
+              Restart
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ContainerList({ containers }) {
   const [pending, setPending] = useState({});
+  const [collapsed, setCollapsed] = useState({});
 
-  const allContainers = Object.entries(containers)
-    .flatMap(([host, hostContainers]) =>
-      hostContainers.map((container) => ({
-        ...container,
-        host,
-      }))
-    )
-    .sort((a, b) => {
-      const hostCompare = a.host.localeCompare(b.host);
+  const hosts = Object.keys(containers).sort();
 
-      if (hostCompare !== 0) {
-        return hostCompare;
-      }
-
-      return a.name.localeCompare(b.name);
-    });
+  function toggleHost(host) {
+    setCollapsed((current) => ({
+      ...current,
+      [host]: !current[host],
+    }));
+  }
 
   async function controlContainer(host, containerId, action) {
     const key = `${host}-${containerId}`;
@@ -94,210 +251,62 @@ function ContainerList({ containers }) {
         </div>
       </div>
 
-      <div className="container-list">
-        {allContainers.map((container) => {
-          const key = `${container.host}-${container.id}`;
-          const action = pending[key];
-          const busy = Boolean(action);
+      {hosts.length === 0 && (
+        <div className="empty-state">No agents reporting containers yet.</div>
+      )}
 
-          const protectedContainer =
-            container.protected ||
-            container.name === "homelab-agent";
+      {hosts.map((host) => {
+        const hostContainers = [...containers[host]].sort((a, b) =>
+          a.name.localeCompare(b.name)
+        );
 
-          const stats = container.stats;
-          const memory = stats?.memory;
-          const network = stats?.network;
-          const blockIo = stats?.block_io;
+        const runningCount = hostContainers.filter(
+          (container) => container.status === "running"
+        ).length;
 
-          return (
-            <div className="container-row" key={key}>
-              <div className="container-main">
-                <div className="container-title">
-                  <div>
-                    <strong>{container.name}</strong>
-                    <span>{container.image}</span>
-                  </div>
+        const isCollapsed = Boolean(collapsed[host]);
 
-                  <div className="container-badges">
-                    <span className="container-host">
-                      {container.host}
-                    </span>
+        return (
+          <div
+            className={`host-group ${isCollapsed ? "" : "expanded"}`}
+            key={host}
+          >
+            <button
+              type="button"
+              className="host-header"
+              onClick={() => toggleHost(host)}
+              aria-expanded={!isCollapsed}
+            >
+              <span className="host-toggle">▾</span>
+              <span className="host-name">{host}</span>
 
-                    {container.health && (
-                      <span
-                        className={`container-health ${container.health}`}
-                      >
-                        {container.health}
-                      </span>
-                    )}
+              <span className="host-summary">
+                <span
+                  className={`host-running-count ${
+                    runningCount === 0 ? "none" : ""
+                  }`}
+                >
+                  {runningCount}/{hostContainers.length} running
+                </span>
+              </span>
+            </button>
 
-                    <span
-                      className={`container-status ${container.status}`}
-                    >
-                      {action ? `${action}...` : container.status}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="container-stats-grid">
-                  <div>
-                    <span>CPU</span>
-                    <strong>
-                      {stats?.cpu_percent != null
-                        ? `${stats.cpu_percent}%`
-                        : "—"}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <span>RAM</span>
-                    <strong>
-                      {memory?.used_bytes != null
-                        ? formatBytes(memory.used_bytes)
-                        : "—"}
-                    </strong>
-                    <small>
-                      {memory?.percent != null
-                        ? `${memory.percent}%`
-                        : ""}
-                    </small>
-                  </div>
-
-                  <div>
-                    <span>NET ↓</span>
-                    <strong>
-                      {network?.rx_bps != null
-                        ? `${formatBytes(network.rx_bps)}/s`
-                        : "—"}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <span>NET ↑</span>
-                    <strong>
-                      {network?.tx_bps != null
-                        ? `${formatBytes(network.tx_bps)}/s`
-                        : "—"}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <span>DISK ↓</span>
-                    <strong>
-                      {blockIo?.read_bps != null
-                        ? `${formatBytes(blockIo.read_bps)}/s`
-                        : "—"}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <span>DISK ↑</span>
-                    <strong>
-                      {blockIo?.write_bps != null
-                        ? `${formatBytes(blockIo.write_bps)}/s`
-                        : "—"}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <span>UPTIME</span>
-                    <strong>
-                      {formatStartedAt(container.started_at)}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <span>RESTARTS</span>
-                    <strong>
-                      {container.restart_count ?? "—"}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <span>IMAGE</span>
-                    <strong>
-                      {container.size?.image_bytes != null
-                        ? formatBytes(container.size.image_bytes)
-                        : "—"}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <span>WRITABLE</span>
-                    <strong>
-                      {container.size?.writable_bytes != null
-                        ? formatBytes(container.size.writable_bytes)
-                        : "—"}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <span>ROOTFS</span>
-                    <strong>
-                      {container.size?.rootfs_bytes != null
-                        ? formatBytes(container.size.rootfs_bytes)
-                        : "—"}
-                    </strong>
-                  </div>
-                </div>
+            {!isCollapsed && (
+              <div className="container-list">
+                {hostContainers.map((container) => (
+                  <ContainerRow
+                    key={`${host}-${container.id}`}
+                    container={container}
+                    host={host}
+                    pending={pending}
+                    onControl={controlContainer}
+                  />
+                ))}
               </div>
-
-              <div className="container-actions">
-                {protectedContainer ? (
-                  <span className="protected-label">
-                    Protected
-                  </span>
-                ) : (
-                  <>
-                    {container.status !== "running" && (
-                      <button
-                        disabled={busy}
-                        onClick={() =>
-                          controlContainer(
-                            container.host,
-                            container.id,
-                            "start"
-                          )
-                        }
-                      >
-                        Start
-                      </button>
-                    )}
-
-                    {container.status === "running" && (
-                      <button
-                        disabled={busy}
-                        onClick={() =>
-                          controlContainer(
-                            container.host,
-                            container.id,
-                            "stop"
-                          )
-                        }
-                      >
-                        Stop
-                      </button>
-                    )}
-
-                    <button
-                      disabled={busy}
-                      onClick={() =>
-                        controlContainer(
-                          container.host,
-                          container.id,
-                          "restart"
-                        )
-                      }
-                    >
-                      Restart
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            )}
+          </div>
+        );
+      })}
     </section>
   );
 }
