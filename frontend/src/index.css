@@ -1,29 +1,31 @@
 :root {
-  --bg: #faf8f4;
-  --bg-card: #ffffff;
-  --bg-subtle: #f3efe6;
-  --border: #e7e1d4;
+  --bg: #0b0e14;
+  --bg-card: #12161f;
+  --bg-subtle: #1a1f2b;
+  --border: #232a38;
 
-  --text: #332f28;
-  --text-muted: #8c8577;
-  --text-faint: #b6b0a2;
+  --text: #e6e9ef;
+  --text-muted: #838ea3;
+  --text-faint: #545d6e;
 
-  --accent: #c1652f;
-  --accent-bg: rgba(193, 101, 47, 0.1);
+  --accent: #2dd4bf;
+  --accent-bg: rgba(45, 212, 191, 0.12);
 
-  --online: #4f9d69;
-  --online-bg: rgba(79, 157, 105, 0.12);
-  --offline: #c25b4c;
-  --offline-bg: rgba(194, 91, 76, 0.12);
-  --warning: #c9973c;
+  --online: #22c55e;
+  --online-bg: rgba(34, 197, 94, 0.12);
+  --offline: #ef4444;
+  --offline-bg: rgba(239, 68, 68, 0.12);
+  --warning: #f59e0b;
+  --warning-bg: rgba(245, 158, 11, 0.12);
 
-  --shadow-sm: 0 1px 2px rgba(47, 36, 20, 0.04);
-  --shadow-md: 0 16px 32px -20px rgba(47, 36, 20, 0.22);
+  --shadow-sm: none;
+  --shadow-md: 0 0 0 1px var(--accent);
 
   --sans: Inter, system-ui, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
 
   font: 16px/1.5 var(--sans);
-  color-scheme: light;
+  color-scheme: dark;
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;

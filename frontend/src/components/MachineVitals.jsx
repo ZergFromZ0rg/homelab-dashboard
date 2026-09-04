@@ -1,4 +1,5 @@
 import Sparkline from "./Sparkline";
+import Gauge from "./Gauge";
 
 function formatUptime(seconds) {
   if (seconds == null) return "—";
@@ -50,34 +51,34 @@ function MachineVitals({ machine, history }) {
 
   return (
     <>
-      <div className="stats">
-        <div>
+      <div className="gauge-row">
+        <div className="gauge-item">
+          <Gauge value={machine.cpu} />
           <span>CPU</span>
-          <strong>{machine.cpu != null ? `${machine.cpu}%` : "—"}</strong>
-          <Sparkline points={history?.cpu} max={100} variant="cpu" />
         </div>
 
-        <div>
+        <div className="gauge-item">
+          <Gauge value={machine.ram} />
           <span>RAM</span>
-          <strong>{machine.ram != null ? `${machine.ram}%` : "—"}</strong>
-          <Sparkline points={history?.ram} max={100} variant="ram" />
         </div>
 
-        <div>
-          <span>CPU TEMP</span>
-          <strong>
-            {machine.temperature != null ? `${machine.temperature}°C` : "—"}
-          </strong>
-        </div>
+        <div className="mini-stats">
+          <div>
+            <span>CPU TEMP</span>
+            <strong>
+              {machine.temperature != null ? `${machine.temperature}°C` : "—"}
+            </strong>
+          </div>
 
-        <div>
-          <span>LOAD</span>
-          <strong>{machine.load1 ?? "—"}</strong>
-        </div>
+          <div>
+            <span>LOAD</span>
+            <strong>{machine.load1 ?? "—"}</strong>
+          </div>
 
-        <div>
-          <span>UPTIME</span>
-          <strong>{formatUptime(machine.uptime)}</strong>
+          <div>
+            <span>UPTIME</span>
+            <strong>{formatUptime(machine.uptime)}</strong>
+          </div>
         </div>
       </div>
 
