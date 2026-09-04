@@ -28,14 +28,19 @@ stats blank. See homelab-agent's README for its full env var list.
 
 ## Main System vs. Nodes
 
-Set `MAIN_HOST` to the Prometheus job / agent `HOST_NAME` of the machine
-this dashboard itself runs on, and the frontend gives that machine its own
-full-width section at the top ("Main System") instead of listing it as
-just another node in the "Nodes" grid below. Leave it unset and every
-machine renders the same way. Containers can be sorted (name / CPU / RAM /
-status) via the control in the header — the same sort applies to the Main
-System's own container list and every node's, and each node's container
-list is collapsible independently.
+The machine the dashboard itself runs on gets its own full-width "Main
+System" section at the top instead of being listed as just another node
+in the "Nodes" grid below — auto-detected, no configuration needed:
+Docker sets a container's `HOSTNAME` env var to its own short container
+ID, and every agent already reports that same ID in its container list
+(an agent lists every container on its host, dashboard-api included), so
+the backend matches its own `HOSTNAME` against those lists on every
+WebSocket tick. `MAIN_HOST` (Prometheus job / agent `HOST_NAME`) is only
+needed as a manual override — e.g. the dashboard runs on a host with no
+homelab-agent, so there's nothing for it to match against. Containers can
+be sorted (name / CPU / RAM / status) via the control in the header — the
+same sort applies to the Main System's own container list and every
+node's, and each node's container list is collapsible independently.
 
 ## Run
 
