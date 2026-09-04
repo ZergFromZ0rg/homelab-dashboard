@@ -54,7 +54,7 @@ function MachineVitals({ machine }) {
         </div>
 
         <div>
-          <span>TEMP</span>
+          <span>CPU TEMP</span>
           <strong>
             {machine.temperature != null ? `${machine.temperature}°C` : "—"}
           </strong>
