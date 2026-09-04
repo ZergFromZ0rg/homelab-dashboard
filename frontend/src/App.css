@@ -123,7 +123,7 @@ h1 {
 
 .machine-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 14px;
 }
 
@@ -650,6 +650,10 @@ h1 {
 
   .main-system {
     padding: 16px;
+  }
+
+  .machine-grid {
+    grid-template-columns: 1fr;
   }
 
   .main-system .stats,
