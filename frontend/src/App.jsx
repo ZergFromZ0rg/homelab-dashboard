@@ -1,7 +1,6 @@
 import ContainerList from "./components/ContainerList";
 import MainSystem from "./components/MainSystem";
 import MachineCard from "./components/MachineCard";
-import SortControl from "./components/SortControl";
 import { useEffect, useState } from "react";
 import "./App.css";
 
@@ -41,7 +40,6 @@ function App() {
   const [containers, setContainers] = useState({});
   const [mainHost, setMainHost] = useState(null);
   const [connected, setConnected] = useState(false);
-  const [sortBy, setSortBy] = useState("name");
 
   const control = useContainerControl();
 
@@ -90,12 +88,8 @@ function App() {
           <h1>System Dashboard</h1>
         </div>
 
-        <div className="header-controls">
-          <SortControl value={sortBy} onChange={setSortBy} />
-
-          <div className={`connection ${connected ? "connected" : ""}`}>
-            {connected ? "LIVE" : "DISCONNECTED"}
-          </div>
+        <div className={`connection ${connected ? "connected" : ""}`}>
+          {connected ? "LIVE" : "DISCONNECTED"}
         </div>
       </header>
 
@@ -104,7 +98,6 @@ function App() {
           host={mainHost}
           machine={machines[mainHost]}
           containers={containers[mainHost] || []}
-          sortBy={sortBy}
           onControl={control}
         />
       )}
@@ -126,11 +119,7 @@ function App() {
         </section>
       )}
 
-      <ContainerList
-        containers={nodeContainers}
-        sortBy={sortBy}
-        onControl={control}
-      />
+      <ContainerList containers={nodeContainers} onControl={control} />
     </main>
   );
 }

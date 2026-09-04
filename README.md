@@ -37,10 +37,10 @@ ID, and every agent already reports that same ID in its container list
 the backend matches its own `HOSTNAME` against those lists on every
 WebSocket tick. `MAIN_HOST` (Prometheus job / agent `HOST_NAME`) is only
 needed as a manual override — e.g. the dashboard runs on a host with no
-homelab-agent, so there's nothing for it to match against. Containers can
-be sorted (name / CPU / RAM / status) via the control in the header — the
-same sort applies to the Main System's own container list and every
-node's, and each node's container list is collapsible independently.
+homelab-agent, so there's nothing for it to match against. Every
+container list — the Main System's own, and each node's — is collapsible
+and has its own independent sort control (name / CPU / RAM / status), so
+sorting one doesn't reorder the others.
 
 ## Run
 

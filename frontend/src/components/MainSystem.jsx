@@ -1,8 +1,13 @@
+import { useState } from "react";
 import MachineVitals from "./MachineVitals";
 import ContainerRow from "./ContainerRow";
+import SortControl from "./SortControl";
 import { sortContainers } from "./containerSort";
 
-function MainSystem({ host, machine, containers, sortBy, onControl }) {
+function MainSystem({ host, machine, containers, onControl }) {
+  const [collapsed, setCollapsed] = useState(false);
+  const [sortBy, setSortBy] = useState("name");
+
   const sorted = sortContainers(containers, sortBy);
   const runningCount = sorted.filter((c) => c.status === "running").length;
 
@@ -23,28 +28,47 @@ function MainSystem({ host, machine, containers, sortBy, onControl }) {
       <MachineVitals machine={machine} />
 
       <div className="main-system-containers">
-        <div className="main-system-containers-header">
-          <h3>Containers</h3>
-          <span className={`host-running-count ${runningCount === 0 ? "none" : ""}`}>
-            {runningCount}/{sorted.length} running
-          </span>
+        <div
+          className={`host-header ${
+            !collapsed && sorted.length > 0 ? "expanded" : ""
+          }`}
+        >
+          <button
+            type="button"
+            className="host-toggle-btn"
+            onClick={() => setCollapsed((current) => !current)}
+            aria-expanded={!collapsed}
+          >
+            <span className="host-toggle">▾</span>
+            <span className="host-name">Containers</span>
+            <span
+              className={`host-running-count ${runningCount === 0 ? "none" : ""}`}
+            >
+              {runningCount}/{sorted.length} running
+            </span>
+          </button>
+
+          <div className="host-controls">
+            <SortControl value={sortBy} onChange={setSortBy} />
+          </div>
         </div>
 
-        {sorted.length === 0 ? (
-          <div className="empty-state">No containers reported yet.</div>
-        ) : (
-          <div className="container-list">
-            {sorted.map((container) => (
-              <ContainerRow
-                key={container.id}
-                container={container}
-                host={host}
-                pending={onControl.pending}
-                onControl={onControl.run}
-              />
-            ))}
-          </div>
-        )}
+        {!collapsed &&
+          (sorted.length === 0 ? (
+            <div className="empty-state">No containers reported yet.</div>
+          ) : (
+            <div className="container-list">
+              {sorted.map((container) => (
+                <ContainerRow
+                  key={container.id}
+                  container={container}
+                  host={host}
+                  pending={onControl.pending}
+                  onControl={onControl.run}
+                />
+              ))}
+            </div>
+          ))}
       </div>
     </section>
   );

@@ -1,18 +1,57 @@
 import { useState } from "react";
 import ContainerRow from "./ContainerRow";
+import SortControl from "./SortControl";
 import { sortContainers } from "./containerSort";
 
-function ContainerList({ containers, sortBy, onControl }) {
-  const [collapsed, setCollapsed] = useState({});
+function HostGroup({ host, containers, onControl }) {
+  const [collapsed, setCollapsed] = useState(false);
+  const [sortBy, setSortBy] = useState("name");
 
+  const sorted = sortContainers(containers, sortBy);
+  const runningCount = sorted.filter((c) => c.status === "running").length;
+
+  return (
+    <div className="host-group">
+      <div className={`host-header ${collapsed ? "" : "expanded"}`}>
+        <button
+          type="button"
+          className="host-toggle-btn"
+          onClick={() => setCollapsed((current) => !current)}
+          aria-expanded={!collapsed}
+        >
+          <span className="host-toggle">▾</span>
+          <span className="host-name">{host}</span>
+          <span
+            className={`host-running-count ${runningCount === 0 ? "none" : ""}`}
+          >
+            {runningCount}/{sorted.length} running
+          </span>
+        </button>
+
+        <div className="host-controls">
+          <SortControl value={sortBy} onChange={setSortBy} />
+        </div>
+      </div>
+
+      {!collapsed && (
+        <div className="container-list">
+          {sorted.map((container) => (
+            <ContainerRow
+              key={container.id}
+              container={container}
+              host={host}
+              pending={onControl.pending}
+              onControl={onControl.run}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ContainerList({ containers, onControl }) {
   const hosts = Object.keys(containers).sort();
-
-  function toggleHost(host) {
-    setCollapsed((current) => ({
-      ...current,
-      [host]: !current[host],
-    }));
-  }
 
   return (
     <section className="containers-section">
@@ -27,56 +66,14 @@ function ContainerList({ containers, sortBy, onControl }) {
         <div className="empty-state">No agents reporting containers yet.</div>
       )}
 
-      {hosts.map((host) => {
-        const hostContainers = sortContainers(containers[host], sortBy);
-
-        const runningCount = hostContainers.filter(
-          (container) => container.status === "running"
-        ).length;
-
-        const isCollapsed = Boolean(collapsed[host]);
-
-        return (
-          <div
-            className={`host-group ${isCollapsed ? "" : "expanded"}`}
-            key={host}
-          >
-            <button
-              type="button"
-              className="host-header"
-              onClick={() => toggleHost(host)}
-              aria-expanded={!isCollapsed}
-            >
-              <span className="host-toggle">▾</span>
-              <span className="host-name">{host}</span>
-
-              <span className="host-summary">
-                <span
-                  className={`host-running-count ${
-                    runningCount === 0 ? "none" : ""
-                  }`}
-                >
-                  {runningCount}/{hostContainers.length} running
-                </span>
-              </span>
-            </button>
-
-            {!isCollapsed && (
-              <div className="container-list">
-                {hostContainers.map((container) => (
-                  <ContainerRow
-                    key={`${host}-${container.id}`}
-                    container={container}
-                    host={host}
-                    pending={onControl.pending}
-                    onControl={onControl.run}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      })}
+      {hosts.map((host) => (
+        <HostGroup
+          key={host}
+          host={host}
+          containers={containers[host]}
+          onControl={onControl}
+        />
+      ))}
     </section>
   );
 }
