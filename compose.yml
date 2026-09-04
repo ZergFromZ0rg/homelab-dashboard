@@ -6,7 +6,11 @@ services:
     container_name: homelab-dashboard-api
     restart: unless-stopped
     environment:
-      PROMETHEUS_URL: http://prometheus:9090
+      PROMETHEUS_URL: ${PROMETHEUS_URL:-http://prometheus:9090}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:8081}
+      REGISTER_TOKEN: ${REGISTER_TOKEN:-}
+    volumes:
+      - dashboard-data:/data
     networks:
       - dashboard
       - prometheus_net
@@ -30,3 +34,6 @@ networks:
   prometheus_net:
     external: true
     name: prometheus_default
+
+volumes:
+  dashboard-data:
