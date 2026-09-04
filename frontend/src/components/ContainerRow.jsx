@@ -1,3 +1,5 @@
+import { avatarColor, containerUrl } from "./containerLink";
+
 function formatBytes(bytes) {
   if (bytes == null) return "—";
 
@@ -33,6 +35,18 @@ function formatStartedAt(value) {
   return `${minutes}m`;
 }
 
+function ContainerAvatar({ name }) {
+  return (
+    <div
+      className="container-avatar"
+      style={{ background: avatarColor(name) }}
+      aria-hidden="true"
+    >
+      {name.charAt(0).toUpperCase()}
+    </div>
+  );
+}
+
 function ContainerRow({ container, host, pending, onControl }) {
   const key = `${host}-${container.id}`;
   const action = pending[key];
@@ -46,13 +60,33 @@ function ContainerRow({ container, host, pending, onControl }) {
   const network = stats?.network;
   const blockIo = stats?.block_io;
 
+  const url = containerUrl(host, container.ports);
+  const cpuPercent = stats?.cpu_percent;
+  const ramPercent = memory?.percent;
+
   return (
     <div className="container-row">
       <div className="container-main">
         <div className="container-title">
-          <div>
-            <strong>{container.name}</strong>
-            <span>{container.image}</span>
+          <div className="container-identity">
+            <ContainerAvatar name={container.name} />
+
+            <div className="container-name-block">
+              {url ? (
+                <a
+                  className="container-link"
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={`Open ${url}`}
+                >
+                  {container.name}
+                </a>
+              ) : (
+                <strong>{container.name}</strong>
+              )}
+              <span>{container.image}</span>
+            </div>
           </div>
 
           <div className="container-badges">
@@ -68,12 +102,16 @@ function ContainerRow({ container, host, pending, onControl }) {
           </div>
         </div>
 
-        <div className="container-stats-grid">
+        <div className="container-primary-stats">
           <div>
             <span>CPU</span>
-            <strong>
-              {stats?.cpu_percent != null ? `${stats.cpu_percent}%` : "—"}
-            </strong>
+            <strong>{cpuPercent != null ? `${cpuPercent}%` : "—"}</strong>
+            <div className="mini-bar">
+              <div
+                className="mini-bar-fill mini-bar-fill--cpu"
+                style={{ width: `${Math.min(cpuPercent ?? 0, 100)}%` }}
+              />
+            </div>
           </div>
 
           <div>
@@ -82,10 +120,20 @@ function ContainerRow({ container, host, pending, onControl }) {
               {memory?.used_bytes != null
                 ? formatBytes(memory.used_bytes)
                 : "—"}
+              {ramPercent != null && (
+                <small> · {ramPercent}%</small>
+              )}
             </strong>
-            <small>{memory?.percent != null ? `${memory.percent}%` : ""}</small>
+            <div className="mini-bar">
+              <div
+                className="mini-bar-fill mini-bar-fill--ram"
+                style={{ width: `${Math.min(ramPercent ?? 0, 100)}%` }}
+              />
+            </div>
           </div>
+        </div>
 
+        <div className="container-stats-grid">
           <div>
             <span>NET ↓</span>
             <strong>
@@ -137,15 +185,6 @@ function ContainerRow({ container, host, pending, onControl }) {
             <strong>
               {container.size?.image_bytes != null
                 ? formatBytes(container.size.image_bytes)
-                : "—"}
-            </strong>
-          </div>
-
-          <div>
-            <span>WRITABLE</span>
-            <strong>
-              {container.size?.writable_bytes != null
-                ? formatBytes(container.size.writable_bytes)
                 : "—"}
             </strong>
           </div>

@@ -55,13 +55,6 @@ function ContainerList({ containers, onControl }) {
 
   return (
     <section className="containers-section">
-      <div className="section-header">
-        <div>
-          <p className="eyebrow">Docker</p>
-          <h2>Containers</h2>
-        </div>
-      </div>
-
       {hosts.length === 0 && (
         <div className="empty-state">No agents reporting containers yet.</div>
       )}

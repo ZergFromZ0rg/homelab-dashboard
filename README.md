@@ -26,21 +26,28 @@ still shows host stats, just no container list or GPU. A machine with only
 an agent registered (no Prometheus target) shows containers/GPU with host
 stats blank. See homelab-agent's README for its full env var list.
 
-## Main System vs. Nodes
+## Layout
+
+Two tabs: **Server Overview** (default) shows host stats only — the Main
+System panel plus the Nodes grid. **Containers** shows every host's
+containers in one place, grouped and collapsible per host, each group
+with its own independent sort control (name / CPU / RAM / status).
 
 The machine the dashboard itself runs on gets its own full-width "Main
-System" section at the top instead of being listed as just another node
-in the "Nodes" grid below — auto-detected, no configuration needed:
-Docker sets a container's `HOSTNAME` env var to its own short container
-ID, and every agent already reports that same ID in its container list
-(an agent lists every container on its host, dashboard-api included), so
-the backend matches its own `HOSTNAME` against those lists on every
-WebSocket tick. `MAIN_HOST` (Prometheus job / agent `HOST_NAME`) is only
-needed as a manual override — e.g. the dashboard runs on a host with no
-homelab-agent, so there's nothing for it to match against. Every
-container list — the Main System's own, and each node's — is collapsible
-and has its own independent sort control (name / CPU / RAM / status), so
-sorting one doesn't reorder the others.
+System" panel at the top of Overview instead of being listed as just
+another node in the "Nodes" grid below — auto-detected, no configuration
+needed: Docker sets a container's `HOSTNAME` env var to its own short
+container ID, and every agent already reports that same ID in its
+container list (an agent lists every container on its host, dashboard-api
+included), so the backend matches its own `HOSTNAME` against those lists
+on every WebSocket tick. `MAIN_HOST` (Prometheus job / agent `HOST_NAME`)
+is only needed as a manual override — e.g. the dashboard runs on a host
+with no homelab-agent, so there's nothing for it to match against.
+
+Each container's name links to its own web UI when the agent reports a
+published host port for it (`ports` in homelab-agent's `/containers`
+response) — `http://<host>:<port>`. Containers with nothing published
+just render as plain text.
 
 ## History and sparklines
 
