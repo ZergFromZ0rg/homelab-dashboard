@@ -51,6 +51,12 @@ function MachineVitals({ machine, history }) {
 
   return (
     <>
+      {machine.cpu_model && (
+        <div className="cpu-model" title={machine.cpu_model}>
+          {machine.cpu_model}
+        </div>
+      )}
+
       <div className="gauge-row">
         <div className="gauge-item">
           <Gauge value={machine.cpu} />

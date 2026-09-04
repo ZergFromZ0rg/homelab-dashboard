@@ -170,6 +170,15 @@ h1 {
 
 /* ----- Gauges ----- */
 
+.cpu-model {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .gauge-row {
   display: flex;
   align-items: center;

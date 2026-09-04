@@ -72,6 +72,7 @@ def _offline_machine(reachable: bool) -> dict:
         "online": reachable,
         "cpu": None,
         "cpu_cores": None,
+        "cpu_model": None,
         "ram": None,
         "ram_total_bytes": None,
         "temperature": None,

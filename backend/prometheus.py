@@ -113,6 +113,21 @@ def list_jobs() -> list[str]:
     return sorted(jobs)
 
 
+def get_cpu_models() -> dict:
+    """job -> CPU model_name, from node_cpu_info (requires node_exporter's
+    --collector.cpu.info flag; absent jobs just get no model string)."""
+    models = {}
+
+    for result in query("node_cpu_info"):
+        job = result["metric"].get("job")
+        model = result["metric"].get("model_name")
+
+        if job and model and job not in models:
+            models[job] = re.sub(r"\s+", " ", model).strip()
+
+    return models
+
+
 def get_filesystems():
     size_results = query(
         f'node_filesystem_size_bytes{{fstype!~"{PSEUDO_FSTYPE_RE}"}}'
@@ -374,12 +389,11 @@ def get_machine_stats():
 
     ram_total = value_by_job("node_memory_MemTotal_bytes")
 
-    # node_exporter doesn't expose a CPU model string unless the cpuinfo
-    # collector is enabled (it isn't here); core count is what's actually
-    # available to describe "what CPU".
     cpu_cores = value_by_job(
         "count by(job) (count by(job, cpu) (node_cpu_seconds_total))"
     )
+
+    cpu_models = get_cpu_models()
 
     uptime = value_by_job("time() - node_boot_time_seconds")
 
@@ -412,6 +426,7 @@ def get_machine_stats():
             "online": up.get(host, 0) == 1,
             "cpu": round(cpu[host], 1) if host in cpu else None,
             "cpu_cores": int(cpu_cores[host]) if host in cpu_cores else None,
+            "cpu_model": cpu_models.get(host),
             "ram": round(ram[host], 1) if host in ram else None,
             "ram_total_bytes": (
                 int(ram_total[host]) if host in ram_total else None
