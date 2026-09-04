@@ -54,12 +54,20 @@ function MachineVitals({ machine, history }) {
       <div className="gauge-row">
         <div className="gauge-item">
           <Gauge value={machine.cpu} />
-          <span>CPU</span>
+          <span>
+            CPU
+            {machine.cpu_cores != null ? ` · ${machine.cpu_cores}c` : ""}
+          </span>
         </div>
 
         <div className="gauge-item">
           <Gauge value={machine.ram} />
-          <span>RAM</span>
+          <span>
+            RAM
+            {machine.ram_total_bytes != null
+              ? ` · ${formatBytes(machine.ram_total_bytes)}`
+              : ""}
+          </span>
         </div>
 
         <div className="mini-stats">

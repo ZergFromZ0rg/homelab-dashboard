@@ -372,6 +372,15 @@ def get_machine_stats():
         "100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)"
     )
 
+    ram_total = value_by_job("node_memory_MemTotal_bytes")
+
+    # node_exporter doesn't expose a CPU model string unless the cpuinfo
+    # collector is enabled (it isn't here); core count is what's actually
+    # available to describe "what CPU".
+    cpu_cores = value_by_job(
+        "count by(job) (count by(job, cpu) (node_cpu_seconds_total))"
+    )
+
     uptime = value_by_job("time() - node_boot_time_seconds")
 
     load1 = value_by_job("node_load1")
@@ -402,7 +411,11 @@ def get_machine_stats():
         machines[host] = {
             "online": up.get(host, 0) == 1,
             "cpu": round(cpu[host], 1) if host in cpu else None,
+            "cpu_cores": int(cpu_cores[host]) if host in cpu_cores else None,
             "ram": round(ram[host], 1) if host in ram else None,
+            "ram_total_bytes": (
+                int(ram_total[host]) if host in ram_total else None
+            ),
             "temperature": (
                 round(temperatures[host], 1)
                 if host in temperatures
