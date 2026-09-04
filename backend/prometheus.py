@@ -21,16 +21,31 @@ WHOLE_DISK_RE = (
     "sd[a-z]+|nvme[0-9]+n[0-9]+|vd[a-z]+|xvd[a-z]+|hd[a-z]+|mmcblk[0-9]+"
 )
 
-# Pseudo / bind / ephemeral filesystems that are not real storage.
+# Pseudo / ephemeral filesystems that are not real storage. Deliberately
+# excludes "fuse*" as a family — fuseblk (ntfs-3g) and sshfs/rclone mounts
+# are real disks a homelab actually cares about; only the kernel pseudo-fs
+# families below are structurally never storage.
 PSEUDO_FSTYPE_RE = (
-    "tmpfs|overlay|squashfs|vfat|ramfs|devtmpfs|efivarfs|autofs|nsfs|tracefs"
+    "tmpfs|overlay|squashfs|ramfs|devtmpfs|efivarfs|autofs|nsfs|tracefs"
     "|debugfs|securityfs|fusectl|configfs|bpf|cgroup.*|proc|sysfs|mqueue"
-    "|pstore|fuse.*|rpc_pipefs|binfmt_misc"
+    "|pstore|rpc_pipefs|binfmt_misc"
 )
 
 SKIP_MOUNT_RE = re.compile(
     r"^/(boot|dev|proc|sys|run|snap|var/lib/docker|var/lib/kubelet|var/snap)(/|$)"
 )
+
+# Docker auto-bind-mounts these single files from the host into every
+# container (for hostname/DNS resolution). node_exporter running
+# containerized reports each as if it were its own filesystem mount,
+# duplicating the real root filesystem — drop them by exact mountpoint.
+SKIP_MOUNT_EXACT = {
+    "/etc/hostname",
+    "/etc/hosts",
+    "/etc/resolv.conf",
+    "/etc/mtab",
+    "/etc/timezone",
+}
 
 # Highest plausible CPU/board temperature in Celsius; anything above is a
 # bogus sensor reading and is dropped.
@@ -108,7 +123,8 @@ def get_filesystems():
 
         avail_lookup[key] = float(result["value"][1])
 
-    filesystems = {}
+    # (job, device) -> [(mountpoint, total_bytes, available_bytes), ...]
+    by_device: dict[tuple, list] = {}
 
     for result in size_results:
         metric = result["metric"]
@@ -117,7 +133,7 @@ def get_filesystems():
         device = metric.get("device")
         mountpoint = metric.get("mountpoint")
 
-        if not job or not mountpoint:
+        if not job or not device or not mountpoint:
             continue
 
         if SKIP_MOUNT_RE.match(mountpoint):
@@ -128,6 +144,26 @@ def get_filesystems():
 
         if available is None or total <= 0:
             continue
+
+        by_device.setdefault((job, device), []).append(
+            (mountpoint, total, available)
+        )
+
+    filesystems = {}
+
+    for (job, device), entries in by_device.items():
+        # A containerized node_exporter often can't see the real host "/"
+        # at all — only the three files Docker auto-bind-mounts from it
+        # (/etc/hostname, /etc/hosts, /etc/resolv.conf), each reported as
+        # its own "mount" of the same device. Collapse one device down to
+        # a single row: prefer a genuinely-named mountpoint if any is
+        # present, otherwise relabel one of those bind files as "/",
+        # since that's what it actually represents.
+        real = [entry for entry in entries if entry[0] not in SKIP_MOUNT_EXACT]
+        mountpoint, total, available = (real or entries)[0]
+
+        if mountpoint in SKIP_MOUNT_EXACT:
+            mountpoint = "/"
 
         used = total - available
         used_percent = (used / total) * 100
