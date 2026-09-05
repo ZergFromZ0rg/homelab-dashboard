@@ -61,9 +61,14 @@ re-hitting Prometheus every tick.
 GPU temperature and each container's up/down status don't come from
 Prometheus at all (GPU is agent-reported, container status is a live
 Docker snapshot), so `backend/live_history.py` keeps its own 30-minute
-rolling buffer in memory, sampled once per `/ws` tick. It resets on every
-dashboard restart/redeploy — this is meant to answer "is this flapping
-right now", not to be a long-term record. Each container gets a
+rolling buffer, sampled once per `/ws` tick and persisted to
+`/data/live_history.json` (same volume as the node registry) at most
+once every 30s — so redeploying the dashboard doesn't wipe history for
+containers that never actually restarted. Keyed by `(host, container_id)`
+for containers, so a container that *is* recreated naturally starts a
+fresh history under its new id rather than inheriting the old one's.
+This is meant to answer "is this flapping right now", not to be a
+long-term record. Each container gets a
 30-bucket heartbeat bar plus a recent uptime % (fraction of samples where
 Docker reported it `running` and, if it has a healthcheck, not
 `unhealthy`) — this is a passive read of container status already being

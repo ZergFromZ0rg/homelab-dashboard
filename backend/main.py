@@ -206,6 +206,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     )
 
             live_history.prune_containers(live_container_keys)
+            await asyncio.to_thread(live_history.maybe_persist)
 
             main_host = MAIN_HOST_OVERRIDE or _detect_main_host(agent_data)
 

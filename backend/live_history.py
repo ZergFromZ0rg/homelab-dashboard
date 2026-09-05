@@ -1,9 +1,16 @@
-"""In-memory rolling history for data that doesn't come from Prometheus:
-GPU temperature and container up/down status. Sampled once per /ws tick
-(every 2s), kept for WINDOW_SECONDS, and lost on restart — there's no
-underlying time-series store for this the way there is for host metrics.
+"""Rolling history for data that doesn't come from Prometheus: GPU
+temperature and container up/down status. Sampled once per /ws tick
+(every 2s), kept for WINDOW_SECONDS.
+
+Persisted to disk (same volume the node registry uses) so a dashboard
+redeploy doesn't wipe history for containers that never actually
+restarted — only re-run every PERSIST_INTERVAL_SECONDS regardless of the
+2s sample rate, since writing to disk on every single sample would be
+wasteful for data this short-lived anyway.
 """
 
+import json
+import os
 import time
 from collections import deque
 
@@ -12,8 +19,72 @@ SAMPLE_INTERVAL_SECONDS = 2
 MAX_SAMPLES = WINDOW_SECONDS // SAMPLE_INTERVAL_SECONDS
 HEARTBEAT_BUCKETS = 30
 
+PERSIST_PATH = os.getenv("LIVE_HISTORY_FILE", "/data/live_history.json")
+PERSIST_INTERVAL_SECONDS = 30
+
 _gpu_temps: dict[str, deque] = {}
 _container_samples: dict[tuple, deque] = {}
+_last_persisted = 0.0
+
+
+def _load() -> None:
+    try:
+        with open(PERSIST_PATH, "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+    except (OSError, ValueError):
+        return
+
+    now = time.time()
+
+    for host, points in (data.get("gpu_temps") or {}).items():
+        fresh = [p for p in points if now - p["t"] < WINDOW_SECONDS]
+
+        if fresh:
+            _gpu_temps[host] = deque(fresh, maxlen=MAX_SAMPLES)
+
+    for key, samples in (data.get("container_samples") or {}).items():
+        host, _, container_id = key.partition("|")
+        fresh = [s for s in samples if now - s["t"] < WINDOW_SECONDS]
+
+        if fresh:
+            _container_samples[(host, container_id)] = deque(
+                fresh, maxlen=MAX_SAMPLES
+            )
+
+
+def _save() -> None:
+    try:
+        os.makedirs(os.path.dirname(PERSIST_PATH), exist_ok=True)
+
+        data = {
+            "gpu_temps": {host: list(buf) for host, buf in _gpu_temps.items()},
+            "container_samples": {
+                f"{host}|{container_id}": list(buf)
+                for (host, container_id), buf in _container_samples.items()
+            },
+        }
+
+        tmp_path = f"{PERSIST_PATH}.tmp"
+
+        with open(tmp_path, "w", encoding="utf-8") as handle:
+            json.dump(data, handle)
+
+        os.replace(tmp_path, PERSIST_PATH)
+
+    except OSError as error:
+        print(f"live_history: failed to persist: {error}")
+
+
+def maybe_persist() -> None:
+    """Call once per /ws tick; actually writes at most every
+    PERSIST_INTERVAL_SECONDS regardless of how often it's called."""
+    global _last_persisted
+
+    now = time.time()
+
+    if now - _last_persisted >= PERSIST_INTERVAL_SECONDS:
+        _last_persisted = now
+        _save()
 
 
 def record_gpu_temp(host: str, temperature_c) -> None:
@@ -36,7 +107,7 @@ def record_container_sample(host: str, container_id: str, status: str, health) -
 
 def prune_containers(live_keys: set) -> None:
     """Drop history for containers that no longer exist, so removed
-    containers don't accumulate forever in memory."""
+    containers don't accumulate forever in memory (or on disk)."""
     for key in list(_container_samples.keys()):
         if key not in live_keys:
             del _container_samples[key]
@@ -72,3 +143,6 @@ def container_heartbeat(host: str, container_id: str) -> dict:
     uptime_percent = round(100 * up_count / len(samples), 1)
 
     return {"buckets": buckets, "uptime_percent": uptime_percent}
+
+
+_load()
