@@ -500,6 +500,16 @@ h1 {
   color: var(--text-muted);
 }
 
+.container-badge-scheduled {
+  font-size: 8px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  padding: 1px 5px;
+}
+
 .container-status.running {
   color: var(--online);
 }

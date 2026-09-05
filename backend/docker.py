@@ -115,6 +115,17 @@ def deploy_container(nodes: dict, host: str, spec_payload: dict) -> dict:
         timeout=DEPLOY_TIMEOUT_SECONDS,
     )
 
+    # An agent from before the deploy endpoint existed has no route here.
+    if response.status_code == 404:
+        return {
+            "success": False,
+            "error": (
+                "this agent has no POST /containers route — update "
+                "homelab-agent on that host to a build with deploy.py"
+            ),
+            "stage": "policy",
+        }
+
     # The agent reports pull/create/start failures as a 4xx/5xx with a JSON
     # body; surface that body rather than a bare status code.
     if response.status_code >= 400:

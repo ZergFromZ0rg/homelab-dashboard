@@ -8,14 +8,15 @@ reasoning — but the placement decision itself is a deterministic scorer.
 
 ## Status (2026-09-05)
 
-Milestones 1–6 implemented. Agent `POST /containers` + `DELETE
-/containers/{id}` live in `homelab-agent/deploy.py` with a policy layer
-(`AGENT_TOKEN`, `ALLOWED_REGISTRIES`, `ALLOWED_HOST_PATHS`), verified
-end-to-end against a real Docker daemon. Dashboard side: `scheduler.py`,
-`deployments.py`, `llm.py`, the `/api/deployments` routes, and the Deploy
-tab. 40 tests across the two repos. Not yet done: milestone 7 polish,
-compose-stack support, and any production hardening beyond the shared
-tokens. Nothing committed.
+All seven milestones implemented, on branch `ai-scheduler` in both repos
+(pushed, no PRs). Agent `POST /containers` + `DELETE /containers/{id}` in
+`homelab-agent/deploy.py` with a policy layer (`AGENT_TOKEN`,
+`ALLOWED_REGISTRIES`, `ALLOWED_HOST_PATHS`), verified end-to-end against a
+real Docker daemon. Dashboard: `scheduler.py` (incl. host-port-conflict
+filter), `deployments.py`, `llm.py`, the `/api/deployments` routes, the
+Deploy tab, a "scheduled" badge on managed containers. 46 tests across the
+two repos. Not done: compose-stack support, production hardening beyond
+the shared tokens, stateful volume migration.
 
 ## Scope
 

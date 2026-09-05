@@ -99,6 +99,12 @@ function ContainerRow({ container, host, hostCores, pending, onControl }) {
           </div>
 
           <div className="container-badges">
+            {container.deployed_by === "homelab-dashboard" && (
+              <span className="container-badge-scheduled" title="Placed by the scheduler">
+                scheduled
+              </span>
+            )}
+
             {container.health && (
               <span className={`container-health ${container.health}`}>
                 {container.health}
