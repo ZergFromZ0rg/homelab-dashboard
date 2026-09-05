@@ -8,6 +8,7 @@ import requests
 from backend.prometheus import get_machine_stats, get_machine_history
 from backend.docker import get_all_containers, control_container
 from backend.registry import NodeRegistry
+from backend import live_history
 
 app = FastAPI()
 
@@ -175,12 +176,36 @@ async def websocket_endpoint(websocket: WebSocket):
                 for host, data in agent_data.items()
             }
 
+            live_container_keys = set()
+
             for host, data in agent_data.items():
                 machines.setdefault(
                     host,
                     _offline_machine(data.get("reachable", False)),
                 )
                 machines[host]["gpu"] = data.get("gpu")
+
+                gpu_devices = (data.get("gpu") or {}).get("devices") or []
+                gpu_temp = gpu_devices[0].get("temperature_c") if gpu_devices else None
+                live_history.record_gpu_temp(host, gpu_temp)
+
+                history.setdefault(host, {})["gpu_temperature"] = (
+                    live_history.gpu_temp_history(host)
+                )
+
+                for container in data.get("containers", []):
+                    live_history.record_container_sample(
+                        host,
+                        container["id"],
+                        container["status"],
+                        container.get("health"),
+                    )
+                    live_container_keys.add((host, container["id"]))
+                    container["heartbeat"] = live_history.container_heartbeat(
+                        host, container["id"]
+                    )
+
+            live_history.prune_containers(live_container_keys)
 
             main_host = MAIN_HOST_OVERRIDE or _detect_main_host(agent_data)
 

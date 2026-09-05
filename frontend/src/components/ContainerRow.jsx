@@ -1,4 +1,5 @@
 import { avatarColor, containerUrl } from "./containerLink";
+import Heartbeat from "./Heartbeat";
 
 function formatBytes(bytes) {
   if (bytes == null) return "—";
@@ -101,6 +102,8 @@ function ContainerRow({ container, host, pending, onControl }) {
             </span>
           </div>
         </div>
+
+        <Heartbeat heartbeat={container.heartbeat} />
 
         <div className="container-primary-stats">
           <div>

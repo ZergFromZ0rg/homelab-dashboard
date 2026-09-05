@@ -251,7 +251,7 @@ def get_disk_io():
 CPU_HWMON_CHIP_NAMES = {"k10temp", "coretemp", "zenpower", "cpu_thermal"}
 
 
-def get_cpu_temperatures() -> dict:
+def _cpu_chip_ids_by_job() -> dict:
     cpu_chips: dict[str, set] = {}
 
     for result in query("node_hwmon_chip_names"):
@@ -262,6 +262,12 @@ def get_cpu_temperatures() -> dict:
 
         if job and chip and chip_name in CPU_HWMON_CHIP_NAMES:
             cpu_chips.setdefault(job, set()).add(chip)
+
+    return cpu_chips
+
+
+def get_cpu_temperatures() -> dict:
+    cpu_chips = _cpu_chip_ids_by_job()
 
     if not cpu_chips:
         return {}
@@ -307,6 +313,39 @@ def _series_by_job(promql: str, start: float, end: float, step: int) -> dict:
         ]
 
     return series
+
+
+def _temperature_history(start: float, end: float, step: int) -> dict:
+    """Same CPU-chip preference as get_cpu_temperatures(), as a range query.
+
+    Queried per-job (not one query with chip=~"a|b|c" across all jobs) so a
+    chip id that happens to collide between two different hosts can't leak
+    one host's sensor into another's series.
+    """
+    cpu_chips = _cpu_chip_ids_by_job()
+    result = {}
+
+    for job in list_jobs():
+        chips = cpu_chips.get(job)
+
+        if chips:
+            chip_re = "|".join(re.escape(chip) for chip in sorted(chips))
+            promql = (
+                f'max by(job) (node_hwmon_temp_celsius'
+                f'{{job="{job}",chip=~"{chip_re}"}} < {MAX_TEMP_C})'
+            )
+        else:
+            promql = (
+                f'max by(job) (node_hwmon_temp_celsius'
+                f'{{job="{job}"}} < {MAX_TEMP_C})'
+            )
+
+        series = _series_by_job(promql, start, end, step)
+
+        if job in series:
+            result[job] = series[job]
+
+    return result
 
 
 def get_machine_history() -> dict:
@@ -357,12 +396,15 @@ def get_machine_history() -> dict:
         step,
     )
 
+    temperature = _temperature_history(start, end, step)
+
     jobs = set(cpu) | set(ram) | set(network_rx) | set(network_tx)
 
     history = {
         job: {
             "cpu": cpu.get(job, []),
             "ram": ram.get(job, []),
+            "temperature": temperature.get(job, []),
             "network_rx": network_rx.get(job, []),
             "network_tx": network_tx.get(job, []),
         }

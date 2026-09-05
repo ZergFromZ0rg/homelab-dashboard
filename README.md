@@ -51,11 +51,23 @@ just render as plain text.
 
 ## History and sparklines
 
-CPU, RAM, and network cards carry a small trend line for the last 30
-minutes, sourced from Prometheus range queries (`get_machine_history` in
-`backend/prometheus.py`). That query is re-run at most once every 30s and
-cached — the `/ws` loop calls it every 2s like everything else, but reuses
-the cached series in between instead of re-hitting Prometheus every tick.
+CPU, RAM, CPU temperature, and network cards carry a small trend line for
+the last 30 minutes, sourced from Prometheus range queries
+(`get_machine_history` in `backend/prometheus.py`). That query is re-run
+at most once every 30s and cached — the `/ws` loop calls it every 2s like
+everything else, but reuses the cached series in between instead of
+re-hitting Prometheus every tick.
+
+GPU temperature and each container's up/down status don't come from
+Prometheus at all (GPU is agent-reported, container status is a live
+Docker snapshot), so `backend/live_history.py` keeps its own 30-minute
+rolling buffer in memory, sampled once per `/ws` tick. It resets on every
+dashboard restart/redeploy — this is meant to answer "is this flapping
+right now", not to be a long-term record. Each container gets a
+30-bucket heartbeat bar plus a recent uptime % (fraction of samples where
+Docker reported it `running` and, if it has a healthcheck, not
+`unhealthy`) — this is a passive read of container status already being
+polled, not an active HTTP check the way Uptime Kuma monitors a URL.
 
 ## Run
 

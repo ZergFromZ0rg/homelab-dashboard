@@ -215,6 +215,13 @@ h1 {
   align-items: center;
   gap: 3px;
   flex-shrink: 0;
+  width: 64px;
+}
+
+.gauge-item .sparkline,
+.gauge-item .sparkline-empty {
+  align-self: stretch;
+  width: auto;
 }
 
 .gauge-item span {
@@ -516,6 +523,40 @@ h1 {
 
 .container-health.starting {
   color: var(--warning);
+}
+
+.heartbeat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.heartbeat-bars {
+  display: flex;
+  gap: 2px;
+  flex: 1;
+}
+
+.heartbeat-bar {
+  flex: 1;
+  height: 14px;
+  background: var(--bg-subtle);
+}
+
+.heartbeat-bar--up {
+  background: var(--online);
+}
+
+.heartbeat-bar--down {
+  background: var(--offline);
+}
+
+.heartbeat-uptime {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .container-primary-stats {

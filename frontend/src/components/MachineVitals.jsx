@@ -64,6 +64,7 @@ function MachineVitals({ machine, history }) {
             CPU
             {machine.cpu_cores != null ? ` · ${machine.cpu_cores}c` : ""}
           </span>
+          <Sparkline points={history?.cpu} max={100} variant="cpu" />
         </div>
 
         <div className="gauge-item">
@@ -74,6 +75,7 @@ function MachineVitals({ machine, history }) {
               ? ` · ${formatBytes(machine.ram_total_bytes)}`
               : ""}
           </span>
+          <Sparkline points={history?.ram} max={100} variant="ram" />
         </div>
 
         <div className="mini-stats">
@@ -82,6 +84,7 @@ function MachineVitals({ machine, history }) {
             <strong>
               {machine.temperature != null ? `${machine.temperature}°C` : "—"}
             </strong>
+            <Sparkline points={history?.temperature} variant="cpu" />
           </div>
 
           <div>
@@ -144,6 +147,7 @@ function MachineVitals({ machine, history }) {
                 <div>
                   <span>GPU TEMP</span>
                   <strong>{gpu.temperature_c}°C</strong>
+                  <Sparkline points={history?.gpu_temperature} variant="cpu" />
                 </div>
               )}
 
