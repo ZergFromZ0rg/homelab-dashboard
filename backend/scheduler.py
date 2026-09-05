@@ -70,6 +70,23 @@ def _free_disk_bytes(machine: dict) -> float | None:
     return max(frees) if frees else None
 
 
+def _used_host_ports(containers: list[dict] | None) -> set[int]:
+    """Published host ports already bound by containers on a node.
+
+    homelab-agent reports ``ports`` as ``{"80/tcp": ["8080"], ...}`` —
+    target spec to a list of host port strings.
+    """
+    used: set[int] = set()
+    for container in containers or []:
+        for host_ports in (container.get("ports") or {}).values():
+            for port in host_ports or []:
+                try:
+                    used.add(int(port))
+                except (TypeError, ValueError):
+                    continue
+    return used
+
+
 def _managed_count(host: str, deployments: list[dict] | None) -> int:
     if not deployments:
         return 0
@@ -86,6 +103,7 @@ def score_node(
     spec: DeploymentSpec,
     *,
     stale: bool = False,
+    used_host_ports: set[int] | None = None,
 ) -> PlacementResult:
     res = spec.resources
     con = spec.constraints
@@ -160,6 +178,17 @@ def score_node(
             f"{free_disk / MB / 1024:.1f} GB free on disk"
         )
 
+    if used_host_ports and spec.ports:
+        clashes = sorted(
+            {p.host for p in spec.ports} & used_host_ports
+        )
+        if clashes:
+            return disqualify(
+                "host port "
+                + ", ".join(str(p) for p in clashes)
+                + f" already in use on {host}"
+            )
+
     # ---- fit score --------------------------------------------------
     # Worst-fit: prefer the node left with the *most* headroom after
     # placement, so load spreads instead of piling onto one box.
@@ -218,16 +247,26 @@ def score_nodes(
     *,
     stale_hosts: set[str] | None = None,
     deployments: list[dict] | None = None,
+    containers: dict[str, list[dict]] | None = None,
 ) -> list[PlacementResult]:
     """Rank every known node, best first.
 
     Ineligible nodes are still returned (score 0, ``eligible=False``) with
-    the disqualifying reason so the UI can show "why not".
+    the disqualifying reason so the UI can show "why not". ``containers``
+    is ``{host: [container, ...]}`` from the /ws snapshot, used to reject a
+    node whose requested host ports are already bound.
     """
     stale_hosts = stale_hosts or set()
+    containers = containers or {}
 
     results = [
-        score_node(host, machine, spec, stale=host in stale_hosts)
+        score_node(
+            host,
+            machine,
+            spec,
+            stale=host in stale_hosts,
+            used_host_ports=_used_host_ports(containers.get(host)),
+        )
         for host, machine in machines.items()
     ]
 

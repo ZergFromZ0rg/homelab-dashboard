@@ -220,7 +220,7 @@ def _score(spec: DeploymentSpec):
     Returns ``(effective_spec, ranked, recommended, explanation,
     parsed_constraints, warnings)``.
     """
-    _, machines, _, _, stale_hosts = _build_fleet()
+    _, machines, containers, _, stale_hosts = _build_fleet()
 
     warnings: list[str] = []
     parsed = None
@@ -238,6 +238,7 @@ def _score(spec: DeploymentSpec):
         machines,
         stale_hosts=stale_hosts,
         deployments=[d.model_dump() for d in deployments.all()],
+        containers=containers,
     )
     recommended = scheduler.recommended_node(ranked)
     explanation = llm.explain_placement(effective, ranked)

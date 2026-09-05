@@ -156,6 +156,34 @@ def test_all_ineligible_recommends_none():
     assert recommended_node(ranked) is None
 
 
+def test_host_port_conflict_disqualifies():
+    machines = {"a": machine(), "b": machine()}
+    containers = {
+        "a": [{"id": "c1", "ports": {"8096/tcp": ["8096"]}}],
+        "b": [],
+    }
+    ranked = score_nodes(
+        spec(ports=[{"container": 8096, "host": 8096}]),
+        machines,
+        containers=containers,
+    )
+    assert recommended_node(ranked) == "b"
+    node_a = next(r for r in ranked if r.node == "a")
+    assert node_a.eligible is False
+    assert "8096" in node_a.reasons[0]
+
+
+def test_host_port_free_when_no_conflict():
+    machines = {"a": machine()}
+    containers = {"a": [{"id": "c1", "ports": {"80/tcp": ["8080"]}}]}
+    ranked = score_nodes(
+        spec(ports=[{"container": 8096, "host": 8096}]),
+        machines,
+        containers=containers,
+    )
+    assert recommended_node(ranked) == "a"
+
+
 def test_estimate_image_mb_hint_and_default():
     assert estimate_image_mb("alpine:3.20") == 20
     assert estimate_image_mb("lscr.io/linuxserver/jellyfin") == 1300

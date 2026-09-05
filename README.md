@@ -82,10 +82,11 @@ for it:
 
 1. `backend/scheduler.py` scores every registered node against the spec —
    hard filters (offline, no GPU when required, not enough free RAM, disk
-   too full, constraint violations) then a worst-fit headroom score with
-   penalties for wasting a GPU box, a hot CPU sensor, or a stale agent.
-   Pure arithmetic over the same stats the dashboard already streams; no
-   LLM involved in the decision.
+   too full, a requested host port already bound on that node, constraint
+   violations) then a worst-fit headroom score with penalties for wasting
+   a GPU box, a hot CPU sensor, or a stale agent. Pure arithmetic over the
+   same stats the dashboard already streams; no LLM involved in the
+   decision.
 2. `backend/llm.py` (only when `ANTHROPIC_API_KEY` is set) turns the
    free-text "notes" field into structured constraints and writes a short
    rationale. It never changes the ranking.
