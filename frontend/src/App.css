@@ -204,31 +204,30 @@ h1 {
 
 .gauge-row {
   display: flex;
-  align-items: center;
-  gap: 14px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.gauge-item {
+.gauge-stat {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.gauge-stat-info {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  flex-shrink: 0;
-  width: 64px;
+  gap: 2px;
 }
 
-.gauge-item .sparkline,
-.gauge-item .sparkline-empty {
-  align-self: stretch;
-  width: auto;
-}
-
-.gauge-item span {
+.gauge-stat-info > span {
   font-size: 9px;
   color: var(--text-muted);
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .gauge {
@@ -280,7 +279,8 @@ h1 {
   display: flex;
   gap: 16px;
   flex-wrap: wrap;
-  margin-left: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
 }
 
 .mini-stats div {
@@ -401,6 +401,15 @@ h1 {
 
 .host-running-count.none::before {
   background: var(--text-faint);
+}
+
+.host-issue {
+  font-size: 10px;
+  color: var(--warning);
+}
+
+.host-issue--bad {
+  color: var(--offline);
 }
 
 .container-list {
@@ -703,17 +712,28 @@ h1 {
   font-weight: 600;
 }
 
+.sparkline-wrap {
+  display: block;
+  width: 100%;
+  margin-top: 2px;
+}
+
 .sparkline,
 .sparkline-empty {
   display: block;
   width: 100%;
-  height: 20px;
-  margin-top: 2px;
 }
 
 .sparkline-empty {
   border-bottom: 1px dashed var(--border);
-  align-self: flex-end;
+}
+
+.sparkline-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2px;
+  font-size: 8px;
+  color: var(--text-faint);
 }
 
 .sparkline-fill {

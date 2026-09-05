@@ -4,11 +4,15 @@ import SortControl from "./SortControl";
 import { sortContainers } from "./containerSort";
 
 function HostGroup({ host, containers, hostCores, onControl }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const [sortBy, setSortBy] = useState("name");
 
   const sorted = sortContainers(containers, sortBy);
   const runningCount = sorted.filter((c) => c.status === "running").length;
+  const unhealthyCount = sorted.filter(
+    (c) => c.health === "unhealthy"
+  ).length;
+  const stoppedCount = sorted.length - runningCount;
 
   return (
     <div className="host-group">
@@ -26,6 +30,14 @@ function HostGroup({ host, containers, hostCores, onControl }) {
           >
             {runningCount}/{sorted.length} running
           </span>
+          {stoppedCount > 0 && (
+            <span className="host-issue">{stoppedCount} stopped</span>
+          )}
+          {unhealthyCount > 0 && (
+            <span className="host-issue host-issue--bad">
+              {unhealthyCount} unhealthy
+            </span>
+          )}
         </button>
 
         <div className="host-controls">

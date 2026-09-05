@@ -58,24 +58,40 @@ function MachineVitals({ machine, history }) {
       )}
 
       <div className="gauge-row">
-        <div className="gauge-item">
-          <Gauge value={machine.cpu} />
-          <span>
-            CPU
-            {machine.cpu_cores != null ? ` · ${machine.cpu_cores}c` : ""}
-          </span>
-          <Sparkline points={history?.cpu} max={100} variant="cpu" />
+        <div className="gauge-stat">
+          <Gauge value={machine.cpu} size={48} strokeWidth={5} />
+          <div className="gauge-stat-info">
+            <span>
+              CPU
+              {machine.cpu_cores != null ? ` · ${machine.cpu_cores}c` : ""}
+            </span>
+            <Sparkline
+              points={history?.cpu}
+              max={100}
+              variant="cpu"
+              height={30}
+              showAxis
+            />
+          </div>
         </div>
 
-        <div className="gauge-item">
-          <Gauge value={machine.ram} />
-          <span>
-            RAM
-            {machine.ram_total_bytes != null
-              ? ` · ${formatBytes(machine.ram_total_bytes)}`
-              : ""}
-          </span>
-          <Sparkline points={history?.ram} max={100} variant="ram" />
+        <div className="gauge-stat">
+          <Gauge value={machine.ram} size={48} strokeWidth={5} />
+          <div className="gauge-stat-info">
+            <span>
+              RAM
+              {machine.ram_total_bytes != null
+                ? ` · ${formatBytes(machine.ram_total_bytes)}`
+                : ""}
+            </span>
+            <Sparkline
+              points={history?.ram}
+              max={100}
+              variant="ram"
+              height={30}
+              showAxis
+            />
+          </div>
         </div>
 
         <div className="mini-stats">
