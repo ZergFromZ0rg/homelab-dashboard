@@ -1328,6 +1328,68 @@ select.deploy-input[multiple] {
   cursor: not-allowed;
 }
 
+.fleet-capacity {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.fleet-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.fleet-row--off {
+  opacity: 0.45;
+}
+
+.fleet-node {
+  flex-shrink: 0;
+  width: 84px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fleet-bar {
+  flex: 1;
+  height: 4px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.fleet-bar-fill {
+  height: 100%;
+  background: var(--accent);
+}
+
+.fleet-bar-fill--hot {
+  background: var(--warning);
+}
+
+.fleet-free {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 10px;
+}
+
+.fleet-gpu {
+  flex-shrink: 0;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  padding: 0 4px;
+}
+
 .rebalance-panel {
   margin-bottom: 18px;
   border: 1px solid var(--warning);

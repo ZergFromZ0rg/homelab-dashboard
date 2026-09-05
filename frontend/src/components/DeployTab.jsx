@@ -1,5 +1,6 @@
 import { useState } from "react";
 import DeployForm from "./DeployForm";
+import FleetCapacity from "./FleetCapacity";
 import PlacementPreview from "./PlacementPreview";
 import DeploymentList from "./DeploymentList";
 import RebalancePanel from "./RebalancePanel";
@@ -140,6 +141,7 @@ function DeployTab({ machines, deployments }) {
             <h2>Deploy a container</h2>
           </div>
 
+          <FleetCapacity machines={machines} />
           <DeployForm spec={form} onChange={editForm} nodeNames={nodeNames} />
           <TokenBox />
 
