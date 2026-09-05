@@ -74,12 +74,50 @@ Docker reported it `running` and, if it has a healthcheck, not
 `unhealthy`) — this is a passive read of container status already being
 polled, not an active HTTP check the way Uptime Kuma monitors a URL.
 
+## Deploying containers (scheduler)
+
+The **Deploy** tab submits a container spec (image, env, ports, volumes,
+restart policy, CPU/RAM limits, constraints) and the backend picks a node
+for it:
+
+1. `backend/scheduler.py` scores every registered node against the spec —
+   hard filters (offline, no GPU when required, not enough free RAM, disk
+   too full, constraint violations) then a worst-fit headroom score with
+   penalties for wasting a GPU box, a hot CPU sensor, or a stale agent.
+   Pure arithmetic over the same stats the dashboard already streams; no
+   LLM involved in the decision.
+2. `backend/llm.py` (only when `ANTHROPIC_API_KEY` is set) turns the
+   free-text "notes" field into structured constraints and writes a short
+   rationale. It never changes the ranking.
+3. The backend `POST`s the chosen node's agent at `POST {agent}/containers`
+   to pull and run the image, and records the deployment in
+   `/data/deployments.json`. The `/ws` loop reconciles each record's
+   status against the live container list every tick.
+
+**This needs homelab-agent with `POST /containers` / `DELETE
+/containers/{id}`** (the commits that add `deploy.py`; older agents only do
+start/stop/restart and the Deploy tab will get "agent rejected"). Because
+these routes pull and run arbitrary images as root:
+
+- Set `API_TOKEN` before exposing the dashboard beyond a trusted network.
+- Set `AGENT_TOKEN` on both sides (dashboard env + each agent's
+  `AGENT_TOKEN`) so agents reject calls that don't come from the dashboard.
+- Keep each agent's `ALLOWED_REGISTRIES` / `ALLOWED_HOST_PATHS` policy
+  tight — that policy, enforced agent-side, is the real containment
+  boundary.
+
+Not in scope: compose stacks, automatic rescheduling when a node dies
+(there's a manual "redeploy elsewhere" button), cross-node networking, and
+stateful volume migration (a named volume stays on its node).
+
 ## Run
 
 ```bash
-cp .env.example .env   # adjust PROMETHEUS_URL / ALLOWED_ORIGINS / REGISTER_TOKEN / MAIN_HOST
+cp .env.example .env   # adjust PROMETHEUS_URL / ALLOWED_ORIGINS / API_TOKEN / MAIN_HOST / ANTHROPIC_API_KEY
 docker compose up -d --build
 ```
+
+Backend tests: `pip install -r backend/requirements-dev.txt && python -m pytest backend/tests`
 
 Requires an external Docker network named `prometheus_default` (the
 network your Prometheus container is on) — the compose file expects to
@@ -87,11 +125,22 @@ join it, not create it.
 
 ## API
 
+All mutating routes are gated by the `X-Register-Token` header when
+`API_TOKEN` (alias: `REGISTER_TOKEN`) is set.
+
 - `GET /api/nodes` — registered agents (name, url, last_seen, stale)
-- `POST /api/nodes` — agent self-registration, `{"name", "url"}`, gated by
-  `X-Register-Token` when `REGISTER_TOKEN` is set
+- `POST /api/nodes` — agent self-registration, `{"name", "url"}`
 - `DELETE /api/nodes/{name}` — deregister a node
 - `POST /api/containers/{host}/{container_id}/{start|stop|restart}` —
   proxies a control action to that host's agent
+- `POST /api/deployments` — body is a `DeploymentSpec`. `?dry_run=1`
+  returns the scored ranking without deploying; otherwise it deploys to
+  the top node (or `?node=<name>` to override to another eligible node)
+  and returns the `DeploymentRecord`.
+- `GET /api/deployments` / `GET /api/deployments/{id}` — managed deployments
+- `POST /api/deployments/{id}/redeploy` — re-score and move it
+  (`?exclude_current=1` by default keeps it off its current node)
+- `DELETE /api/deployments/{id}` — remove the record and, unless
+  `?keep_container=1`, tell the agent to delete the container
 - `GET /ws` — WebSocket, pushes
-  `{type, machines, containers, main_host, history}` every 2s
+  `{type, machines, containers, main_host, history, deployments}` every 2s

@@ -8,8 +8,16 @@ services:
     environment:
       PROMETHEUS_URL: ${PROMETHEUS_URL:-http://prometheus:9090}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:8081}
-      REGISTER_TOKEN: ${REGISTER_TOKEN:-}
+      # API_TOKEN is the new name; REGISTER_TOKEN still works as an alias.
+      API_TOKEN: ${API_TOKEN:-${REGISTER_TOKEN:-}}
       MAIN_HOST: ${MAIN_HOST:-}
+      # Optional: enables the scheduler's natural-language constraint
+      # parsing and placement explanations. Unset = deterministic scoring
+      # only, everything still works.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Sent as X-Agent-Token to agents that set AGENT_TOKEN. Needed for the
+      # Deploy tab to create/remove containers on token-protected agents.
+      AGENT_TOKEN: ${AGENT_TOKEN:-}
     volumes:
       - dashboard-data:/data
     networks:

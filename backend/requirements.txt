@@ -1,3 +1,7 @@
 fastapi==0.141.1
 requests==2.34.2
 uvicorn[standard]==0.52.4
+
+# Optional scheduler LLM layer (backend/llm.py). Only used when
+# ANTHROPIC_API_KEY is set; the code degrades to a no-op if it's missing.
+anthropic==1.4.0

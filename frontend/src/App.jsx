@@ -2,6 +2,7 @@ import ContainerList from "./components/ContainerList";
 import MainSystem from "./components/MainSystem";
 import MachineCard from "./components/MachineCard";
 import Tabs from "./components/Tabs";
+import DeployTab from "./components/DeployTab";
 import { useEffect, useState } from "react";
 import "./App.css";
 
@@ -40,6 +41,7 @@ function App() {
   const [machines, setMachines] = useState({});
   const [containers, setContainers] = useState({});
   const [history, setHistory] = useState({});
+  const [deployments, setDeployments] = useState([]);
   const [mainHost, setMainHost] = useState(null);
   const [connected, setConnected] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
@@ -61,6 +63,7 @@ function App() {
         setMachines(data.machines);
         setContainers(data.containers);
         setHistory(data.history ?? {});
+        setDeployments(data.deployments ?? []);
         setMainHost(data.main_host ?? null);
       }
     };
@@ -83,9 +86,14 @@ function App() {
     0
   );
 
+  const activeDeployments = deployments.filter(
+    (d) => d.status === "running" || d.status === "placing"
+  ).length;
+
   const tabs = [
     { value: "overview", label: "Server Overview" },
     { value: "containers", label: `Containers (${totalContainers})` },
+    { value: "deploy", label: `Deploy (${activeDeployments})` },
   ];
 
   return (
@@ -143,6 +151,10 @@ function App() {
           machines={machines}
           onControl={control}
         />
+      )}
+
+      {activeTab === "deploy" && (
+        <DeployTab machines={machines} deployments={deployments} />
       )}
     </main>
   );

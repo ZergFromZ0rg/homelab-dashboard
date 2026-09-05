@@ -1,0 +1,56 @@
+from backend.deployments import DeploymentStore
+from backend.models import DeploymentRecord, DeploymentSpec
+
+
+def record(**kwargs):
+    base = dict(
+        spec=DeploymentSpec(image="nginx:latest"),
+        status="running",
+        placed_on="nuc-1",
+        agent_container_id="abc123",
+    )
+    base.update(kwargs)
+    return DeploymentRecord(**base)
+
+
+def test_persists_and_reloads(tmp_path):
+    path = tmp_path / "d.json"
+    store = DeploymentStore(path)
+    rec = store.add(record())
+
+    reloaded = DeploymentStore(path)
+    assert [r.id for r in reloaded.all()] == [rec.id]
+    assert reloaded.get(rec.id).spec.image == "nginx:latest"
+
+
+def test_reconcile_marks_running_failed_offline(tmp_path):
+    store = DeploymentStore(tmp_path / "d.json")
+    running = store.add(record())
+    vanished = store.add(record(agent_container_id="gone999"))
+    on_dead_host = store.add(record(placed_on="nuc-2", agent_container_id="x1"))
+
+    live = {
+        "nuc-1": [{"id": "abc123def", "status": "running"}],
+        "nuc-2": [],
+    }
+    store.reconcile(live, offline_hosts={"nuc-2"})
+
+    assert store.get(running.id).status == "running"
+    assert store.get(vanished.id).status == "failed"
+    assert store.get(on_dead_host.id).status == "node_offline"
+
+
+def test_reconcile_leaves_placing_alone(tmp_path):
+    store = DeploymentStore(tmp_path / "d.json")
+    placing = store.add(record(status="placing", agent_container_id=None))
+    store.reconcile({"nuc-1": []}, offline_hosts=set())
+    assert store.get(placing.id).status == "placing"
+
+
+def test_reconcile_recovers_from_failed_when_container_returns(tmp_path):
+    store = DeploymentStore(tmp_path / "d.json")
+    rec = store.add(record(status="failed"))
+    store.reconcile(
+        {"nuc-1": [{"id": "abc123", "status": "running"}]}, offline_hosts=set()
+    )
+    assert store.get(rec.id).status == "running"
