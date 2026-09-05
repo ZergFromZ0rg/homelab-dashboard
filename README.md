@@ -107,6 +107,13 @@ these routes pull and run arbitrary images as root:
   tight — that policy, enforced agent-side, is the real containment
   boundary.
 
+The Deploy tab also shows **rebalancing suggestions** (`GET /api/rebalance`,
+`backend/rebalance.py`): when a node running scheduler-managed containers
+goes over `REBALANCE_CPU_PERCENT` / `REBALANCE_RAM_PERCENT`, it re-scores
+each *stateless* container there against the other nodes and proposes a
+move if one scores at least `REBALANCE_MIN_GAIN` points better. Suggestions
+only — "Move" runs the same redeploy path.
+
 Not in scope: compose stacks, automatic rescheduling when a node dies
 (there's a manual "redeploy elsewhere" button), cross-node networking, and
 stateful volume migration (a named volume stays on its node).
@@ -139,6 +146,8 @@ All mutating routes are gated by the `X-Register-Token` header when
   the top node (or `?node=<name>` to override to another eligible node)
   and returns the `DeploymentRecord`.
 - `GET /api/deployments` / `GET /api/deployments/{id}` — managed deployments
+- `GET /api/rebalance` — `{suggestions, checked_at}`; stateless managed
+  containers on an overloaded node that would score better elsewhere
 - `POST /api/deployments/{id}/redeploy` — re-score and move it
   (`?exclude_current=1` by default keeps it off its current node)
 - `DELETE /api/deployments/{id}` — remove the record and, unless

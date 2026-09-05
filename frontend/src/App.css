@@ -1328,6 +1328,54 @@ select.deploy-input[multiple] {
   cursor: not-allowed;
 }
 
+.rebalance-panel {
+  margin-bottom: 18px;
+  border: 1px solid var(--warning);
+  background: var(--warning-bg);
+  padding: 12px;
+}
+
+.rebalance-card {
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  padding: 10px;
+  margin-bottom: 8px;
+}
+
+.rebalance-card:last-of-type {
+  margin-bottom: 0;
+}
+
+.rebalance-move {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+
+.rebalance-arrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.rebalance-gain {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--online);
+}
+
+.rebalance-checked {
+  font-size: 9px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 8px 0 0;
+}
+
 @media (max-width: 900px) {
   .deploy-columns {
     grid-template-columns: 1fr;

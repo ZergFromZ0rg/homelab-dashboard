@@ -41,6 +41,10 @@ export function redeploy(id, { excludeCurrent = true, node } = {}) {
   }).then(jsonOrThrow);
 }
 
+export function fetchRebalance() {
+  return fetch("/api/rebalance", { headers: authHeaders() }).then(jsonOrThrow);
+}
+
 export function removeDeployment(id, { keepContainer = false } = {}) {
   const params = new URLSearchParams({ keep_container: String(keepContainer) });
   return fetch(`/api/deployments/${id}?${params}`, {

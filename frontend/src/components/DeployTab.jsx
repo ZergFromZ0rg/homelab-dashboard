@@ -2,6 +2,7 @@ import { useState } from "react";
 import DeployForm from "./DeployForm";
 import PlacementPreview from "./PlacementPreview";
 import DeploymentList from "./DeploymentList";
+import RebalancePanel from "./RebalancePanel";
 import { previewPlacement, deploy } from "./deployApi";
 
 const EMPTY_SPEC = {
@@ -183,6 +184,7 @@ function DeployTab({ machines, deployments }) {
         </div>
 
         <div className="deploy-pane">
+          <RebalancePanel deployments={deployments} />
           <DeploymentList deployments={deployments} />
         </div>
       </div>

@@ -8,15 +8,21 @@ reasoning — but the placement decision itself is a deterministic scorer.
 
 ## Status (2026-09-05)
 
-All seven milestones implemented, on branch `ai-scheduler` in both repos
-(pushed, no PRs). Agent `POST /containers` + `DELETE /containers/{id}` in
-`homelab-agent/deploy.py` with a policy layer (`AGENT_TOKEN`,
-`ALLOWED_REGISTRIES`, `ALLOWED_HOST_PATHS`), verified end-to-end against a
-real Docker daemon. Dashboard: `scheduler.py` (incl. host-port-conflict
-filter), `deployments.py`, `llm.py`, the `/api/deployments` routes, the
-Deploy tab, a "scheduled" badge on managed containers. 46 tests across the
-two repos. Not done: compose-stack support, production hardening beyond
-the shared tokens, stateful volume migration.
+All seven milestones merged to `main` in both repos. Agent `POST
+/containers` + `DELETE /containers/{id}` in `homelab-agent/deploy.py` with
+a policy layer (`AGENT_TOKEN`, `ALLOWED_REGISTRIES`, `ALLOWED_HOST_PATHS`),
+verified end-to-end against a real Docker daemon. Dashboard: `scheduler.py`
+(incl. host-port-conflict filter), `deployments.py`, `llm.py`, the
+`/api/deployments` routes, the Deploy tab, a "scheduled" badge on managed
+containers.
+
+Beyond the MVP, also merged: `backend/rebalance.py` + `GET /api/rebalance`
++ the Deploy tab's Rebalancing panel — re-scores stateless managed
+containers on an overloaded node and suggests moves (advisory; "Move" runs
+redeploy). 52 tests across the two repos.
+
+Not done: compose-stack support, production hardening beyond the shared
+tokens, stateful volume migration.
 
 ## Scope
 

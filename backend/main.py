@@ -1,5 +1,6 @@
 import asyncio
 import os
+import time
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect
 
@@ -18,6 +19,7 @@ from backend.deployments import DeploymentStore
 from backend.models import DeploymentSpec, DeploymentRecord, PlacementResponse
 from backend import live_history
 from backend import scheduler
+from backend import rebalance
 from backend import llm
 
 app = FastAPI()
@@ -336,6 +338,21 @@ async def create_deployment(
 @app.get("/api/deployments")
 def list_deployments():
     return [d.model_dump() for d in deployments.all()]
+
+
+@app.get("/api/rebalance")
+async def rebalance_suggestions():
+    _, machines, containers, _, stale_hosts = await asyncio.to_thread(
+        _build_fleet
+    )
+    suggestions = await asyncio.to_thread(
+        rebalance.suggest_moves,
+        machines,
+        containers,
+        deployments.all(),
+        stale_hosts=stale_hosts,
+    )
+    return {"suggestions": suggestions, "checked_at": time.time()}
 
 
 @app.get("/api/deployments/{deployment_id}")

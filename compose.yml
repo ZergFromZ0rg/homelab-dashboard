@@ -18,6 +18,11 @@ services:
       # Sent as X-Agent-Token to agents that set AGENT_TOKEN. Needed for the
       # Deploy tab to create/remove containers on token-protected agents.
       AGENT_TOKEN: ${AGENT_TOKEN:-}
+      # Rebalancing suggestion thresholds (GET /api/rebalance). Defaults
+      # apply if unset.
+      REBALANCE_CPU_PERCENT: ${REBALANCE_CPU_PERCENT:-}
+      REBALANCE_RAM_PERCENT: ${REBALANCE_RAM_PERCENT:-}
+      REBALANCE_MIN_GAIN: ${REBALANCE_MIN_GAIN:-}
     volumes:
       - dashboard-data:/data
     networks:
