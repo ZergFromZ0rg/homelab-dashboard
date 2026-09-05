@@ -138,7 +138,11 @@ function App() {
       )}
 
       {activeTab === "containers" && (
-        <ContainerList containers={containers} onControl={control} />
+        <ContainerList
+          containers={containers}
+          machines={machines}
+          onControl={control}
+        />
       )}
     </main>
   );

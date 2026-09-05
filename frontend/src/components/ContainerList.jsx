@@ -3,7 +3,7 @@ import ContainerRow from "./ContainerRow";
 import SortControl from "./SortControl";
 import { sortContainers } from "./containerSort";
 
-function HostGroup({ host, containers, onControl }) {
+function HostGroup({ host, containers, hostCores, onControl }) {
   const [collapsed, setCollapsed] = useState(false);
   const [sortBy, setSortBy] = useState("name");
 
@@ -40,6 +40,7 @@ function HostGroup({ host, containers, onControl }) {
               key={container.id}
               container={container}
               host={host}
+              hostCores={hostCores}
               pending={onControl.pending}
               onControl={onControl.run}
             />
@@ -50,7 +51,7 @@ function HostGroup({ host, containers, onControl }) {
   );
 }
 
-function ContainerList({ containers, onControl }) {
+function ContainerList({ containers, machines, onControl }) {
   const hosts = Object.keys(containers).sort();
 
   return (
@@ -64,6 +65,7 @@ function ContainerList({ containers, onControl }) {
           key={host}
           host={host}
           containers={containers[host]}
+          hostCores={machines?.[host]?.cpu_cores}
           onControl={onControl}
         />
       ))}

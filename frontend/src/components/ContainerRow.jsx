@@ -48,7 +48,7 @@ function ContainerAvatar({ name }) {
   );
 }
 
-function ContainerRow({ container, host, pending, onControl }) {
+function ContainerRow({ container, host, hostCores, pending, onControl }) {
   const key = `${host}-${container.id}`;
   const action = pending[key];
   const busy = Boolean(action);
@@ -64,6 +64,14 @@ function ContainerRow({ container, host, pending, onControl }) {
   const url = containerUrl(host, container.ports);
   const cpuPercent = stats?.cpu_percent;
   const ramPercent = memory?.percent;
+
+  // Docker's cpu_percent is 100% per core (a container fully using 6 cores
+  // shows 600%), so a flat cap at 100 makes a single-core container look
+  // just as "full" as one saturating the whole host. Scale the bar against
+  // the host's actual core count instead; the number itself stays as
+  // Docker reports it, since that raw value is still the useful one.
+  const cpuCapacity = hostCores ? hostCores * 100 : 100;
+  const cpuBarPercent = Math.min(100, ((cpuPercent ?? 0) / cpuCapacity) * 100);
 
   return (
     <div className="container-row">
@@ -108,11 +116,23 @@ function ContainerRow({ container, host, pending, onControl }) {
         <div className="container-primary-stats">
           <div>
             <span>CPU</span>
-            <strong>{cpuPercent != null ? `${cpuPercent}%` : "—"}</strong>
-            <div className="mini-bar">
+            <strong>
+              {cpuPercent != null ? `${cpuPercent}%` : "—"}
+              {hostCores != null && cpuPercent > 100 && (
+                <small> · {(cpuPercent / 100).toFixed(1)} cores</small>
+              )}
+            </strong>
+            <div
+              className="mini-bar"
+              title={
+                hostCores != null
+                  ? `${cpuBarPercent.toFixed(1)}% of host (${hostCores} cores)`
+                  : undefined
+              }
+            >
               <div
                 className="mini-bar-fill mini-bar-fill--cpu"
-                style={{ width: `${Math.min(cpuPercent ?? 0, 100)}%` }}
+                style={{ width: `${cpuBarPercent}%` }}
               />
             </div>
           </div>
