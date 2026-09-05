@@ -121,6 +121,13 @@ function DeployTab({ machines, deployments }) {
     }
   }
 
+  // Any edit makes a previous preview stale — the backend re-scores on
+  // deploy anyway, so a shown recommendation must always match the form.
+  function editForm(next) {
+    setForm(next);
+    setPreview(null);
+  }
+
   const canSubmit = form.image.trim().length > 0 && !busy;
 
   return (
@@ -132,7 +139,7 @@ function DeployTab({ machines, deployments }) {
             <h2>Deploy a container</h2>
           </div>
 
-          <DeployForm spec={form} onChange={setForm} nodeNames={nodeNames} />
+          <DeployForm spec={form} onChange={editForm} nodeNames={nodeNames} />
           <TokenBox />
 
           <div className="deploy-buttons">

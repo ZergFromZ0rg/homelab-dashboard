@@ -1,7 +1,18 @@
 // Live list of scheduler-managed deployments (from the /ws payload).
 
 import { useState } from "react";
+import { containerUrl } from "./containerLink";
 import { redeploy, removeDeployment } from "./deployApi";
+
+// spec ports ([{container, host, proto}]) -> the {"80/tcp": ["8080"]} shape
+// containerUrl() expects.
+function specPortsMap(ports) {
+  const map = {};
+  for (const p of ports ?? []) {
+    map[`${p.container}/${p.proto ?? "tcp"}`] = [String(p.host)];
+  }
+  return map;
+}
 
 const STATUS_LABEL = {
   placing: "placing",
@@ -27,6 +38,10 @@ function DeploymentCard({ record, onError }) {
   }
 
   const spec = record.spec;
+  const url =
+    record.status === "running" && record.placed_on
+      ? containerUrl(record.placed_on, specPortsMap(spec.ports))
+      : null;
 
   return (
     <div className="deployment-card">
@@ -34,7 +49,13 @@ function DeploymentCard({ record, onError }) {
         <span className={`deployment-status deployment-status--${record.status}`}>
           {STATUS_LABEL[record.status] ?? record.status}
         </span>
-        <strong>{spec.name || spec.image}</strong>
+        {url ? (
+          <a href={url} target="_blank" rel="noopener noreferrer">
+            {spec.name || spec.image}
+          </a>
+        ) : (
+          <strong>{spec.name || spec.image}</strong>
+        )}
         {record.placed_on && <span className="deployment-node">on {record.placed_on}</span>}
         {record.score != null && (
           <span className="deployment-score">score {record.score.toFixed(0)}</span>
