@@ -1,4 +1,4 @@
-function Gauge({ value, size = 52, strokeWidth = 5 }) {
+function Gauge({ value, size = 52, strokeWidth = 5, label }) {
   const pct = value == null ? null : Math.max(0, Math.min(100, value));
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -30,7 +30,9 @@ function Gauge({ value, size = 52, strokeWidth = 5 }) {
         )}
       </svg>
 
-      <div className="gauge-value">{pct != null ? `${Math.round(pct)}%` : "—"}</div>
+      <div className="gauge-value">
+        {label ?? (pct != null ? `${Math.round(pct)}%` : "—")}
+      </div>
     </div>
   );
 }

@@ -275,30 +275,24 @@ h1 {
   color: var(--text);
 }
 
-.mini-stats {
+.compact-stats {
   display: flex;
   gap: 16px;
   flex-wrap: wrap;
-  padding-top: 8px;
-  border-top: 1px solid var(--border);
-}
-
-.mini-stats div {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.mini-stats span {
-  color: var(--text-muted);
+  padding-top: 6px;
   font-size: 9px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  color: var(--text-muted);
 }
 
-.mini-stats strong {
-  font-size: 13px;
+.compact-stats strong {
+  font-size: 11px;
   font-weight: 600;
+  color: var(--text);
+  text-transform: none;
+  letter-spacing: normal;
+  margin-left: 4px;
 }
 
 .containers-section {
@@ -649,7 +643,9 @@ h1 {
 
 .container-actions {
   flex-shrink: 0;
+  min-width: 140px;
   display: flex;
+  justify-content: flex-end;
   gap: 5px;
 }
 

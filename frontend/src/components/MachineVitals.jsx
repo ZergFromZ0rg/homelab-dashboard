@@ -1,6 +1,11 @@
 import Sparkline from "./Sparkline";
 import Gauge from "./Gauge";
 
+// Reference ceiling for the CPU temperature gauge ring — not a real limit,
+// just a "how close to uncomfortably hot" scale so the ring fills
+// proportionally instead of needing its own 0-100 metric.
+const CPU_TEMP_GAUGE_MAX = 90;
+
 function formatUptime(seconds) {
   if (seconds == null) return "—";
 
@@ -76,6 +81,28 @@ function MachineVitals({ machine, history }) {
         </div>
 
         <div className="gauge-stat">
+          <Gauge
+            value={
+              machine.temperature != null
+                ? (machine.temperature / CPU_TEMP_GAUGE_MAX) * 100
+                : null
+            }
+            label={machine.temperature != null ? `${machine.temperature}°` : "—"}
+            size={48}
+            strokeWidth={5}
+          />
+          <div className="gauge-stat-info">
+            <span>CPU TEMP</span>
+            <Sparkline
+              points={history?.temperature}
+              variant="cpu"
+              height={30}
+              showAxis
+            />
+          </div>
+        </div>
+
+        <div className="gauge-stat">
           <Gauge value={machine.ram} size={48} strokeWidth={5} />
           <div className="gauge-stat-info">
             <span>
@@ -94,24 +121,13 @@ function MachineVitals({ machine, history }) {
           </div>
         </div>
 
-        <div className="mini-stats">
-          <div>
-            <span>CPU TEMP</span>
-            <strong>
-              {machine.temperature != null ? `${machine.temperature}°C` : "—"}
-            </strong>
-            <Sparkline points={history?.temperature} variant="cpu" />
-          </div>
-
-          <div>
-            <span>LOAD</span>
-            <strong>{machine.load1 ?? "—"}</strong>
-          </div>
-
-          <div>
-            <span>UPTIME</span>
-            <strong>{formatUptime(machine.uptime)}</strong>
-          </div>
+        <div className="compact-stats">
+          <span>
+            LOAD <strong>{machine.load1 ?? "—"}</strong>
+          </span>
+          <span>
+            UPTIME <strong>{formatUptime(machine.uptime)}</strong>
+          </span>
         </div>
       </div>
 
