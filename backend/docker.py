@@ -49,7 +49,13 @@ def get_host_data(host, base_url):
         now = time.time()
         if now - _LAST_UNREACHABLE_LOG.get(host, 0) > _UNREACHABLE_LOG_EVERY:
             _LAST_UNREACHABLE_LOG[host] = now
-            log.info("agent %s unreachable: %s", host, error)
+            log.info(
+                "agent %s unreachable at %s (%s) — its containers will show "
+                "empty until it responds; check AGENT_URL on that host",
+                host,
+                base_url,
+                error,
+            )
 
         return host, {
             "containers": [],
