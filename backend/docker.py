@@ -1,10 +1,16 @@
 import os
+import time
 import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from backend.log import system as log
 
 CONTROL_ACTIONS = {"start", "stop", "restart"}
+
+# Per-host throttle so a persistently-down agent logs once a minute, not
+# on every poll.
+_LAST_UNREACHABLE_LOG: dict[str, float] = {}
+_UNREACHABLE_LOG_EVERY = 60.0
 
 # How long to give an agent to pull an image and start the container.
 # Image pulls dominate this; a cold pull of a multi-GB image is slow.
@@ -37,7 +43,13 @@ def get_host_data(host, base_url):
         }
 
     except requests.RequestException as error:
-        log.debug("agent %s unreachable: %s", host, error)
+        # Not a warning (a briefly-down agent is normal) but visible at the
+        # default level, throttled, so "why does this host show no
+        # containers" is answerable from the logs.
+        now = time.time()
+        if now - _LAST_UNREACHABLE_LOG.get(host, 0) > _UNREACHABLE_LOG_EVERY:
+            _LAST_UNREACHABLE_LOG[host] = now
+            log.info("agent %s unreachable: %s", host, error)
 
         return host, {
             "containers": [],

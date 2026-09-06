@@ -38,8 +38,8 @@ class VolumeMapping(BaseModel):
 
 class ResourceRequest(BaseModel):
     # Both optional. ``cpus`` is fractional cores (2.5 = two and a half
-    # cores' worth). ``memory_mb`` is a hard limit and also the RAM the
-    # scheduler reserves when scoring.
+    # logical CPUs' worth, matching Docker's --cpus). ``memory_mb`` is a
+    # hard limit and also the RAM the scheduler reserves when scoring.
     cpus: float | None = Field(default=None, gt=0)
     memory_mb: int | None = Field(default=None, gt=0)
 
@@ -99,9 +99,10 @@ class PlacementResult(BaseModel):
     # Ordered, human-readable. Disqualifying reasons first for an
     # ineligible node; scoring factors for an eligible one.
     reasons: list[str] = Field(default_factory=list)
-    # Snapshot of what drove the score, for the UI.
+    # Snapshot of what drove the score, for the UI. ``free_vcpu`` is in
+    # logical CPUs (threads) — the unit Docker's --cpus uses.
     free_ram_mb: int | None = None
-    free_cpu_cores: float | None = None
+    free_vcpu: float | None = None
     has_gpu: bool = False
 
 

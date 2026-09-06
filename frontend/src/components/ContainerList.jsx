@@ -3,7 +3,7 @@ import ContainerRow from "./ContainerRow";
 import SortControl from "./SortControl";
 import { sortContainers } from "./containerSort";
 
-function HostGroup({ host, containers, hostCores, onControl }) {
+function HostGroup({ host, containers, hostCores, agentReachable, onControl }) {
   const [collapsed, setCollapsed] = useState(true);
   const [sortBy, setSortBy] = useState("name");
 
@@ -13,6 +13,7 @@ function HostGroup({ host, containers, hostCores, onControl }) {
     (c) => c.health === "unhealthy"
   ).length;
   const stoppedCount = sorted.length - runningCount;
+  const unreachable = agentReachable === false && sorted.length === 0;
 
   return (
     <div className="host-group">
@@ -25,18 +26,24 @@ function HostGroup({ host, containers, hostCores, onControl }) {
         >
           <span className="host-toggle">▾</span>
           <span className="host-name">{host}</span>
-          <span
-            className={`host-running-count ${runningCount === 0 ? "none" : ""}`}
-          >
-            {runningCount}/{sorted.length} running
-          </span>
-          {stoppedCount > 0 && (
-            <span className="host-issue">{stoppedCount} stopped</span>
-          )}
-          {unhealthyCount > 0 && (
-            <span className="host-issue host-issue--bad">
-              {unhealthyCount} unhealthy
-            </span>
+          {unreachable ? (
+            <span className="host-issue host-issue--bad">agent unreachable</span>
+          ) : (
+            <>
+              <span
+                className={`host-running-count ${runningCount === 0 ? "none" : ""}`}
+              >
+                {runningCount}/{sorted.length} running
+              </span>
+              {stoppedCount > 0 && (
+                <span className="host-issue">{stoppedCount} stopped</span>
+              )}
+              {unhealthyCount > 0 && (
+                <span className="host-issue host-issue--bad">
+                  {unhealthyCount} unhealthy
+                </span>
+              )}
+            </>
           )}
         </button>
 
@@ -78,6 +85,7 @@ function ContainerList({ containers, machines, onControl }) {
           host={host}
           containers={containers[host]}
           hostCores={machines?.[host]?.cpu_cores}
+          agentReachable={machines?.[host]?.agent_reachable}
           onControl={onControl}
         />
       ))}

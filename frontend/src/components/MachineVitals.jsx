@@ -68,7 +68,13 @@ function MachineVitals({ machine, history }) {
           <div className="gauge-stat-info">
             <span>
               CPU
-              {machine.cpu_cores != null ? ` · ${machine.cpu_cores}c` : ""}
+              {machine.cpu_physical_cores != null &&
+              machine.cpu_cores != null &&
+              machine.cpu_physical_cores !== machine.cpu_cores
+                ? ` · ${machine.cpu_physical_cores}c/${machine.cpu_cores}t`
+                : machine.cpu_cores != null
+                ? ` · ${machine.cpu_cores}t`
+                : ""}
             </span>
             <Sparkline
               points={history?.cpu}
@@ -229,7 +235,12 @@ function MachineVitals({ machine, history }) {
                   <span>{filesystem.mountpoint}</span>
                 </div>
 
-                <strong>{filesystem.used_percent}%</strong>
+                <strong>
+                  {filesystem.used_percent}%
+                  {filesystem.free_bytes != null && (
+                    <small> · {formatBytes(filesystem.free_bytes)} free</small>
+                  )}
+                </strong>
               </div>
 
               <div className="disk-bar">

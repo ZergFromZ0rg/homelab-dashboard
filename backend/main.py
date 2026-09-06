@@ -116,6 +116,7 @@ def _offline_machine(reachable: bool) -> dict:
         "online": reachable,
         "cpu": None,
         "cpu_cores": None,
+        "cpu_physical_cores": None,
         "cpu_model": None,
         "ram": None,
         "ram_total_bytes": None,
@@ -220,6 +221,7 @@ def _build_fleet():
     for host, data in agent_data.items():
         machines.setdefault(host, _offline_machine(data.get("reachable", False)))
         machines[host]["gpu"] = data.get("gpu")
+        machines[host]["agent_reachable"] = data.get("reachable", False)
         containers[host] = data.get("containers", [])
         if not data.get("reachable", False):
             offline_hosts.add(host)
@@ -458,10 +460,11 @@ async def fleet_summary():
     records = deployments.all()
 
     nodes = []
-    cap_ram = cap_cpu = 0.0
+    cap_ram = cap_vcpu = cap_cores = 0.0
     for name, m in sorted(machines.items()):
         online = bool(m.get("online"))
-        cores = m.get("cpu_cores")
+        vcpu = m.get("cpu_cores")  # logical
+        phys = m.get("cpu_physical_cores")
         ram_total = m.get("ram_total_bytes")
         cpu, ram = m.get("cpu"), m.get("ram")
         free_ram_mb = (
@@ -469,21 +472,25 @@ async def fleet_summary():
             if isinstance(ram_total, (int, float)) and isinstance(ram, (int, float))
             else None
         )
-        free_cpu = (
-            round(cores * (1 - cpu / 100), 2)
-            if isinstance(cores, (int, float)) and isinstance(cpu, (int, float))
+        free_vcpu = (
+            round(vcpu * (1 - cpu / 100), 2)
+            if isinstance(vcpu, (int, float)) and isinstance(cpu, (int, float))
             else None
         )
         if online and isinstance(ram_total, (int, float)):
             cap_ram += ram_total / (1024 * 1024)
-        if online and isinstance(cores, (int, float)):
-            cap_cpu += cores
+        if online and isinstance(vcpu, (int, float)):
+            cap_vcpu += vcpu
+        if online and isinstance(phys, (int, float)):
+            cap_cores += phys
         nodes.append(
             {
                 "name": name,
                 "online": online,
                 "free_ram_mb": free_ram_mb,
-                "free_cpu_cores": free_cpu,
+                "free_vcpu": free_vcpu,
+                "vcpu": vcpu,
+                "physical_cores": phys,
                 "has_gpu": bool((m.get("gpu") or {}).get("devices")),
                 "managed": sum(
                     1
@@ -495,7 +502,7 @@ async def fleet_summary():
 
     live = [r for r in records if r.status in ("running", "placing")]
     committed_ram = sum(r.spec.resources.memory_mb or 0 for r in live)
-    committed_cpu = sum(r.spec.resources.cpus or 0 for r in live)
+    committed_vcpu = sum(r.spec.resources.cpus or 0 for r in live)
 
     tally: dict[str, int] = {}
     for r in records:
@@ -503,8 +510,12 @@ async def fleet_summary():
 
     return {
         "nodes": nodes,
-        "capacity": {"memory_mb": int(cap_ram), "cpus": round(cap_cpu, 1)},
-        "committed": {"memory_mb": committed_ram, "cpus": round(committed_cpu, 2)},
+        "capacity": {
+            "memory_mb": int(cap_ram),
+            "vcpu": round(cap_vcpu, 1),
+            "physical_cores": round(cap_cores, 1) or None,
+        },
+        "committed": {"memory_mb": committed_ram, "vcpu": round(committed_vcpu, 2)},
         "deployments": tally,
     }
 
@@ -840,6 +851,11 @@ async def websocket_endpoint(websocket: WebSocket):
                     _offline_machine(data.get("reachable", False)),
                 )
                 machines[host]["gpu"] = data.get("gpu")
+                # Distinct from ``online`` (which is Prometheus "up"): a host
+                # can be scraped fine while its agent is unreachable, in
+                # which case its container list is empty but not because it
+                # has no containers.
+                machines[host]["agent_reachable"] = data.get("reachable", False)
 
                 gpu_devices = (data.get("gpu") or {}).get("devices") or []
                 gpu_temp = gpu_devices[0].get("temperature_c") if gpu_devices else None

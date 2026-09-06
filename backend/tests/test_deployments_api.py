@@ -62,11 +62,12 @@ def test_fleet_summary(client, monkeypatch):
 
     body = client.get("/api/fleet").json()
     assert body["capacity"]["memory_mb"] == (32 + 16) * 1024
-    assert body["capacity"]["cpus"] == 12.0
-    assert body["committed"] == {"memory_mb": 512, "cpus": 1.0}
+    assert body["capacity"]["vcpu"] == 12.0
+    assert body["committed"] == {"memory_mb": 512, "vcpu": 1.0}
     assert body["deployments"]["running"] == 1
     nuc1 = next(n for n in body["nodes"] if n["name"] == "nuc-1")
     assert nuc1["managed"] == 1
+    assert nuc1["vcpu"] == 8
 
 
 def test_dry_run_ranks_without_deploying(client):

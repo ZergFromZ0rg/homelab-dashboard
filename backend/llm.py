@@ -108,7 +108,7 @@ def explain_placement(
             "node": r.node,
             "score": r.score,
             "free_ram_mb": r.free_ram_mb,
-            "free_cpu_cores": r.free_cpu_cores,
+            "free_vcpu": r.free_vcpu,
             "has_gpu": r.has_gpu,
             "reasons": r.reasons,
         }

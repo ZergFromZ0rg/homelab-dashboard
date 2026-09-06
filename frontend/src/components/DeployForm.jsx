@@ -124,7 +124,7 @@ function DeployForm({ spec, onChange, nodeNames }) {
         </div>
 
         <div className="deploy-field">
-          <span className="deploy-label">CPU limit (cores)</span>
+          <span className="deploy-label">CPU limit (vCPU)</span>
           <input
             className="deploy-input"
             type="number"

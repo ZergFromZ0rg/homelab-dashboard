@@ -65,11 +65,11 @@ function ContainerRow({ container, host, hostCores, pending, onControl }) {
   const cpuPercent = stats?.cpu_percent;
   const ramPercent = memory?.percent;
 
-  // Docker's cpu_percent is 100% per core (a container fully using 6 cores
-  // shows 600%), so a flat cap at 100 makes a single-core container look
-  // just as "full" as one saturating the whole host. Scale the bar against
-  // the host's actual core count instead; the number itself stays as
-  // Docker reports it, since that raw value is still the useful one.
+  // Docker's cpu_percent is 100% per logical CPU (a container fully using
+  // 6 threads shows 600%), so a flat cap at 100 makes a single-threaded
+  // container look just as "full" as one saturating the whole host. Scale
+  // the bar against the host's logical-CPU count instead; the number
+  // itself stays as Docker reports it.
   const cpuCapacity = hostCores ? hostCores * 100 : 100;
   const cpuBarPercent = Math.min(100, ((cpuPercent ?? 0) / cpuCapacity) * 100);
 
@@ -125,14 +125,14 @@ function ContainerRow({ container, host, hostCores, pending, onControl }) {
             <strong>
               {cpuPercent != null ? `${cpuPercent}%` : "—"}
               {hostCores != null && cpuPercent > 100 && (
-                <small> · {(cpuPercent / 100).toFixed(1)} cores</small>
+                <small> · {(cpuPercent / 100).toFixed(1)} vCPU</small>
               )}
             </strong>
             <div
               className="mini-bar"
               title={
                 hostCores != null
-                  ? `${cpuBarPercent.toFixed(1)}% of host (${hostCores} cores)`
+                  ? `${cpuBarPercent.toFixed(1)}% of host (${hostCores} vCPU)`
                   : undefined
               }
             >

@@ -128,6 +128,27 @@ def get_cpu_models() -> dict:
     return models
 
 
+def get_physical_cores() -> dict:
+    """job -> physical core count, from node_cpu_info's (package, core)
+    labels. Needs --collector.cpu.info; a job whose export doesn't carry
+    both labels (some VMs / ARM) just gets no entry, and the UI falls back
+    to the logical count."""
+    seen: dict[str, set] = {}
+
+    for result in query("node_cpu_info"):
+        metric = result["metric"]
+        job = metric.get("job")
+        package = metric.get("package")
+        core = metric.get("core")
+
+        if job is None or package is None or core is None:
+            continue
+
+        seen.setdefault(job, set()).add((package, core))
+
+    return {job: len(pairs) for job, pairs in seen.items() if pairs}
+
+
 def get_filesystems():
     size_results = query(
         f'node_filesystem_size_bytes{{fstype!~"{PSEUDO_FSTYPE_RE}"}}'
@@ -431,9 +452,15 @@ def get_machine_stats():
 
     ram_total = value_by_job("node_memory_MemTotal_bytes")
 
+    # Logical CPUs (threads) — one node_cpu_seconds_total series per
+    # logical processor. This is the unit ``cpu`` utilisation is averaged
+    # over and the unit Docker's --cpus flag operates in, so it's what the
+    # scheduler reserves against. Physical core count is reported
+    # separately, for display.
     cpu_cores = value_by_job(
         "count by(job) (count by(job, cpu) (node_cpu_seconds_total))"
     )
+    physical_cores = get_physical_cores()
 
     cpu_models = get_cpu_models()
 
@@ -468,6 +495,9 @@ def get_machine_stats():
             "online": up.get(host, 0) == 1,
             "cpu": round(cpu[host], 1) if host in cpu else None,
             "cpu_cores": int(cpu_cores[host]) if host in cpu_cores else None,
+            "cpu_physical_cores": (
+                int(physical_cores[host]) if host in physical_cores else None
+            ),
             "cpu_model": cpu_models.get(host),
             "ram": round(ram[host], 1) if host in ram else None,
             "ram_total_bytes": (

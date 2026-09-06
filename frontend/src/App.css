@@ -802,6 +802,13 @@ h1 {
 
 .disk-header strong {
   font-size: 11px;
+  white-space: nowrap;
+}
+
+.disk-header strong small {
+  color: var(--text-muted);
+  font-weight: 400;
+  font-size: 9px;
 }
 
 .disk-header span {
@@ -1431,11 +1438,19 @@ select.deploy-input[multiple] {
 
 .fleet-node {
   flex-shrink: 0;
-  width: 84px;
+  width: 118px;
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.fleet-cpu-tag {
+  margin-left: 5px;
+  font-weight: 400;
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text-faint);
 }
 
 .fleet-bar {

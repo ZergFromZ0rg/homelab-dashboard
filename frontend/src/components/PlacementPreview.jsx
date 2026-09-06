@@ -38,7 +38,7 @@ function PlacementPreview({ preview, recommended, onPick }) {
               <span>{s.image || "(build)"}</span>
               <span className="placement-service-res">
                 {s.memory_mb ? `${s.memory_mb} MB` : "mem —"}
-                {s.cpus ? ` · ${s.cpus} cpu` : ""}
+                {s.cpus ? ` · ${s.cpus} vCPU` : ""}
                 {s.host_ports?.length ? ` · :${s.host_ports.join(" :")}` : ""}
               </span>
             </div>

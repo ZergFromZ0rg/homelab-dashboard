@@ -120,9 +120,9 @@ def score_node(
     if isinstance(ram_total, (int, float)) and isinstance(ram_pct, (int, float)):
         free_ram_mb = int(ram_total * (1 - ram_pct / 100) / MB)
 
-    free_cpu_cores = None
+    free_vcpu = None
     if isinstance(cores, (int, float)) and isinstance(cpu_pct, (int, float)):
-        free_cpu_cores = round(cores * (1 - cpu_pct / 100), 2)
+        free_vcpu = round(cores * (1 - cpu_pct / 100), 2)
 
     def disqualify(reason: str) -> PlacementResult:
         return PlacementResult(
@@ -131,7 +131,7 @@ def score_node(
             score=0.0,
             reasons=[reason],
             free_ram_mb=free_ram_mb,
-            free_cpu_cores=free_cpu_cores,
+            free_vcpu=free_vcpu,
             has_gpu=has_gpu,
         )
 
@@ -167,7 +167,7 @@ def score_node(
             return disqualify("CPU stats unavailable; cannot satisfy the CPU request")
         if res.cpus > cores:
             return disqualify(
-                f"requests {res.cpus} cores, node has only {cores}"
+                f"requests {res.cpus} vCPU, node has only {cores}"
             )
 
     image_mb = spec.image_size_mb_hint or estimate_image_mb(spec.image)
@@ -200,8 +200,8 @@ def score_node(
     else:
         ram_frac = 0.5
 
-    if free_cpu_cores is not None and isinstance(cores, (int, float)) and cores:
-        cpu_after = free_cpu_cores - (res.cpus or 0)
+    if free_vcpu is not None and isinstance(cores, (int, float)) and cores:
+        cpu_after = free_vcpu - (res.cpus or 0)
         cpu_frac = max(0.0, min(1.0, cpu_after / cores))
     elif isinstance(cpu_pct, (int, float)):
         cpu_frac = max(0.0, 1 - cpu_pct / 100)
@@ -212,8 +212,8 @@ def score_node(
 
     if free_ram_mb is not None:
         reasons.append(f"{free_ram_mb / 1024:.1f} GB RAM free before placement")
-    if free_cpu_cores is not None:
-        reasons.append(f"{free_cpu_cores:.1f} CPU cores idle")
+    if free_vcpu is not None:
+        reasons.append(f"{free_vcpu:.1f} vCPU idle")
 
     # ---- penalties -------------------------------------------------
     if has_gpu and not con.require_gpu:
@@ -236,7 +236,7 @@ def score_node(
         score=round(score, 1),
         reasons=reasons,
         free_ram_mb=free_ram_mb,
-        free_cpu_cores=free_cpu_cores,
+        free_vcpu=free_vcpu,
         has_gpu=has_gpu,
     )
 

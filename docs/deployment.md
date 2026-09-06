@@ -55,9 +55,9 @@ docker run -d \
   --collector.hwmon
 ```
 
-`--collector.cpu.info` gives you the real CPU model in the UI;
-`--collector.hwmon` gives you temperatures. node_exporter listens on
-`:9100`.
+`--collector.cpu.info` gives you the real CPU model and physical-core
+count (the UI falls back to thread count without it); `--collector.hwmon`
+gives you temperatures. node_exporter listens on `:9100`.
 
 ### Prometheus scrape config
 
