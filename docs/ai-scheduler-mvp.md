@@ -39,6 +39,13 @@ suggestions clearing a higher gain bar, one per cycle, with a
 per-deployment cooldown. `GET /api/rebalance` echoes `auto`; the Deploy
 tab shows an "auto on" badge and the event timeline per card.
 
+**Health-aware reconcile + auto-reschedule** (also merged): reconcile now
+runs in its own background loop (was only in the /ws loop, so it stopped
+when no client was connected) and treats an `unhealthy` container — or a
+stack with any unhealthy member — as `failed`. The auto-rebalance loop
+also reschedules stranded stateless single containers off a
+`node_offline` host onto a healthy node.
+
 Not done: production hardening beyond the shared tokens, stateful volume
 migration, cross-node stack networking.
 

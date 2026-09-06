@@ -72,6 +72,41 @@ def test_non_running_deployment_skipped(monkeypatch):
     assert moves == []
 
 
+def dep_record(dep_id, *, status="node_offline", kind="container", volumes=None, pinned=False, last_auto_move=None):
+    return {
+        "id": dep_id,
+        "status": status,
+        "kind": kind,
+        "spec": {"volumes": volumes or [], "pinned": pinned},
+        "last_auto_move": last_auto_move,
+    }
+
+
+def test_reschedule_picks_stranded_stateless_containers(monkeypatch):
+    monkeypatch.setattr(autorebalance, "MAX_PER_CYCLE", 5)
+    records = [
+        dep_record("a"),
+        dep_record("b", status="running"),          # not stranded
+        dep_record("c", volumes=[{"source": "v", "target": "/v"}]),  # stateful
+        dep_record("d", kind="stack", pinned=True),  # a stack
+    ]
+    chosen = [r["id"] for r in autorebalance.plan_reschedules(records)]
+    assert chosen == ["a"]
+
+
+def test_reschedule_respects_cooldown(monkeypatch):
+    monkeypatch.setattr(autorebalance, "COOLDOWN_SECONDS", 3600)
+    now = time.time()
+    assert autorebalance.plan_reschedules(
+        [dep_record("a", last_auto_move=now - 60)], now=now
+    ) == []
+    assert len(
+        autorebalance.plan_reschedules(
+            [dep_record("a", last_auto_move=now - 7200)], now=now
+        )
+    ) == 1
+
+
 def test_enabled_flag(monkeypatch):
     monkeypatch.delenv("AUTO_REBALANCE", raising=False)
     assert autorebalance.enabled() is False

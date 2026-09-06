@@ -92,8 +92,12 @@ for it:
    rationale. It never changes the ranking.
 3. The backend `POST`s the chosen node's agent at `POST {agent}/containers`
    to pull and run the image, and records the deployment in
-   `/data/deployments.json`. The `/ws` loop reconciles each record's
-   status against the live container list every tick.
+   `/data/deployments.json`. A background loop reconciles each record
+   against the live container snapshot every few seconds (independent of
+   whether a dashboard client is connected): a vanished, stopped, or
+   `unhealthy` container flips the record to `failed`; an unreachable host
+   to `node_offline`; a container that comes back to `running` logs
+   `recovered`.
 
 **Compose stacks** — the Deploy tab has a "Compose stack" mode: paste a
 `docker-compose.yml` and a project name. `backend/compose.py` parses it
@@ -132,9 +136,11 @@ Set **`AUTO_REBALANCE=1`** and the backend acts on them itself
 `AUTO_REBALANCE_INTERVAL` seconds executes moves clearing the higher
 `AUTO_REBALANCE_MIN_GAIN` bar, at most `AUTO_REBALANCE_MAX_PER_CYCLE` per
 cycle, with an `AUTO_REBALANCE_COOLDOWN` per deployment so a flapping node
-can't cause a move storm. Every deployment carries an **event log**
-(`created` / `deployed` / `failed` / `recovered` / `moved`, the last
-flagged `automatic` for a rebalancer move) shown on its card.
+can't cause a move storm. The same loop **reschedules** stranded stateless
+single containers off a node that has gone `node_offline` onto a healthy
+one. Every deployment carries an **event log** (`created` / `deployed` /
+`failed` / `recovered` / `moved` / `node_offline`, `moved` flagged
+`automatic` for a rebalancer/reschedule move) shown on its card.
 
 Not in scope: compose stacks, automatic rescheduling when a node dies
 (there's a manual "redeploy elsewhere" button), cross-node networking, and

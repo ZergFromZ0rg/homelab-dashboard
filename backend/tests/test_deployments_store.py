@@ -54,3 +54,46 @@ def test_reconcile_recovers_from_failed_when_container_returns(tmp_path):
         {"nuc-1": [{"id": "abc123", "status": "running"}]}, offline_hosts=set()
     )
     assert store.get(rec.id).status == "running"
+
+
+def test_reconcile_marks_unhealthy_container_failed(tmp_path):
+    store = DeploymentStore(tmp_path / "d.json")
+    rec = store.add(record())
+    store.reconcile(
+        {"nuc-1": [{"id": "abc123", "status": "running", "health": "unhealthy"}]},
+        offline_hosts=set(),
+    )
+    got = store.get(rec.id)
+    assert got.status == "failed"
+    assert "healthcheck" in got.events[-1].detail
+
+    # Healthcheck recovers -> back to running.
+    store.reconcile(
+        {"nuc-1": [{"id": "abc123", "status": "running", "health": "healthy"}]},
+        offline_hosts=set(),
+    )
+    got = store.get(rec.id)
+    assert got.status == "running"
+    assert got.events[-1].kind == "recovered"
+
+
+def test_reconcile_stack_unhealthy_member_fails(tmp_path):
+    store = DeploymentStore(tmp_path / "d.json")
+    rec = store.add(record(kind="stack", agent_container_id="webproj"))
+    store.reconcile(
+        {
+            "nuc-1": [
+                {"name": "webproj-a-1", "status": "running", "compose_project": "webproj"},
+                {
+                    "name": "webproj-b-1",
+                    "status": "running",
+                    "health": "unhealthy",
+                    "compose_project": "webproj",
+                },
+            ]
+        },
+        offline_hosts=set(),
+    )
+    got = store.get(rec.id)
+    assert got.status == "failed"
+    assert "webproj-b-1" in got.events[-1].detail

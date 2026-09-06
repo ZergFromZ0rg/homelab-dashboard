@@ -35,11 +35,15 @@ from backend import llm
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    task = asyncio.create_task(_auto_rebalance_loop())
+    tasks = [
+        asyncio.create_task(_reconcile_loop()),
+        asyncio.create_task(_auto_rebalance_loop()),
+    ]
     try:
         yield
     finally:
-        task.cancel()
+        for task in tasks:
+            task.cancel()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -483,13 +487,35 @@ def _move_deployment(record: DeploymentRecord, target: str, reason: str) -> None
     _run_agent_deploy(updated, nodes, event="moved", automatic=True)
 
 
+RECONCILE_INTERVAL_SECONDS = 5
+
+
+async def _reconcile_loop() -> None:
+    """Keep deployment statuses fresh even with no dashboard client open —
+    the /ws loop only runs while someone is watching, but node-offline and
+    health detection (and the auto-rebalancer that depends on them) must
+    run regardless."""
+    while True:
+        await asyncio.sleep(RECONCILE_INTERVAL_SECONDS)
+        try:
+            _, _, containers, offline_hosts, _ = await asyncio.to_thread(
+                _build_fleet
+            )
+            deployments.reconcile(containers, offline_hosts)
+        except asyncio.CancelledError:
+            raise
+        except Exception as error:  # noqa: BLE001 - loop must survive
+            print(f"reconcile cycle failed: {error}")
+
+
 async def _auto_rebalance_loop() -> None:
     if not autorebalance.enabled():
         return
     print(
         f"auto-rebalance on: every {autorebalance.INTERVAL_SECONDS:.0f}s, "
         f"min gain {autorebalance.MIN_GAIN:.0f}, "
-        f"cooldown {autorebalance.COOLDOWN_SECONDS:.0f}s"
+        f"cooldown {autorebalance.COOLDOWN_SECONDS:.0f}s "
+        f"(also reschedules stateless workloads off offline nodes)"
     )
     while True:
         await asyncio.sleep(autorebalance.INTERVAL_SECONDS)
@@ -504,7 +530,9 @@ async def _auto_rebalance_loop() -> None:
                 deployments.all(),
                 stale_hosts=stale_hosts,
             )
-            records = {d.id: d.model_dump() for d in deployments.all()}
+            dumps = [d.model_dump() for d in deployments.all()]
+            records = {d["id"]: d for d in dumps}
+
             for move in autorebalance.plan_moves(suggestions, records):
                 record = deployments.get(move["deployment_id"])
                 if record is None:
@@ -516,10 +544,45 @@ async def _auto_rebalance_loop() -> None:
                 await asyncio.to_thread(
                     _move_deployment, record, move["to_node"], move["reason"]
                 )
+
+            # Stranded on a dead node — reschedule the stateless ones.
+            for stranded in autorebalance.plan_reschedules(dumps):
+                record = deployments.get(stranded["id"])
+                if record is None:
+                    continue
+                await asyncio.to_thread(_reschedule_offline, record)
         except asyncio.CancelledError:
             raise
         except Exception as error:  # noqa: BLE001 - loop must survive
             print(f"auto-rebalance cycle failed: {error}")
+
+
+def _reschedule_offline(record: DeploymentRecord) -> None:
+    """Score a stranded deployment against the live fleet and, if a healthy
+    node wins, move it there."""
+    dead_node = record.placed_on
+    spec = record.spec.model_copy(
+        update={
+            "constraints": record.spec.constraints.model_copy(
+                update={
+                    "node_not_in": sorted(
+                        set(record.spec.constraints.node_not_in or []) | {dead_node}
+                    )
+                }
+            )
+        }
+    )
+    _, ranked, recommended, _, _, _ = _score(spec)
+    if not recommended or recommended == dead_node:
+        return
+    print(
+        f"auto-reschedule: {record.id[:8]} off offline {dead_node} -> {recommended}"
+    )
+    _move_deployment(
+        record,
+        recommended,
+        f"{dead_node} went offline; rescheduled to {recommended}",
+    )
 
 
 @app.get("/api/deployments/{deployment_id}")

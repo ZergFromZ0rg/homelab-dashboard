@@ -101,11 +101,11 @@ class DeploymentStore:
         """Refresh each record's status against the live container snapshot.
 
         ``live`` is ``{host: [container, ...]}`` straight off the /ws loop.
-        A record whose container id is still present and running stays
-        ``running``; one whose host is unreachable becomes ``node_offline``;
-        one whose container has vanished (and the host *is* reachable)
-        becomes ``failed``. ``placing`` and terminal ``failed`` records set
-        by the deploy path are left alone until they resolve.
+        A record whose container is present, running and (if it has a
+        healthcheck) healthy stays ``running``; an unreachable host makes it
+        ``node_offline``; a vanished, stopped, or ``unhealthy`` container
+        makes it ``failed``. ``placing`` and ``stopped`` records are left
+        alone.
         """
         with self._lock:
             changed = False
@@ -116,45 +116,25 @@ class DeploymentStore:
                     continue
 
                 if record.placed_on in offline_hosts:
-                    new_status = "node_offline"
+                    new_status, detail = "node_offline", f"{record.placed_on} unreachable"
                 elif record.kind == "stack":
-                    # ``agent_container_id`` holds the compose project name.
-                    members = [
-                        c
-                        for c in live.get(record.placed_on, [])
-                        if c.get("compose_project") == record.agent_container_id
-                    ]
-                    if not members:
-                        new_status = "failed"
-                    elif any(c.get("status") == "running" for c in members):
-                        new_status = "running"
-                    else:
-                        new_status = "failed"
-                else:
-                    match = next(
-                        (
-                            c
-                            for c in live.get(record.placed_on, [])
-                            if _same_container(c.get("id"), record.agent_container_id)
-                        ),
-                        None,
+                    new_status, detail = _stack_status(
+                        live.get(record.placed_on, []), record.agent_container_id
                     )
-                    if match is None:
-                        new_status = "failed"
-                    elif match.get("status") == "running":
-                        new_status = "running"
-                    else:
-                        new_status = "failed"
+                else:
+                    new_status, detail = _container_status(
+                        live.get(record.placed_on, []), record.agent_container_id
+                    )
 
                 if new_status != record.status:
                     previous = record.status
                     record.status = new_status
                     if new_status == "running" and previous in ("failed", "node_offline"):
-                        record.log("recovered", f"back to running on {record.placed_on}")
+                        record.log("recovered", detail or f"running on {record.placed_on}")
                     elif new_status == "failed":
-                        record.log("failed", f"no running container on {record.placed_on}")
+                        record.log("failed", detail or "no running container")
                     elif new_status == "node_offline":
-                        record.log("node_offline", f"{record.placed_on} unreachable")
+                        record.log("node_offline", detail)
                     else:
                         record.touch()
                     changed = True
@@ -167,3 +147,36 @@ def _same_container(a: str | None, b: str | None) -> bool:
     if not a or not b:
         return False
     return a.startswith(b) or b.startswith(a)
+
+
+def _healthy(container: dict) -> tuple[bool, str]:
+    """A running container is 'up' unless its healthcheck says otherwise."""
+    if container.get("status") != "running":
+        return False, f"container is {container.get('status') or 'gone'}"
+    if container.get("health") == "unhealthy":
+        return False, "container healthcheck is failing"
+    return True, ""
+
+
+def _container_status(containers: list[dict], container_id: str) -> tuple[str, str]:
+    match = next(
+        (c for c in containers if _same_container(c.get("id"), container_id)), None
+    )
+    if match is None:
+        return "failed", "container is gone"
+    up, why = _healthy(match)
+    return ("running", "") if up else ("failed", why)
+
+
+def _stack_status(containers: list[dict], project: str) -> tuple[str, str]:
+    members = [c for c in containers if c.get("compose_project") == project]
+    if not members:
+        return "failed", "no containers for this project"
+
+    unhealthy = [c["name"] for c in members if c.get("health") == "unhealthy"]
+    if unhealthy:
+        return "failed", f"unhealthy service(s): {', '.join(unhealthy)}"
+
+    if any(c.get("status") == "running" for c in members):
+        return "running", ""
+    return "failed", "no running containers in the project"
