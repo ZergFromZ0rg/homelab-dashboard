@@ -30,6 +30,15 @@ rejected. Reconcile/redeploy/delete are kind-aware
 (`DeploymentRecord.kind`). Verified end to end through the browser against
 real Docker.
 
+**Auto-rebalance + event log** (also merged): every `DeploymentRecord`
+carries an `events` timeline (`created`/`deployed`/`failed`/`recovered`/
+`moved`, `moved` flagged `automatic` for a rebalancer move), populated in
+the deploy paths and `reconcile`. `AUTO_REBALANCE=1` turns on
+`backend/autorebalance.py` — a lifespan background loop that executes
+suggestions clearing a higher gain bar, one per cycle, with a
+per-deployment cooldown. `GET /api/rebalance` echoes `auto`; the Deploy
+tab shows an "auto on" badge and the event timeline per card.
+
 Not done: production hardening beyond the shared tokens, stateful volume
 migration, cross-node stack networking.
 

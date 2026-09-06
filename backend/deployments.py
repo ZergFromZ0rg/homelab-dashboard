@@ -75,6 +75,17 @@ class DeploymentStore:
             self._save_locked()
             return record.model_copy(deep=True)
 
+    def log_event(
+        self, deployment_id: str, kind: str, detail: str = "", *, automatic: bool = False
+    ) -> DeploymentRecord | None:
+        with self._lock:
+            record = self._records.get(deployment_id)
+            if record is None:
+                return None
+            record.log(kind, detail, automatic=automatic)
+            self._save_locked()
+            return record.model_copy(deep=True)
+
     def remove(self, deployment_id: str) -> bool:
         with self._lock:
             existed = self._records.pop(deployment_id, None) is not None
@@ -136,8 +147,16 @@ class DeploymentStore:
                         new_status = "failed"
 
                 if new_status != record.status:
+                    previous = record.status
                     record.status = new_status
-                    record.touch()
+                    if new_status == "running" and previous in ("failed", "node_offline"):
+                        record.log("recovered", f"back to running on {record.placed_on}")
+                    elif new_status == "failed":
+                        record.log("failed", f"no running container on {record.placed_on}")
+                    elif new_status == "node_offline":
+                        record.log("node_offline", f"{record.placed_on} unreachable")
+                    else:
+                        record.touch()
                     changed = True
 
             if changed:

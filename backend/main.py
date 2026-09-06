@@ -1,6 +1,7 @@
 import asyncio
 import os
 import time
+from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect
 
@@ -28,10 +29,20 @@ from backend.compose import ComposeError
 from backend import live_history
 from backend import scheduler
 from backend import rebalance
+from backend import autorebalance
 from backend import stacks
 from backend import llm
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    task = asyncio.create_task(_auto_rebalance_loop())
+    try:
+        yield
+    finally:
+        task.cancel()
+
+
+app = FastAPI(lifespan=lifespan)
 
 registry = NodeRegistry()
 deployments = DeploymentStore()
@@ -277,9 +288,16 @@ def _pick_target(node: str | None, recommended: str | None, ranked) -> str:
     return target
 
 
-def _run_agent_deploy(record: DeploymentRecord, nodes: dict) -> DeploymentRecord:
+def _run_agent_deploy(
+    record: DeploymentRecord,
+    nodes: dict,
+    *,
+    event: str = "deployed",
+    automatic: bool = False,
+) -> DeploymentRecord:
     """Send the record's workload to its ``placed_on`` agent and fold the
-    result back into the record. Shared by create + redeploy, both kinds."""
+    result back into the record. Shared by create + redeploy, both kinds.
+    ``event`` is the log entry on success (``deployed`` or ``moved``)."""
     target = record.placed_on
     try:
         if record.kind == "stack":
@@ -291,22 +309,30 @@ def _run_agent_deploy(record: DeploymentRecord, nodes: dict) -> DeploymentRecord
                 nodes, target, agent_spec_payload(record.spec.model_dump())
             )
     except ValueError as error:
-        return deployments.update(record.id, status="failed", error=str(error))
+        deployments.update(record.id, status="failed", error=str(error))
+        return deployments.log_event(record.id, "failed", str(error))
     except requests.RequestException as error:
-        return deployments.update(
+        deployments.update(
             record.id, status="failed", error=f"agent unreachable: {error}"
         )
+        return deployments.log_event(record.id, "failed", f"agent unreachable: {error}")
 
     if not result.get("success", False):
-        return deployments.update(
-            record.id,
-            status="failed",
-            error=result.get("error") or "agent rejected the deployment",
-        )
+        detail = result.get("error") or "agent rejected the deployment"
+        deployments.update(record.id, status="failed", error=detail)
+        return deployments.log_event(record.id, "failed", detail)
 
     ref = result.get("project") if record.kind == "stack" else result.get("id")
-    return deployments.update(
+    deployments.update(
         record.id, status="running", agent_container_id=ref, error=None
+    )
+    prefix = "auto-moved to" if automatic else ("moved to" if event == "moved" else "running on")
+    return deployments.log_event(
+        record.id,
+        event,
+        f"{prefix} {target}"
+        + (f" (score {record.score:.0f})" if record.score is not None else ""),
+        automatic=automatic,
     )
 
 
@@ -348,6 +374,7 @@ async def create_deployment(
             if r.node != target
         ][:4],
     )
+    record.log("created", f"placing on {target}")
     deployments.add(record)
     return _run_agent_deploy(record, registry.all())
 
@@ -402,6 +429,7 @@ async def create_stack_deployment(
             if r.node != target
         ][:4],
     )
+    record.log("created", f"placing on {target}")
     deployments.add(record)
     return _run_agent_deploy(record, registry.all())
 
@@ -423,7 +451,75 @@ async def rebalance_suggestions():
         deployments.all(),
         stale_hosts=stale_hosts,
     )
-    return {"suggestions": suggestions, "checked_at": time.time()}
+    return {
+        "suggestions": suggestions,
+        "checked_at": time.time(),
+        "auto": autorebalance.enabled(),
+    }
+
+
+def _move_deployment(record: DeploymentRecord, target: str, reason: str) -> None:
+    """Tear a running deployment down on its current host and bring it up on
+    ``target``. Used only by the auto-rebalancer — the interactive path is
+    the /redeploy endpoint."""
+    nodes = registry.all()
+    if record.placed_on and record.agent_container_id and record.placed_on in nodes:
+        try:
+            if record.kind == "stack":
+                remove_stack(nodes, record.placed_on, record.agent_container_id)
+            else:
+                remove_container(nodes, record.placed_on, record.agent_container_id)
+        except (ValueError, requests.RequestException):
+            pass
+
+    updated = deployments.update(
+        record.id,
+        status="placing",
+        placed_on=target,
+        reason=reason,
+        last_auto_move=time.time(),
+        error=None,
+    )
+    _run_agent_deploy(updated, nodes, event="moved", automatic=True)
+
+
+async def _auto_rebalance_loop() -> None:
+    if not autorebalance.enabled():
+        return
+    print(
+        f"auto-rebalance on: every {autorebalance.INTERVAL_SECONDS:.0f}s, "
+        f"min gain {autorebalance.MIN_GAIN:.0f}, "
+        f"cooldown {autorebalance.COOLDOWN_SECONDS:.0f}s"
+    )
+    while True:
+        await asyncio.sleep(autorebalance.INTERVAL_SECONDS)
+        try:
+            _, machines, containers, _, stale_hosts = await asyncio.to_thread(
+                _build_fleet
+            )
+            suggestions = await asyncio.to_thread(
+                rebalance.suggest_moves,
+                machines,
+                containers,
+                deployments.all(),
+                stale_hosts=stale_hosts,
+            )
+            records = {d.id: d.model_dump() for d in deployments.all()}
+            for move in autorebalance.plan_moves(suggestions, records):
+                record = deployments.get(move["deployment_id"])
+                if record is None:
+                    continue
+                print(
+                    f"auto-rebalance: moving {record.id[:8]} "
+                    f"{move['from_node']} -> {move['to_node']} (+{move['gain']})"
+                )
+                await asyncio.to_thread(
+                    _move_deployment, record, move["to_node"], move["reason"]
+                )
+        except asyncio.CancelledError:
+            raise
+        except Exception as error:  # noqa: BLE001 - loop must survive
+            print(f"auto-rebalance cycle failed: {error}")
 
 
 @app.get("/api/deployments/{deployment_id}")
@@ -493,6 +589,7 @@ async def redeploy(
         except (ValueError, requests.RequestException):
             pass
 
+    from_node = record.placed_on
     updated = deployments.update(
         deployment_id,
         status="placing",
@@ -502,7 +599,8 @@ async def redeploy(
         reason=explanation or _fallback_reason(ranked, target),
         error=None,
     )
-    return _run_agent_deploy(updated, nodes)
+    event = "moved" if target != from_node else "deployed"
+    return _run_agent_deploy(updated, nodes, event=event)
 
 
 @app.delete("/api/deployments/{deployment_id}", response_model=None)

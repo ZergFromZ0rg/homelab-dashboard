@@ -12,6 +12,7 @@ function RebalancePanel({ deployments }) {
   // suggestions are advisory, not load-bearing).
   const [error, setError] = useState(null);
   const [checkedAt, setCheckedAt] = useState(null);
+  const [auto, setAuto] = useState(false);
   const [busyId, setBusyId] = useState(null);
   const reloadRef = useRef(() => {});
 
@@ -31,6 +32,7 @@ function RebalancePanel({ deployments }) {
         if (!active) return;
         setSuggestions(data.suggestions ?? []);
         setCheckedAt(data.checked_at ?? null);
+        setAuto(Boolean(data.auto));
       } catch {
         if (active) setSuggestions([]);
       }
@@ -58,14 +60,24 @@ function RebalancePanel({ deployments }) {
     }
   }
 
-  if (!error && suggestions.length === 0) return null;
+  if (!error && suggestions.length === 0 && !auto) return null;
 
   return (
     <section className="rebalance-panel">
       <div className="section-header">
         <p className="eyebrow">Optimize</p>
-        <h2>Rebalancing ({suggestions.length})</h2>
+        <h2>
+          Rebalancing ({suggestions.length})
+          {auto && <span className="rebalance-auto">auto on</span>}
+        </h2>
       </div>
+
+      {auto && (
+        <p className="deployment-reason">
+          The backend moves qualifying stateless workloads on its own; you
+          can still move any of these now.
+        </p>
+      )}
 
       {error && <p className="placement-warning">⚠ {error}</p>}
 

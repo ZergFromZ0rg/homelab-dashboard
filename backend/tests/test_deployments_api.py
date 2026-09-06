@@ -86,6 +86,44 @@ def test_real_deploy_calls_agent_and_persists(client, monkeypatch):
     listed = client.get("/api/deployments").json()
     assert len(listed) == 1 and listed[0]["id"] == record["id"]
 
+    kinds = [e["kind"] for e in record["events"]]
+    assert kinds == ["created", "deployed"]
+
+
+def test_events_track_failure_and_recovery(client, monkeypatch):
+    monkeypatch.setattr(
+        main, "deploy_container",
+        lambda *a, **k: {"success": False, "error": "pull failed"},
+    )
+    record = client.post("/api/deployments", json={"image": "x"}).json()
+    assert [e["kind"] for e in record["events"]] == ["created", "failed"]
+
+    # Container appears -> recovered.
+    main.deployments.update(record["id"], agent_container_id="c9")
+    main.deployments.reconcile(
+        {"nuc-1": [{"id": "c9", "status": "running"}]}, set()
+    )
+    after = main.deployments.get(record["id"])
+    assert after.status == "running"
+    assert after.events[-1].kind == "recovered"
+
+
+def test_auto_move_records_automatic_event(client, monkeypatch):
+    monkeypatch.setattr(
+        main, "deploy_container", lambda *a, **k: {"success": True, "id": "c1"}
+    )
+    monkeypatch.setattr(main, "remove_container", lambda *a, **k: {"success": True})
+    record = client.post("/api/deployments", json={"image": "nginx"}).json()
+
+    moved = main.deployments.get(record["id"])
+    main._move_deployment(moved, "nuc-2", "hot node, nuc-2 scores better")
+
+    final = main.deployments.get(record["id"])
+    assert final.placed_on == "nuc-2"
+    assert final.last_auto_move is not None
+    assert final.events[-1].kind == "moved"
+    assert final.events[-1].automatic is True
+
 
 def test_agent_rejection_marks_failed(client, monkeypatch):
     monkeypatch.setattr(

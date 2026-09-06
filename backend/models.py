@@ -105,6 +105,21 @@ class PlacementResult(BaseModel):
     has_gpu: bool = False
 
 
+EventKind = Literal[
+    "created", "deployed", "failed", "recovered", "moved", "node_offline"
+]
+
+MAX_EVENTS = 25
+
+
+class DeploymentEvent(BaseModel):
+    at: float = Field(default_factory=time.time)
+    kind: EventKind
+    detail: str = ""
+    # Set on a "moved" event the auto-rebalancer performed.
+    automatic: bool = False
+
+
 class DeploymentRecord(BaseModel):
     id: str = Field(default_factory=lambda: uuid.uuid4().hex)
     kind: DeploymentKind = "container"
@@ -122,11 +137,21 @@ class DeploymentRecord(BaseModel):
     reason: str | None = None
     alternatives: list[dict] = Field(default_factory=list)
     error: str | None = None
+    events: list[DeploymentEvent] = Field(default_factory=list)
+    # Unix time of the last automatic move — the rebalancer's cooldown key.
+    last_auto_move: float | None = None
     created_at: float = Field(default_factory=time.time)
     updated_at: float = Field(default_factory=time.time)
 
     def touch(self) -> None:
         self.updated_at = time.time()
+
+    def log(self, kind: EventKind, detail: str = "", *, automatic: bool = False) -> None:
+        self.events.append(
+            DeploymentEvent(kind=kind, detail=detail, automatic=automatic)
+        )
+        del self.events[:-MAX_EVENTS]
+        self.touch()
 
 
 class PlacementResponse(BaseModel):

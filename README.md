@@ -127,6 +127,15 @@ each *stateless* container there against the other nodes and proposes a
 move if one scores at least `REBALANCE_MIN_GAIN` points better. Suggestions
 only — "Move" runs the same redeploy path.
 
+Set **`AUTO_REBALANCE=1`** and the backend acts on them itself
+(`backend/autorebalance.py`): a background loop every
+`AUTO_REBALANCE_INTERVAL` seconds executes moves clearing the higher
+`AUTO_REBALANCE_MIN_GAIN` bar, at most `AUTO_REBALANCE_MAX_PER_CYCLE` per
+cycle, with an `AUTO_REBALANCE_COOLDOWN` per deployment so a flapping node
+can't cause a move storm. Every deployment carries an **event log**
+(`created` / `deployed` / `failed` / `recovered` / `moved`, the last
+flagged `automatic` for a rebalancer move) shown on its card.
+
 Not in scope: compose stacks, automatic rescheduling when a node dies
 (there's a manual "redeploy elsewhere" button), cross-node networking, and
 stateful volume migration (a named volume stays on its node).
@@ -159,8 +168,9 @@ All mutating routes are gated by the `X-Register-Token` header when
   the top node (or `?node=<name>` to override to another eligible node)
   and returns the `DeploymentRecord`.
 - `GET /api/deployments` / `GET /api/deployments/{id}` — managed deployments
-- `GET /api/rebalance` — `{suggestions, checked_at}`; stateless managed
-  containers on an overloaded node that would score better elsewhere
+- `GET /api/rebalance` — `{suggestions, checked_at, auto}`; stateless
+  managed containers on an overloaded node that would score better
+  elsewhere (`auto` reflects `AUTO_REBALANCE`)
 - `POST /api/deployments/{id}/redeploy` — re-score and move it
   (`?exclude_current=1` by default keeps it off its current node)
 - `DELETE /api/deployments/{id}` — remove the record and, unless

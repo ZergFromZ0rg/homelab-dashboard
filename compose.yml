@@ -23,6 +23,13 @@ services:
       REBALANCE_CPU_PERCENT: ${REBALANCE_CPU_PERCENT:-}
       REBALANCE_RAM_PERCENT: ${REBALANCE_RAM_PERCENT:-}
       REBALANCE_MIN_GAIN: ${REBALANCE_MIN_GAIN:-}
+      # Set AUTO_REBALANCE=1 to let the backend perform qualifying moves
+      # itself. The rest tune its caution; defaults apply if unset.
+      AUTO_REBALANCE: ${AUTO_REBALANCE:-}
+      AUTO_REBALANCE_INTERVAL: ${AUTO_REBALANCE_INTERVAL:-}
+      AUTO_REBALANCE_MIN_GAIN: ${AUTO_REBALANCE_MIN_GAIN:-}
+      AUTO_REBALANCE_COOLDOWN: ${AUTO_REBALANCE_COOLDOWN:-}
+      AUTO_REBALANCE_MAX_PER_CYCLE: ${AUTO_REBALANCE_MAX_PER_CYCLE:-}
     volumes:
       - dashboard-data:/data
     networks:

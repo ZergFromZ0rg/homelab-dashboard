@@ -22,6 +22,54 @@ const STATUS_LABEL = {
   stopped: "stopped",
 };
 
+const EVENT_MARK = {
+  created: "+",
+  deployed: "▸",
+  moved: "→",
+  recovered: "✓",
+  failed: "✕",
+  node_offline: "⚠",
+};
+
+function relativeTime(seconds) {
+  const delta = Date.now() / 1000 - seconds;
+  if (delta < 60) return "just now";
+  if (delta < 3600) return `${Math.floor(delta / 60)}m ago`;
+  if (delta < 86400) return `${Math.floor(delta / 3600)}h ago`;
+  return `${Math.floor(delta / 86400)}d ago`;
+}
+
+function EventLog({ events }) {
+  const [open, setOpen] = useState(false);
+  if (!events?.length) return null;
+
+  const shown = open ? events : events.slice(-2);
+
+  return (
+    <div className="deployment-events">
+      {shown.map((e, i) => (
+        <div key={i} className={`deployment-event ${e.automatic ? "auto" : ""}`}>
+          <span className="deployment-event-mark">{EVENT_MARK[e.kind] ?? "·"}</span>
+          <span className="deployment-event-detail">
+            {e.automatic ? "auto: " : ""}
+            {e.detail || e.kind}
+          </span>
+          <span className="deployment-event-time">{relativeTime(e.at)}</span>
+        </div>
+      ))}
+      {events.length > 2 && (
+        <button
+          type="button"
+          className="deployment-events-toggle"
+          onClick={() => setOpen((v) => !v)}
+        >
+          {open ? "less" : `${events.length - 2} more`}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function DeploymentCard({ record, onError }) {
   const [busy, setBusy] = useState(null);
 
@@ -70,6 +118,8 @@ function DeploymentCard({ record, onError }) {
       </div>
       {record.reason && <p className="deployment-reason">{record.reason}</p>}
       {record.error && <p className="deployment-error">{record.error}</p>}
+
+      <EventLog events={record.events} />
 
       <div className="deployment-actions">
         <button

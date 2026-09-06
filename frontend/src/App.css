@@ -1519,6 +1519,72 @@ select.deploy-input[multiple] {
   margin: 8px 0 0;
 }
 
+.rebalance-auto {
+  margin-left: 8px;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--warning);
+  border: 1px solid var(--warning);
+  padding: 1px 5px;
+  vertical-align: middle;
+}
+
+.deployment-events {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.deployment-event {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.deployment-event.auto {
+  color: var(--warning);
+}
+
+.deployment-event-mark {
+  flex-shrink: 0;
+  width: 10px;
+  text-align: center;
+  color: var(--text-faint);
+}
+
+.deployment-event.auto .deployment-event-mark {
+  color: var(--warning);
+}
+
+.deployment-event-detail {
+  flex: 1;
+  min-width: 0;
+}
+
+.deployment-event-time {
+  flex-shrink: 0;
+  color: var(--text-faint);
+  font-family: var(--mono);
+  font-size: 9px;
+}
+
+.deployment-events-toggle {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0;
+}
+
 @media (max-width: 900px) {
   .deploy-columns {
     grid-template-columns: 1fr;
