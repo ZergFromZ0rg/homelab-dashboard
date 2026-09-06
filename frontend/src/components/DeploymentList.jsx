@@ -38,8 +38,10 @@ function DeploymentCard({ record, onError }) {
   }
 
   const spec = record.spec;
+  const isStack = record.kind === "stack";
+  const title = isStack ? record.stack?.name : spec.name || spec.image;
   const url =
-    record.status === "running" && record.placed_on
+    !isStack && record.status === "running" && record.placed_on
       ? containerUrl(record.placed_on, specPortsMap(spec.ports))
       : null;
 
@@ -49,12 +51,13 @@ function DeploymentCard({ record, onError }) {
         <span className={`deployment-status deployment-status--${record.status}`}>
           {STATUS_LABEL[record.status] ?? record.status}
         </span>
+        {isStack && <span className="deployment-kind">stack</span>}
         {url ? (
           <a href={url} target="_blank" rel="noopener noreferrer">
-            {spec.name || spec.image}
+            {title}
           </a>
         ) : (
-          <strong>{spec.name || spec.image}</strong>
+          <strong>{title}</strong>
         )}
         {record.placed_on && <span className="deployment-node">on {record.placed_on}</span>}
         {record.score != null && (
@@ -62,7 +65,9 @@ function DeploymentCard({ record, onError }) {
         )}
       </div>
 
-      <div className="deployment-image">{spec.image}</div>
+      <div className="deployment-image">
+        {isStack ? `${spec.resources?.memory_mb ?? "?"} MB · compose project` : spec.image}
+      </div>
       {record.reason && <p className="deployment-reason">{record.reason}</p>}
       {record.error && <p className="deployment-error">{record.error}</p>}
 

@@ -15,7 +15,13 @@ function ScoreBar({ score, eligible }) {
 function PlacementPreview({ preview, recommended, onPick }) {
   if (!preview) return null;
 
-  const { ranked, explanation, parsed_constraints: parsed, warnings } = preview;
+  const {
+    ranked,
+    explanation,
+    parsed_constraints: parsed,
+    warnings,
+    stack_services: services,
+  } = preview;
 
   return (
     <div className="placement-preview">
@@ -23,6 +29,22 @@ function PlacementPreview({ preview, recommended, onPick }) {
         <p className="eyebrow">Scheduler</p>
         <h2>Recommended placement</h2>
       </div>
+
+      {services && (
+        <div className="placement-services">
+          {services.map((s) => (
+            <div key={s.name} className="placement-service">
+              <strong>{s.name}</strong>
+              <span>{s.image || "(build)"}</span>
+              <span className="placement-service-res">
+                {s.memory_mb ? `${s.memory_mb} MB` : "mem —"}
+                {s.cpus ? ` · ${s.cpus} cpu` : ""}
+                {s.host_ports?.length ? ` · :${s.host_ports.join(" :")}` : ""}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {explanation && <p className="placement-explanation">{explanation}</p>}
 

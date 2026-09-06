@@ -170,7 +170,7 @@ def score_node(
                 f"requests {res.cpus} cores, node has only {cores}"
             )
 
-    image_mb = estimate_image_mb(spec.image)
+    image_mb = spec.image_size_mb_hint or estimate_image_mb(spec.image)
     free_disk = _free_disk_bytes(machine)
     if free_disk is not None and free_disk < image_mb * MB:
         return disqualify(

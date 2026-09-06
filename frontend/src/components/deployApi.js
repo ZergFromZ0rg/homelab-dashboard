@@ -32,6 +32,23 @@ export function deploy(spec, node) {
   }).then(jsonOrThrow);
 }
 
+export function previewStack(stack) {
+  return fetch("/api/stacks?dry_run=1", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(stack),
+  }).then(jsonOrThrow);
+}
+
+export function deployStack(stack, node) {
+  const query = node ? `?node=${encodeURIComponent(node)}` : "";
+  return fetch(`/api/stacks${query}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(stack),
+  }).then(jsonOrThrow);
+}
+
 export function redeploy(id, { excludeCurrent = true, node } = {}) {
   const params = new URLSearchParams({ exclude_current: String(excludeCurrent) });
   if (node) params.set("node", node);

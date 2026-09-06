@@ -150,6 +150,55 @@ def remove_container(nodes: dict, host: str, container_id: str) -> dict:
     return response.json()
 
 
+def deploy_stack(nodes: dict, host: str, stack_payload: dict) -> dict:
+    """POST a compose project to a node's agent to run with ``docker compose``.
+
+    ``stack_payload`` is ``{name, compose_yaml, env}``. Same return contract
+    as ``deploy_container``: ``{success, project, services}`` or
+    ``{success: False, error, stage}``.
+    """
+    base_url = _agent_url(nodes, host)
+
+    response = requests.post(
+        f"{base_url}/stacks",
+        json=stack_payload,
+        headers=_agent_headers(),
+        timeout=DEPLOY_TIMEOUT_SECONDS,
+    )
+
+    if response.status_code == 404:
+        return {
+            "success": False,
+            "error": (
+                "this agent has no POST /stacks route — update homelab-agent "
+                "on that host to a build with compose support"
+            ),
+            "stage": "policy",
+        }
+
+    if response.status_code >= 400:
+        try:
+            return {"success": False, **response.json()}
+        except ValueError:
+            response.raise_for_status()
+
+    return response.json()
+
+
+def remove_stack(nodes: dict, host: str, project: str, *, volumes: bool = False) -> dict:
+    """``docker compose down`` a project on a node."""
+    base_url = _agent_url(nodes, host)
+
+    response = requests.delete(
+        f"{base_url}/stacks/{project}",
+        params={"volumes": "1"} if volumes else None,
+        headers=_agent_headers(),
+        timeout=DEPLOY_TIMEOUT_SECONDS,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
 def agent_spec_payload(spec: dict) -> dict:
     """Reshape a ``DeploymentSpec`` dump into the agent's request body."""
     resources = spec.get("resources") or {}

@@ -7,14 +7,19 @@ scheduler turns the fleet's live stats into a ranked list of
 
 from __future__ import annotations
 
+import re
 import time
 import uuid
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 RestartPolicy = Literal["no", "on-failure", "always", "unless-stopped"]
 DeploymentStatus = Literal["placing", "running", "failed", "node_offline", "stopped"]
+DeploymentKind = Literal["container", "stack"]
+
+# Compose project / container name: what Docker itself accepts.
+NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 
 
 class PortMapping(BaseModel):
@@ -58,9 +63,33 @@ class DeploymentSpec(BaseModel):
     restart_policy: RestartPolicy = "unless-stopped"
     resources: ResourceRequest = Field(default_factory=ResourceRequest)
     constraints: Constraints = Field(default_factory=Constraints)
+    # Set for a synthesised stack placement spec: a disk-footprint override
+    # (summed across the stack's images) and a flag that keeps the workload
+    # off the rebalancer (a compose project can't be relocated piecemeal).
+    image_size_mb_hint: int | None = Field(default=None, gt=0)
+    pinned: bool = False
 
     def stateful(self) -> bool:
-        return bool(self.volumes)
+        return bool(self.volumes) or self.pinned
+
+
+class StackSpec(BaseModel):
+    name: str
+    compose_yaml: str = Field(min_length=1)
+    # Written as the project's .env file, so ${VAR} interpolation in the
+    # compose file resolves.
+    env: dict[str, str] = Field(default_factory=dict)
+    constraints: Constraints = Field(default_factory=Constraints)
+
+    @field_validator("name")
+    @classmethod
+    def _valid_name(cls, value: str) -> str:
+        value = value.strip().lower()
+        if not NAME_RE.match(value):
+            raise ValueError(
+                "stack name must be lowercase letters, digits, '-' or '_'"
+            )
+        return value
 
 
 class PlacementResult(BaseModel):
@@ -78,9 +107,16 @@ class PlacementResult(BaseModel):
 
 class DeploymentRecord(BaseModel):
     id: str = Field(default_factory=lambda: uuid.uuid4().hex)
+    kind: DeploymentKind = "container"
+    # For kind="container": the user's spec. For kind="stack": a synthetic
+    # spec used only for placement scoring (summed resources, unioned
+    # ports, pinned=True); the real definition is in ``stack``.
     spec: DeploymentSpec
+    stack: StackSpec | None = None
     status: DeploymentStatus = "placing"
     placed_on: str | None = None
+    # A container id for kind="container"; the compose project name for
+    # kind="stack".
     agent_container_id: str | None = None
     score: float | None = None
     reason: str | None = None
@@ -103,3 +139,5 @@ class PlacementResponse(BaseModel):
     # Set when the LLM turned ``constraints.notes`` into structured fields.
     parsed_constraints: Constraints | None = None
     warnings: list[str] = Field(default_factory=list)
+    # kind="stack" previews echo the parsed service summary.
+    stack_services: list[dict] | None = None

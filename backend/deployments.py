@@ -106,12 +106,24 @@ class DeploymentStore:
 
                 if record.placed_on in offline_hosts:
                     new_status = "node_offline"
+                elif record.kind == "stack":
+                    # ``agent_container_id`` holds the compose project name.
+                    members = [
+                        c
+                        for c in live.get(record.placed_on, [])
+                        if c.get("compose_project") == record.agent_container_id
+                    ]
+                    if not members:
+                        new_status = "failed"
+                    elif any(c.get("status") == "running" for c in members):
+                        new_status = "running"
+                    else:
+                        new_status = "failed"
                 else:
-                    containers = live.get(record.placed_on, [])
                     match = next(
                         (
                             c
-                            for c in containers
+                            for c in live.get(record.placed_on, [])
                             if _same_container(c.get("id"), record.agent_container_id)
                         ),
                         None,

@@ -95,6 +95,19 @@ for it:
    `/data/deployments.json`. The `/ws` loop reconciles each record's
    status against the live container list every tick.
 
+**Compose stacks** — the Deploy tab has a "Compose stack" mode: paste a
+`docker-compose.yml` and a project name. `backend/compose.py` parses it
+(per-service image / published ports / resource limits) and
+`backend/stacks.py` synthesises one placement spec from the *sum* of the
+services' limits and the *union* of their ports — a compose project's
+services share a network, so they co-locate. The backend `POST`s the whole
+YAML to `POST {agent}/stacks`, which writes it out and runs `docker compose
+up -d`. Named volumes only (bind mounts must be under the agent's
+`ALLOWED_HOST_PATHS`); `build:` is rejected — push a pre-built image.
+Reconcile matches a stack's containers by their `com.docker.compose.project`
+label; "redeploy elsewhere" tears the project down and brings it up on a
+new node.
+
 **This needs homelab-agent with `POST /containers` / `DELETE
 /containers/{id}`** (the commits that add `deploy.py`; older agents only do
 start/stop/restart and the Deploy tab will get "agent rejected"). Because

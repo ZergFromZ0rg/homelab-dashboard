@@ -12,14 +12,23 @@ from backend.docker import (
     control_container,
     deploy_container,
     remove_container,
+    deploy_stack,
+    remove_stack,
     agent_spec_payload,
 )
 from backend.registry import NodeRegistry
 from backend.deployments import DeploymentStore
-from backend.models import DeploymentSpec, DeploymentRecord, PlacementResponse
+from backend.models import (
+    DeploymentSpec,
+    DeploymentRecord,
+    PlacementResponse,
+    StackSpec,
+)
+from backend.compose import ComposeError
 from backend import live_history
 from backend import scheduler
 from backend import rebalance
+from backend import stacks
 from backend import llm
 
 app = FastAPI()
@@ -254,6 +263,53 @@ def _score(spec: DeploymentSpec):
     return effective, ranked, recommended, explanation, parsed, warnings
 
 
+def _pick_target(node: str | None, recommended: str | None, ranked) -> str:
+    """Resolve and validate the deploy target; raises HTTPException 409."""
+    target = node or recommended
+    eligible = {r.node for r in ranked if r.eligible}
+    if target is None:
+        raise HTTPException(status_code=409, detail="no eligible node for this spec")
+    if target not in eligible:
+        raise HTTPException(
+            status_code=409,
+            detail=f"{target} is not an eligible target for this spec",
+        )
+    return target
+
+
+def _run_agent_deploy(record: DeploymentRecord, nodes: dict) -> DeploymentRecord:
+    """Send the record's workload to its ``placed_on`` agent and fold the
+    result back into the record. Shared by create + redeploy, both kinds."""
+    target = record.placed_on
+    try:
+        if record.kind == "stack":
+            result = deploy_stack(
+                nodes, target, stacks.agent_stack_payload(record.stack)
+            )
+        else:
+            result = deploy_container(
+                nodes, target, agent_spec_payload(record.spec.model_dump())
+            )
+    except ValueError as error:
+        return deployments.update(record.id, status="failed", error=str(error))
+    except requests.RequestException as error:
+        return deployments.update(
+            record.id, status="failed", error=f"agent unreachable: {error}"
+        )
+
+    if not result.get("success", False):
+        return deployments.update(
+            record.id,
+            status="failed",
+            error=result.get("error") or "agent rejected the deployment",
+        )
+
+    ref = result.get("project") if record.kind == "stack" else result.get("id")
+    return deployments.update(
+        record.id, status="running", agent_container_id=ref, error=None
+    )
+
+
 @app.post("/api/deployments", response_model=None)
 async def create_deployment(
     spec: DeploymentSpec,
@@ -277,22 +333,10 @@ async def create_deployment(
             warnings=warnings,
         )
 
-    # A manual override must still be an eligible node.
-    target = node or recommended
-    eligible_nodes = {r.node for r in ranked if r.eligible}
+    target = _pick_target(node, recommended, ranked)
 
-    if target is None:
-        raise HTTPException(
-            status_code=409, detail="no eligible node for this spec"
-        )
-    if target not in eligible_nodes:
-        raise HTTPException(
-            status_code=409,
-            detail=f"{target} is not an eligible target for this spec",
-        )
-
-    nodes = registry.all()
     record = DeploymentRecord(
+        kind="container",
         spec=effective,
         status="placing",
         placed_on=target,
@@ -305,34 +349,61 @@ async def create_deployment(
         ][:4],
     )
     deployments.add(record)
+    return _run_agent_deploy(record, registry.all())
+
+
+@app.post("/api/stacks", response_model=None)
+async def create_stack_deployment(
+    stack: StackSpec,
+    dry_run: bool = False,
+    node: str | None = None,
+    x_register_token: str | None = Header(default=None),
+):
+    _check_token(x_register_token)
 
     try:
-        result = await asyncio.to_thread(
-            deploy_container,
-            nodes,
-            target,
-            agent_spec_payload(effective.model_dump()),
-        )
-    except ValueError as error:
-        return deployments.update(record.id, status="failed", error=str(error))
-    except requests.RequestException as error:
-        return deployments.update(
-            record.id, status="failed", error=f"agent unreachable: {error}"
+        synthetic, parsed, stack_warnings = stacks.plan_stack(stack)
+    except ComposeError as error:
+        raise HTTPException(
+            status_code=400, detail=f"could not parse the compose file: {error}"
         )
 
-    if not result.get("success", False):
-        return deployments.update(
-            record.id,
-            status="failed",
-            error=result.get("error") or "agent rejected the deployment",
-        )
-
-    return deployments.update(
-        record.id,
-        status="running",
-        agent_container_id=result.get("id"),
-        error=None,
+    effective, ranked, recommended, explanation, parsed_c, warnings = (
+        await asyncio.to_thread(_score, synthetic)
     )
+    warnings = stack_warnings + [
+        w for w in warnings if "named volume stays on its node" not in w
+    ]
+
+    if dry_run:
+        return PlacementResponse(
+            spec=effective,
+            ranked=ranked,
+            recommended=recommended,
+            explanation=explanation,
+            parsed_constraints=parsed_c,
+            warnings=warnings,
+            stack_services=stacks.service_summary(parsed),
+        )
+
+    target = _pick_target(node, recommended, ranked)
+
+    record = DeploymentRecord(
+        kind="stack",
+        spec=effective,
+        stack=stack,
+        status="placing",
+        placed_on=target,
+        score=next((r.score for r in ranked if r.node == target), None),
+        reason=explanation or _fallback_reason(ranked, target),
+        alternatives=[
+            {"node": r.node, "score": r.score, "eligible": r.eligible}
+            for r in ranked
+            if r.node != target
+        ][:4],
+    )
+    deployments.add(record)
+    return _run_agent_deploy(record, registry.all())
 
 
 @app.get("/api/deployments")
@@ -376,19 +447,24 @@ async def redeploy(
     if record is None:
         raise HTTPException(status_code=404, detail="unknown deployment")
 
-    spec = record.spec
+    # A stack re-scores from its own compose file; a container from its spec.
+    if record.kind == "stack":
+        score_spec, _, _ = stacks.plan_stack(record.stack)
+    else:
+        score_spec = record.spec
+
     if exclude_current and record.placed_on and not node:
-        blocked = set(spec.constraints.node_not_in or []) | {record.placed_on}
-        spec = spec.model_copy(
+        blocked = set(score_spec.constraints.node_not_in or []) | {record.placed_on}
+        score_spec = score_spec.model_copy(
             update={
-                "constraints": spec.constraints.model_copy(
+                "constraints": score_spec.constraints.model_copy(
                     update={"node_not_in": sorted(blocked)}
                 )
             }
         )
 
     effective, ranked, recommended, explanation, _, _ = await asyncio.to_thread(
-        _score, spec
+        _score, score_spec
     )
     target = node or recommended
     eligible_nodes = {r.node for r in ranked if r.eligible}
@@ -400,55 +476,40 @@ async def redeploy(
 
     nodes = registry.all()
 
-    # Best-effort teardown of the old container before starting the new one.
+    # Best-effort teardown on the old host before starting on the new one.
     if record.placed_on and record.agent_container_id:
         try:
-            await asyncio.to_thread(
-                remove_container, nodes, record.placed_on, record.agent_container_id
-            )
+            if record.kind == "stack":
+                await asyncio.to_thread(
+                    remove_stack, nodes, record.placed_on, record.agent_container_id
+                )
+            else:
+                await asyncio.to_thread(
+                    remove_container,
+                    nodes,
+                    record.placed_on,
+                    record.agent_container_id,
+                )
         except (ValueError, requests.RequestException):
             pass
 
-    deployments.update(
+    updated = deployments.update(
         deployment_id,
         status="placing",
         placed_on=target,
+        spec=effective,
         score=next((r.score for r in ranked if r.node == target), None),
         reason=explanation or _fallback_reason(ranked, target),
         error=None,
     )
-
-    try:
-        result = await asyncio.to_thread(
-            deploy_container,
-            nodes,
-            target,
-            agent_spec_payload(effective.model_dump()),
-        )
-    except (ValueError, requests.RequestException) as error:
-        return deployments.update(
-            deployment_id, status="failed", error=f"{error}"
-        )
-
-    if not result.get("success", False):
-        return deployments.update(
-            deployment_id,
-            status="failed",
-            error=result.get("error") or "agent rejected the redeploy",
-        )
-
-    return deployments.update(
-        deployment_id,
-        status="running",
-        agent_container_id=result.get("id"),
-        error=None,
-    )
+    return _run_agent_deploy(updated, nodes)
 
 
 @app.delete("/api/deployments/{deployment_id}", response_model=None)
 async def delete_deployment(
     deployment_id: str,
     keep_container: bool = False,
+    volumes: bool = False,
     x_register_token: str | None = Header(default=None),
 ):
     _check_token(x_register_token)
@@ -457,27 +518,34 @@ async def delete_deployment(
     if record is None:
         raise HTTPException(status_code=404, detail="unknown deployment")
 
-    removed_container = False
+    removed = False
     error = None
 
-    if (
-        not keep_container
-        and record.placed_on
-        and record.agent_container_id
-    ):
+    if not keep_container and record.placed_on and record.agent_container_id:
         try:
-            await asyncio.to_thread(
-                remove_container,
-                registry.all(),
-                record.placed_on,
-                record.agent_container_id,
-            )
-            removed_container = True
+            if record.kind == "stack":
+                result = await asyncio.to_thread(
+                    remove_stack,
+                    registry.all(),
+                    record.placed_on,
+                    record.agent_container_id,
+                    volumes=volumes,
+                )
+            else:
+                result = await asyncio.to_thread(
+                    remove_container,
+                    registry.all(),
+                    record.placed_on,
+                    record.agent_container_id,
+                )
+            removed = bool(result.get("success", True))
+            if not removed:
+                error = result.get("error") or "agent could not tear it down"
         except (ValueError, requests.RequestException) as exc:
-            error = f"could not remove container: {exc}"
+            error = f"could not tear down on the agent: {exc}"
 
     deployments.remove(deployment_id)
-    return {"ok": True, "removed_container": removed_container, "error": error}
+    return {"ok": True, "removed_container": removed, "error": error}
 
 
 @app.websocket("/ws")

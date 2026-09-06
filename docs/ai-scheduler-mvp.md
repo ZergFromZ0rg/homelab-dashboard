@@ -21,8 +21,17 @@ Beyond the MVP, also merged: `backend/rebalance.py` + `GET /api/rebalance`
 containers on an overloaded node and suggests moves (advisory; "Move" runs
 redeploy). 52 tests across the two repos.
 
-Not done: compose-stack support, production hardening beyond the shared
-tokens, stateful volume migration.
+**Compose stacks** (also merged): Deploy tab "Compose stack" mode →
+`backend/compose.py` (per-service parse) + `backend/stacks.py` (one
+synthetic placement spec from summed limits / unioned ports, `pinned`) →
+`POST /api/stacks` → agent `POST /stacks` runs `docker compose up -d`
+(agent image now ships the Compose plugin). Named volumes only, `build:`
+rejected. Reconcile/redeploy/delete are kind-aware
+(`DeploymentRecord.kind`). Verified end to end through the browser against
+real Docker.
+
+Not done: production hardening beyond the shared tokens, stateful volume
+migration, cross-node stack networking.
 
 ## Scope
 
