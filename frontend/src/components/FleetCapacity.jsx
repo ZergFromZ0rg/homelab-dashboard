@@ -31,9 +31,29 @@ function nodeRows(machines) {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function FleetCapacity({ machines }) {
+function commitment(machines, deployments) {
+  let capRam = 0;
+  let capCpu = 0;
+  for (const m of Object.values(machines ?? {})) {
+    if (!m?.online) continue;
+    if (typeof m.ram_total_bytes === "number") capRam += m.ram_total_bytes / 1024 ** 3;
+    if (typeof m.cpu_cores === "number") capCpu += m.cpu_cores;
+  }
+  let comRam = 0;
+  let comCpu = 0;
+  for (const d of deployments ?? []) {
+    if (d.status !== "running" && d.status !== "placing") continue;
+    comRam += (d.spec?.resources?.memory_mb ?? 0) / 1024;
+    comCpu += d.spec?.resources?.cpus ?? 0;
+  }
+  return { capRam, capCpu, comRam, comCpu };
+}
+
+function FleetCapacity({ machines, deployments }) {
   const rows = nodeRows(machines);
   if (rows.length === 0) return null;
+
+  const { capRam, capCpu, comRam, comCpu } = commitment(machines, deployments);
 
   return (
     <div className="fleet-capacity">
@@ -63,6 +83,14 @@ function FleetCapacity({ machines }) {
           {r.hasGpu && <span className="fleet-gpu">GPU</span>}
         </div>
       ))}
+
+      {comRam + comCpu > 0 && (
+        <div className="fleet-committed">
+          scheduler committed {comRam.toFixed(1)} GB · {comCpu.toFixed(1)} cores
+          {" of "}
+          {capRam.toFixed(0)} GB · {capCpu.toFixed(0)} cores online
+        </div>
+      )}
     </div>
   );
 }

@@ -328,7 +328,11 @@ def _run_agent_deploy(
 
     ref = result.get("project") if record.kind == "stack" else result.get("id")
     deployments.update(
-        record.id, status="running", agent_container_id=ref, error=None
+        record.id,
+        status="running",
+        agent_container_id=ref,
+        error=None,
+        deployed_at=time.time(),
     )
     prefix = "auto-moved to" if automatic else ("moved to" if event == "moved" else "running on")
     return deployments.log_event(
@@ -443,6 +447,65 @@ def list_deployments():
     return [d.model_dump() for d in deployments.all()]
 
 
+@app.get("/api/fleet")
+async def fleet_summary():
+    """At-a-glance: per-node headroom, how much the scheduler has committed
+    vs the fleet's online capacity, and a status tally."""
+    _, machines, _, _, _ = await asyncio.to_thread(_build_fleet)
+    records = deployments.all()
+
+    nodes = []
+    cap_ram = cap_cpu = 0.0
+    for name, m in sorted(machines.items()):
+        online = bool(m.get("online"))
+        cores = m.get("cpu_cores")
+        ram_total = m.get("ram_total_bytes")
+        cpu, ram = m.get("cpu"), m.get("ram")
+        free_ram_mb = (
+            int(ram_total * (1 - ram / 100) / (1024 * 1024))
+            if isinstance(ram_total, (int, float)) and isinstance(ram, (int, float))
+            else None
+        )
+        free_cpu = (
+            round(cores * (1 - cpu / 100), 2)
+            if isinstance(cores, (int, float)) and isinstance(cpu, (int, float))
+            else None
+        )
+        if online and isinstance(ram_total, (int, float)):
+            cap_ram += ram_total / (1024 * 1024)
+        if online and isinstance(cores, (int, float)):
+            cap_cpu += cores
+        nodes.append(
+            {
+                "name": name,
+                "online": online,
+                "free_ram_mb": free_ram_mb,
+                "free_cpu_cores": free_cpu,
+                "has_gpu": bool((m.get("gpu") or {}).get("devices")),
+                "managed": sum(
+                    1
+                    for r in records
+                    if r.placed_on == name and r.status in ("running", "placing")
+                ),
+            }
+        )
+
+    live = [r for r in records if r.status in ("running", "placing")]
+    committed_ram = sum(r.spec.resources.memory_mb or 0 for r in live)
+    committed_cpu = sum(r.spec.resources.cpus or 0 for r in live)
+
+    tally: dict[str, int] = {}
+    for r in records:
+        tally[r.status] = tally.get(r.status, 0) + 1
+
+    return {
+        "nodes": nodes,
+        "capacity": {"memory_mb": int(cap_ram), "cpus": round(cap_cpu, 1)},
+        "committed": {"memory_mb": committed_ram, "cpus": round(committed_cpu, 2)},
+        "deployments": tally,
+    }
+
+
 @app.get("/api/rebalance")
 async def rebalance_suggestions():
     _, machines, containers, _, stale_hosts = await asyncio.to_thread(
@@ -462,29 +525,74 @@ async def rebalance_suggestions():
     }
 
 
-def _move_deployment(record: DeploymentRecord, target: str, reason: str) -> None:
-    """Tear a running deployment down on its current host and bring it up on
-    ``target``. Used only by the auto-rebalancer — the interactive path is
-    the /redeploy endpoint."""
-    nodes = registry.all()
-    if record.placed_on and record.agent_container_id and record.placed_on in nodes:
-        try:
-            if record.kind == "stack":
-                remove_stack(nodes, record.placed_on, record.agent_container_id)
-            else:
-                remove_container(nodes, record.placed_on, record.agent_container_id)
-        except (ValueError, requests.RequestException):
-            pass
+def _teardown(nodes: dict, record: DeploymentRecord) -> None:
+    if not (
+        record.placed_on and record.agent_container_id and record.placed_on in nodes
+    ):
+        return
+    try:
+        if record.kind == "stack":
+            remove_stack(nodes, record.placed_on, record.agent_container_id)
+        else:
+            remove_container(nodes, record.placed_on, record.agent_container_id)
+    except (ValueError, requests.RequestException):
+        pass
 
-    updated = deployments.update(
-        record.id,
-        status="placing",
-        placed_on=target,
-        reason=reason,
-        last_auto_move=time.time(),
-        error=None,
+
+def _relocate(
+    record: DeploymentRecord,
+    target: str,
+    *,
+    reason: str,
+    spec: DeploymentSpec | None = None,
+    score: float | None = None,
+    automatic: bool = False,
+    mark_auto_move: bool = False,
+) -> DeploymentRecord:
+    """Move a deployment to ``target``: tear it down where it is, deploy on
+    the new node, and — if that fails — try to bring it back on the node it
+    was on so a bad move doesn't just leave the workload down."""
+    nodes = registry.all()
+    origin = record.placed_on
+    same_node = target == origin
+
+    _teardown(nodes, record)
+
+    updates: dict = {"status": "placing", "placed_on": target, "reason": reason, "error": None}
+    if spec is not None:
+        updates["spec"] = spec
+    if score is not None:
+        updates["score"] = score
+    if mark_auto_move:
+        updates["last_auto_move"] = time.time()
+    updated = deployments.update(record.id, **updates)
+
+    event = "deployed" if same_node else "moved"
+    result = _run_agent_deploy(updated, nodes, event=event, automatic=automatic)
+
+    if (
+        result
+        and result.status == "failed"
+        and origin
+        and not same_node
+        and origin in nodes
+    ):
+        deployments.log_event(
+            record.id, "failed", f"{target} rejected it — rolling back to {origin}"
+        )
+        rolled = deployments.update(
+            record.id, status="placing", placed_on=origin, error=None
+        )
+        result = _run_agent_deploy(rolled, nodes, event="deployed")
+    return result
+
+
+def _move_deployment(record: DeploymentRecord, target: str, reason: str) -> None:
+    """Auto-rebalancer / auto-reschedule move. The interactive path is the
+    /redeploy endpoint."""
+    _relocate(
+        record, target, reason=reason, automatic=True, mark_auto_move=True
     )
-    _run_agent_deploy(updated, nodes, event="moved", automatic=True)
 
 
 RECONCILE_INTERVAL_SECONDS = 5
@@ -633,37 +741,14 @@ async def redeploy(
             status_code=409, detail="no eligible node for a redeploy"
         )
 
-    nodes = registry.all()
-
-    # Best-effort teardown on the old host before starting on the new one.
-    if record.placed_on and record.agent_container_id:
-        try:
-            if record.kind == "stack":
-                await asyncio.to_thread(
-                    remove_stack, nodes, record.placed_on, record.agent_container_id
-                )
-            else:
-                await asyncio.to_thread(
-                    remove_container,
-                    nodes,
-                    record.placed_on,
-                    record.agent_container_id,
-                )
-        except (ValueError, requests.RequestException):
-            pass
-
-    from_node = record.placed_on
-    updated = deployments.update(
-        deployment_id,
-        status="placing",
-        placed_on=target,
+    return await asyncio.to_thread(
+        _relocate,
+        record,
+        target,
+        reason=explanation or _fallback_reason(ranked, target),
         spec=effective,
         score=next((r.score for r in ranked if r.node == target), None),
-        reason=explanation or _fallback_reason(ranked, target),
-        error=None,
     )
-    event = "moved" if target != from_node else "deployed"
-    return _run_agent_deploy(updated, nodes, event=event)
 
 
 @app.delete("/api/deployments/{deployment_id}", response_model=None)

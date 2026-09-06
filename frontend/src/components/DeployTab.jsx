@@ -207,7 +207,7 @@ function DeployTab({ machines, deployments }) {
             </button>
           </div>
 
-          <FleetCapacity machines={machines} />
+          <FleetCapacity machines={machines} deployments={deployments} />
 
           {isStack ? (
             <StackForm value={stackForm} onChange={editStack} nodeNames={nodeNames} />

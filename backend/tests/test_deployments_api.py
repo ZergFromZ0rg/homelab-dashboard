@@ -51,6 +51,24 @@ def client(tmp_path, monkeypatch):
     return TestClient(main.app)
 
 
+def test_fleet_summary(client, monkeypatch):
+    monkeypatch.setattr(
+        main, "deploy_container", lambda *a, **k: {"success": True, "id": "c1"}
+    )
+    client.post(
+        "/api/deployments",
+        json={"image": "nginx", "resources": {"memory_mb": 512, "cpus": 1}},
+    )
+
+    body = client.get("/api/fleet").json()
+    assert body["capacity"]["memory_mb"] == (32 + 16) * 1024
+    assert body["capacity"]["cpus"] == 12.0
+    assert body["committed"] == {"memory_mb": 512, "cpus": 1.0}
+    assert body["deployments"]["running"] == 1
+    nuc1 = next(n for n in body["nodes"] if n["name"] == "nuc-1")
+    assert nuc1["managed"] == 1
+
+
 def test_dry_run_ranks_without_deploying(client):
     resp = client.post(
         "/api/deployments?dry_run=1",
@@ -123,6 +141,34 @@ def test_auto_move_records_automatic_event(client, monkeypatch):
     assert final.last_auto_move is not None
     assert final.events[-1].kind == "moved"
     assert final.events[-1].automatic is True
+
+
+def test_failed_move_rolls_back_to_origin(client, monkeypatch):
+    # First deploy succeeds on nuc-1; the move to nuc-2 is rejected; the
+    # rollback to nuc-1 succeeds.
+    attempts = []
+
+    def flaky_deploy(nodes, host, payload):
+        attempts.append(host)
+        if host == "nuc-2":
+            return {"success": False, "error": "port in use"}
+        return {"success": True, "id": f"c-{len(attempts)}"}
+
+    monkeypatch.setattr(main, "deploy_container", flaky_deploy)
+    monkeypatch.setattr(main, "remove_container", lambda *a, **k: {"success": True})
+
+    record = client.post("/api/deployments", json={"image": "nginx"}).json()
+    assert record["placed_on"] == "nuc-1"
+
+    main._relocate(
+        main.deployments.get(record["id"]), "nuc-2", reason="trying nuc-2"
+    )
+
+    final = main.deployments.get(record["id"])
+    assert attempts == ["nuc-1", "nuc-2", "nuc-1"]
+    assert final.status == "running"
+    assert final.placed_on == "nuc-1"
+    assert any("rolling back" in e.detail for e in final.events)
 
 
 def test_agent_rejection_marks_failed(client, monkeypatch):

@@ -140,6 +140,9 @@ class DeploymentRecord(BaseModel):
     events: list[DeploymentEvent] = Field(default_factory=list)
     # Unix time of the last automatic move — the rebalancer's cooldown key.
     last_auto_move: float | None = None
+    # Unix time the agent last confirmed the workload started — reconcile
+    # gives a just-deployed record a grace window before "container gone".
+    deployed_at: float | None = None
     created_at: float = Field(default_factory=time.time)
     updated_at: float = Field(default_factory=time.time)
 

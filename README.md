@@ -174,6 +174,8 @@ All mutating routes are gated by the `X-Register-Token` header when
   the top node (or `?node=<name>` to override to another eligible node)
   and returns the `DeploymentRecord`.
 - `GET /api/deployments` / `GET /api/deployments/{id}` — managed deployments
+- `GET /api/fleet` — per-node headroom, scheduler-committed vs online
+  capacity, and a deployment status tally
 - `GET /api/rebalance` — `{suggestions, checked_at, auto}`; stateless
   managed containers on an overloaded node that would score better
   elsewhere (`auto` reflects `AUTO_REBALANCE`)

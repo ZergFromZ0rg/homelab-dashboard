@@ -77,6 +77,33 @@ def test_reconcile_marks_unhealthy_container_failed(tmp_path):
     assert got.events[-1].kind == "recovered"
 
 
+def test_reconcile_grace_window_for_just_deployed(tmp_path):
+    import time as _t
+
+    store = DeploymentStore(tmp_path / "d.json")
+    # Just deployed, container not in the snapshot yet.
+    fresh = store.add(record(deployed_at=_t.time()))
+    store.reconcile({"nuc-1": []}, offline_hosts=set())
+    assert store.get(fresh.id).status == "running"
+
+    # Past the grace window -> failed.
+    store.update(fresh.id, deployed_at=_t.time() - 999)
+    store.reconcile({"nuc-1": []}, offline_hosts=set())
+    assert store.get(fresh.id).status == "failed"
+
+
+def test_grace_does_not_apply_to_present_but_broken(tmp_path):
+    import time as _t
+
+    store = DeploymentStore(tmp_path / "d.json")
+    fresh = store.add(record(deployed_at=_t.time()))
+    # Present but exited — a real failure, no grace.
+    store.reconcile(
+        {"nuc-1": [{"id": "abc123", "status": "exited"}]}, offline_hosts=set()
+    )
+    assert store.get(fresh.id).status == "failed"
+
+
 def test_reconcile_stack_unhealthy_member_fails(tmp_path):
     store = DeploymentStore(tmp_path / "d.json")
     rec = store.add(record(kind="stack", agent_container_id="webproj"))

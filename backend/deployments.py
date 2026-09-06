@@ -97,6 +97,12 @@ class DeploymentStore:
         with self._lock:
             return [r.model_copy(deep=True) for r in self._records.values()]
 
+    # A container the agent hasn't put in its snapshot yet (a just-finished
+    # deploy) looks "gone" for a few seconds. Don't flip a freshly-running
+    # record to failed on absence alone until this much time has passed —
+    # a container that's *present but broken* is failed immediately.
+    ABSENCE_GRACE_SECONDS = 20
+
     def reconcile(self, live: dict[str, list[dict]], offline_hosts: set[str]) -> None:
         """Refresh each record's status against the live container snapshot.
 
@@ -107,6 +113,7 @@ class DeploymentStore:
         makes it ``failed``. ``placing`` and ``stopped`` records are left
         alone.
         """
+        now = time.time()
         with self._lock:
             changed = False
             for record in self._records.values():
@@ -116,15 +123,28 @@ class DeploymentStore:
                     continue
 
                 if record.placed_on in offline_hosts:
-                    new_status, detail = "node_offline", f"{record.placed_on} unreachable"
+                    new_status, detail, absent = (
+                        "node_offline",
+                        f"{record.placed_on} unreachable",
+                        False,
+                    )
                 elif record.kind == "stack":
-                    new_status, detail = _stack_status(
+                    new_status, detail, absent = _stack_status(
                         live.get(record.placed_on, []), record.agent_container_id
                     )
                 else:
-                    new_status, detail = _container_status(
+                    new_status, detail, absent = _container_status(
                         live.get(record.placed_on, []), record.agent_container_id
                     )
+
+                if (
+                    new_status == "failed"
+                    and absent
+                    and record.status == "running"
+                    and record.deployed_at
+                    and now - record.deployed_at < self.ABSENCE_GRACE_SECONDS
+                ):
+                    continue
 
                 if new_status != record.status:
                     previous = record.status
@@ -158,25 +178,31 @@ def _healthy(container: dict) -> tuple[bool, str]:
     return True, ""
 
 
-def _container_status(containers: list[dict], container_id: str) -> tuple[str, str]:
+def _container_status(
+    containers: list[dict], container_id: str
+) -> tuple[str, str, bool]:
+    """Returns ``(status, detail, absent)`` — ``absent`` is True only when the
+    container isn't in the snapshot at all (vs present but broken)."""
     match = next(
         (c for c in containers if _same_container(c.get("id"), container_id)), None
     )
     if match is None:
-        return "failed", "container is gone"
+        return "failed", "container is gone", True
     up, why = _healthy(match)
-    return ("running", "") if up else ("failed", why)
+    return ("running", "", False) if up else ("failed", why, False)
 
 
-def _stack_status(containers: list[dict], project: str) -> tuple[str, str]:
+def _stack_status(
+    containers: list[dict], project: str
+) -> tuple[str, str, bool]:
     members = [c for c in containers if c.get("compose_project") == project]
     if not members:
-        return "failed", "no containers for this project"
+        return "failed", "no containers for this project", True
 
     unhealthy = [c["name"] for c in members if c.get("health") == "unhealthy"]
     if unhealthy:
-        return "failed", f"unhealthy service(s): {', '.join(unhealthy)}"
+        return "failed", f"unhealthy service(s): {', '.join(unhealthy)}", False
 
     if any(c.get("status") == "running" for c in members):
-        return "running", ""
-    return "failed", "no running containers in the project"
+        return "running", "", False
+    return "failed", "no running containers in the project", False

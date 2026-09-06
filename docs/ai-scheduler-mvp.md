@@ -46,6 +46,15 @@ stack with any unhealthy member — as `failed`. The auto-rebalance loop
 also reschedules stranded stateless single containers off a
 `node_offline` host onto a healthy node.
 
+**Move rollback + fleet summary + deploy grace** (also merged):
+`_relocate` now brings a deployment back to its origin node if the new
+node rejects it, so a bad move (auto or manual) doesn't leave the
+workload down. `GET /api/fleet` returns per-node headroom + committed-vs-
+capacity + a status tally, and the Deploy tab shows a "scheduler
+committed X of Y" line. Reconcile gives a just-deployed record a 20s
+grace window before "container gone" (the agent's snapshot lags a
+deploy), while a *present-but-broken* container still fails immediately.
+
 Not done: production hardening beyond the shared tokens, stateful volume
 migration, cross-node stack networking.
 

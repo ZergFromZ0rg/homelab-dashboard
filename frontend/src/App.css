@@ -1471,6 +1471,13 @@ select.deploy-input[multiple] {
   padding: 0 4px;
 }
 
+.fleet-committed {
+  margin-top: 4px;
+  font-size: 9px;
+  font-family: var(--mono);
+  color: var(--text-faint);
+}
+
 .rebalance-panel {
   margin-bottom: 18px;
   border: 1px solid var(--warning);

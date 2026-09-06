@@ -111,7 +111,12 @@ def test_stack_reconciles_by_compose_project(client, monkeypatch):
         "/api/stacks", json={"name": "web-stack", "compose_yaml": COMPOSE}
     ).json()
 
-    # No members on the host -> failed.
+    # Within the post-deploy grace window, an empty snapshot is tolerated.
+    main.deployments.reconcile({"big": []}, set())
+    assert main.deployments.get(record["id"]).status == "running"
+
+    # Past it -> failed.
+    main.deployments.update(record["id"], deployed_at=0)
     main.deployments.reconcile({"big": []}, set())
     assert main.deployments.get(record["id"]).status == "failed"
 
