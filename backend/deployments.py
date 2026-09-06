@@ -15,6 +15,7 @@ import threading
 import time
 from pathlib import Path
 
+from backend.log import scheduler, system
 from backend.models import DeploymentRecord
 
 DEPLOYMENTS_FILE = Path(os.getenv("DEPLOYMENTS_FILE", "/data/deployments.json"))
@@ -51,7 +52,7 @@ class DeploymentStore:
             tmp.write_text(json.dumps(payload, indent=2) + "\n")
             tmp.replace(self.path)
         except OSError as error:
-            print(f"deployments save failed: {error}")
+            system.warning("deployments save failed: %s", error)
 
     def add(self, record: DeploymentRecord) -> DeploymentRecord:
         with self._lock:
@@ -84,6 +85,15 @@ class DeploymentStore:
                 return None
             record.log(kind, detail, automatic=automatic)
             self._save_locked()
+            level = scheduler.warning if kind == "failed" else scheduler.info
+            level(
+                "%s %s%s %s%s",
+                kind,
+                deployment_id[:8],
+                f"/{record.kind}" if record.kind != "container" else "",
+                "(auto) " if automatic else "",
+                detail,
+            )
             return record.model_copy(deep=True)
 
     def remove(self, deployment_id: str) -> bool:
@@ -149,12 +159,17 @@ class DeploymentStore:
                 if new_status != record.status:
                     previous = record.status
                     record.status = new_status
+                    kind = None
                     if new_status == "running" and previous in ("failed", "node_offline"):
-                        record.log("recovered", detail or f"running on {record.placed_on}")
+                        kind, text = "recovered", detail or f"running on {record.placed_on}"
                     elif new_status == "failed":
-                        record.log("failed", detail or "no running container")
+                        kind, text = "failed", detail or "no running container"
                     elif new_status == "node_offline":
-                        record.log("node_offline", detail)
+                        kind, text = "node_offline", detail
+                    if kind:
+                        record.log(kind, text)
+                        level = scheduler.warning if kind != "recovered" else scheduler.info
+                        level("%s %s %s", kind, record.id[:8], text)
                     else:
                         record.touch()
                     changed = True

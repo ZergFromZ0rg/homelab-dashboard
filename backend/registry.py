@@ -13,6 +13,8 @@ import threading
 import time
 from pathlib import Path
 
+from backend.log import system as log
+
 NODES_FILE = Path(os.getenv("NODES_FILE", "/data/nodes.json"))
 
 # A node is "stale" (still shown, marked offline) after this long without a
@@ -51,7 +53,7 @@ class NodeRegistry:
             )
             tmp.replace(self.path)
         except OSError as error:
-            print(f"registry save failed: {error}")
+            log.warning("registry save failed: %s", error)
 
     def _prune_locked(self, now: float) -> None:
         expired = [

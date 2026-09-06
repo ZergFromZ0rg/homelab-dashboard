@@ -2,6 +2,8 @@ import os
 import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from backend.log import system as log
+
 CONTROL_ACTIONS = {"start", "stop", "restart"}
 
 # How long to give an agent to pull an image and start the container.
@@ -35,7 +37,7 @@ def get_host_data(host, base_url):
         }
 
     except requests.RequestException as error:
-        print(f"Agent error for {host}: {error}")
+        log.debug("agent %s unreachable: %s", host, error)
 
         return host, {
             "containers": [],

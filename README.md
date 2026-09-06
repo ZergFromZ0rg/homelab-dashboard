@@ -131,6 +131,12 @@ each *stateless* container there against the other nodes and proposes a
 move if one scores at least `REBALANCE_MIN_GAIN` points better. Suggestions
 only — "Move" runs the same redeploy path.
 
+Every placement decision — deploy, move, reschedule, fail, recover — is
+also written to stdout on the `scheduler` logger (`LOG_LEVEL` controls
+verbosity). `docker compose logs dashboard-api | grep ' scheduler '` is a
+fleet-wide audit trail; the agent has its own `audit` logger for every
+container/stack mutation it's asked to make.
+
 Set **`AUTO_REBALANCE=1`** and the backend acts on them itself
 (`backend/autorebalance.py`): a background loop every
 `AUTO_REBALANCE_INTERVAL` seconds executes moves clearing the higher

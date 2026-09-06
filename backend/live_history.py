@@ -14,6 +14,8 @@ import os
 import time
 from collections import deque
 
+from backend.log import system as log
+
 WINDOW_SECONDS = 30 * 60
 SAMPLE_INTERVAL_SECONDS = 2
 MAX_SAMPLES = WINDOW_SECONDS // SAMPLE_INTERVAL_SECONDS
@@ -72,7 +74,7 @@ def _save() -> None:
         os.replace(tmp_path, PERSIST_PATH)
 
     except OSError as error:
-        print(f"live_history: failed to persist: {error}")
+        log.warning("live_history: failed to persist: %s", error)
 
 
 def maybe_persist() -> None:

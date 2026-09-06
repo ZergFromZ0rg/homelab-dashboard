@@ -26,6 +26,7 @@ from backend.models import (
     StackSpec,
 )
 from backend.compose import ComposeError
+from backend.log import scheduler as sched_log, system as system_log
 from backend import live_history
 from backend import scheduler
 from backend import rebalance
@@ -384,6 +385,7 @@ async def create_deployment(
     )
     record.log("created", f"placing on {target}")
     deployments.add(record)
+    sched_log.info("deploy %s: %s -> %s (score %s)", record.id[:8], record.kind, target, record.score)
     return _run_agent_deploy(record, registry.all())
 
 
@@ -439,6 +441,7 @@ async def create_stack_deployment(
     )
     record.log("created", f"placing on {target}")
     deployments.add(record)
+    sched_log.info("deploy %s: %s -> %s (score %s)", record.id[:8], record.kind, target, record.score)
     return _run_agent_deploy(record, registry.all())
 
 
@@ -613,17 +616,18 @@ async def _reconcile_loop() -> None:
         except asyncio.CancelledError:
             raise
         except Exception as error:  # noqa: BLE001 - loop must survive
-            print(f"reconcile cycle failed: {error}")
+            system_log.warning("reconcile cycle failed: %s", error)
 
 
 async def _auto_rebalance_loop() -> None:
     if not autorebalance.enabled():
         return
-    print(
-        f"auto-rebalance on: every {autorebalance.INTERVAL_SECONDS:.0f}s, "
-        f"min gain {autorebalance.MIN_GAIN:.0f}, "
-        f"cooldown {autorebalance.COOLDOWN_SECONDS:.0f}s "
-        f"(also reschedules stateless workloads off offline nodes)"
+    sched_log.info(
+        "auto-rebalance on: every %.0fs, min gain %.0f, cooldown %.0fs "
+        "(also reschedules stateless workloads off offline nodes)",
+        autorebalance.INTERVAL_SECONDS,
+        autorebalance.MIN_GAIN,
+        autorebalance.COOLDOWN_SECONDS,
     )
     while True:
         await asyncio.sleep(autorebalance.INTERVAL_SECONDS)
@@ -645,9 +649,12 @@ async def _auto_rebalance_loop() -> None:
                 record = deployments.get(move["deployment_id"])
                 if record is None:
                     continue
-                print(
-                    f"auto-rebalance: moving {record.id[:8]} "
-                    f"{move['from_node']} -> {move['to_node']} (+{move['gain']})"
+                sched_log.info(
+                    "auto-rebalance: %s %s -> %s (+%s)",
+                    record.id[:8],
+                    move["from_node"],
+                    move["to_node"],
+                    move["gain"],
                 )
                 await asyncio.to_thread(
                     _move_deployment, record, move["to_node"], move["reason"]
@@ -662,7 +669,7 @@ async def _auto_rebalance_loop() -> None:
         except asyncio.CancelledError:
             raise
         except Exception as error:  # noqa: BLE001 - loop must survive
-            print(f"auto-rebalance cycle failed: {error}")
+            system_log.warning("auto-rebalance cycle failed: %s", error)
 
 
 def _reschedule_offline(record: DeploymentRecord) -> None:
@@ -683,8 +690,11 @@ def _reschedule_offline(record: DeploymentRecord) -> None:
     _, ranked, recommended, _, _, _ = _score(spec)
     if not recommended or recommended == dead_node:
         return
-    print(
-        f"auto-reschedule: {record.id[:8]} off offline {dead_node} -> {recommended}"
+    sched_log.warning(
+        "auto-reschedule: %s off offline %s -> %s",
+        record.id[:8],
+        dead_node,
+        recommended,
     )
     _move_deployment(
         record,
@@ -791,6 +801,13 @@ async def delete_deployment(
             error = f"could not tear down on the agent: {exc}"
 
     deployments.remove(deployment_id)
+    sched_log.info(
+        "removed %s (%s on %s)%s",
+        deployment_id[:8],
+        record.kind,
+        record.placed_on,
+        "" if removed or keep_container else " — agent teardown failed",
+    )
     return {"ok": True, "removed_container": removed, "error": error}
 
 
@@ -868,4 +885,4 @@ async def websocket_endpoint(websocket: WebSocket):
             await asyncio.sleep(2)
 
     except WebSocketDisconnect:
-        print("Client disconnected")
+        system_log.debug("dashboard client disconnected")

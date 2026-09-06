@@ -8,6 +8,7 @@ services:
     environment:
       PROMETHEUS_URL: ${PROMETHEUS_URL:-http://prometheus:9090}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:8081}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
       # API_TOKEN is the new name; REGISTER_TOKEN still works as an alias.
       API_TOKEN: ${API_TOKEN:-${REGISTER_TOKEN:-}}
       MAIN_HOST: ${MAIN_HOST:-}
