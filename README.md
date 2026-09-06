@@ -154,16 +154,21 @@ stateful volume migration (a named volume stays on its node).
 
 ## Run
 
+Standing the whole system up (Prometheus, the dashboard, an agent per
+host, and turning on deploys/auto-rebalance safely) is in
+**[docs/deployment.md](docs/deployment.md)**. The short version:
+
 ```bash
-cp .env.example .env   # adjust PROMETHEUS_URL / ALLOWED_ORIGINS / API_TOKEN / MAIN_HOST / ANTHROPIC_API_KEY
+cp .env.example .env   # adjust PROMETHEUS_URL / ALLOWED_ORIGINS / API_TOKEN / AGENT_TOKEN
 docker compose up -d --build
 ```
 
 Backend tests: `pip install -r backend/requirements-dev.txt && python -m pytest backend/tests`
 
-Requires an external Docker network named `prometheus_default` (the
-network your Prometheus container is on) — the compose file expects to
-join it, not create it.
+The compose file joins an external Docker network named `prometheus_default`
+(the network your Prometheus container is on) so the backend can reach
+Prometheus by name — see the deployment guide if yours is called something
+else or runs outside Docker.
 
 ## API
 
