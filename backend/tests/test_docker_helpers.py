@@ -1,5 +1,10 @@
 """Unit tests for the agent HTTP helpers in backend/docker.py."""
 
+import time
+
+import pytest
+import requests
+
 from backend import docker as agent_http
 
 
@@ -14,6 +19,56 @@ class FakeResponse:
     def raise_for_status(self):
         if self.status_code >= 400:
             raise AssertionError("should not be reached in these cases")
+
+
+@pytest.fixture(autouse=True)
+def _clear_agent_cache():
+    agent_http._LAST_GOOD.clear()
+    agent_http._LAST_UNREACHABLE_LOG.clear()
+    yield
+    agent_http._LAST_GOOD.clear()
+
+
+def _snapshot(containers, gpu):
+    return FakeResponse(200, {"containers": containers, "gpu": gpu, "updated_at": 1})
+
+
+def test_get_host_data_serves_last_good_through_a_hiccup(monkeypatch):
+    calls = []
+
+    def fake_get(url, timeout):
+        calls.append(1)
+        if len(calls) == 1:
+            return _snapshot([{"id": "a"}], {"name": "RTX 3060"})
+        raise requests.ConnectionError("boom")
+
+    monkeypatch.setattr(agent_http.requests, "get", fake_get)
+
+    _, first = agent_http.get_host_data("nuc-1", "http://nuc-1:9000")
+    assert first["reachable"] is True and first.get("stale") is None
+
+    _, second = agent_http.get_host_data("nuc-1", "http://nuc-1:9000")
+    assert second["reachable"] is True
+    assert second["stale"] is True
+    assert second["gpu"] == {"name": "RTX 3060"}
+    assert second["containers"] == [{"id": "a"}]
+
+
+def test_get_host_data_gives_up_after_grace_window(monkeypatch):
+    monkeypatch.setattr(
+        agent_http.requests, "get",
+        lambda *a, **k: (_ for _ in ()).throw(requests.ConnectionError("boom")),
+    )
+    agent_http._LAST_GOOD["nuc-1"] = {
+        "containers": [{"id": "a"}], "gpu": {"name": "x"},
+        "updated_at": 1, "reachable": True,
+        "at": time.time() - agent_http.STALE_GRACE_SECONDS - 1,
+    }
+
+    _, data = agent_http.get_host_data("nuc-1", "http://nuc-1:9000")
+    assert data["reachable"] is False
+    assert data["gpu"] is None
+    assert data["containers"] == []
 
 
 def test_deploy_container_maps_old_agent_404(monkeypatch):

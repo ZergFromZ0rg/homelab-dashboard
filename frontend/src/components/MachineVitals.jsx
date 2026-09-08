@@ -156,11 +156,21 @@ function MachineVitals({ machine, history }) {
         (() => {
           const gpu = machine.gpu.devices?.[0] || machine.gpu;
 
+          // Agents that can't reach NVML report a name like
+          // "NVIDIA GPU 10DE:2187" — split the trailing PCI id onto its
+          // own muted line instead of letting it wrap mid-name.
+          const pciMatch = (gpu.name || "").match(
+            /^(.*?)[\s(]*([0-9a-f]{4}:[0-9a-f]{4})\)?$/i
+          );
+          const gpuName = (pciMatch?.[1] || gpu.name || "Detected GPU").trim();
+          const pciId = pciMatch?.[2];
+
           return (
             <div className="gpu-stats">
               <div>
-                <span>GPU</span>
-                <strong>{gpu.name || "Detected GPU"}</strong>
+                <span>GPU{machine.agent_stale_age != null ? " · stale" : ""}</span>
+                <strong>{gpuName}</strong>
+                {pciId && <small>{pciId.toUpperCase()}</small>}
                 {gpu.vendor && <small>{gpu.vendor.toUpperCase()}</small>}
               </div>
 

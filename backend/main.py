@@ -905,6 +905,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 # which case its container list is empty but not because it
                 # has no containers.
                 machines[host]["agent_reachable"] = data.get("reachable", False)
+                machines[host]["agent_stale_age"] = data.get("stale_age")
 
                 gpu_devices = (data.get("gpu") or {}).get("devices") or []
                 gpu_temp = gpu_devices[0].get("temperature_c") if gpu_devices else None

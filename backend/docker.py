@@ -12,6 +12,18 @@ CONTROL_ACTIONS = {"start", "stop", "restart"}
 _LAST_UNREACHABLE_LOG: dict[str, float] = {}
 _UNREACHABLE_LOG_EVERY = 60.0
 
+# How long to wait for an agent's /containers snapshot. The agent should
+# serve this from its own cache; the headroom is for a loaded box, not for
+# it to run nvidia-smi synchronously.
+POLL_TIMEOUT_SECONDS = float(os.getenv("AGENT_POLL_TIMEOUT", "8") or 8)
+
+# One slow or flaky poll used to blank a host completely — empty container
+# list, GPU card gone — for that 2s tick, then it'd come back. Keep the
+# last good snapshot and keep serving it (flagged stale) for this long
+# before giving up and showing the host as unreachable.
+STALE_GRACE_SECONDS = float(os.getenv("AGENT_STALE_GRACE", "45") or 45)
+_LAST_GOOD: dict[str, dict] = {}
+
 # How long to give an agent to pull an image and start the container.
 # Image pulls dominate this; a cold pull of a multi-GB image is slow.
 DEPLOY_TIMEOUT_SECONDS = 600
@@ -29,24 +41,40 @@ def get_host_data(host, base_url):
     try:
         response = requests.get(
             f"{base_url}/containers",
-            timeout=5,
+            timeout=POLL_TIMEOUT_SECONDS,
         )
 
         response.raise_for_status()
         data = response.json()
 
-        return host, {
+        snapshot = {
             "containers": data.get("containers", []),
             "gpu": data.get("gpu"),
             "updated_at": data.get("updated_at"),
             "reachable": True,
         }
+        _LAST_GOOD[host] = {**snapshot, "at": time.time()}
+        return host, snapshot
 
     except requests.RequestException as error:
+        now = time.time()
+
+        # Serve the last good snapshot through a brief hiccup rather than
+        # blanking the host (and its GPU card) for this tick.
+        cached = _LAST_GOOD.get(host)
+        if cached and now - cached["at"] < STALE_GRACE_SECONDS:
+            return host, {
+                "containers": cached["containers"],
+                "gpu": cached["gpu"],
+                "updated_at": cached["updated_at"],
+                "reachable": True,
+                "stale": True,
+                "stale_age": round(now - cached["at"], 1),
+            }
+
         # Not a warning (a briefly-down agent is normal) but visible at the
         # default level, throttled, so "why does this host show no
         # containers" is answerable from the logs.
-        now = time.time()
         if now - _LAST_UNREACHABLE_LOG.get(host, 0) > _UNREACHABLE_LOG_EVERY:
             _LAST_UNREACHABLE_LOG[host] = now
             log.info(

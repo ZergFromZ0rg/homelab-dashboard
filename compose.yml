@@ -9,6 +9,10 @@ services:
       PROMETHEUS_URL: ${PROMETHEUS_URL:-http://prometheus:9090}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:8081}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # Agent poll timeout, and how long a slow/dropped poll keeps serving
+      # the last good snapshot (flagged stale) before "agent unreachable".
+      AGENT_POLL_TIMEOUT: ${AGENT_POLL_TIMEOUT:-}
+      AGENT_STALE_GRACE: ${AGENT_STALE_GRACE:-}
       # API_TOKEN is the new name; REGISTER_TOKEN still works as an alias.
       API_TOKEN: ${API_TOKEN:-${REGISTER_TOKEN:-}}
       MAIN_HOST: ${MAIN_HOST:-}

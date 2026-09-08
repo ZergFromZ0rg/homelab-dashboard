@@ -26,6 +26,16 @@ still shows host stats, just no container list or GPU. A machine with only
 an agent registered (no Prometheus target) shows containers/GPU with host
 stats blank. See homelab-agent's README for its full env var list.
 
+The backend polls each agent's `/containers` snapshot every tick with an
+`AGENT_POLL_TIMEOUT` (default 8s). A single slow or dropped poll no longer
+blanks the host — the last good snapshot (container list *and* GPU card)
+keeps showing, flagged stale, for up to `AGENT_STALE_GRACE` seconds
+(default 45) before the host falls back to "agent unreachable". If the
+GPU card shows a name like `NVIDIA GPU 10DE:2187` and no live metrics,
+that's the agent's NVML-less fallback (the `10DE:2187` is the PCI id) —
+give homelab-agent GPU access on that host to get the real name, VRAM,
+utilization, temp and power.
+
 ## Layout
 
 Two tabs: **Server Overview** (default) shows host stats only — the Main
