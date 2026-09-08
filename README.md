@@ -31,7 +31,29 @@ stats blank. See homelab-agent's README for its full env var list.
 Two tabs: **Server Overview** (default) shows host stats only — the Main
 System panel plus the Nodes grid. **Containers** shows every host's
 containers in one place, grouped and collapsible per host, each group
-with its own independent sort control (name / CPU / RAM / status).
+with its own independent sort control (name / CPU / RAM / status). Each
+group's collapsed state and sort choice are remembered per browser
+(`localStorage`). A filter box at the top matches container name or image
+across every host and auto-expands the groups that still have matches.
+
+Any container can be **pinned** with the star on its row. Pinned
+containers are lifted out of their host groups into a single **Pinned**
+strip at the top (with a host chip on each row), so the ones you care
+about are visible without expanding anything. Pins are stored on the
+backend (`/data/pins.json`, `GET`/`PUT /api/pins`, and included in every
+`/ws` tick), keyed by host + container name so they survive a redeploy
+and show up the same on every browser. `localStorage` keeps a copy only
+to avoid a flash of unpinned rows on the first paint after a reload.
+
+Containers whose healthcheck is failing or that have restarted a lot
+(`>= 5`) float to the top of their host group ahead of the sort, with a
+red edge marker. **Stop** and **Restart** ask for confirmation; a failed
+control action shows its error inline on the row until dismissed.
+
+The header status pill reads **LIVE** normally, **STALE `<n>`s** if the
+socket is open but no update has landed in ~8s, and **RECONNECTING** with
+an elapsed counter while the WebSocket is down — it retries on its own
+with a backoff, so a dropped connection recovers without a refresh.
 
 The machine the dashboard itself runs on gets its own full-width "Main
 System" panel at the top of Overview instead of being listed as just
@@ -152,6 +174,29 @@ Not in scope: compose stacks, automatic rescheduling when a node dies
 (there's a manual "redeploy elsewhere" button), cross-node networking, and
 stateful volume migration (a named volume stays on its node).
 
+## Alerting
+
+Off unless `ALERT_WEBHOOK_URL` is set. When it is, `backend/alerts.py`
+runs a loop every `ALERT_INTERVAL` seconds (default 60) over the same
+fleet snapshot the scheduler uses and `POST`s a small JSON body to that
+URL when something crosses a line — and again when it clears:
+
+- a host Prometheus had `online` goes offline
+- a host is up but its agent stops responding
+- a host's RAM (`ALERT_RAM_PERCENT`, default 90) or CPU
+  (`ALERT_CPU_PERCENT`, default 95) sits over threshold for
+  `ALERT_BREACH_CYCLES` consecutive checks (default 2 — a single spike
+  won't page you; host-offline and deployment failures fire on the first
+  check)
+- a scheduler-managed deployment goes `failed` or `node_offline`
+
+Only state *changes* are sent, so a condition that stays true doesn't
+repeat. The body is deliberately generic —
+`{status: "firing"|"resolved", key, title, message, host, timestamp}` —
+so it works with ntfy, Gotify, Discord, Slack-compatible webhooks,
+healthchecks.io, or your own receiver. Transitions are also logged on the
+`scheduler` logger.
+
 ## Run
 
 Standing the whole system up (Prometheus, the dashboard, an agent per
@@ -180,6 +225,8 @@ All mutating routes are gated by the `X-Register-Token` header when
 - `DELETE /api/nodes/{name}` — deregister a node
 - `POST /api/containers/{host}/{container_id}/{start|stop|restart}` —
   proxies a control action to that host's agent
+- `GET /api/pins` / `PUT /api/pins` — the pinned-container list
+  (`{"pins": ["host/name", …]}`); also in every `/ws` tick
 - `POST /api/deployments` — body is a `DeploymentSpec`. `?dry_run=1`
   returns the scored ranking without deploying; otherwise it deploys to
   the top node (or `?node=<name>` to override to another eligible node)
@@ -195,4 +242,5 @@ All mutating routes are gated by the `X-Register-Token` header when
 - `DELETE /api/deployments/{id}` — remove the record and, unless
   `?keep_container=1`, tell the agent to delete the container
 - `GET /ws` — WebSocket, pushes
-  `{type, machines, containers, main_host, history, deployments}` every 2s
+  `{type, machines, containers, main_host, history, deployments, pins,
+  server_time}` every 2s

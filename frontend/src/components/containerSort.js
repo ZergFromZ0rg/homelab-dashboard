@@ -5,6 +5,18 @@ export const SORT_OPTIONS = [
   { value: "status", label: "Status" },
 ];
 
+// A container is "needs attention" when its healthcheck is failing or it's
+// been restarting a lot — these float to the top of a host group (ahead of
+// the chosen sort, behind pins) and get a red marker.
+export const HIGH_RESTART_COUNT = 5;
+
+export function needsAttention(container) {
+  return (
+    container.health === "unhealthy" ||
+    (container.restart_count ?? 0) >= HIGH_RESTART_COUNT
+  );
+}
+
 export function sortContainers(containers, sortBy) {
   const list = [...containers];
 

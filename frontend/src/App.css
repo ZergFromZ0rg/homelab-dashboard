@@ -74,6 +74,12 @@ h1 {
   background: var(--online-bg);
 }
 
+.connection.stale {
+  color: var(--warning);
+  border-color: var(--warning);
+  background: var(--warning-bg);
+}
+
 .tabs {
   display: flex;
   gap: 2px;
@@ -421,6 +427,117 @@ h1 {
   border-top: 1px solid var(--border);
 }
 
+.container-row--pinned {
+  background: var(--accent-bg);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.container-row--attention {
+  box-shadow: inset 2px 0 0 var(--offline);
+}
+
+.container-row--pinned.container-row--attention {
+  box-shadow: inset 2px 0 0 var(--offline), inset 4px 0 0 var(--accent);
+}
+
+/* Search + filter bar above the host groups */
+.container-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.container-search input {
+  flex: 1;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  padding: 6px 9px;
+}
+
+.container-search input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.container-search-count {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* Cross-host "Pinned" strip */
+.pinned-strip {
+  margin-bottom: 24px;
+}
+
+.pinned-strip-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.pinned-strip-star {
+  color: var(--accent);
+  font-size: 13px;
+}
+
+.pinned-strip .container-list {
+  border-top: none;
+}
+
+.container-name-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.container-host-chip {
+  flex-shrink: 0;
+  font-size: 8px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  padding: 1px 4px;
+}
+
+.pin-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 0 2px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--text-faint);
+  transition: color 0.15s ease;
+}
+
+.pin-btn:hover {
+  color: var(--accent);
+}
+
+.pin-btn.pinned {
+  color: var(--accent);
+}
+
+.host-issue--pin {
+  color: var(--accent);
+}
+
 .container-main {
   flex: 1;
   min-width: 0;
@@ -654,6 +771,14 @@ h1 {
 .container-actions {
   flex-shrink: 0;
   min-width: 140px;
+  max-width: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+}
+
+.container-action-buttons {
   display: flex;
   justify-content: flex-end;
   gap: 5px;
@@ -682,6 +807,17 @@ h1 {
 .container-actions button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.container-actions button.container-control-error {
+  background: var(--offline-bg);
+  border-color: var(--offline);
+  color: var(--offline);
+  text-transform: none;
+  letter-spacing: 0;
+  line-height: 1.3;
+  text-align: right;
+  white-space: normal;
 }
 
 .protected-label {

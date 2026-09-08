@@ -19,6 +19,7 @@ from backend.docker import (
 )
 from backend.registry import NodeRegistry
 from backend.deployments import DeploymentStore
+from backend.pins import PinStore
 from backend.models import (
     DeploymentSpec,
     DeploymentRecord,
@@ -31,6 +32,7 @@ from backend import live_history
 from backend import scheduler
 from backend import rebalance
 from backend import autorebalance
+from backend import alerts
 from backend import stacks
 from backend import llm
 
@@ -39,6 +41,7 @@ async def lifespan(_: FastAPI):
     tasks = [
         asyncio.create_task(_reconcile_loop()),
         asyncio.create_task(_auto_rebalance_loop()),
+        asyncio.create_task(_alert_loop()),
     ]
     try:
         yield
@@ -51,6 +54,8 @@ app = FastAPI(lifespan=lifespan)
 
 registry = NodeRegistry()
 deployments = DeploymentStore()
+pins = PinStore()
+alert_monitor = alerts.AlertMonitor()
 
 # ``API_TOKEN`` is the new name; ``REGISTER_TOKEN`` stays as an alias so
 # existing deployments keep working. When set, it gates every mutating
@@ -197,6 +202,21 @@ async def container_action(
             "success": False,
             "error": f"agent unreachable: {error}",
         }
+
+
+@app.get("/api/pins")
+def list_pins():
+    """Containers the user pinned to the top of the Containers tab. Pure UI
+    state, shared across browsers; also included in every /ws tick."""
+    return {"pins": pins.all()}
+
+
+@app.put("/api/pins")
+def set_pins(payload: dict):
+    keys = payload.get("pins")
+    if not isinstance(keys, list):
+        raise HTTPException(status_code=400, detail="'pins' must be a list of strings")
+    return {"pins": pins.replace(keys)}
 
 
 # ---------------------------------------------------------------------------
@@ -683,6 +703,35 @@ async def _auto_rebalance_loop() -> None:
             system_log.warning("auto-rebalance cycle failed: %s", error)
 
 
+async def _alert_loop() -> None:
+    """Watch the fleet and POST to ALERT_WEBHOOK_URL on state changes.
+    No-op unless that URL is set."""
+    if not alerts.enabled():
+        return
+    sched_log.info(
+        "alerts on: webhook every %.0fs, RAM>%.0f%%, CPU>%.0f%% "
+        "(%d checks before firing)",
+        alerts.INTERVAL_SECONDS,
+        alerts.RAM_PERCENT,
+        alerts.CPU_PERCENT,
+        alerts.BREACH_CYCLES,
+    )
+    while True:
+        await asyncio.sleep(alerts.INTERVAL_SECONDS)
+        try:
+            _, machines, _, _, _ = await asyncio.to_thread(_build_fleet)
+            dumps = [d.model_dump() for d in deployments.all()]
+            events = alert_monitor.poll(machines, dumps)
+            for event in events:
+                level = sched_log.warning if event["status"] == "firing" else sched_log.info
+                level("alert %s: %s", event["status"], event["message"])
+                await asyncio.to_thread(alerts.post, event)
+        except asyncio.CancelledError:
+            raise
+        except Exception as error:  # noqa: BLE001 - loop must survive
+            system_log.warning("alert cycle failed: %s", error)
+
+
 def _reschedule_offline(record: DeploymentRecord) -> None:
     """Score a stranded deployment against the live fleet and, if a healthy
     node wins, move it there."""
@@ -896,6 +945,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 "main_host": main_host,
                 "history": history,
                 "deployments": [d.model_dump() for d in deployments.all()],
+                "pins": pins.all(),
+                "server_time": time.time(),
             })
 
             await asyncio.sleep(2)

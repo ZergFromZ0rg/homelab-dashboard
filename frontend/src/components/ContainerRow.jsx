@@ -1,4 +1,5 @@
 import { avatarColor, containerUrl } from "./containerLink";
+import { needsAttention } from "./containerSort";
 import Heartbeat from "./Heartbeat";
 
 function formatBytes(bytes) {
@@ -48,10 +49,31 @@ function ContainerAvatar({ name }) {
   );
 }
 
-function ContainerRow({ container, host, hostCores, pending, onControl }) {
+function ContainerRow({
+  container,
+  host,
+  hostCores,
+  pending,
+  errors,
+  onControl,
+  onClearError,
+  pinned,
+  onTogglePin,
+  showHost,
+}) {
   const key = `${host}-${container.id}`;
   const action = pending[key];
   const busy = Boolean(action);
+  const error = errors?.[key];
+  const attention = needsAttention(container);
+
+  // Stop and restart both drop the service — easy to hit by mistake in a
+  // dense list, so make them deliberate.
+  const confirmControl = (verb) => {
+    if (window.confirm(`${verb} ${container.name} on ${host}?`)) {
+      onControl(host, container.id, verb.toLowerCase());
+    }
+  };
 
   const protectedContainer =
     container.protected || container.name === "homelab-agent";
@@ -74,26 +96,45 @@ function ContainerRow({ container, host, hostCores, pending, onControl }) {
   const cpuBarPercent = Math.min(100, ((cpuPercent ?? 0) / cpuCapacity) * 100);
 
   return (
-    <div className="container-row">
+    <div
+      className={`container-row ${pinned ? "container-row--pinned" : ""} ${
+        attention ? "container-row--attention" : ""
+      }`}
+    >
       <div className="container-main">
         <div className="container-title">
           <div className="container-identity">
+            <button
+              type="button"
+              className={`pin-btn ${pinned ? "pinned" : ""}`}
+              onClick={onTogglePin}
+              aria-pressed={pinned}
+              title={pinned ? "Unpin container" : "Pin container to top"}
+            >
+              {pinned ? "★" : "☆"}
+            </button>
+
             <ContainerAvatar name={container.name} />
 
             <div className="container-name-block">
-              {url ? (
-                <a
-                  className="container-link"
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={`Open ${url}`}
-                >
-                  {container.name}
-                </a>
-              ) : (
-                <strong>{container.name}</strong>
-              )}
+              <div className="container-name-line">
+                {url ? (
+                  <a
+                    className="container-link"
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={`Open ${url}`}
+                  >
+                    {container.name}
+                  </a>
+                ) : (
+                  <strong>{container.name}</strong>
+                )}
+                {showHost && (
+                  <span className="container-host-chip">{host}</span>
+                )}
+              </div>
               <span>{container.image}</span>
             </div>
           </div>
@@ -234,30 +275,37 @@ function ContainerRow({ container, host, hostCores, pending, onControl }) {
           <span className="protected-label">Protected</span>
         ) : (
           <>
-            {container.status !== "running" && (
+            <div className="container-action-buttons">
+              {container.status !== "running" && (
+                <button
+                  disabled={busy}
+                  onClick={() => onControl(host, container.id, "start")}
+                >
+                  Start
+                </button>
+              )}
+
+              {container.status === "running" && (
+                <button disabled={busy} onClick={() => confirmControl("Stop")}>
+                  Stop
+                </button>
+              )}
+
+              <button disabled={busy} onClick={() => confirmControl("Restart")}>
+                Restart
+              </button>
+            </div>
+
+            {error && (
               <button
-                disabled={busy}
-                onClick={() => onControl(host, container.id, "start")}
+                type="button"
+                className="container-control-error"
+                onClick={() => onClearError?.(key)}
+                title="Dismiss"
               >
-                Start
+                {error}
               </button>
             )}
-
-            {container.status === "running" && (
-              <button
-                disabled={busy}
-                onClick={() => onControl(host, container.id, "stop")}
-              >
-                Stop
-              </button>
-            )}
-
-            <button
-              disabled={busy}
-              onClick={() => onControl(host, container.id, "restart")}
-            >
-              Restart
-            </button>
           </>
         )}
       </div>
