@@ -17,17 +17,14 @@ Env knobs:
 
 from __future__ import annotations
 
-import os
-
 from backend import scheduler
 from backend.deployments import _same_container
+from backend.env import env_float
 from backend.models import DeploymentRecord
 
-# ``or`` (not a getenv default) so an env var present but empty — which is
-# how compose passes an unset ${VAR:-} — falls back instead of ValueError.
-HOT_CPU_PERCENT = float(os.getenv("REBALANCE_CPU_PERCENT") or 80)
-HOT_RAM_PERCENT = float(os.getenv("REBALANCE_RAM_PERCENT") or 85)
-MIN_GAIN = float(os.getenv("REBALANCE_MIN_GAIN") or 15)
+HOT_CPU_PERCENT = env_float("REBALANCE_CPU_PERCENT", 80)
+HOT_RAM_PERCENT = env_float("REBALANCE_RAM_PERCENT", 85)
+MIN_GAIN = env_float("REBALANCE_MIN_GAIN", 15)
 
 
 def _pressure(machine: dict) -> list[str]:

@@ -9,12 +9,11 @@ restarted — only re-run every PERSIST_INTERVAL_SECONDS regardless of the
 wasteful for data this short-lived anyway.
 """
 
-import json
 import os
 import time
 from collections import deque
 
-from backend.log import system as log
+from backend.jsonstore import read_json, write_json_atomic
 
 WINDOW_SECONDS = 30 * 60
 SAMPLE_INTERVAL_SECONDS = 2
@@ -30,10 +29,8 @@ _last_persisted = 0.0
 
 
 def _load() -> None:
-    try:
-        with open(PERSIST_PATH, "r", encoding="utf-8") as handle:
-            data = json.load(handle)
-    except (OSError, ValueError):
+    data = read_json(PERSIST_PATH, None)
+    if not isinstance(data, dict):
         return
 
     now = time.time()
@@ -55,26 +52,18 @@ def _load() -> None:
 
 
 def _save() -> None:
-    try:
-        os.makedirs(os.path.dirname(PERSIST_PATH), exist_ok=True)
-
-        data = {
+    write_json_atomic(
+        PERSIST_PATH,
+        {
             "gpu_temps": {host: list(buf) for host, buf in _gpu_temps.items()},
             "container_samples": {
                 f"{host}|{container_id}": list(buf)
                 for (host, container_id), buf in _container_samples.items()
             },
-        }
-
-        tmp_path = f"{PERSIST_PATH}.tmp"
-
-        with open(tmp_path, "w", encoding="utf-8") as handle:
-            json.dump(data, handle)
-
-        os.replace(tmp_path, PERSIST_PATH)
-
-    except OSError as error:
-        log.warning("live_history: failed to persist: %s", error)
+        },
+        label="live_history",
+        indent=None,
+    )
 
 
 def maybe_persist() -> None:

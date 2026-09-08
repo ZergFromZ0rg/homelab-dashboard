@@ -11,12 +11,11 @@ server-side so a pin set on one browser shows up on every other.
 
 from __future__ import annotations
 
-import json
 import os
 import threading
 from pathlib import Path
 
-from backend.log import system
+from backend.jsonstore import read_json, write_json_atomic
 
 PINS_FILE = Path(os.getenv("PINS_FILE", "/data/pins.json"))
 
@@ -32,20 +31,11 @@ class PinStore:
         self._pins: list[str] = self._load()
 
     def _load(self) -> list[str]:
-        try:
-            data = json.loads(self.path.read_text())
-        except (OSError, ValueError):
-            return []
+        data = read_json(self.path, [])
         return _clean(data if isinstance(data, list) else [])
 
     def _save_locked(self) -> None:
-        try:
-            self.path.parent.mkdir(parents=True, exist_ok=True)
-            tmp = self.path.with_suffix(".tmp")
-            tmp.write_text(json.dumps(self._pins, indent=2) + "\n")
-            tmp.replace(self.path)
-        except OSError as error:
-            system.warning("pins save failed: %s", error)
+        write_json_atomic(self.path, self._pins, label="pins")
 
     def all(self) -> list[str]:
         with self._lock:

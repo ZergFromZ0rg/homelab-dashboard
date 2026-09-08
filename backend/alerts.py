@@ -28,34 +28,22 @@ endpoints, healthchecks.io, or your own receiver:
 
 from __future__ import annotations
 
-import os
 import time
 
 import requests
 
+from backend.env import env_float, env_str
 from backend.log import system
 
-
-def _flag(name: str) -> bool:
-    return os.getenv(name, "").strip().lower() in ("1", "true", "yes", "on")
-
-
-def _num(name: str, default: float) -> float:
-    try:
-        return float(os.getenv(name) or default)
-    except ValueError:
-        return default
-
-
-WEBHOOK_URL = os.getenv("ALERT_WEBHOOK_URL", "").strip()
-RAM_PERCENT = _num("ALERT_RAM_PERCENT", 90)
-CPU_PERCENT = _num("ALERT_CPU_PERCENT", 95)
-INTERVAL_SECONDS = _num("ALERT_INTERVAL", 60)
+WEBHOOK_URL = env_str("ALERT_WEBHOOK_URL")
+RAM_PERCENT = env_float("ALERT_RAM_PERCENT", 90)
+CPU_PERCENT = env_float("ALERT_CPU_PERCENT", 95)
+INTERVAL_SECONDS = env_float("ALERT_INTERVAL", 60)
 # Consecutive breaching checks before a resource alert fires. Host-offline
 # and deployment-failed alerts always fire on the first check.
-BREACH_CYCLES = max(1, int(_num("ALERT_BREACH_CYCLES", 2)))
+BREACH_CYCLES = max(1, int(env_float("ALERT_BREACH_CYCLES", 2)))
 # Include container-control-worthy detail without paging on a brief blip.
-TIMEOUT_SECONDS = _num("ALERT_WEBHOOK_TIMEOUT", 5)
+TIMEOUT_SECONDS = env_float("ALERT_WEBHOOK_TIMEOUT", 5)
 
 
 def enabled() -> bool:

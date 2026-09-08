@@ -11,7 +11,7 @@ leaves compose projects alone.
 from __future__ import annotations
 
 from backend.compose import ParsedStack, parse_stack
-from backend.models import Constraints, DeploymentSpec, PortMapping, ResourceRequest, StackSpec
+from backend.models import DeploymentSpec, PortMapping, ResourceRequest, StackSpec
 from backend.scheduler import estimate_image_mb
 
 

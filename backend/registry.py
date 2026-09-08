@@ -7,20 +7,20 @@ are dropped automatically once they go past ``NODE_TTL_SECONDS`` without a
 refresh.
 """
 
-import json
 import os
 import threading
 import time
 from pathlib import Path
 
-from backend.log import system as log
+from backend.env import env_int
+from backend.jsonstore import read_json, write_json_atomic
 
 NODES_FILE = Path(os.getenv("NODES_FILE", "/data/nodes.json"))
 
 # A node is "stale" (still shown, marked offline) after this long without a
 # heartbeat, and removed entirely after the TTL.
-STALE_SECONDS = int(os.getenv("NODE_STALE_SECONDS", "300"))
-TTL_SECONDS = int(os.getenv("NODE_TTL_SECONDS", "86400"))
+STALE_SECONDS = env_int("NODE_STALE_SECONDS", 300)
+TTL_SECONDS = env_int("NODE_TTL_SECONDS", 86400)
 
 
 class NodeRegistry:
@@ -30,11 +30,7 @@ class NodeRegistry:
         self._nodes: dict[str, dict] = self._load()
 
     def _load(self) -> dict[str, dict]:
-        try:
-            data = json.loads(self.path.read_text())
-        except (OSError, ValueError):
-            return {}
-
+        data = read_json(self.path, {})
         if not isinstance(data, dict):
             return {}
 
@@ -45,15 +41,9 @@ class NodeRegistry:
         }
 
     def _save(self) -> None:
-        try:
-            self.path.parent.mkdir(parents=True, exist_ok=True)
-            tmp = self.path.with_suffix(".tmp")
-            tmp.write_text(
-                json.dumps(self._nodes, indent=2, sort_keys=True) + "\n"
-            )
-            tmp.replace(self.path)
-        except OSError as error:
-            log.warning("registry save failed: %s", error)
+        write_json_atomic(
+            self.path, self._nodes, label="registry", sort_keys=True
+        )
 
     def _prune_locked(self, now: float) -> None:
         expired = [

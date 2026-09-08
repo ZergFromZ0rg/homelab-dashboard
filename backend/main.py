@@ -224,6 +224,29 @@ def set_pins(payload: dict):
 # ---------------------------------------------------------------------------
 
 
+def _merge_agent_snapshot(
+    machines: dict, agent_data: dict
+) -> tuple[dict[str, list], set[str]]:
+    """Fold each agent's container/GPU snapshot into ``machines`` (adding an
+    offline stub for agent-only hosts Prometheus never saw). Returns
+    ``(containers, offline_hosts)``.
+    """
+    containers: dict[str, list] = {}
+    offline_hosts: set[str] = set()
+
+    for host, data in agent_data.items():
+        reachable = data.get("reachable", False)
+        machines.setdefault(host, _offline_machine(reachable))
+        machines[host]["gpu"] = data.get("gpu")
+        machines[host]["agent_reachable"] = reachable
+        machines[host]["agent_stale_age"] = data.get("stale_age")
+        containers[host] = data.get("containers", [])
+        if not reachable:
+            offline_hosts.add(host)
+
+    return containers, offline_hosts
+
+
 def _build_fleet():
     """Synchronous fleet snapshot for the REST scheduler routes.
 
@@ -233,19 +256,9 @@ def _build_fleet():
     """
     nodes = registry.all()
     machines = get_machine_stats()
-    agent_data = get_all_containers(nodes)
-
-    containers: dict[str, list] = {}
-    offline_hosts: set[str] = set()
-
-    for host, data in agent_data.items():
-        machines.setdefault(host, _offline_machine(data.get("reachable", False)))
-        machines[host]["gpu"] = data.get("gpu")
-        machines[host]["agent_reachable"] = data.get("reachable", False)
-        containers[host] = data.get("containers", [])
-        if not data.get("reachable", False):
-            offline_hosts.add(host)
-
+    containers, offline_hosts = _merge_agent_snapshot(
+        machines, get_all_containers(nodes)
+    )
     stale_hosts = {n["name"] for n in registry.listing() if n["stale"]}
     return nodes, machines, containers, offline_hosts, stale_hosts
 
@@ -313,6 +326,32 @@ def _pick_target(node: str | None, recommended: str | None, ranked) -> str:
             detail=f"{target} is not an eligible target for this spec",
         )
     return target
+
+
+def _place(kind, effective, stack, ranked, explanation, target):
+    """Record a new placement decision and hand it to the agent. Shared by
+    the container and stack create routes."""
+    record = DeploymentRecord(
+        kind=kind,
+        spec=effective,
+        stack=stack,
+        status="placing",
+        placed_on=target,
+        score=next((r.score for r in ranked if r.node == target), None),
+        reason=explanation or _fallback_reason(ranked, target),
+        alternatives=[
+            {"node": r.node, "score": r.score, "eligible": r.eligible}
+            for r in ranked
+            if r.node != target
+        ][:4],
+    )
+    record.log("created", f"placing on {target}")
+    deployments.add(record)
+    sched_log.info(
+        "deploy %s: %s -> %s (score %s)",
+        record.id[:8], record.kind, target, record.score,
+    )
+    return _run_agent_deploy(record, registry.all())
 
 
 def _run_agent_deploy(
@@ -391,24 +430,7 @@ async def create_deployment(
         )
 
     target = _pick_target(node, recommended, ranked)
-
-    record = DeploymentRecord(
-        kind="container",
-        spec=effective,
-        status="placing",
-        placed_on=target,
-        score=next((r.score for r in ranked if r.node == target), None),
-        reason=explanation or _fallback_reason(ranked, target),
-        alternatives=[
-            {"node": r.node, "score": r.score, "eligible": r.eligible}
-            for r in ranked
-            if r.node != target
-        ][:4],
-    )
-    record.log("created", f"placing on {target}")
-    deployments.add(record)
-    sched_log.info("deploy %s: %s -> %s (score %s)", record.id[:8], record.kind, target, record.score)
-    return _run_agent_deploy(record, registry.all())
+    return _place("container", effective, None, ranked, explanation, target)
 
 
 @app.post("/api/stacks", response_model=None)
@@ -446,25 +468,7 @@ async def create_stack_deployment(
         )
 
     target = _pick_target(node, recommended, ranked)
-
-    record = DeploymentRecord(
-        kind="stack",
-        spec=effective,
-        stack=stack,
-        status="placing",
-        placed_on=target,
-        score=next((r.score for r in ranked if r.node == target), None),
-        reason=explanation or _fallback_reason(ranked, target),
-        alternatives=[
-            {"node": r.node, "score": r.score, "eligible": r.eligible}
-            for r in ranked
-            if r.node != target
-        ][:4],
-    )
-    record.log("created", f"placing on {target}")
-    deployments.add(record)
-    sched_log.info("deploy %s: %s -> %s (score %s)", record.id[:8], record.kind, target, record.score)
-    return _run_agent_deploy(record, registry.all())
+    return _place("stack", effective, stack, ranked, explanation, target)
 
 
 @app.get("/api/deployments")
@@ -887,26 +891,16 @@ async def websocket_endpoint(websocket: WebSocket):
                 nodes,
             )
 
-            containers = {
-                host: data.get("containers", [])
-                for host, data in agent_data.items()
-            }
+            # ``agent_reachable`` is distinct from ``online`` (Prometheus
+            # "up"): a host can be scraped fine while its agent is down, so
+            # its container list is empty but not because it has none.
+            containers, offline_hosts = _merge_agent_snapshot(
+                machines, agent_data
+            )
 
             live_container_keys = set()
 
             for host, data in agent_data.items():
-                machines.setdefault(
-                    host,
-                    _offline_machine(data.get("reachable", False)),
-                )
-                machines[host]["gpu"] = data.get("gpu")
-                # Distinct from ``online`` (which is Prometheus "up"): a host
-                # can be scraped fine while its agent is unreachable, in
-                # which case its container list is empty but not because it
-                # has no containers.
-                machines[host]["agent_reachable"] = data.get("reachable", False)
-                machines[host]["agent_stale_age"] = data.get("stale_age")
-
                 gpu_devices = (data.get("gpu") or {}).get("devices") or []
                 gpu_temp = gpu_devices[0].get("temperature_c") if gpu_devices else None
                 live_history.record_gpu_temp(host, gpu_temp)
@@ -932,11 +926,6 @@ async def websocket_endpoint(websocket: WebSocket):
 
             main_host = MAIN_HOST_OVERRIDE or _detect_main_host(agent_data)
 
-            offline_hosts = {
-                host
-                for host, data in agent_data.items()
-                if not data.get("reachable", False)
-            }
             deployments.reconcile(containers, offline_hosts)
 
             await websocket.send_json({

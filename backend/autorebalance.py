@@ -12,29 +12,19 @@ performs the moves through the same path as the redeploy endpoint.
 
 from __future__ import annotations
 
-import os
 import time
 
-
-def _flag(name: str) -> bool:
-    return os.getenv(name, "").strip().lower() in ("1", "true", "yes", "on")
+from backend.env import env_flag, env_float, env_int
 
 
 def enabled() -> bool:
-    return _flag("AUTO_REBALANCE")
+    return env_flag("AUTO_REBALANCE")
 
 
-def _num(name: str, default: float) -> float:
-    try:
-        return float(os.getenv(name) or default)
-    except ValueError:
-        return default
-
-
-INTERVAL_SECONDS = _num("AUTO_REBALANCE_INTERVAL", 600)
-MIN_GAIN = _num("AUTO_REBALANCE_MIN_GAIN", 30)
-COOLDOWN_SECONDS = _num("AUTO_REBALANCE_COOLDOWN", 3600)
-MAX_PER_CYCLE = int(_num("AUTO_REBALANCE_MAX_PER_CYCLE", 1))
+INTERVAL_SECONDS = env_float("AUTO_REBALANCE_INTERVAL", 600)
+MIN_GAIN = env_float("AUTO_REBALANCE_MIN_GAIN", 30)
+COOLDOWN_SECONDS = env_float("AUTO_REBALANCE_COOLDOWN", 3600)
+MAX_PER_CYCLE = env_int("AUTO_REBALANCE_MAX_PER_CYCLE", 1)
 
 
 def _cooling_down(record: dict, now: float) -> bool:

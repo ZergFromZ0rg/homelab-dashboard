@@ -9,13 +9,13 @@ every tick.
 
 from __future__ import annotations
 
-import json
 import os
 import threading
 import time
 from pathlib import Path
 
-from backend.log import scheduler, system
+from backend.jsonstore import read_json, write_json_atomic
+from backend.log import scheduler
 from backend.models import DeploymentRecord
 
 DEPLOYMENTS_FILE = Path(os.getenv("DEPLOYMENTS_FILE", "/data/deployments.json"))
@@ -28,10 +28,7 @@ class DeploymentStore:
         self._records: dict[str, DeploymentRecord] = self._load()
 
     def _load(self) -> dict[str, DeploymentRecord]:
-        try:
-            data = json.loads(self.path.read_text())
-        except (OSError, ValueError):
-            return {}
+        data = read_json(self.path, [])
 
         records: dict[str, DeploymentRecord] = {}
         for entry in data if isinstance(data, list) else []:
@@ -43,16 +40,11 @@ class DeploymentStore:
         return records
 
     def _save_locked(self) -> None:
-        try:
-            self.path.parent.mkdir(parents=True, exist_ok=True)
-            tmp = self.path.with_suffix(".tmp")
-            payload = [
-                record.model_dump() for record in self._records.values()
-            ]
-            tmp.write_text(json.dumps(payload, indent=2) + "\n")
-            tmp.replace(self.path)
-        except OSError as error:
-            system.warning("deployments save failed: %s", error)
+        write_json_atomic(
+            self.path,
+            [record.model_dump() for record in self._records.values()],
+            label="deployments",
+        )
 
     def add(self, record: DeploymentRecord) -> DeploymentRecord:
         with self._lock:

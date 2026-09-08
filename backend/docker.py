@@ -1,8 +1,8 @@
-import os
 import time
 import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from backend.env import env_float, env_str
 from backend.log import system as log
 
 CONTROL_ACTIONS = {"start", "stop", "restart"}
@@ -15,13 +15,13 @@ _UNREACHABLE_LOG_EVERY = 60.0
 # How long to wait for an agent's /containers snapshot. The agent should
 # serve this from its own cache; the headroom is for a loaded box, not for
 # it to run nvidia-smi synchronously.
-POLL_TIMEOUT_SECONDS = float(os.getenv("AGENT_POLL_TIMEOUT", "8") or 8)
+POLL_TIMEOUT_SECONDS = env_float("AGENT_POLL_TIMEOUT", 8)
 
 # One slow or flaky poll used to blank a host completely — empty container
 # list, GPU card gone — for that 2s tick, then it'd come back. Keep the
 # last good snapshot and keep serving it (flagged stale) for this long
 # before giving up and showing the host as unreachable.
-STALE_GRACE_SECONDS = float(os.getenv("AGENT_STALE_GRACE", "45") or 45)
+STALE_GRACE_SECONDS = env_float("AGENT_STALE_GRACE", 45)
 _LAST_GOOD: dict[str, dict] = {}
 
 # How long to give an agent to pull an image and start the container.
@@ -30,7 +30,7 @@ DEPLOY_TIMEOUT_SECONDS = 600
 
 # Sent as X-Agent-Token to agents that set AGENT_TOKEN. One shared secret
 # for the whole fleet is fine for a homelab.
-AGENT_TOKEN = os.getenv("AGENT_TOKEN", "").strip()
+AGENT_TOKEN = env_str("AGENT_TOKEN")
 
 
 def _agent_headers() -> dict:

@@ -11,7 +11,7 @@ and narrates its output afterward. It never changes the ranking.
 
 from __future__ import annotations
 
-from backend.models import Constraints, DeploymentSpec, PlacementResult
+from backend.models import DeploymentSpec, PlacementResult
 
 MB = 1024 * 1024
 
