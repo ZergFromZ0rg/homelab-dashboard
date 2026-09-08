@@ -173,32 +173,59 @@ docker build -t homelab-agent .
 The build pulls the Docker CLI and Compose plugin into the image (needed
 for compose-stack deploys), so it's a few hundred MB and takes a minute.
 
-Run it. Replace `thinkpad` with this host's Prometheus job name, and
-`http://dashboard-host:8081` with your dashboard's URL:
+Run it with a **compose file**, not a bare `docker run` — a `docker run`
+is invisible after the fact and easy to recreate later without the flags
+it needs (the classic symptom: GPU telemetry that "worked, then stopped"
+because the container got recreated without `--gpus`). Put this at
+`~/homelab/homelab-agent/compose.yml`, replacing `thinkpad` with this
+host's Prometheus job name and the URLs with yours:
+
+```yaml
+services:
+  homelab-agent:
+    image: homelab-agent            # local build from Step 3 (no registry)
+    container_name: homelab-agent
+    restart: unless-stopped
+    # --- GPU: keep these three lines on an NVIDIA host, delete them elsewhere.
+    # Needs nvidia-container-toolkit on the host (`nvidia-ctk runtime
+    # configure --runtime=docker && systemctl restart docker`).
+    runtime: nvidia
+    environment:
+      HOST_NAME: thinkpad
+      DASHBOARD_URL: http://dashboard-host:8081
+      NVIDIA_VISIBLE_DEVICES: all          # GPU hosts only
+      NVIDIA_DRIVER_CAPABILITIES: all      # GPU hosts only
+    ports:
+      - "8123:8123"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - homelab-agent-data:/data
+
+volumes:
+  homelab-agent-data:
+```
 
 ```bash
-docker run -d \
-  --name homelab-agent \
-  --restart unless-stopped \
-  -p 8123:8123 \
-  -e HOST_NAME=thinkpad \
-  -e DASHBOARD_URL=http://dashboard-host:8081 \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -v homelab-agent-data:/data \
-  homelab-agent
+cd ~/homelab/homelab-agent && docker compose up -d
 ```
 
 - `HOST_NAME` **must** match the Prometheus `job_name` for this machine.
 - `DASHBOARD_URL` lets the agent register itself — no dashboard-side config
   when you add a host.
 - `/data` holds compose-stack project files; keep it on a volume.
-- On an NVIDIA host, add `--gpus all` for GPU telemetry.
+- GPU host: after `up`, sanity-check with `docker exec homelab-agent
+  nvidia-smi`. If that fails, the toolkit isn't wired to Docker — see the
+  `nvidia-ctk` note above. A non-GPU host with the `runtime: nvidia` line
+  left in will fail to start, so delete those three lines there.
 
 Within a few seconds the host appears in the dashboard's Nodes grid, with
-host stats from Prometheus and a container list from the agent.
+host stats from Prometheus and a container list from the agent (plus the
+GPU card on an NVIDIA host).
 
-Repeat for every host. Each new one is just this command plus a Prometheus
-scrape job — nothing on the dashboard changes.
+Repeat for every host — same compose file, different `HOST_NAME`, plus a
+Prometheus scrape job. Nothing on the dashboard changes. To update the
+agent later: rebuild the image (`docker build -t homelab-agent .` in the
+cloned repo) then `docker compose up -d` from the agent's compose dir.
 
 ---
 
