@@ -115,6 +115,7 @@ function useDashboardSocket() {
     containers: {},
     history: {},
     deployments: [],
+    activity: [],
     mainHost: null,
     overview: EMPTY_OVERVIEW,
   });
@@ -160,6 +161,7 @@ function useDashboardSocket() {
           containers: data.containers,
           history: data.history ?? {},
           deployments: data.deployments ?? [],
+          activity: data.activity ?? [],
           mainHost: data.main_host ?? null,
           overview: data.overview ?? EMPTY_OVERVIEW,
         });
@@ -222,6 +224,7 @@ function App() {
     containers,
     history,
     deployments,
+    activity,
     overview,
     pins,
     todos,
@@ -278,10 +281,16 @@ function App() {
       {activeTab === "overview" && (
         <Overview
           overview={overview}
+          machines={machines}
+          containers={containers}
+          deployments={deployments}
+          activity={activity}
+          pins={pins}
           todos={todos}
           openTodos={openTodos}
-          deployments={deployments}
+          onControl={control}
           onSetTodos={setTodos}
+          onNavigate={setActiveTab}
         />
       )}
 

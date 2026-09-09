@@ -1,7 +1,11 @@
 import RebalancePanel from "./RebalancePanel";
 import TodoList from "./TodoList";
+import SummaryRow from "./SummaryRow";
+import HostSummary from "./HostSummary";
+import ActivityFeed from "./ActivityFeed";
+import QuickActions from "./QuickActions";
 
-// A titled panel. The Overview is just a stack of these, so a future
+// A titled panel. The Overview is a stack of these, so a future
 // "project X" card is one more <OverviewCard> fed by its own data.
 function OverviewCard({ title, count, children }) {
   return (
@@ -15,61 +19,114 @@ function OverviewCard({ title, count, children }) {
   );
 }
 
-function StatusPanel({ overview }) {
-  const { ok, issues } = overview;
+// issue key -> which tab to open for the details
+function issueTab(key) {
+  if (/:offline|:agent|:stale/.test(key)) return "system";
+  if (key.startsWith("deploy:")) return "deploy";
+  return "containers";
+}
 
-  if (ok) {
-    return (
-      <p className="status-ok">
-        <span className="status-dot status-dot--ok" />
-        All systems operational
-      </p>
-    );
-  }
+function AttentionPanel({ overview, deployments, onNavigate }) {
+  const { ok, issues, recommendations } = overview;
 
   return (
-    <ul className="status-issues">
-      {issues.map((issue) => (
-        <li key={issue.key} className="status-issue">
-          <span className={`status-dot status-dot--${issue.severity}`} />
-          <span className="status-issue-text">
-            <strong>{issue.title}</strong>
-            <span>{issue.message}</span>
-          </span>
-        </li>
-      ))}
-    </ul>
+    <section className="overview-card attention">
+      <div className="overview-card-head">
+        <h2>Attention</h2>
+        {!ok && <span className="overview-card-count">{issues.length}</span>}
+      </div>
+      <div className="overview-card-body">
+        {ok ? (
+          <p className="attention-clear">
+            <span className="status-dot status-dot--ok" />
+            No issues detected
+          </p>
+        ) : (
+          <>
+            <ul className="attention-issues">
+              {issues.map((issue) => (
+                <li key={issue.key} className="attention-issue">
+                  <span className={`status-dot status-dot--${issue.severity}`} />
+                  <span className="attention-issue-text">
+                    <strong>{issue.title}</strong>
+                    <span>{issue.message}</span>
+                  </span>
+                  <button
+                    type="button"
+                    className="attention-view"
+                    onClick={() => onNavigate(issueTab(issue.key))}
+                  >
+                    View
+                  </button>
+                </li>
+              ))}
+            </ul>
+
+            {recommendations.length > 0 && (
+              <ul className="recommendation-list">
+                {recommendations.map((rec) => (
+                  <li key={rec}>{rec}</li>
+                ))}
+              </ul>
+            )}
+          </>
+        )}
+
+        <RebalancePanel deployments={deployments} />
+      </div>
+    </section>
   );
 }
 
-function Overview({ overview, todos, openTodos, deployments, onSetTodos }) {
-  const recs = overview.recommendations ?? [];
-
+function Overview({
+  overview,
+  machines,
+  containers,
+  deployments,
+  activity,
+  pins,
+  todos,
+  openTodos,
+  onControl,
+  onSetTodos,
+  onNavigate,
+}) {
   return (
     <div className="overview">
-      <OverviewCard
-        title="Status"
-        count={overview.ok ? null : overview.issues.length}
-      >
-        <StatusPanel overview={overview} />
+      <SummaryRow
+        overview={overview}
+        machines={machines}
+        containers={containers}
+      />
+
+      <AttentionPanel
+        overview={overview}
+        deployments={deployments}
+        onNavigate={onNavigate}
+      />
+
+      <OverviewCard title="Hosts">
+        <HostSummary machines={machines} containers={containers} />
       </OverviewCard>
 
-      <OverviewCard title="Recommendations">
-        {recs.length === 0 ? (
-          <p className="overview-empty">Nothing needs attention.</p>
-        ) : (
-          <ul className="recommendation-list">
-            {recs.map((rec) => (
-              <li key={rec}>{rec}</li>
-            ))}
-          </ul>
-        )}
-        <RebalancePanel deployments={deployments} />
+      <OverviewCard title="Quick actions">
+        <QuickActions
+          pins={pins}
+          containers={containers}
+          onControl={onControl}
+          onNavigate={onNavigate}
+        />
       </OverviewCard>
 
-      <OverviewCard title="To-do" count={openTodos || null}>
-        <TodoList todos={todos} onChange={onSetTodos} />
-      </OverviewCard>
+      <div className="overview-cols">
+        <OverviewCard title="Recent activity">
+          <ActivityFeed activity={activity} />
+        </OverviewCard>
+
+        <OverviewCard title="To-do" count={openTodos || null}>
+          <TodoList todos={todos} onChange={onSetTodos} compact />
+        </OverviewCard>
+      </div>
     </div>
   );
 }

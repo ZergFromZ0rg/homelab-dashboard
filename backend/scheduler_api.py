@@ -28,7 +28,7 @@ from backend.docker import (
     remove_container,
     remove_stack,
 )
-from backend import live_history
+from backend import activity, live_history
 from backend.log import scheduler as sched_log, system as system_log
 from backend.models import (
     DeploymentRecord,
@@ -625,6 +625,9 @@ async def _reconcile_loop() -> None:
             )
             deployments.reconcile(containers, offline_hosts)
             live_history.record_fleet(machines, containers)
+            activity.observe(
+                machines, containers, [d.model_dump() for d in deployments.all()]
+            )
         except asyncio.CancelledError:
             raise
         except Exception as error:  # noqa: BLE001 - loop must survive

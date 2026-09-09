@@ -38,15 +38,26 @@ utilization, temp and power.
 
 ## Layout
 
-Four tabs. **Overview** (default) is the at-a-glance summary — a Status
-card ("All systems operational" or a list of problems with severity), a
-Recommendations card (plain next-steps plus any rebalance moves), and an
-editable **to-do list**. The to-do list is stored on the backend
-(`/data/todos.json`, `GET`/`PUT /api/todos`, in every `/ws` tick) so it's
-the same on every browser; add / rename / toggle / delete / drag-reorder
-all save immediately. The Status/Recommendations content is deterministic
-— it reuses the same checks the alert loop runs (`alerts.evaluate`), no
-LLM. **System Stats** is the old host view — the Main System panel plus
+Four tabs. **Overview** (default) is the at-a-glance control surface:
+
+- a four-across summary row (health / hosts online / containers running /
+  alert count);
+- an **Attention** panel — one line ("No issues detected") when the fleet
+  is healthy, otherwise a severity-coded list of problems each with a
+  *View* jump and a plain next-step. Deterministic: it reuses the same
+  checks the alert loop runs (`alerts.evaluate`) plus stale nodes, no LLM;
+- **Hosts** — a compact CPU / RAM / disk / GPU bar row per host (the full
+  gauges stay on System Stats);
+- **Quick actions** — restart / stop for your pinned containers, jumps to
+  Deploy / Containers;
+- **Recent activity** — container start/stop/restart, host up/down, agent
+  unreachable and scheduler deploy/move/fail events, diffed from the fleet
+  snapshot each reconcile tick and kept in `/data/activity.json`;
+- an editable **to-do list** — add / rename (click) / toggle / delete /
+  drag-reorder, saved to `/data/todos.json` (`GET`/`PUT /api/todos`, in
+  every `/ws` tick) so it's the same on every browser.
+
+**System Stats** is the old host view — the Main System panel plus
 the Nodes grid. **Containers** shows every host's containers in one place,
 grouped and collapsible per host, each group with its own independent
 sort control (name / CPU / RAM / status). Each

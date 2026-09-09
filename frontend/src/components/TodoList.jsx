@@ -12,7 +12,7 @@ function newItem(text) {
   };
 }
 
-function TodoList({ todos, onChange }) {
+function TodoList({ todos, onChange, compact }) {
   const [draft, setDraft] = useState("");
   const [editing, setEditing] = useState(null); // { id, text }
   const [dragIndex, setDragIndex] = useState(null);
@@ -47,7 +47,7 @@ function TodoList({ todos, onChange }) {
   };
 
   return (
-    <div className="todo-list">
+    <div className={`todo-list ${compact ? "todo-list--compact" : ""}`}>
       <div className="todo-add">
         <input
           type="text"

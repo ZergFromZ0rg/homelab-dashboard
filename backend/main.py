@@ -12,6 +12,7 @@ from backend.docker import get_all_containers, control_container
 from backend.pins import PinStore
 from backend.todos import TodoStore
 from backend.log import system as system_log
+from backend import activity
 from backend import alerts
 from backend import live_history
 from backend import auth
@@ -225,6 +226,13 @@ def set_pins(payload: dict):
     return {"pins": pins.replace(keys)}
 
 
+@app.get("/api/activity")
+def list_activity():
+    """Recent fleet events (container/host/deploy transitions) for the
+    Overview feed. Also included in every /ws tick."""
+    return {"activity": activity.recent()}
+
+
 @app.get("/api/todos")
 def list_todos():
     """The Overview to-do list. Shared across browsers; also in every /ws tick."""
@@ -289,6 +297,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 "deployments": dumps,
                 "pins": pins.all(),
                 "todos": todos.all(),
+                "activity": activity.recent(),
                 "overview": _overview(machines, dumps, stale_nodes),
                 "server_time": time.time(),
             })
