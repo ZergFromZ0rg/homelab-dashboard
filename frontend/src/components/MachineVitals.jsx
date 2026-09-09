@@ -18,10 +18,6 @@ function formatUptime(seconds) {
 }
 
 function diskName(filesystem) {
-  if (filesystem.mountpoint === "/mnt/cooldrive") {
-    return "Cooldrive";
-  }
-
   if (filesystem.mountpoint === "/") {
     return "System";
   }
