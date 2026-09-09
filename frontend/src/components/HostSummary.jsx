@@ -1,12 +1,16 @@
-// Per-host health as compact bar rows. The full gauges + sparklines +
-// storage breakdown stay on the System Stats tab.
+// Per-host health as compact bar rows. The full gauges + sparklines stay
+// on the System Stats tab.
+
+import { diskLabel } from "./diskLabel";
 
 function Bar({ label, pct }) {
   const known = typeof pct === "number";
   const hot = known && pct >= 85;
   return (
     <div className="host-bar">
-      <span className="host-bar-label">{label}</span>
+      <span className="host-bar-label" title={label}>
+        {label}
+      </span>
       <div className="mini-bar">
         <div
           className={`mini-bar-fill ${hot ? "mini-bar-fill--hot" : "mini-bar-fill--cpu"}`}
@@ -16,12 +20,6 @@ function Bar({ label, pct }) {
       <span className="host-bar-pct">{known ? `${Math.round(pct)}%` : "—"}</span>
     </div>
   );
-}
-
-function diskPct(machine) {
-  const fs = machine.filesystems || [];
-  if (fs.length === 0) return null;
-  return Math.max(...fs.map((f) => f.used_percent ?? 0));
 }
 
 function HostSummary({ machines, containers }) {
@@ -55,7 +53,13 @@ function HostSummary({ machines, containers }) {
               <div className="host-row-bars">
                 <Bar label="CPU" pct={m.cpu} />
                 <Bar label="RAM" pct={m.ram} />
-                <Bar label="DISK" pct={diskPct(m)} />
+                {(m.filesystems || []).map((fs) => (
+                  <Bar
+                    key={`${fs.device}-${fs.mountpoint}`}
+                    label={diskLabel(fs)}
+                    pct={fs.used_percent}
+                  />
+                ))}
                 {gpu != null && <Bar label="GPU" pct={gpu} />}
               </div>
             )}

@@ -1,6 +1,7 @@
 import Sparkline from "./Sparkline";
 import Gauge from "./Gauge";
 import Stat from "./Stat";
+import { diskLabel } from "./diskLabel";
 import { formatBytes, formatBytesPerSec as formatSpeed } from "./format";
 
 // Reference ceiling for the CPU temperature gauge ring — not a real limit,
@@ -15,14 +16,6 @@ function formatUptime(seconds) {
   const hours = Math.floor((seconds % 86400) / 3600);
 
   return `${days}d ${hours}h`;
-}
-
-function diskName(filesystem) {
-  if (filesystem.mountpoint === "/") {
-    return "System";
-  }
-
-  return filesystem.mountpoint;
 }
 
 function MachineVitals({ machine, history }) {
@@ -207,7 +200,7 @@ function MachineVitals({ machine, history }) {
             >
               <div className="disk-header">
                 <div>
-                  <strong>{diskName(filesystem)}</strong>
+                  <strong>{diskLabel(filesystem)}</strong>
                   <span>{filesystem.mountpoint}</span>
                 </div>
 

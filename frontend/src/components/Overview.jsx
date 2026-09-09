@@ -93,40 +93,42 @@ function Overview({
 }) {
   return (
     <div className="overview">
-      <SummaryRow
-        overview={overview}
-        machines={machines}
-        containers={containers}
-      />
-
-      <AttentionPanel
-        overview={overview}
-        deployments={deployments}
-        onNavigate={onNavigate}
-      />
-
-      <OverviewCard title="Hosts">
-        <HostSummary machines={machines} containers={containers} />
-      </OverviewCard>
-
-      <OverviewCard title="Quick actions">
-        <QuickActions
-          pins={pins}
+      <div className="overview-main">
+        <SummaryRow
+          overview={overview}
+          machines={machines}
           containers={containers}
-          onControl={onControl}
+        />
+
+        <AttentionPanel
+          overview={overview}
+          deployments={deployments}
           onNavigate={onNavigate}
         />
-      </OverviewCard>
 
-      <div className="overview-cols">
+        <OverviewCard title="Hosts">
+          <HostSummary machines={machines} containers={containers} />
+        </OverviewCard>
+
+        <OverviewCard title="Quick actions">
+          <QuickActions
+            pins={pins}
+            containers={containers}
+            onControl={onControl}
+            onNavigate={onNavigate}
+          />
+        </OverviewCard>
+
         <OverviewCard title="Recent activity">
           <ActivityFeed activity={activity} />
         </OverviewCard>
+      </div>
 
+      <aside className="overview-side">
         <OverviewCard title="To-do" count={openTodos || null}>
           <TodoList todos={todos} onChange={onSetTodos} compact />
         </OverviewCard>
-      </div>
+      </aside>
     </div>
   );
 }
