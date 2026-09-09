@@ -1,5 +1,6 @@
 import Sparkline from "./Sparkline";
 import Gauge from "./Gauge";
+import { formatBytes, formatBytesPerSec as formatSpeed } from "./format";
 
 // Reference ceiling for the CPU temperature gauge ring — not a real limit,
 // just a "how close to uncomfortably hot" scale so the ring fills
@@ -13,26 +14,6 @@ function formatUptime(seconds) {
   const hours = Math.floor((seconds % 86400) / 3600);
 
   return `${days}d ${hours}h`;
-}
-
-function formatBytes(bytes) {
-  if (bytes == null) return "—";
-
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  let value = bytes;
-  let unit = 0;
-
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024;
-    unit += 1;
-  }
-
-  return `${value.toFixed(unit >= 3 ? 1 : 0)} ${units[unit]}`;
-}
-
-function formatSpeed(bytesPerSecond) {
-  if (bytesPerSecond == null) return "—";
-  return `${formatBytes(bytesPerSecond)}/s`;
 }
 
 function diskName(filesystem) {

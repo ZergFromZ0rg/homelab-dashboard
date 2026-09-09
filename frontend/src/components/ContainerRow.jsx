@@ -1,21 +1,7 @@
 import { avatarColor, containerUrl } from "./containerLink";
 import { needsAttention } from "./containerSort";
+import { formatBytes, formatBytesPerSec } from "./format";
 import Heartbeat from "./Heartbeat";
-
-function formatBytes(bytes) {
-  if (bytes == null) return "—";
-
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  let value = bytes;
-  let unit = 0;
-
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024;
-    unit += 1;
-  }
-
-  return `${value.toFixed(unit >= 3 ? 1 : 0)} ${units[unit]}`;
-}
 
 function formatStartedAt(value) {
   if (!value || value.startsWith("0001-")) return "—";
@@ -206,38 +192,22 @@ function ContainerRow({
         <div className="container-stats-grid">
           <div>
             <span>NET ↓</span>
-            <strong>
-              {network?.rx_bps != null
-                ? `${formatBytes(network.rx_bps)}/s`
-                : "—"}
-            </strong>
+            <strong>{formatBytesPerSec(network?.rx_bps)}</strong>
           </div>
 
           <div>
             <span>NET ↑</span>
-            <strong>
-              {network?.tx_bps != null
-                ? `${formatBytes(network.tx_bps)}/s`
-                : "—"}
-            </strong>
+            <strong>{formatBytesPerSec(network?.tx_bps)}</strong>
           </div>
 
           <div>
             <span>DISK ↓</span>
-            <strong>
-              {blockIo?.read_bps != null
-                ? `${formatBytes(blockIo.read_bps)}/s`
-                : "—"}
-            </strong>
+            <strong>{formatBytesPerSec(blockIo?.read_bps)}</strong>
           </div>
 
           <div>
             <span>DISK ↑</span>
-            <strong>
-              {blockIo?.write_bps != null
-                ? `${formatBytes(blockIo.write_bps)}/s`
-                : "—"}
-            </strong>
+            <strong>{formatBytesPerSec(blockIo?.write_bps)}</strong>
           </div>
 
           <div>
