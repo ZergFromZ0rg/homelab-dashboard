@@ -1,5 +1,6 @@
 import Sparkline from "./Sparkline";
 import Gauge from "./Gauge";
+import Stat from "./Stat";
 import { formatBytes, formatBytesPerSec as formatSpeed } from "./format";
 
 // Reference ceiling for the CPU temperature gauge ring — not a real limit,
@@ -119,17 +120,13 @@ function MachineVitals({ machine, history }) {
       </div>
 
       <div className="network-stats">
-        <div>
-          <span>DOWNLOAD</span>
-          <strong>↓ {formatSpeed(machine.network_rx)}</strong>
+        <Stat label="DOWNLOAD" value={`↓ ${formatSpeed(machine.network_rx)}`}>
           <Sparkline points={history?.network_rx} max={netMax} variant="rx" />
-        </div>
+        </Stat>
 
-        <div>
-          <span>UPLOAD</span>
-          <strong>↑ {formatSpeed(machine.network_tx)}</strong>
+        <Stat label="UPLOAD" value={`↑ ${formatSpeed(machine.network_tx)}`}>
           <Sparkline points={history?.network_tx} max={netMax} variant="tx" />
-        </div>
+        </Stat>
       </div>
 
       {machine.gpu?.available !== false &&
@@ -148,52 +145,44 @@ function MachineVitals({ machine, history }) {
 
           return (
             <div className="gpu-stats">
-              <div>
-                <span>GPU{machine.agent_stale_age != null ? " · stale" : ""}</span>
-                <strong>{gpuName}</strong>
+              <Stat
+                label={`GPU${machine.agent_stale_age != null ? " · stale" : ""}`}
+                value={gpuName}
+              >
                 {pciId && <small>{pciId.toUpperCase()}</small>}
                 {gpu.vendor && <small>{gpu.vendor.toUpperCase()}</small>}
-              </div>
+              </Stat>
 
               {gpu.utilization_percent != null && (
-                <div>
-                  <span>UTILIZATION</span>
-                  <strong>{gpu.utilization_percent}%</strong>
-                </div>
+                <Stat label="UTILIZATION" value={`${gpu.utilization_percent}%`} />
               )}
 
               {(gpu.memory_used_mb != null || gpu.memory_total_mb != null) && (
-                <div>
-                  <span>VRAM</span>
-                  <strong>
-                    {gpu.memory_used_mb ?? "—"} / {gpu.memory_total_mb ?? "—"}{" "}
-                    MB
-                  </strong>
-                </div>
+                <Stat
+                  label="VRAM"
+                  value={`${gpu.memory_used_mb ?? "—"} / ${
+                    gpu.memory_total_mb ?? "—"
+                  } MB`}
+                />
               )}
 
               {gpu.temperature_c != null && (
-                <div>
-                  <span>GPU TEMP</span>
-                  <strong>{gpu.temperature_c}°C</strong>
+                <Stat label="GPU TEMP" value={`${gpu.temperature_c}°C`}>
                   <Sparkline points={history?.gpu_temperature} variant="cpu" />
-                </div>
+                </Stat>
               )}
 
               {(gpu.power_draw_w != null || gpu.power_limit_w != null) && (
-                <div>
-                  <span>POWER</span>
-                  <strong>
-                    {gpu.power_draw_w ?? "—"} / {gpu.power_limit_w ?? "—"} W
-                  </strong>
-                </div>
+                <Stat
+                  label="POWER"
+                  value={`${gpu.power_draw_w ?? "—"} / ${
+                    gpu.power_limit_w ?? "—"
+                  } W`}
+                />
               )}
 
               {gpu.fan_percent != null && (
-                <div>
-                  <span>FAN</span>
-                  <strong>{gpu.fan_percent}%</strong>
-                </div>
+                <Stat label="FAN" value={`${gpu.fan_percent}%`} />
               )}
             </div>
           );

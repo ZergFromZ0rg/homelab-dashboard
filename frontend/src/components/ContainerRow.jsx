@@ -2,6 +2,7 @@ import { avatarColor, containerUrl } from "./containerLink";
 import { needsAttention } from "./containerSort";
 import { formatBytes, formatBytesPerSec } from "./format";
 import Heartbeat from "./Heartbeat";
+import Stat from "./Stat";
 
 function formatStartedAt(value) {
   if (!value || value.startsWith("0001-")) return "—";
@@ -147,14 +148,17 @@ function ContainerRow({
         <Heartbeat heartbeat={container.heartbeat} />
 
         <div className="container-primary-stats">
-          <div>
-            <span>CPU</span>
-            <strong>
-              {cpuPercent != null ? `${cpuPercent}%` : "—"}
-              {hostCores != null && cpuPercent > 100 && (
-                <small> · {(cpuPercent / 100).toFixed(1)} vCPU</small>
-              )}
-            </strong>
+          <Stat
+            label="CPU"
+            value={
+              <>
+                {cpuPercent != null ? `${cpuPercent}%` : "—"}
+                {hostCores != null && cpuPercent > 100 && (
+                  <small> · {(cpuPercent / 100).toFixed(1)} vCPU</small>
+                )}
+              </>
+            }
+          >
             <div
               className="mini-bar"
               title={
@@ -168,75 +172,51 @@ function ContainerRow({
                 style={{ width: `${cpuBarPercent}%` }}
               />
             </div>
-          </div>
+          </Stat>
 
-          <div>
-            <span>RAM</span>
-            <strong>
-              {memory?.used_bytes != null
-                ? formatBytes(memory.used_bytes)
-                : "—"}
-              {ramPercent != null && (
-                <small> · {ramPercent}%</small>
-              )}
-            </strong>
+          <Stat
+            label="RAM"
+            value={
+              <>
+                {memory?.used_bytes != null
+                  ? formatBytes(memory.used_bytes)
+                  : "—"}
+                {ramPercent != null && <small> · {ramPercent}%</small>}
+              </>
+            }
+          >
             <div className="mini-bar">
               <div
                 className="mini-bar-fill mini-bar-fill--ram"
                 style={{ width: `${Math.min(ramPercent ?? 0, 100)}%` }}
               />
             </div>
-          </div>
+          </Stat>
         </div>
 
         <div className="container-stats-grid">
-          <div>
-            <span>NET ↓</span>
-            <strong>{formatBytesPerSec(network?.rx_bps)}</strong>
-          </div>
-
-          <div>
-            <span>NET ↑</span>
-            <strong>{formatBytesPerSec(network?.tx_bps)}</strong>
-          </div>
-
-          <div>
-            <span>DISK ↓</span>
-            <strong>{formatBytesPerSec(blockIo?.read_bps)}</strong>
-          </div>
-
-          <div>
-            <span>DISK ↑</span>
-            <strong>{formatBytesPerSec(blockIo?.write_bps)}</strong>
-          </div>
-
-          <div>
-            <span>UPTIME</span>
-            <strong>{formatStartedAt(container.started_at)}</strong>
-          </div>
-
-          <div>
-            <span>RESTARTS</span>
-            <strong>{container.restart_count ?? "—"}</strong>
-          </div>
-
-          <div>
-            <span>IMAGE</span>
-            <strong>
-              {container.size?.image_bytes != null
+          <Stat label="NET ↓" value={formatBytesPerSec(network?.rx_bps)} />
+          <Stat label="NET ↑" value={formatBytesPerSec(network?.tx_bps)} />
+          <Stat label="DISK ↓" value={formatBytesPerSec(blockIo?.read_bps)} />
+          <Stat label="DISK ↑" value={formatBytesPerSec(blockIo?.write_bps)} />
+          <Stat label="UPTIME" value={formatStartedAt(container.started_at)} />
+          <Stat label="RESTARTS" value={container.restart_count ?? "—"} />
+          <Stat
+            label="IMAGE"
+            value={
+              container.size?.image_bytes != null
                 ? formatBytes(container.size.image_bytes)
-                : "—"}
-            </strong>
-          </div>
-
-          <div>
-            <span>ROOTFS</span>
-            <strong>
-              {container.size?.rootfs_bytes != null
+                : "—"
+            }
+          />
+          <Stat
+            label="ROOTFS"
+            value={
+              container.size?.rootfs_bytes != null
                 ? formatBytes(container.size.rootfs_bytes)
-                : "—"}
-            </strong>
-          </div>
+                : "—"
+            }
+          />
         </div>
       </div>
 
