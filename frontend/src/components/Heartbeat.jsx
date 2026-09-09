@@ -16,7 +16,7 @@ function Heartbeat({ heartbeat }) {
       </div>
 
       <span className="heartbeat-uptime">
-        {uptimePercent != null ? `${uptimePercent}%` : "—"} (30m)
+        {uptimePercent != null ? `${uptimePercent}%` : "—"} (2h)
       </span>
     </div>
   );

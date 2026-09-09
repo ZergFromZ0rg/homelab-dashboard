@@ -10,7 +10,9 @@ import requests
 from backend.prometheus import get_machine_stats, get_machine_history
 from backend.docker import get_all_containers, control_container
 from backend.pins import PinStore
+from backend.todos import TodoStore
 from backend.log import system as system_log
+from backend import alerts
 from backend import live_history
 from backend import auth
 from backend import scheduler_api
@@ -32,6 +34,7 @@ app = FastAPI(lifespan=lifespan)
 app.include_router(scheduler_api.router)
 
 pins = PinStore()
+todos = TodoStore()
 
 # The host the dashboard itself runs on, if any — it gets its own
 # top-level section instead of being shown as just another node.
@@ -63,6 +66,63 @@ def _detect_main_host(agent_data: dict) -> str | None:
                 return host
 
     return None
+
+
+# One templated next-step per issue-key family, for the Overview
+# "Recommendations" list. Rebalance moves come separately (with buttons).
+def _recommendation(key: str, host: str | None) -> str:
+    where = host or "the host"
+    if key.endswith(":ram"):
+        return f"Free memory on {where} or move a workload off it."
+    if key.endswith(":cpu"):
+        return f"{where} CPU is saturated — find the runaway container."
+    if key.endswith(":offline"):
+        return f"{where} is unreachable — check its power and network."
+    if key.endswith(":agent"):
+        return f"{where} is up but homelab-agent isn't responding — restart that container."
+    if key.endswith(":stale"):
+        return f"{where} hasn't checked in — confirm homelab-agent is still running."
+    if key.startswith("deploy:"):
+        return "Redeploy the failed workload, or check its container logs."
+    return ""
+
+
+def _overview(machines: dict, deployment_dumps: list[dict], stale_nodes: set[str]) -> dict:
+    """At-a-glance fleet health for the landing page: the same breaches the
+    alert loop watches, plus stale nodes, turned into a flat issue list and
+    a set of plain next-steps. Deterministic — no LLM."""
+    issues: list[dict] = []
+    recs: list[str] = []
+
+    for key, alert in alerts.evaluate(machines, deployment_dumps).items():
+        severity = "warn" if key.endswith((":ram", ":cpu")) else "bad"
+        issues.append(
+            {
+                "key": key,
+                "title": alert["title"],
+                "message": alert["message"],
+                "severity": severity,
+            }
+        )
+        rec = _recommendation(key, alert.get("host"))
+        if rec and rec not in recs:
+            recs.append(rec)
+
+    for name in sorted(stale_nodes):
+        key = f"host:{name}:stale"
+        issues.append(
+            {
+                "key": key,
+                "title": f"{name} stale",
+                "message": f"{name} hasn't refreshed its registration recently",
+                "severity": "warn",
+            }
+        )
+        rec = _recommendation(key, name)
+        if rec not in recs:
+            recs.append(rec)
+
+    return {"ok": not issues, "issues": issues, "recommendations": recs}
 
 
 app.add_middleware(
@@ -165,6 +225,20 @@ def set_pins(payload: dict):
     return {"pins": pins.replace(keys)}
 
 
+@app.get("/api/todos")
+def list_todos():
+    """The Overview to-do list. Shared across browsers; also in every /ws tick."""
+    return {"todos": todos.all()}
+
+
+@app.put("/api/todos")
+def set_todos(payload: dict):
+    items = payload.get("todos")
+    if not isinstance(items, list):
+        raise HTTPException(status_code=400, detail="'todos' must be a list")
+    return {"todos": todos.replace(items)}
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
@@ -203,14 +277,19 @@ async def websocket_endpoint(websocket: WebSocket):
 
             deployments.reconcile(containers, offline_hosts)
 
+            dumps = [d.model_dump() for d in deployments.all()]
+            stale_nodes = {n["name"] for n in registry.listing() if n["stale"]}
+
             await websocket.send_json({
                 "type": "dashboard_update",
                 "machines": machines,
                 "containers": containers,
                 "main_host": main_host,
                 "history": history,
-                "deployments": [d.model_dump() for d in deployments.all()],
+                "deployments": dumps,
                 "pins": pins.all(),
+                "todos": todos.all(),
+                "overview": _overview(machines, dumps, stale_nodes),
                 "server_time": time.time(),
             })
 

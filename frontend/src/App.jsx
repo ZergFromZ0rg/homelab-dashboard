@@ -3,9 +3,13 @@ import MainSystem from "./components/MainSystem";
 import MachineCard from "./components/MachineCard";
 import Tabs from "./components/Tabs";
 import DeployTab from "./components/DeployTab";
-import { useEffect, useRef, useState } from "react";
+import Overview from "./components/Overview";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { loadCachedPins, cachePins, putPins } from "./components/containerPins";
+import { loadCachedTodos, cacheTodos, putTodos } from "./components/todosApi";
 import "./App.css";
+
+const EMPTY_OVERVIEW = { ok: true, issues: [], recommendations: [] };
 
 function useContainerControl() {
   const [pending, setPending] = useState({});
@@ -58,21 +62,75 @@ function useContainerControl() {
   return { pending, errors, run, clearError };
 }
 
+// A list the server owns (pins, todos): the WebSocket pushes the canonical
+// copy, edits go out as an optimistic PUT that rolls back on failure, and a
+// localStorage cache fills the first paint before the first WS tick.
+// `adopt` and `set` are stable (they work through a ref), so the socket
+// effect can close over them without going stale.
+function useServerList(loadCached, cache, put) {
+  const [items, setItems] = useState(loadCached);
+  const ref = useRef(items);
+
+  const adopt = useCallback(
+    (serverItems) => {
+      if (!Array.isArray(serverItems)) return;
+      if (JSON.stringify(serverItems) === JSON.stringify(ref.current)) return;
+      ref.current = serverItems;
+      cache(serverItems);
+      setItems(serverItems);
+    },
+    [cache]
+  );
+
+  const set = useCallback(
+    async (next) => {
+      const previous = ref.current;
+      ref.current = next;
+      cache(next);
+      setItems(next);
+      try {
+        const confirmed = await put(next);
+        ref.current = confirmed;
+        cache(confirmed);
+        setItems(confirmed);
+      } catch (error) {
+        console.error("List save failed:", error);
+        ref.current = previous;
+        cache(previous);
+        setItems(previous);
+      }
+    },
+    [cache, put]
+  );
+
+  return [items, adopt, set];
+}
+
 // Reconnecting WebSocket. The bare `new WebSocket` in the first cut never
 // retried — a dropped socket left the dashboard frozen until a manual
 // refresh. Back off 1s → 2s → 4s … capped at 15s.
 function useDashboardSocket() {
-  const [state, setState] = useState({
+  const [snap, setSnap] = useState({
     machines: {},
     containers: {},
     history: {},
     deployments: [],
-    pins: loadCachedPins(),
     mainHost: null,
+    overview: EMPTY_OVERVIEW,
   });
   const [connected, setConnected] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(null);
-  const pinsRef = useRef(state.pins);
+
+  const [pins, adoptPins, setPins] = useServerList(
+    loadCachedPins,
+    cachePins,
+    putPins
+  );
+  const [todos, adoptTodos, setTodos] = useServerList(
+    loadCachedTodos,
+    cacheTodos,
+    putTodos
+  );
 
   useEffect(() => {
     let ws;
@@ -94,26 +152,17 @@ function useDashboardSocket() {
         if (data.type !== "dashboard_update") return;
 
         setLastUpdate(Date.now());
+        adoptPins(data.pins);
+        adoptTodos(data.todos);
 
-        // The server owns the pin list; only adopt it when it actually
-        // changed so a local optimistic edit isn't clobbered mid-flight.
-        const serverPins = Array.isArray(data.pins) ? data.pins : pinsRef.current;
-        const pinsChanged =
-          serverPins.length !== pinsRef.current.length ||
-          serverPins.some((k, i) => k !== pinsRef.current[i]);
-        if (pinsChanged) {
-          pinsRef.current = serverPins;
-          cachePins(serverPins);
-        }
-
-        setState((current) => ({
+        setSnap({
           machines: data.machines,
           containers: data.containers,
           history: data.history ?? {},
           deployments: data.deployments ?? [],
-          pins: pinsChanged ? serverPins : current.pins,
           mainHost: data.main_host ?? null,
-        }));
+          overview: data.overview ?? EMPTY_OVERVIEW,
+        });
       };
 
       ws.onclose = () => {
@@ -133,30 +182,9 @@ function useDashboardSocket() {
       clearTimeout(reconnectTimer);
       ws?.close();
     };
-  }, []);
+  }, [adoptPins, adoptTodos]);
 
-  // Optimistic local pin edit, pushed to the backend. On failure, roll
-  // back to whatever the server last told us.
-  async function setPins(nextPins) {
-    const previous = pinsRef.current;
-    pinsRef.current = nextPins;
-    cachePins(nextPins);
-    setState((current) => ({ ...current, pins: nextPins }));
-
-    try {
-      const confirmed = await putPins(nextPins);
-      pinsRef.current = confirmed;
-      cachePins(confirmed);
-      setState((current) => ({ ...current, pins: confirmed }));
-    } catch (error) {
-      console.error("Saving pins failed:", error);
-      pinsRef.current = previous;
-      cachePins(previous);
-      setState((current) => ({ ...current, pins: previous }));
-    }
-  }
-
-  return { ...state, connected, lastUpdate, setPins };
+  return { ...snap, pins, todos, connected, lastUpdate, setPins, setTodos };
 }
 
 function ConnectionStatus({ connected, lastUpdate }) {
@@ -194,11 +222,14 @@ function App() {
     containers,
     history,
     deployments,
+    overview,
     pins,
+    todos,
     mainHost,
     connected,
     lastUpdate,
     setPins,
+    setTodos,
   } = useDashboardSocket();
 
   const [activeTab, setActiveTab] = useState("overview");
@@ -219,8 +250,14 @@ function App() {
     (d) => d.status === "running" || d.status === "placing"
   ).length;
 
+  const openTodos = todos.filter((t) => !t.done).length;
+
   const tabs = [
-    { value: "overview", label: "Server Overview" },
+    {
+      value: "overview",
+      label: overview.ok ? "Overview" : `Overview (${overview.issues.length})`,
+    },
+    { value: "system", label: "System Stats" },
     { value: "containers", label: `Containers (${totalContainers})` },
     { value: "deploy", label: `Deploy (${activeDeployments})` },
   ];
@@ -239,6 +276,16 @@ function App() {
       <Tabs tabs={tabs} active={activeTab} onChange={setActiveTab} />
 
       {activeTab === "overview" && (
+        <Overview
+          overview={overview}
+          todos={todos}
+          openTodos={openTodos}
+          deployments={deployments}
+          onSetTodos={setTodos}
+        />
+      )}
+
+      {activeTab === "system" && (
         <>
           {hasMainHost && (
             <MainSystem

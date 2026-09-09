@@ -1,8 +1,8 @@
 """Rolling history for data that doesn't come from Prometheus: GPU
 temperature and container up/down status. ``record_fleet`` is called every
 reconcile tick (~5s) — from the always-on loop, *not* the /ws loop, so the
-heartbeat has no gaps when no browser is connected. Kept for
-WINDOW_SECONDS.
+heartbeat has no gaps when no browser is connected. Kept for the last 2
+hours (WINDOW_SECONDS).
 
 Persisted to disk (same volume the node registry uses) so a dashboard
 redeploy doesn't wipe history for containers that never actually
@@ -17,7 +17,7 @@ from collections import deque
 
 from backend.jsonstore import read_json, write_json_atomic
 
-WINDOW_SECONDS = 30 * 60
+WINDOW_SECONDS = 2 * 60 * 60
 # The sample cadence is the reconcile loop's (~5s); size the ring buffer
 # for a bit more than one full window at that rate.
 MAX_SAMPLES = WINDOW_SECONDS // 4

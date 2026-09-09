@@ -67,7 +67,7 @@ class AlertMonitor:
         now: float | None = None,
     ) -> list[dict]:
         now = now or time.time()
-        raw = _evaluate(machines, deployments)
+        raw = evaluate(machines, deployments)
 
         # Debounce resource alerts: they only count as "breaching" once
         # they've been seen ``breach_cycles`` checks running.
@@ -122,10 +122,11 @@ def _event(status: str, key: str, alert: dict, now: float) -> dict:
     }
 
 
-def _evaluate(
+def evaluate(
     machines: dict[str, dict], deployments: list[dict]
 ) -> dict[str, dict]:
-    """Current raw breaches, keyed by a stable alert key."""
+    """Current raw breaches, keyed by a stable alert key. Pure — also used
+    by the Overview status panel, not just the alert loop."""
     out: dict[str, dict] = {}
 
     for name, m in machines.items():

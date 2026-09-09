@@ -38,10 +38,18 @@ utilization, temp and power.
 
 ## Layout
 
-Two tabs: **Server Overview** (default) shows host stats only — the Main
-System panel plus the Nodes grid. **Containers** shows every host's
-containers in one place, grouped and collapsible per host, each group
-with its own independent sort control (name / CPU / RAM / status). Each
+Four tabs. **Overview** (default) is the at-a-glance summary — a Status
+card ("All systems operational" or a list of problems with severity), a
+Recommendations card (plain next-steps plus any rebalance moves), and an
+editable **to-do list**. The to-do list is stored on the backend
+(`/data/todos.json`, `GET`/`PUT /api/todos`, in every `/ws` tick) so it's
+the same on every browser; add / rename / toggle / delete / drag-reorder
+all save immediately. The Status/Recommendations content is deterministic
+— it reuses the same checks the alert loop runs (`alerts.evaluate`), no
+LLM. **System Stats** is the old host view — the Main System panel plus
+the Nodes grid. **Containers** shows every host's containers in one place,
+grouped and collapsible per host, each group with its own independent
+sort control (name / CPU / RAM / status). Each
 group's collapsed state and sort choice are remembered per browser
 (`localStorage`). A filter box at the top matches container name or image
 across every host and auto-expands the groups that still have matches.
@@ -92,11 +100,13 @@ re-hitting Prometheus every tick.
 
 GPU temperature and each container's up/down status don't come from
 Prometheus at all (GPU is agent-reported, container status is a live
-Docker snapshot), so `backend/live_history.py` keeps its own 30-minute
-rolling buffer, sampled once per `/ws` tick and persisted to
-`/data/live_history.json` (same volume as the node registry) at most
-once every 30s — so redeploying the dashboard doesn't wipe history for
-containers that never actually restarted. Keyed by `(host, container_id)`
+Docker snapshot), so `backend/live_history.py` keeps its own 2-hour
+rolling buffer, sampled once per reconcile tick (~5s) — from the
+always-on loop, *not* the `/ws` loop, so the heartbeat has no gaps when
+no browser is connected — and persisted to `/data/live_history.json`
+(same volume as the node registry) at most once every 30s, so redeploying
+the dashboard doesn't wipe history for containers that never actually
+restarted. Keyed by `(host, container_id)`
 for containers, so a container that *is* recreated naturally starts a
 fresh history under its new id rather than inheriting the old one's.
 This is meant to answer "is this flapping right now", not to be a

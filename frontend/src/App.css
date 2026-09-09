@@ -1761,3 +1761,253 @@ select.deploy-input[multiple] {
     grid-template-columns: 1fr;
   }
 }
+
+/* ----- Overview ----- */
+
+.overview {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 760px;
+}
+
+.overview-card {
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+}
+
+.overview-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.overview-card-head h2 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+.overview-card-count {
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--mono);
+  color: var(--accent);
+  border: 1px solid var(--border);
+  padding: 0 5px;
+}
+
+.overview-card-body {
+  padding: 12px;
+}
+
+.overview-empty {
+  margin: 0;
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+.status-dot--ok {
+  background: var(--online);
+}
+
+.status-dot--warn {
+  background: var(--warning);
+}
+
+.status-dot--bad {
+  background: var(--offline);
+}
+
+.status-ok {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--online);
+}
+
+.status-issues {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.status-issue {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.status-issue .status-dot {
+  flex-shrink: 0;
+  transform: translateY(1px);
+}
+
+.status-issue-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.status-issue-text strong {
+  font-size: 12px;
+}
+
+.status-issue-text span {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.recommendation-list {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.recommendation-list li {
+  font-size: 12px;
+  color: var(--text);
+  padding-left: 12px;
+  position: relative;
+}
+
+.recommendation-list li::before {
+  content: "→";
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+}
+
+/* RebalancePanel brings its own section chrome; tighten it inside the card. */
+.overview-card-body .rebalance-panel {
+  margin: 10px 0 0;
+}
+
+/* ----- To-do ----- */
+
+.todo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.todo-add {
+  display: flex;
+  gap: 6px;
+}
+
+.todo-add input {
+  flex: 1;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  padding: 5px 8px;
+}
+
+.todo-add button,
+.todo-remove {
+  font: inherit;
+  cursor: pointer;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.todo-add button {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 5px 10px;
+}
+
+.todo-add button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.todo-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.todo-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 4px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.todo-item:first-child {
+  border-top: none;
+}
+
+.todo-item--over {
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+
+.todo-grip {
+  color: var(--text-faint);
+  cursor: grab;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.todo-item input[type="checkbox"] {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.todo-text {
+  flex: 1;
+  cursor: text;
+  overflow-wrap: anywhere;
+}
+
+.todo-item--done .todo-text {
+  text-decoration: line-through;
+  color: var(--text-faint);
+}
+
+.todo-edit {
+  flex: 1;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg-subtle);
+  border: 1px solid var(--accent);
+  padding: 3px 6px;
+}
+
+.todo-remove {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  line-height: 1;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.todo-remove:hover {
+  color: var(--offline);
+  border-color: var(--offline);
+}
