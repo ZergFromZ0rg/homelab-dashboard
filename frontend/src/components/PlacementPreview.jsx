@@ -1,5 +1,5 @@
 // Renders a PlacementResponse: the ranked node list with scores and
-// reasons, the LLM explanation if present, and any warnings.
+// reasons, plus any warnings.
 
 function ScoreBar({ score, eligible }) {
   return (
@@ -15,13 +15,7 @@ function ScoreBar({ score, eligible }) {
 function PlacementPreview({ preview, recommended, onPick }) {
   if (!preview) return null;
 
-  const {
-    ranked,
-    explanation,
-    parsed_constraints: parsed,
-    warnings,
-    stack_services: services,
-  } = preview;
+  const { ranked, warnings, stack_services: services } = preview;
 
   return (
     <div className="placement-preview">
@@ -44,20 +38,6 @@ function PlacementPreview({ preview, recommended, onPick }) {
             </div>
           ))}
         </div>
-      )}
-
-      {explanation && <p className="placement-explanation">{explanation}</p>}
-
-      {parsed && (
-        <p className="placement-parsed">
-          Note read as:{" "}
-          {parsed.require_gpu && <code>require_gpu</code>}{" "}
-          {parsed.node_in && <code>only {parsed.node_in.join(", ")}</code>}{" "}
-          {parsed.node_not_in && <code>never {parsed.node_not_in.join(", ")}</code>}{" "}
-          {parsed.max_node_cpu_percent != null && (
-            <code>cpu ≤ {parsed.max_node_cpu_percent}%</code>
-          )}
-        </p>
       )}
 
       {warnings?.map((w, i) => (

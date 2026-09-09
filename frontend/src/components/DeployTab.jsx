@@ -20,7 +20,6 @@ const EMPTY_SPEC = {
     node_in: null,
     node_not_in: null,
     max_node_cpu_percent: null,
-    notes: null,
   },
 };
 
@@ -33,7 +32,6 @@ const EMPTY_STACK = {
     node_in: null,
     node_not_in: null,
     max_node_cpu_percent: null,
-    notes: null,
   },
 };
 
@@ -73,7 +71,6 @@ function toApiConstraints(c) {
     node_in: c.node_in?.length ? c.node_in : null,
     node_not_in: c.node_not_in?.length ? c.node_not_in : null,
     max_node_cpu_percent: c.max_node_cpu_percent,
-    notes: c.notes,
   };
 }
 

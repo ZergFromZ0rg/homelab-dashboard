@@ -16,7 +16,7 @@ import time
 import requests
 from fastapi import APIRouter, Header, HTTPException
 
-from backend import alerts, autorebalance, llm, rebalance, scheduler, stacks
+from backend import alerts, autorebalance, rebalance, scheduler, stacks
 from backend import auth
 from backend.compose import ComposeError
 from backend.deployments import DeploymentStore
@@ -127,41 +127,29 @@ def _fallback_reason(ranked, target: str) -> str:
 
 
 def _score(spec: DeploymentSpec):
-    """Run the LLM constraint parse + deterministic scoring for a spec.
+    """Deterministic placement scoring for a spec.
 
-    Returns ``(effective_spec, ranked, recommended, explanation,
-    parsed_constraints, warnings)``.
+    Returns ``(ranked, recommended, warnings)``.
     """
     _, machines, containers, _, stale_hosts = _build_fleet()
 
-    warnings: list[str] = []
-    parsed = None
-    effective = spec
-
-    if spec.constraints.notes:
-        parsed, warnings = llm.parse_constraints(
-            spec.constraints.notes, list(machines.keys())
-        )
-        if parsed is not None:
-            effective = spec.model_copy(update={"constraints": parsed})
-
     ranked = scheduler.score_nodes(
-        effective,
+        spec,
         machines,
         stale_hosts=stale_hosts,
         deployments=[d.model_dump() for d in deployments.all()],
         containers=containers,
     )
     recommended = scheduler.recommended_node(ranked)
-    explanation = llm.explain_placement(effective, ranked)
 
-    if effective.stateful():
+    warnings: list[str] = []
+    if spec.stateful():
         warnings.append(
             "This spec has volumes — a named volume stays on its node and "
             "will not follow a later reschedule."
         )
 
-    return effective, ranked, recommended, explanation, parsed, warnings
+    return ranked, recommended, warnings
 
 
 def _pick_target(node: str | None, recommended: str | None, ranked) -> str:
@@ -178,17 +166,17 @@ def _pick_target(node: str | None, recommended: str | None, ranked) -> str:
     return target
 
 
-def _place(kind, effective, stack, ranked, explanation, target):
+def _place(kind, spec, stack, ranked, target):
     """Record a new placement decision and hand it to the agent. Shared by
     the container and stack create routes."""
     record = DeploymentRecord(
         kind=kind,
-        spec=effective,
+        spec=spec,
         stack=stack,
         status="placing",
         placed_on=target,
         score=next((r.score for r in ranked if r.node == target), None),
-        reason=explanation or _fallback_reason(ranked, target),
+        reason=_fallback_reason(ranked, target),
         alternatives=[
             {"node": r.node, "score": r.score, "eligible": r.eligible}
             for r in ranked
@@ -341,7 +329,7 @@ def _reschedule_offline(record: DeploymentRecord) -> None:
             )
         }
     )
-    _, ranked, recommended, _, _, _ = _score(spec)
+    _, recommended, _ = _score(spec)
     if not recommended or recommended == dead_node:
         return
     sched_log.warning(
@@ -371,22 +359,18 @@ async def create_deployment(
 ):
     auth.check_token(x_register_token)
 
-    effective, ranked, recommended, explanation, parsed, warnings = (
-        await asyncio.to_thread(_score, spec)
-    )
+    ranked, recommended, warnings = await asyncio.to_thread(_score, spec)
 
     if dry_run:
         return PlacementResponse(
-            spec=effective,
+            spec=spec,
             ranked=ranked,
             recommended=recommended,
-            explanation=explanation,
-            parsed_constraints=parsed,
             warnings=warnings,
         )
 
     target = _pick_target(node, recommended, ranked)
-    return _place("container", effective, None, ranked, explanation, target)
+    return _place("container", spec, None, ranked, target)
 
 
 @router.post("/api/stacks", response_model=None)
@@ -405,26 +389,22 @@ async def create_stack_deployment(
             status_code=400, detail=f"could not parse the compose file: {error}"
         )
 
-    effective, ranked, recommended, explanation, parsed_c, warnings = (
-        await asyncio.to_thread(_score, synthetic)
-    )
+    ranked, recommended, warnings = await asyncio.to_thread(_score, synthetic)
     warnings = stack_warnings + [
         w for w in warnings if "named volume stays on its node" not in w
     ]
 
     if dry_run:
         return PlacementResponse(
-            spec=effective,
+            spec=synthetic,
             ranked=ranked,
             recommended=recommended,
-            explanation=explanation,
-            parsed_constraints=parsed_c,
             warnings=warnings,
             stack_services=stacks.service_summary(parsed),
         )
 
     target = _pick_target(node, recommended, ranked)
-    return _place("stack", effective, stack, ranked, explanation, target)
+    return _place("stack", synthetic, stack, ranked, target)
 
 
 @router.get("/api/deployments")
@@ -556,9 +536,7 @@ async def redeploy(
             }
         )
 
-    effective, ranked, recommended, explanation, _, _ = await asyncio.to_thread(
-        _score, score_spec
-    )
+    ranked, recommended, _ = await asyncio.to_thread(_score, score_spec)
     target = node or recommended
     eligible_nodes = {r.node for r in ranked if r.eligible}
 
@@ -571,8 +549,8 @@ async def redeploy(
         _relocate,
         record,
         target,
-        reason=explanation or _fallback_reason(ranked, target),
-        spec=effective,
+        reason=_fallback_reason(ranked, target),
+        spec=score_spec,
         score=next((r.score for r in ranked if r.node == target), None),
     )
 

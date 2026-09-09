@@ -127,12 +127,8 @@ for it:
    too full, a requested host port already bound on that node, constraint
    violations) then a worst-fit headroom score with penalties for wasting
    a GPU box, a hot CPU sensor, or a stale agent. Pure arithmetic over the
-   same stats the dashboard already streams; no LLM involved in the
-   decision.
-2. `backend/llm.py` (only when `ANTHROPIC_API_KEY` is set) turns the
-   free-text "notes" field into structured constraints and writes a short
-   rationale. It never changes the ranking.
-3. The backend `POST`s the chosen node's agent at `POST {agent}/containers`
+   same stats the dashboard already streams.
+2. The backend `POST`s the chosen node's agent at `POST {agent}/containers`
    to pull and run the image, and records the deployment in
    `/data/deployments.json`. A background loop reconciles each record
    against the live container snapshot every few seconds (independent of

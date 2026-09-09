@@ -49,8 +49,6 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setattr(sched, "deployments", store)
     monkeypatch.setattr(sched, "_build_fleet", fleet)
     monkeypatch.setattr(sched.registry, "all", lambda: fleet()[0])
-    monkeypatch.setattr(sched.llm, "parse_constraints", lambda *a, **k: (None, []))
-    monkeypatch.setattr(sched.llm, "explain_placement", lambda *a, **k: None)
     return TestClient(main.app)
 
 

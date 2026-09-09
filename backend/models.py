@@ -49,9 +49,6 @@ class Constraints(BaseModel):
     node_in: list[str] | None = None
     node_not_in: list[str] | None = None
     max_node_cpu_percent: float | None = Field(default=None, ge=0, le=100)
-    # Free text from the user. The LLM layer, when enabled, turns this into
-    # the structured fields above before scheduling.
-    notes: str | None = None
 
 
 class DeploymentSpec(BaseModel):
@@ -164,9 +161,6 @@ class PlacementResponse(BaseModel):
     spec: DeploymentSpec
     ranked: list[PlacementResult]
     recommended: str | None = None
-    explanation: str | None = None
-    # Set when the LLM turned ``constraints.notes`` into structured fields.
-    parsed_constraints: Constraints | None = None
     warnings: list[str] = Field(default_factory=list)
     # kind="stack" previews echo the parsed service summary.
     stack_services: list[dict] | None = None

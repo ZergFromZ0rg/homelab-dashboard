@@ -206,19 +206,6 @@ function DeployForm({ spec, onChange, nodeNames }) {
           </div>
         </div>
       )}
-
-      <div className="deploy-field">
-        <span className="deploy-label">
-          Notes for the scheduler (needs ANTHROPIC_API_KEY to be read)
-        </span>
-        <textarea
-          className="deploy-input deploy-textarea"
-          rows={2}
-          placeholder="keep it off the noisy server, it needs the GPU"
-          value={spec.constraints.notes ?? ""}
-          onChange={(e) => setConstraint({ notes: e.target.value || null })}
-        />
-      </div>
     </div>
   );
 }
