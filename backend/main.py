@@ -188,31 +188,16 @@ async def websocket_endpoint(websocket: WebSocket):
                 machines, agent_data
             )
 
-            live_container_keys = set()
-
-            for host, data in agent_data.items():
-                gpu_devices = (data.get("gpu") or {}).get("devices") or []
-                gpu_temp = gpu_devices[0].get("temperature_c") if gpu_devices else None
-                live_history.record_gpu_temp(host, gpu_temp)
-
+            # Sampling happens in the reconcile loop (always on); here we
+            # just read the rolling series back for the payload.
+            for host, conts in containers.items():
                 history.setdefault(host, {})["gpu_temperature"] = (
                     live_history.gpu_temp_history(host)
                 )
-
-                for container in data.get("containers", []):
-                    live_history.record_container_sample(
-                        host,
-                        container["id"],
-                        container["status"],
-                        container.get("health"),
-                    )
-                    live_container_keys.add((host, container["id"]))
+                for container in conts:
                     container["heartbeat"] = live_history.container_heartbeat(
                         host, container["id"]
                     )
-
-            live_history.prune_containers(live_container_keys)
-            await asyncio.to_thread(live_history.maybe_persist)
 
             main_host = MAIN_HOST_OVERRIDE or _detect_main_host(agent_data)
 

@@ -28,6 +28,7 @@ from backend.docker import (
     remove_container,
     remove_stack,
 )
+from backend import live_history
 from backend.log import scheduler as sched_log, system as system_log
 from backend.models import (
     DeploymentRecord,
@@ -634,17 +635,18 @@ RECONCILE_INTERVAL_SECONDS = 5
 
 
 async def _reconcile_loop() -> None:
-    """Keep deployment statuses fresh even with no dashboard client open —
-    the /ws loop only runs while someone is watching, but node-offline and
-    health detection (and the auto-rebalancer that depends on them) must
-    run regardless."""
+    """Keep deployment statuses and the container/GPU history fresh even
+    with no dashboard client open — the /ws loop only runs while someone is
+    watching, but node-offline / health detection, the auto-rebalancer,
+    and the heartbeat sampling must run regardless."""
     while True:
         await asyncio.sleep(RECONCILE_INTERVAL_SECONDS)
         try:
-            _, _, containers, offline_hosts, _ = await asyncio.to_thread(
+            _, machines, containers, offline_hosts, _ = await asyncio.to_thread(
                 _build_fleet
             )
             deployments.reconcile(containers, offline_hosts)
+            live_history.record_fleet(machines, containers)
         except asyncio.CancelledError:
             raise
         except Exception as error:  # noqa: BLE001 - loop must survive

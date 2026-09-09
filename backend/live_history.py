@@ -1,28 +1,35 @@
 """Rolling history for data that doesn't come from Prometheus: GPU
-temperature and container up/down status. Sampled once per /ws tick
-(every 2s), kept for WINDOW_SECONDS.
+temperature and container up/down status. ``record_fleet`` is called every
+reconcile tick (~5s) — from the always-on loop, *not* the /ws loop, so the
+heartbeat has no gaps when no browser is connected. Kept for
+WINDOW_SECONDS.
 
 Persisted to disk (same volume the node registry uses) so a dashboard
 redeploy doesn't wipe history for containers that never actually
-restarted — only re-run every PERSIST_INTERVAL_SECONDS regardless of the
-2s sample rate, since writing to disk on every single sample would be
-wasteful for data this short-lived anyway.
+restarted — only re-written every PERSIST_INTERVAL_SECONDS, since writing
+on every sample would be wasteful for data this short-lived.
 """
 
 import os
+import threading
 import time
 from collections import deque
 
 from backend.jsonstore import read_json, write_json_atomic
 
 WINDOW_SECONDS = 30 * 60
-SAMPLE_INTERVAL_SECONDS = 2
-MAX_SAMPLES = WINDOW_SECONDS // SAMPLE_INTERVAL_SECONDS
+# The sample cadence is the reconcile loop's (~5s); size the ring buffer
+# for a bit more than one full window at that rate.
+MAX_SAMPLES = WINDOW_SECONDS // 4
 HEARTBEAT_BUCKETS = 30
 
 PERSIST_PATH = os.getenv("LIVE_HISTORY_FILE", "/data/live_history.json")
 PERSIST_INTERVAL_SECONDS = 30
 
+# ``record_fleet`` runs on the reconcile thread while the /ws coroutine
+# reads ``container_heartbeat`` / ``gpu_temp_history`` on the event loop —
+# different threads, so guard the shared buffers.
+_lock = threading.Lock()
 _gpu_temps: dict[str, deque] = {}
 _container_samples: dict[tuple, deque] = {}
 _last_persisted = 0.0
@@ -66,42 +73,52 @@ def _save() -> None:
     )
 
 
-def maybe_persist() -> None:
-    """Call once per /ws tick; actually writes at most every
-    PERSIST_INTERVAL_SECONDS regardless of how often it's called."""
+def _maybe_persist_locked() -> None:
     global _last_persisted
-
     now = time.time()
-
     if now - _last_persisted >= PERSIST_INTERVAL_SECONDS:
         _last_persisted = now
         _save()
 
 
-def record_gpu_temp(host: str, temperature_c) -> None:
-    if temperature_c is None:
-        return
+def record_fleet(machines: dict, containers: dict[str, list]) -> None:
+    """One sampling pass over the whole fleet: GPU package temperature and
+    every container's up/down state. Called from the reconcile loop.
 
-    buf = _gpu_temps.setdefault(host, deque(maxlen=MAX_SAMPLES))
-    buf.append({"t": int(time.time()), "v": temperature_c})
+    ``machines`` supplies ``machines[host]["gpu"]``; ``containers`` is
+    ``{host: [container, ...]}``.
+    """
+    now = time.time()
+    live_keys = set()
+
+    with _lock:
+        for host, conts in containers.items():
+            devices = ((machines.get(host) or {}).get("gpu") or {}).get("devices") or []
+            temp = devices[0].get("temperature_c") if devices else None
+            if temp is not None:
+                _gpu_temps.setdefault(host, deque(maxlen=MAX_SAMPLES)).append(
+                    {"t": int(now), "v": temp}
+                )
+
+            for c in conts:
+                key = (host, c["id"])
+                _container_samples.setdefault(key, deque(maxlen=MAX_SAMPLES)).append(
+                    {"t": now, "status": c["status"], "health": c.get("health")}
+                )
+                live_keys.add(key)
+
+        # Drop history for containers that no longer exist so removed ones
+        # don't accumulate forever in memory (or on disk).
+        for key in list(_container_samples):
+            if key not in live_keys:
+                del _container_samples[key]
+
+        _maybe_persist_locked()
 
 
 def gpu_temp_history(host: str) -> list:
-    return list(_gpu_temps.get(host, []))
-
-
-def record_container_sample(host: str, container_id: str, status: str, health) -> None:
-    key = (host, container_id)
-    buf = _container_samples.setdefault(key, deque(maxlen=MAX_SAMPLES))
-    buf.append({"t": time.time(), "status": status, "health": health})
-
-
-def prune_containers(live_keys: set) -> None:
-    """Drop history for containers that no longer exist, so removed
-    containers don't accumulate forever in memory (or on disk)."""
-    for key in list(_container_samples.keys()):
-        if key not in live_keys:
-            del _container_samples[key]
+    with _lock:
+        return list(_gpu_temps.get(host, []))
 
 
 def _is_up(sample: dict) -> bool:
@@ -109,12 +126,18 @@ def _is_up(sample: dict) -> bool:
 
 
 def container_heartbeat(host: str, container_id: str) -> dict:
-    samples = list(_container_samples.get((host, container_id), []))
+    now = time.time()
+
+    with _lock:
+        samples = [
+            s
+            for s in _container_samples.get((host, container_id), [])
+            if s["t"] >= now - WINDOW_SECONDS
+        ]
 
     if not samples:
         return {"buckets": [None] * HEARTBEAT_BUCKETS, "uptime_percent": None}
 
-    now = time.time()
     bucket_seconds = WINDOW_SECONDS / HEARTBEAT_BUCKETS
     buckets = []
 
