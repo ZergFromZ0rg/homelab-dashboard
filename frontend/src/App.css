@@ -1607,19 +1607,28 @@ select.deploy-input[multiple] {
 
 .fleet-free {
   flex-shrink: 0;
+  width: 132px;
+  text-align: right;
   color: var(--text-muted);
   font-family: var(--mono);
   font-size: 10px;
 }
 
+/* Fixed-width slot so the bars line up whether or not a node has a GPU. */
 .fleet-gpu {
   flex-shrink: 0;
+  width: 34px;
+  text-align: center;
   font-size: 8px;
   font-weight: 700;
   letter-spacing: 0.06em;
   color: var(--text-muted);
   border: 1px solid var(--border);
-  padding: 0 4px;
+  padding: 1px 0;
+}
+
+.fleet-gpu:empty {
+  border-color: transparent;
 }
 
 .fleet-committed {

@@ -100,7 +100,7 @@ function FleetCapacity({ machines, deployments }) {
               : "offline"}
           </span>
 
-          {r.hasGpu && <span className="fleet-gpu">GPU</span>}
+          <span className="fleet-gpu">{r.hasGpu ? "GPU" : ""}</span>
         </div>
       ))}
 
