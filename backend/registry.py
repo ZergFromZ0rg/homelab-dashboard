@@ -97,3 +97,8 @@ class NodeRegistry:
             }
             for name, entry in sorted(self.all().items())
         ]
+
+
+# Process-wide singleton — imported by both main (node routes, /ws) and
+# scheduler_api (placement).
+registry = NodeRegistry()

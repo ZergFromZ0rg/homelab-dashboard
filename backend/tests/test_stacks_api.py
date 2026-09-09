@@ -4,8 +4,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from backend import main
+from backend import scheduler_api as sched
 from backend.deployments import DeploymentStore
-from backend import stacks
 
 GB = 1024**3
 
@@ -46,11 +46,11 @@ def fleet():
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     store = DeploymentStore(tmp_path / "d.json")
-    monkeypatch.setattr(main, "deployments", store)
-    monkeypatch.setattr(main, "_build_fleet", fleet)
-    monkeypatch.setattr(main.registry, "all", lambda: fleet()[0])
-    monkeypatch.setattr(main.llm, "parse_constraints", lambda *a, **k: (None, []))
-    monkeypatch.setattr(main.llm, "explain_placement", lambda *a, **k: None)
+    monkeypatch.setattr(sched, "deployments", store)
+    monkeypatch.setattr(sched, "_build_fleet", fleet)
+    monkeypatch.setattr(sched.registry, "all", lambda: fleet()[0])
+    monkeypatch.setattr(sched.llm, "parse_constraints", lambda *a, **k: (None, []))
+    monkeypatch.setattr(sched.llm, "explain_placement", lambda *a, **k: None)
     return TestClient(main.app)
 
 
@@ -76,7 +76,7 @@ def test_real_deploy_calls_agent_stack(client, monkeypatch):
         return {"success": True, "project": payload["name"],
                 "services": [{"name": "web-stack-web-1", "id": "abc", "status": "running"}]}
 
-    monkeypatch.setattr(main, "deploy_stack", fake_deploy_stack)
+    monkeypatch.setattr(sched, "deploy_stack", fake_deploy_stack)
 
     resp = client.post("/api/stacks", json={"name": "web-stack", "compose_yaml": COMPOSE})
     record = resp.json()
@@ -104,7 +104,7 @@ def test_bad_stack_name_422(client):
 
 def test_stack_reconciles_by_compose_project(client, monkeypatch):
     monkeypatch.setattr(
-        main, "deploy_stack",
+        sched, "deploy_stack",
         lambda *a, **k: {"success": True, "project": "web-stack", "services": []},
     )
     record = client.post(
@@ -112,30 +112,30 @@ def test_stack_reconciles_by_compose_project(client, monkeypatch):
     ).json()
 
     # Within the post-deploy grace window, an empty snapshot is tolerated.
-    main.deployments.reconcile({"big": []}, set())
-    assert main.deployments.get(record["id"]).status == "running"
+    sched.deployments.reconcile({"big": []}, set())
+    assert sched.deployments.get(record["id"]).status == "running"
 
     # Past it -> failed.
-    main.deployments.update(record["id"], deployed_at=0)
-    main.deployments.reconcile({"big": []}, set())
-    assert main.deployments.get(record["id"]).status == "failed"
+    sched.deployments.update(record["id"], deployed_at=0)
+    sched.deployments.reconcile({"big": []}, set())
+    assert sched.deployments.get(record["id"]).status == "failed"
 
     # A running member under the project label -> running.
-    main.deployments.reconcile(
+    sched.deployments.reconcile(
         {"big": [{"id": "c1", "status": "running", "compose_project": "web-stack"}]},
         set(),
     )
-    assert main.deployments.get(record["id"]).status == "running"
+    assert sched.deployments.get(record["id"]).status == "running"
 
 
 def test_delete_stack_calls_remove_stack(client, monkeypatch):
     monkeypatch.setattr(
-        main, "deploy_stack",
+        sched, "deploy_stack",
         lambda *a, **k: {"success": True, "project": "web-stack", "services": []},
     )
     calls = {}
     monkeypatch.setattr(
-        main, "remove_stack",
+        sched, "remove_stack",
         lambda nodes, host, project, volumes=False: calls.update(
             host=host, project=project, volumes=volumes
         ) or {"success": True},

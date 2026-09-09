@@ -5,6 +5,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from backend import main
+from backend import scheduler_api as sched
+from backend import auth
 from backend.deployments import DeploymentStore
 
 GB = 1024**3
@@ -43,17 +45,17 @@ def fleet():
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     store = DeploymentStore(tmp_path / "deployments.json")
-    monkeypatch.setattr(main, "deployments", store)
-    monkeypatch.setattr(main, "_build_fleet", fleet)
-    monkeypatch.setattr(main.registry, "all", lambda: fleet()[0])
-    monkeypatch.setattr(main.llm, "parse_constraints", lambda *a, **k: (None, []))
-    monkeypatch.setattr(main.llm, "explain_placement", lambda *a, **k: None)
+    monkeypatch.setattr(sched, "deployments", store)
+    monkeypatch.setattr(sched, "_build_fleet", fleet)
+    monkeypatch.setattr(sched.registry, "all", lambda: fleet()[0])
+    monkeypatch.setattr(sched.llm, "parse_constraints", lambda *a, **k: (None, []))
+    monkeypatch.setattr(sched.llm, "explain_placement", lambda *a, **k: None)
     return TestClient(main.app)
 
 
 def test_fleet_summary(client, monkeypatch):
     monkeypatch.setattr(
-        main, "deploy_container", lambda *a, **k: {"success": True, "id": "c1"}
+        sched, "deploy_container", lambda *a, **k: {"success": True, "id": "c1"}
     )
     client.post(
         "/api/deployments",
@@ -90,7 +92,7 @@ def test_real_deploy_calls_agent_and_persists(client, monkeypatch):
         calls["payload"] = payload
         return {"success": True, "id": "abc123def456"}
 
-    monkeypatch.setattr(main, "deploy_container", fake_deploy)
+    monkeypatch.setattr(sched, "deploy_container", fake_deploy)
 
     resp = client.post("/api/deployments", json={"image": "nginx:latest"})
     assert resp.status_code == 200
@@ -111,33 +113,33 @@ def test_real_deploy_calls_agent_and_persists(client, monkeypatch):
 
 def test_events_track_failure_and_recovery(client, monkeypatch):
     monkeypatch.setattr(
-        main, "deploy_container",
+        sched, "deploy_container",
         lambda *a, **k: {"success": False, "error": "pull failed"},
     )
     record = client.post("/api/deployments", json={"image": "x"}).json()
     assert [e["kind"] for e in record["events"]] == ["created", "failed"]
 
     # Container appears -> recovered.
-    main.deployments.update(record["id"], agent_container_id="c9")
-    main.deployments.reconcile(
+    sched.deployments.update(record["id"], agent_container_id="c9")
+    sched.deployments.reconcile(
         {"nuc-1": [{"id": "c9", "status": "running"}]}, set()
     )
-    after = main.deployments.get(record["id"])
+    after = sched.deployments.get(record["id"])
     assert after.status == "running"
     assert after.events[-1].kind == "recovered"
 
 
 def test_auto_move_records_automatic_event(client, monkeypatch):
     monkeypatch.setattr(
-        main, "deploy_container", lambda *a, **k: {"success": True, "id": "c1"}
+        sched, "deploy_container", lambda *a, **k: {"success": True, "id": "c1"}
     )
-    monkeypatch.setattr(main, "remove_container", lambda *a, **k: {"success": True})
+    monkeypatch.setattr(sched, "remove_container", lambda *a, **k: {"success": True})
     record = client.post("/api/deployments", json={"image": "nginx"}).json()
 
-    moved = main.deployments.get(record["id"])
-    main._move_deployment(moved, "nuc-2", "hot node, nuc-2 scores better")
+    moved = sched.deployments.get(record["id"])
+    sched._move_deployment(moved, "nuc-2", "hot node, nuc-2 scores better")
 
-    final = main.deployments.get(record["id"])
+    final = sched.deployments.get(record["id"])
     assert final.placed_on == "nuc-2"
     assert final.last_auto_move is not None
     assert final.events[-1].kind == "moved"
@@ -155,17 +157,17 @@ def test_failed_move_rolls_back_to_origin(client, monkeypatch):
             return {"success": False, "error": "port in use"}
         return {"success": True, "id": f"c-{len(attempts)}"}
 
-    monkeypatch.setattr(main, "deploy_container", flaky_deploy)
-    monkeypatch.setattr(main, "remove_container", lambda *a, **k: {"success": True})
+    monkeypatch.setattr(sched, "deploy_container", flaky_deploy)
+    monkeypatch.setattr(sched, "remove_container", lambda *a, **k: {"success": True})
 
     record = client.post("/api/deployments", json={"image": "nginx"}).json()
     assert record["placed_on"] == "nuc-1"
 
-    main._relocate(
-        main.deployments.get(record["id"]), "nuc-2", reason="trying nuc-2"
+    sched._relocate(
+        sched.deployments.get(record["id"]), "nuc-2", reason="trying nuc-2"
     )
 
-    final = main.deployments.get(record["id"])
+    final = sched.deployments.get(record["id"])
     assert attempts == ["nuc-1", "nuc-2", "nuc-1"]
     assert final.status == "running"
     assert final.placed_on == "nuc-1"
@@ -174,7 +176,7 @@ def test_failed_move_rolls_back_to_origin(client, monkeypatch):
 
 def test_agent_rejection_marks_failed(client, monkeypatch):
     monkeypatch.setattr(
-        main,
+        sched,
         "deploy_container",
         lambda *a, **k: {"success": False, "error": "pull failed", "stage": "pull"},
     )
@@ -205,11 +207,11 @@ def test_no_eligible_node_returns_409(client):
 
 def test_delete_removes_record_and_container(client, monkeypatch):
     monkeypatch.setattr(
-        main, "deploy_container", lambda *a, **k: {"success": True, "id": "c1"}
+        sched, "deploy_container", lambda *a, **k: {"success": True, "id": "c1"}
     )
     removed = {}
     monkeypatch.setattr(
-        main,
+        sched,
         "remove_container",
         lambda nodes, host, cid: removed.update(host=host, cid=cid) or {"success": True},
     )
@@ -225,7 +227,7 @@ def test_delete_removes_record_and_container(client, monkeypatch):
 
 
 def test_token_enforced_when_set(client, monkeypatch):
-    monkeypatch.setattr(main, "REGISTER_TOKEN", "s3cret")
+    monkeypatch.setattr(auth, "API_TOKEN", "s3cret")
     resp = client.post("/api/deployments?dry_run=1", json={"image": "nginx"})
     assert resp.status_code == 401
     resp = client.post(
