@@ -2032,6 +2032,21 @@ select.deploy-input[multiple] {
   padding: 0;
   display: flex;
   flex-direction: column;
+  max-height: 300px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.activity-feed::-webkit-scrollbar {
+  width: 6px;
+}
+
+.activity-feed::-webkit-scrollbar-thumb {
+  background: var(--border);
+}
+
+.activity-feed::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .activity-item {

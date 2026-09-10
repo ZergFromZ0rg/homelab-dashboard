@@ -30,7 +30,7 @@ function ActivityFeed({ activity }) {
 
   return (
     <ul className="activity-feed">
-      {activity.slice(0, 25).map((e, i) => (
+      {activity.map((e, i) => (
         <li key={`${e.at}-${i}`} className="activity-item">
           <span className={`activity-dot activity-dot--${DOT[e.kind] || "info"}`} />
           <time className="activity-time">{when(e.at)}</time>
