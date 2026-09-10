@@ -111,6 +111,12 @@ function ContainerList({ containers, machines, onControl, pins, onSetPins }) {
     "homelab.containerHostState",
     {}
   );
+  // Pinned strip starts open; a manual collapse sticks (adding more
+  // favourites while it's closed keeps it closed, just updates the count).
+  const [pinnedCollapsed, setPinnedCollapsed] = useLocalStorage(
+    "homelab.pinnedCollapsed",
+    false
+  );
 
   const pinSet = useMemo(() => new Set(pins), [pins]);
 
@@ -170,13 +176,22 @@ function ContainerList({ containers, machines, onControl, pins, onSetPins }) {
         </div>
       )}
 
-      {pinnedContainers.length > 0 && (
+      {pinnedContainers.length > 0 && (() => {
+        const pinnedOpen = query ? true : !pinnedCollapsed;
+        return (
         <div className="pinned-strip">
-          <div className="pinned-strip-title">
+          <button
+            type="button"
+            className={`pinned-strip-title ${pinnedOpen ? "expanded" : ""}`}
+            onClick={() => setPinnedCollapsed((c) => !c)}
+            aria-expanded={pinnedOpen}
+          >
+            <span className="host-toggle">▾</span>
             <span className="pinned-strip-star">★</span>
             Pinned
             <span className="host-running-count">{pinnedContainers.length}</span>
-          </div>
+          </button>
+          {pinnedOpen && (
           <div className="container-list">
             {pinnedContainers.map((container) => (
               <ContainerRow
@@ -196,8 +211,10 @@ function ContainerList({ containers, machines, onControl, pins, onSetPins }) {
               />
             ))}
           </div>
+          )}
         </div>
-      )}
+        );
+      })()}
 
       {hosts.map((host) => {
         // Pinned containers live in the strip above, not in their group.

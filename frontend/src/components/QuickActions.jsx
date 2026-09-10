@@ -1,7 +1,50 @@
 import { pinKey } from "./containerPins";
+import { formatBytes } from "./format";
 
-// One-click restart/stop for the containers you've pinned, plus jumps to
-// the tabs where the rest of the actions live.
+// One compact row per pinned container — status dot, name, CPU / RAM, and
+// start-or-stop + restart. Plus jumps to the tabs where the rest lives.
+
+function QaRow({ t, busy, onControl }) {
+  const running = t.status === "running";
+  const primary = running ? "Stop" : "Start";
+  const cpu = t.stats?.cpu_percent;
+  const ram = t.stats?.memory?.used_bytes;
+
+  const act = (verb) => {
+    if (window.confirm(`${verb} ${t.name} on ${t.host}?`)) {
+      onControl.run(t.host, t.id, verb.toLowerCase());
+    }
+  };
+
+  return (
+    <div className="qa-row">
+      <span className={`status-dot status-dot--${running ? "ok" : "bad"}`} />
+      <span className="qa-name" title={`${t.name} · ${t.host}`}>
+        {t.name}
+      </span>
+      <span className="qa-stat">{cpu != null ? `${cpu}%` : "—"}</span>
+      <span className="qa-stat">{ram != null ? formatBytes(ram) : "—"}</span>
+      <div className="qa-row-btns">
+        <button
+          type="button"
+          className="qa-btn"
+          disabled={busy}
+          onClick={() => act(primary)}
+        >
+          {busy ? "…" : primary}
+        </button>
+        <button
+          type="button"
+          className="qa-btn"
+          disabled={busy}
+          onClick={() => act("Restart")}
+        >
+          Restart
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function QuickActions({ pins, containers, onControl, onNavigate }) {
   const pinned = new Set(pins);
@@ -13,45 +56,22 @@ function QuickActions({ pins, containers, onControl, onNavigate }) {
   }
   targets.sort((a, b) => a.name.localeCompare(b.name));
 
-  const busy = (t) => Boolean(onControl.pending[`${t.host}-${t.id}`]);
-
   return (
     <div className="quick-actions">
       {targets.length === 0 ? (
         <p className="overview-empty">
           Pin a container (★ on its row in the Containers tab) for one-click
-          restart here.
+          control here.
         </p>
       ) : (
-        <div className="qa-group">
+        <div className="qa-rows">
           {targets.map((t) => (
-            <div key={`${t.host}-${t.id}`} className="qa-target">
-              <span className="qa-name">{t.name}</span>
-              <button
-                type="button"
-                className="qa-btn"
-                disabled={busy(t)}
-                onClick={() => {
-                  if (window.confirm(`Restart ${t.name} on ${t.host}?`))
-                    onControl.run(t.host, t.id, "restart");
-                }}
-              >
-                {busy(t) ? "…" : "Restart"}
-              </button>
-              {t.status === "running" && (
-                <button
-                  type="button"
-                  className="qa-btn"
-                  disabled={busy(t)}
-                  onClick={() => {
-                    if (window.confirm(`Stop ${t.name} on ${t.host}?`))
-                      onControl.run(t.host, t.id, "stop");
-                  }}
-                >
-                  Stop
-                </button>
-              )}
-            </div>
+            <QaRow
+              key={`${t.host}-${t.id}`}
+              t={t}
+              busy={Boolean(onControl.pending[`${t.host}-${t.id}`])}
+              onControl={onControl}
+            />
           ))}
         </div>
       )}
