@@ -639,6 +639,29 @@ h1 {
   padding: 1px 5px;
 }
 
+.container-badge-live {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--online);
+  border: 1px solid var(--online);
+  background: var(--online-bg);
+  padding: 1px 6px;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.container-badge-live::before {
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  margin-right: 5px;
+}
+
 .container-status.running {
   color: var(--online);
 }
@@ -2145,9 +2168,24 @@ select.deploy-input[multiple] {
   border-top: none;
 }
 
+.qa-name-wrap {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
 .qa-name {
   font-size: 11px;
   font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qa-live {
+  font-size: 9px;
+  color: var(--online);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

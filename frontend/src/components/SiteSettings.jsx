@@ -92,6 +92,22 @@ function SiteSettings({ pins, containers }) {
         <p className="settings-hint">
           Hides the UPTIME stat on each container row in the Containers tab.
         </p>
+
+        <label className="settings-check">
+          <input
+            type="checkbox"
+            checked={settings.showLiveActivity}
+            onChange={(e) => update({ showLiveActivity: e.target.checked })}
+          />
+          Show live-activity badges
+        </label>
+        <p className="settings-hint">
+          For containers the backend knows how to ask (currently
+          qBittorrent, Jellyfin) — e.g. "2 downloading" or "1 user
+          streaming" — shown on the container row and in Quick Actions.
+          Needs credentials set on the backend (QBITTORRENT_USERNAME /
+          JELLYFIN_API_KEY, see .env.example).
+        </p>
       </SettingsCard>
 
       <SettingsCard title="Home menu">

@@ -15,6 +15,7 @@ from backend.log import system as system_log
 from backend import activity
 from backend import alerts
 from backend import live_history
+from backend import service_activity
 from backend import auth
 from backend import scheduler_api
 from backend.registry import registry
@@ -280,6 +281,20 @@ async def websocket_endpoint(websocket: WebSocket):
                     container["heartbeat"] = live_history.container_heartbeat(
                         host, container["id"]
                     )
+
+                    # A handful of apps (qBittorrent, Jellyfin, ...) can say
+                    # whether they're actively in use right now. Only the
+                    # cache-miss path does real HTTP calls, off the event
+                    # loop — most ticks just read the last result back.
+                    if service_activity.stale(host, container):
+                        live = await asyncio.to_thread(
+                            service_activity.refresh, host, container
+                        )
+                    else:
+                        live = service_activity.peek(host, container)
+
+                    if live:
+                        container["live_activity"] = live
 
             main_host = MAIN_HOST_OVERRIDE or _detect_main_host(agent_data)
 

@@ -38,7 +38,7 @@ utilization, temp and power.
 
 ## Layout
 
-Four tabs. **Overview** (default) is the at-a-glance control surface:
+Five tabs. **Overview** (default) is the at-a-glance control surface:
 
 - a four-across summary row (health / hosts online / containers running /
   alert count);
@@ -99,6 +99,26 @@ Each container's name links to its own web UI when the agent reports a
 published host port for it (`ports` in homelab-agent's `/containers`
 response) — `http://<host>:<port>`. Containers with nothing published
 just render as plain text.
+
+A handful of containers can report whether they're actually *in use*
+right now, not just running: qBittorrent (active torrents) and Jellyfin
+(active playback sessions) so far, via `backend/service_activity.py`. It
+matches by image name and, for a match, hits that app's own API over the
+fleet network — same host:port the name-link above would open — cached
+per container for 15s so N browser tabs (each running their own `/ws`
+loop) don't hammer the app's API every 2s. Needs credentials set on the
+backend (`QBITTORRENT_USERNAME`/`QBITTORRENT_PASSWORD`,
+`JELLYFIN_API_KEY` — see `.env.example`); a matching container with none
+set just gets no badge (logged once). Shown as a small green badge on the
+container row and in Quick Actions — e.g. "3 downloading, 5 seeding" or
+"1 user streaming (zerg)" — toggleable in **Settings**. Add a new
+`(image-substring, probe_fn)` pair to extend it to another app.
+
+**Settings** holds per-browser display preferences (`localStorage`, not
+synced across devices): the sparkline time window, whether container
+uptime and live-activity badges show, which Overview cards are visible,
+and per-pin group labels + web-UI links for Quick Actions (e.g. label
+qBittorrent + Jellyfin "Media" to group them under one header there).
 
 ## History and sparklines
 

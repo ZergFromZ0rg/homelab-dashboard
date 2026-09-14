@@ -6,12 +6,13 @@ import { useSettings } from "./settings";
 // One compact row per pinned container — status dot, name, CPU / RAM, and
 // start-or-stop + restart. Plus jumps to the tabs where the rest lives.
 
-function QaRow({ t, busy, onControl, showLink }) {
+function QaRow({ t, busy, onControl, showLink, showLiveActivity }) {
   const running = t.status === "running";
   const primary = running ? "Stop" : "Start";
   const cpu = t.stats?.cpu_percent;
   const ram = t.stats?.memory?.used_bytes;
   const url = showLink ? containerUrl(t.host, t.ports) : null;
+  const live = showLiveActivity ? t.live_activity : null;
 
   const act = (verb) => {
     if (window.confirm(`${verb} ${t.name} on ${t.host}?`)) {
@@ -22,21 +23,28 @@ function QaRow({ t, busy, onControl, showLink }) {
   return (
     <div className="qa-row">
       <span className={`status-dot status-dot--${running ? "ok" : "bad"}`} />
-      {url ? (
-        <a
-          className="qa-name qa-name-link"
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          title={`Open ${url}`}
-        >
-          {t.name}
-        </a>
-      ) : (
-        <span className="qa-name" title={`${t.name} · ${t.host}`}>
-          {t.name}
-        </span>
-      )}
+      <div className="qa-name-wrap">
+        {url ? (
+          <a
+            className="qa-name qa-name-link"
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={`Open ${url}`}
+          >
+            {t.name}
+          </a>
+        ) : (
+          <span className="qa-name" title={`${t.name} · ${t.host}`}>
+            {t.name}
+          </span>
+        )}
+        {live && (
+          <span className="qa-live" title={`${live.app}: ${live.detail}`}>
+            {live.detail}
+          </span>
+        )}
+      </div>
       <span className="qa-stat">{cpu != null ? `${cpu}%` : "—"}</span>
       <span className="qa-stat">{ram != null ? formatBytes(ram) : "—"}</span>
       <div className="qa-row-btns">
@@ -63,7 +71,7 @@ function QaRow({ t, busy, onControl, showLink }) {
 
 function QuickActions({ pins, containers, onControl, onNavigate }) {
   const {
-    settings: { pinGroups, quickActionLinks },
+    settings: { pinGroups, quickActionLinks, showLiveActivity },
   } = useSettings();
 
   const pinned = new Set(pins);
@@ -112,6 +120,7 @@ function QuickActions({ pins, containers, onControl, onNavigate }) {
                 busy={Boolean(onControl.pending[`${t.host}-${t.id}`])}
                 onControl={onControl}
                 showLink={quickActionLinks}
+                showLiveActivity={showLiveActivity}
               />
             ))}
           </div>

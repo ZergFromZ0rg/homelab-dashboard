@@ -50,7 +50,7 @@ function ContainerRow({
   showHost,
 }) {
   const {
-    settings: { showContainerUptime },
+    settings: { showContainerUptime, showLiveActivity },
   } = useSettings();
 
   const key = `${host}-${container.id}`;
@@ -132,6 +132,15 @@ function ContainerRow({
           </div>
 
           <div className="container-badges">
+            {showLiveActivity && container.live_activity && (
+              <span
+                className="container-badge-live"
+                title={`${container.live_activity.app}: ${container.live_activity.detail}`}
+              >
+                {container.live_activity.detail}
+              </span>
+            )}
+
             {container.deployed_by === "homelab-dashboard" && (
               <span className="container-badge-scheduled" title="Placed by the scheduler">
                 scheduled

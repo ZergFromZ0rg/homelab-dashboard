@@ -39,6 +39,11 @@ services:
       ALERT_CPU_PERCENT: ${ALERT_CPU_PERCENT:-}
       ALERT_INTERVAL: ${ALERT_INTERVAL:-}
       ALERT_BREACH_CYCLES: ${ALERT_BREACH_CYCLES:-}
+      # Live "currently in use" badges for qBittorrent / Jellyfin
+      # containers. Leave unset to skip probing that app.
+      QBITTORRENT_USERNAME: ${QBITTORRENT_USERNAME:-}
+      QBITTORRENT_PASSWORD: ${QBITTORRENT_PASSWORD:-}
+      JELLYFIN_API_KEY: ${JELLYFIN_API_KEY:-}
     volumes:
       - dashboard-data:/data
     networks:
