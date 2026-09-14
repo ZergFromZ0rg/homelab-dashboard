@@ -103,7 +103,7 @@ def _qbittorrent_activity(url: str) -> dict | None:
     if uploading:
         parts.append(f"{uploading} seeding")
 
-    return {"app": "qBittorrent", "detail": ", ".join(parts)}
+    return {"source": "api", "app": "qBittorrent", "detail": ", ".join(parts)}
 
 
 def _jellyfin_activity(url: str) -> dict | None:
@@ -135,6 +135,7 @@ def _jellyfin_activity(url: str) -> dict | None:
     label = "user" if count == 1 else "users"
 
     return {
+        "source": "api",
         "app": "Jellyfin",
         "detail": f"{count} {label} streaming ({', '.join(users)})",
     }
@@ -152,7 +153,11 @@ _PROBES = [
 _PROBES_BY_NAME = {needle: fn for needle, fn in _PROBES}
 
 
-def _override_key(host: str, container: dict) -> str:
+def override_key(host: str, container: dict) -> str:
+    """The key this container would use in service_activity_overrides.json
+    — same shape as a pin key (``"host/container-name"``). Exposed so
+    callers (main.py's resource_activity fallback) can check the same
+    override without duplicating the format."""
     return f"{host}/{container.get('name') or ''}"
 
 
@@ -190,7 +195,7 @@ def stale(host: str, container: dict, overrides: dict | None = None) -> bool:
     """True when this is a container we know how to probe (by image match
     or manual override) and its cached result (if any) has expired — the
     caller should run refresh() for it off the event loop."""
-    override = (overrides or {}).get(_override_key(host, container))
+    override = (overrides or {}).get(override_key(host, container))
     if _match(container, override) is None:
         return False
     with _cache_lock:
@@ -201,7 +206,7 @@ def stale(host: str, container: dict, overrides: dict | None = None) -> bool:
 def refresh(host: str, container: dict, overrides: dict | None = None) -> dict | None:
     """Blocking — makes the actual HTTP calls and caches the result. Run
     via asyncio.to_thread, only for containers stale() flagged."""
-    override = (overrides or {}).get(_override_key(host, container))
+    override = (overrides or {}).get(override_key(host, container))
     probe_fn = _match(container, override)
     if probe_fn is None:
         return None

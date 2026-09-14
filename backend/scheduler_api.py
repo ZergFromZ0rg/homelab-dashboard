@@ -28,7 +28,7 @@ from backend.docker import (
     remove_container,
     remove_stack,
 )
-from backend import activity, live_history
+from backend import activity, live_history, resource_activity
 from backend.log import scheduler as sched_log, system as system_log
 from backend.models import (
     DeploymentRecord,
@@ -625,6 +625,7 @@ async def _reconcile_loop() -> None:
             )
             deployments.reconcile(containers, offline_hosts)
             live_history.record_fleet(machines, containers)
+            resource_activity.record_fleet(containers)
             activity.observe(
                 machines, containers, [d.model_dump() for d in deployments.all()]
             )

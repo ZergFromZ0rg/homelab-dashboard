@@ -124,6 +124,23 @@ service_activity_overrides.json`, `GET`/`PUT
 pattern as pins/todos, since it changes what the backend actually probes
 — the same on every browser, not a per-browser display choice.
 
+Any container with no answer from the above (unmatched image, no
+credentials, or the API check failed) gets a fallback from
+`backend/resource_activity.py`: an amber "busy" badge when its CPU or
+network use spikes well above *its own* recent baseline — a fixed global
+threshold doesn't work since normal load varies wildly between containers
+(a monitoring agent parked at 20% CPU is unremarkable; qBittorrent
+jumping from 0% to 20% is not). The baseline is an EWMA of CPU%/RX/TX,
+updated every reconcile tick (~5s, in-memory only, not persisted) and
+frozen while a spike is active so a sustained spike can't drag its own
+baseline up and erase itself. No credentials needed, works for any
+container — but it's a guess, not a confirmed answer (a backup job would
+look "busy" too), hence the amber vs. green. Tunable via
+`RESOURCE_ACTIVITY_CPU_FACTOR`/`_MIN_DELTA`/`NET_FACTOR`/`_MIN_BPS` (see
+`.env.example`); toggle it off separately from the API-based badges in
+**Settings**, or opt one container out entirely with a "Don't probe"
+override (suppresses this fallback too, not just the API probe).
+
 **Settings** holds per-browser display preferences (`localStorage`, not
 synced across devices): the sparkline time window, whether container
 uptime and live-activity badges show, which Overview cards are visible,

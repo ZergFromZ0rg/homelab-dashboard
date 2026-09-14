@@ -44,6 +44,12 @@ services:
       QBITTORRENT_USERNAME: ${QBITTORRENT_USERNAME:-}
       QBITTORRENT_PASSWORD: ${QBITTORRENT_PASSWORD:-}
       JELLYFIN_API_KEY: ${JELLYFIN_API_KEY:-}
+      # Resource-spike fallback for containers with no app-specific
+      # answer above. Defaults apply if unset.
+      RESOURCE_ACTIVITY_CPU_FACTOR: ${RESOURCE_ACTIVITY_CPU_FACTOR:-}
+      RESOURCE_ACTIVITY_CPU_MIN_DELTA: ${RESOURCE_ACTIVITY_CPU_MIN_DELTA:-}
+      RESOURCE_ACTIVITY_NET_FACTOR: ${RESOURCE_ACTIVITY_NET_FACTOR:-}
+      RESOURCE_ACTIVITY_NET_MIN_BPS: ${RESOURCE_ACTIVITY_NET_MIN_BPS:-}
     volumes:
       - dashboard-data:/data
     networks:

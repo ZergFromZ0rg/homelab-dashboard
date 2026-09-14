@@ -76,7 +76,7 @@ def test_qbittorrent_active_when_a_torrent_is_transferring(monkeypatch):
     assert sa.stale("nas", c) is True
 
     result = sa.refresh("nas", c)
-    assert result == {"app": "qBittorrent", "detail": "1 downloading"}
+    assert result == {"source": "api", "app": "qBittorrent", "detail": "1 downloading"}
     # picked the WebUI port (8080), not the torrent protocol port (6881)
     assert all(url.startswith("http://nas:8080/") for url in seen_urls)
 
@@ -134,7 +134,7 @@ def test_jellyfin_reports_active_sessions(monkeypatch):
     monkeypatch.setattr(sa.requests, "get", fake_get)
 
     result = sa.refresh("nas", _container("jellyfin/jellyfin", cid="jf1"))
-    assert result == {"app": "Jellyfin", "detail": "1 user streaming (zerg)"}
+    assert result == {"source": "api", "app": "Jellyfin", "detail": "1 user streaming (zerg)"}
 
 
 def test_jellyfin_no_sessions_is_none(monkeypatch):
@@ -206,7 +206,7 @@ def test_override_probes_a_non_matching_image_as_the_named_app(monkeypatch):
 
     assert sa.stale("nas", c, overrides) is True
     result = sa.refresh("nas", c, overrides)
-    assert result == {"app": "Jellyfin", "detail": "1 user streaming (zerg)"}
+    assert result == {"source": "api", "app": "Jellyfin", "detail": "1 user streaming (zerg)"}
 
 
 def test_override_key_is_host_and_container_name_not_id():
@@ -230,4 +230,4 @@ def test_unknown_override_value_falls_back_to_image_match(monkeypatch):
     c = _container("qbittorrent", name="torrent-box")
     overrides = {"nas/torrent-box": "not-a-real-app"}
     result = sa.refresh("nas", c, overrides)
-    assert result == {"app": "qBittorrent", "detail": "1 downloading"}
+    assert result == {"source": "api", "app": "qBittorrent", "detail": "1 downloading"}

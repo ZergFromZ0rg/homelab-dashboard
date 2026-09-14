@@ -50,8 +50,14 @@ function ContainerRow({
   showHost,
 }) {
   const {
-    settings: { showContainerUptime, showLiveActivity },
+    settings: { showContainerUptime, showLiveActivity, showResourceActivity },
   } = useSettings();
+
+  const live = container.live_activity;
+  const showLive =
+    showLiveActivity &&
+    live &&
+    (live.source !== "resource" || showResourceActivity);
 
   const key = `${host}-${container.id}`;
   const action = pending[key];
@@ -132,12 +138,14 @@ function ContainerRow({
           </div>
 
           <div className="container-badges">
-            {showLiveActivity && container.live_activity && (
+            {showLive && (
               <span
-                className="container-badge-live"
-                title={`${container.live_activity.app}: ${container.live_activity.detail}`}
+                className={`container-badge-live ${
+                  live.source === "resource" ? "container-badge-live--resource" : ""
+                }`}
+                title={live.app ? `${live.app}: ${live.detail}` : live.detail}
               >
-                {container.live_activity.detail}
+                {live.detail}
               </span>
             )}
 

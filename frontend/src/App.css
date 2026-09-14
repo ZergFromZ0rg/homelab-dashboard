@@ -662,6 +662,14 @@ h1 {
   margin-right: 5px;
 }
 
+/* A resource-usage guess, not a confirmed answer from the app itself —
+   amber instead of green so it reads as less certain. */
+.container-badge-live--resource {
+  color: var(--warning);
+  border-color: var(--warning);
+  background: var(--warning-bg);
+}
+
 .container-status.running {
   color: var(--online);
 }
@@ -2189,6 +2197,10 @@ select.deploy-input[multiple] {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.qa-live--resource {
+  color: var(--warning);
 }
 
 .qa-stat {

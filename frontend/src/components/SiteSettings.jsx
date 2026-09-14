@@ -154,6 +154,24 @@ function SiteSettings({
           Needs credentials set on the backend (QBITTORRENT_USERNAME /
           JELLYFIN_API_KEY, see .env.example).
         </p>
+
+        <label className="settings-check">
+          <input
+            type="checkbox"
+            checked={settings.showResourceActivity}
+            onChange={(e) =>
+              update({ showResourceActivity: e.target.checked })
+            }
+          />
+          Include resource-spike guesses as a fallback
+        </label>
+        <p className="settings-hint">
+          When a container has no app-specific answer (no probe for it, no
+          credentials, or the API check failed), flag it as "busy" — amber
+          badge, not green — when its CPU or network use spikes well above
+          its own recent baseline. Works for any container, no credentials
+          needed, but it's a guess (a backup job would also look "busy").
+        </p>
       </SettingsCard>
 
       <SettingsCard title="Live-activity overrides">
@@ -161,7 +179,8 @@ function SiteSettings({
           Containers are probed by image name automatically. Override one
           here to force it to a specific app (a custom/renamed image, or
           to pick one instance if you run more than one) or turn probing
-          off for it — applies fleet-wide, the same on every browser.
+          off for it entirely — including the resource-spike fallback
+          above — applies fleet-wide, the same on every browser.
         </p>
 
         {allContainers.length === 0 ? (
