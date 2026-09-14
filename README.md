@@ -114,6 +114,16 @@ container row and in Quick Actions — e.g. "3 downloading, 5 seeding" or
 "1 user streaming (zerg)" — toggleable in **Settings**. Add a new
 `(image-substring, probe_fn)` pair to extend it to another app.
 
+The image match can be overridden per container — force one to be probed
+as a specific app (a custom/renamed image, or to pick one instance if you
+run more than one) or turn probing off for it — in **Settings →
+Live-activity overrides**. Unlike the rest of Settings this is saved
+server-side (`backend/service_activity_overrides.py`, `/data/
+service_activity_overrides.json`, `GET`/`PUT
+/api/service-activity-overrides`, included in every `/ws` tick), same
+pattern as pins/todos, since it changes what the backend actually probes
+— the same on every browser, not a per-browser display choice.
+
 **Settings** holds per-browser display preferences (`localStorage`, not
 synced across devices): the sparkline time window, whether container
 uptime and live-activity badges show, which Overview cards are visible,

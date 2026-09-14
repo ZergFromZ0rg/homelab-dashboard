@@ -147,8 +147,26 @@ _PROBES = [
     ("jellyfin", _jellyfin_activity),
 ]
 
+# app name (as used in a service_activity_overrides.json value) -> probe
+# function. Keep in sync with service_activity_overrides.VALID_APPS.
+_PROBES_BY_NAME = {needle: fn for needle, fn in _PROBES}
 
-def _match(container: dict):
+
+def _override_key(host: str, container: dict) -> str:
+    return f"{host}/{container.get('name') or ''}"
+
+
+def _match(container: dict, override: str | None = None):
+    """override, when given, is this container's
+    service_activity_overrides.json value: "none" always skips it,
+    a known app name always probes as that app (regardless of image),
+    and anything else (unset, or a value we don't recognize) falls back
+    to the image-name auto-match."""
+    if override == "none":
+        return None
+    if override in _PROBES_BY_NAME:
+        return _PROBES_BY_NAME[override]
+
     image = (container.get("image") or "").lower()
     return next((fn for needle, fn in _PROBES if needle in image), None)
 
@@ -157,7 +175,7 @@ def _cache_key(host: str, container: dict) -> tuple:
     return (host, container.get("id"))
 
 
-def peek(host: str, container: dict) -> dict | None:
+def peek(host: str, container: dict, overrides: dict | None = None) -> dict | None:
     """Non-blocking: today's cached result, or None if we have nothing
     fresh (either never probed, or probed-and-not-active — both render
     the same, no badge)."""
@@ -168,21 +186,23 @@ def peek(host: str, container: dict) -> dict | None:
     return None
 
 
-def stale(host: str, container: dict) -> bool:
-    """True when this is a container we know how to probe and its cached
-    result (if any) has expired — the caller should run refresh() for it
-    off the event loop."""
-    if _match(container) is None:
+def stale(host: str, container: dict, overrides: dict | None = None) -> bool:
+    """True when this is a container we know how to probe (by image match
+    or manual override) and its cached result (if any) has expired — the
+    caller should run refresh() for it off the event loop."""
+    override = (overrides or {}).get(_override_key(host, container))
+    if _match(container, override) is None:
         return False
     with _cache_lock:
         entry = _cache.get(_cache_key(host, container))
     return not entry or time.time() - entry["at"] >= CACHE_SECONDS
 
 
-def refresh(host: str, container: dict) -> dict | None:
+def refresh(host: str, container: dict, overrides: dict | None = None) -> dict | None:
     """Blocking — makes the actual HTTP calls and caches the result. Run
     via asyncio.to_thread, only for containers stale() flagged."""
-    probe_fn = _match(container)
+    override = (overrides or {}).get(_override_key(host, container))
+    probe_fn = _match(container, override)
     if probe_fn is None:
         return None
 

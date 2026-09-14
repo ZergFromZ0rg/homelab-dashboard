@@ -2393,7 +2393,7 @@ select.deploy-input[multiple] {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-width: 560px;
+  max-width: 640px;
 }
 
 .settings-tab .overview-card-body {
@@ -2488,6 +2488,83 @@ select.deploy-input[multiple] {
 .settings-pin-row input:focus {
   outline: none;
   border-color: var(--accent);
+}
+
+.settings-override-filter {
+  font: inherit;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  padding: 6px 9px;
+  margin-top: 2px;
+}
+
+.settings-override-filter:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.settings-override-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.settings-override-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 90px) 120px;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 2px;
+  border-top: 1px solid var(--border);
+}
+
+.settings-override-row:first-child {
+  border-top: none;
+}
+
+.settings-override-name {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-override-host {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.settings-override-detected {
+  font-size: 9px;
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-override-row select {
+  font: inherit;
+  font-size: 11px;
+  color: var(--text);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  padding: 4px 6px;
+  cursor: pointer;
 }
 
 .settings-reset {

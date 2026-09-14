@@ -9,6 +9,11 @@ import { SettingsProvider } from "./components/SettingsContext";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { loadCachedPins, cachePins, putPins } from "./components/containerPins";
 import { loadCachedTodos, cacheTodos, putTodos } from "./components/todosApi";
+import {
+  loadCachedServiceActivityOverrides,
+  cacheServiceActivityOverrides,
+  putServiceActivityOverrides,
+} from "./components/serviceActivityOverridesApi";
 import "./App.css";
 
 const EMPTY_OVERVIEW = { ok: true, issues: [], recommendations: [] };
@@ -64,18 +69,20 @@ function useContainerControl() {
   return { pending, errors, run, clearError };
 }
 
-// A list the server owns (pins, todos): the WebSocket pushes the canonical
-// copy, edits go out as an optimistic PUT that rolls back on failure, and a
-// localStorage cache fills the first paint before the first WS tick.
-// `adopt` and `set` are stable (they work through a ref), so the socket
-// effect can close over them without going stale.
+// State the server owns (pins, todos, service-activity overrides): the
+// WebSocket pushes the canonical copy, edits go out as an optimistic PUT
+// that rolls back on failure, and a localStorage cache fills the first
+// paint before the first WS tick. Works for an array (pins/todos) or a
+// plain object (overrides) — anything JSON-comparable. `adopt` and `set`
+// are stable (they work through a ref), so the socket effect can close
+// over them without going stale.
 function useServerList(loadCached, cache, put) {
   const [items, setItems] = useState(loadCached);
   const ref = useRef(items);
 
   const adopt = useCallback(
     (serverItems) => {
-      if (!Array.isArray(serverItems)) return;
+      if (serverItems == null) return;
       if (JSON.stringify(serverItems) === JSON.stringify(ref.current)) return;
       ref.current = serverItems;
       cache(serverItems);
@@ -134,6 +141,15 @@ function useDashboardSocket() {
     cacheTodos,
     putTodos
   );
+  const [
+    serviceActivityOverrides,
+    adoptServiceActivityOverrides,
+    setServiceActivityOverrides,
+  ] = useServerList(
+    loadCachedServiceActivityOverrides,
+    cacheServiceActivityOverrides,
+    putServiceActivityOverrides
+  );
 
   useEffect(() => {
     let ws;
@@ -157,6 +173,7 @@ function useDashboardSocket() {
         setLastUpdate(Date.now());
         adoptPins(data.pins);
         adoptTodos(data.todos);
+        adoptServiceActivityOverrides(data.service_activity_overrides);
 
         setSnap({
           machines: data.machines,
@@ -186,9 +203,19 @@ function useDashboardSocket() {
       clearTimeout(reconnectTimer);
       ws?.close();
     };
-  }, [adoptPins, adoptTodos]);
+  }, [adoptPins, adoptTodos, adoptServiceActivityOverrides]);
 
-  return { ...snap, pins, todos, connected, lastUpdate, setPins, setTodos };
+  return {
+    ...snap,
+    pins,
+    todos,
+    serviceActivityOverrides,
+    connected,
+    lastUpdate,
+    setPins,
+    setTodos,
+    setServiceActivityOverrides,
+  };
 }
 
 function ConnectionStatus({ connected, lastUpdate }) {
@@ -230,11 +257,13 @@ function App() {
     overview,
     pins,
     todos,
+    serviceActivityOverrides,
     mainHost,
     connected,
     lastUpdate,
     setPins,
     setTodos,
+    setServiceActivityOverrides,
   } = useDashboardSocket();
 
   const [activeTab, setActiveTab] = useState("overview");
@@ -347,7 +376,12 @@ function App() {
       )}
 
       {activeTab === "settings" && (
-        <SiteSettings pins={pins} containers={containers} />
+        <SiteSettings
+          pins={pins}
+          containers={containers}
+          serviceActivityOverrides={serviceActivityOverrides}
+          onSetServiceActivityOverrides={setServiceActivityOverrides}
+        />
       )}
     </main>
     </SettingsProvider>
