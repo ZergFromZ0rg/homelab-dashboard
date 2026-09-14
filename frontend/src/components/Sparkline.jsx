@@ -1,7 +1,16 @@
+import { windowPoints } from "./historyWindow";
+
 const WIDTH = 100;
 
-function Sparkline({ points, height = 26, max, variant = "", showAxis = false }) {
-  const clean = (points || []).filter((p) => p.v != null);
+function Sparkline({
+  points,
+  height = 26,
+  max,
+  variant = "",
+  showAxis = false,
+  windowMinutes,
+}) {
+  const clean = windowPoints(points, windowMinutes).filter((p) => p.v != null);
 
   let chart;
 
@@ -50,7 +59,7 @@ function Sparkline({ points, height = 26, max, variant = "", showAxis = false })
       {chart}
       {showAxis && (
         <div className="sparkline-axis">
-          <span>30m ago</span>
+          <span>{windowMinutes ?? 30}m ago</span>
           <span>now</span>
         </div>
       )}

@@ -3,6 +3,7 @@ import { needsAttention } from "./containerSort";
 import { formatBytes, formatBytesPerSec } from "./format";
 import Heartbeat from "./Heartbeat";
 import Stat from "./Stat";
+import { useSettings } from "./settings";
 
 function formatStartedAt(value) {
   if (!value || value.startsWith("0001-")) return "—";
@@ -48,6 +49,10 @@ function ContainerRow({
   onTogglePin,
   showHost,
 }) {
+  const {
+    settings: { showContainerUptime },
+  } = useSettings();
+
   const key = `${host}-${container.id}`;
   const action = pending[key];
   const busy = Boolean(action);
@@ -199,7 +204,9 @@ function ContainerRow({
           <Stat label="NET ↑" value={formatBytesPerSec(network?.tx_bps)} />
           <Stat label="DISK ↓" value={formatBytesPerSec(blockIo?.read_bps)} />
           <Stat label="DISK ↑" value={formatBytesPerSec(blockIo?.write_bps)} />
-          <Stat label="UPTIME" value={formatStartedAt(container.started_at)} />
+          {showContainerUptime && (
+            <Stat label="UPTIME" value={formatStartedAt(container.started_at)} />
+          )}
           <Stat label="RESTARTS" value={container.restart_count ?? "—"} />
           <Stat
             label="IMAGE"

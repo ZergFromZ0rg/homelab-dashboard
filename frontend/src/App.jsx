@@ -4,6 +4,8 @@ import MachineCard from "./components/MachineCard";
 import Tabs from "./components/Tabs";
 import DeployTab from "./components/DeployTab";
 import Overview from "./components/Overview";
+import SiteSettings from "./components/SiteSettings";
+import { SettingsProvider } from "./components/SettingsContext";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { loadCachedPins, cachePins, putPins } from "./components/containerPins";
 import { loadCachedTodos, cacheTodos, putTodos } from "./components/todosApi";
@@ -263,9 +265,11 @@ function App() {
     { value: "system", label: "System Stats" },
     { value: "containers", label: `Containers (${totalContainers})` },
     { value: "deploy", label: `Deploy (${activeDeployments})` },
+    { value: "settings", label: "Settings" },
   ];
 
   return (
+    <SettingsProvider>
     <main className="dashboard">
       <header>
         <div>
@@ -341,7 +345,12 @@ function App() {
       {activeTab === "deploy" && (
         <DeployTab machines={machines} deployments={deployments} />
       )}
+
+      {activeTab === "settings" && (
+        <SiteSettings pins={pins} containers={containers} />
+      )}
     </main>
+    </SettingsProvider>
   );
 }
 

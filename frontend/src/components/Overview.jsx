@@ -4,6 +4,7 @@ import SummaryRow from "./SummaryRow";
 import HostSummary from "./HostSummary";
 import ActivityFeed from "./ActivityFeed";
 import QuickActions from "./QuickActions";
+import { useSettings } from "./settings";
 
 // A titled panel. The Overview is a stack of these, so a future
 // "project X" card is one more <OverviewCard> fed by its own data.
@@ -91,44 +92,64 @@ function Overview({
   onSetTodos,
   onNavigate,
 }) {
+  const {
+    settings: { homeCards },
+  } = useSettings();
+
+  const anySide = homeCards.todo;
+
   return (
-    <div className="overview">
+    <div className={`overview ${anySide ? "" : "overview--full"}`}>
       <div className="overview-main">
-        <SummaryRow
-          overview={overview}
-          machines={machines}
-          containers={containers}
-        />
-
-        <AttentionPanel
-          overview={overview}
-          deployments={deployments}
-          onNavigate={onNavigate}
-        />
-
-        <OverviewCard title="Hosts">
-          <HostSummary machines={machines} containers={containers} />
-        </OverviewCard>
-
-        <OverviewCard title="Quick actions">
-          <QuickActions
-            pins={pins}
+        {homeCards.summary && (
+          <SummaryRow
+            overview={overview}
+            machines={machines}
             containers={containers}
-            onControl={onControl}
+          />
+        )}
+
+        {homeCards.attention && (
+          <AttentionPanel
+            overview={overview}
+            deployments={deployments}
             onNavigate={onNavigate}
           />
-        </OverviewCard>
+        )}
 
-        <OverviewCard title="Recent activity">
-          <ActivityFeed activity={activity} />
-        </OverviewCard>
+        {homeCards.hosts && (
+          <OverviewCard title="Hosts">
+            <HostSummary machines={machines} containers={containers} />
+          </OverviewCard>
+        )}
+
+        {homeCards.quickActions && (
+          <OverviewCard title="Quick actions">
+            <QuickActions
+              pins={pins}
+              containers={containers}
+              onControl={onControl}
+              onNavigate={onNavigate}
+            />
+          </OverviewCard>
+        )}
+
+        {homeCards.activity && (
+          <OverviewCard title="Recent activity">
+            <ActivityFeed activity={activity} />
+          </OverviewCard>
+        )}
       </div>
 
-      <aside className="overview-side">
-        <OverviewCard title="To-do" count={openTodos || null}>
-          <TodoList todos={todos} onChange={onSetTodos} compact />
-        </OverviewCard>
-      </aside>
+      {anySide && (
+        <aside className="overview-side">
+          {homeCards.todo && (
+            <OverviewCard title="To-do" count={openTodos || null}>
+              <TodoList todos={todos} onChange={onSetTodos} compact />
+            </OverviewCard>
+          )}
+        </aside>
+      )}
     </div>
   );
 }

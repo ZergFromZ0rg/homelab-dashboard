@@ -3,6 +3,8 @@ import Gauge from "./Gauge";
 import Stat from "./Stat";
 import { diskLabel } from "./diskLabel";
 import { formatBytes, formatBytesPerSec as formatSpeed } from "./format";
+import { windowPoints } from "./historyWindow";
+import { useSettings } from "./settings";
 
 // Reference ceiling for the CPU temperature gauge ring — not a real limit,
 // just a "how close to uncomfortably hot" scale so the ring fills
@@ -19,10 +21,14 @@ function formatUptime(seconds) {
 }
 
 function MachineVitals({ machine, history }) {
+  const {
+    settings: { graphWindowMinutes: windowMinutes },
+  } = useSettings();
+
   const netMax = Math.max(
     1,
-    ...(history?.network_rx || []).map((p) => p.v ?? 0),
-    ...(history?.network_tx || []).map((p) => p.v ?? 0)
+    ...windowPoints(history?.network_rx, windowMinutes).map((p) => p.v ?? 0),
+    ...windowPoints(history?.network_tx, windowMinutes).map((p) => p.v ?? 0)
   ) * 1.15;
 
   return (
@@ -53,6 +59,7 @@ function MachineVitals({ machine, history }) {
               variant="cpu"
               height={30}
               showAxis
+              windowMinutes={windowMinutes}
             />
           </div>
         </div>
@@ -75,6 +82,7 @@ function MachineVitals({ machine, history }) {
               variant="cpu"
               height={30}
               showAxis
+              windowMinutes={windowMinutes}
             />
           </div>
         </div>
@@ -94,6 +102,7 @@ function MachineVitals({ machine, history }) {
               variant="ram"
               height={30}
               showAxis
+              windowMinutes={windowMinutes}
             />
           </div>
         </div>
@@ -110,11 +119,21 @@ function MachineVitals({ machine, history }) {
 
       <div className="network-stats">
         <Stat label="DOWNLOAD" value={`↓ ${formatSpeed(machine.network_rx)}`}>
-          <Sparkline points={history?.network_rx} max={netMax} variant="rx" />
+          <Sparkline
+            points={history?.network_rx}
+            max={netMax}
+            variant="rx"
+            windowMinutes={windowMinutes}
+          />
         </Stat>
 
         <Stat label="UPLOAD" value={`↑ ${formatSpeed(machine.network_tx)}`}>
-          <Sparkline points={history?.network_tx} max={netMax} variant="tx" />
+          <Sparkline
+            points={history?.network_tx}
+            max={netMax}
+            variant="tx"
+            windowMinutes={windowMinutes}
+          />
         </Stat>
       </div>
 
@@ -157,7 +176,11 @@ function MachineVitals({ machine, history }) {
 
               {gpu.temperature_c != null && (
                 <Stat label="GPU TEMP" value={`${gpu.temperature_c}°C`}>
-                  <Sparkline points={history?.gpu_temperature} variant="cpu" />
+                  <Sparkline
+                    points={history?.gpu_temperature}
+                    variant="cpu"
+                    windowMinutes={windowMinutes}
+                  />
                 </Stat>
               )}
 

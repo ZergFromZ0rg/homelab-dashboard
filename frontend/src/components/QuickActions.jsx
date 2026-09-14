@@ -1,14 +1,17 @@
 import { pinKey } from "./containerPins";
+import { containerUrl } from "./containerLink";
 import { formatBytes } from "./format";
+import { useSettings } from "./settings";
 
 // One compact row per pinned container — status dot, name, CPU / RAM, and
 // start-or-stop + restart. Plus jumps to the tabs where the rest lives.
 
-function QaRow({ t, busy, onControl }) {
+function QaRow({ t, busy, onControl, showLink }) {
   const running = t.status === "running";
   const primary = running ? "Stop" : "Start";
   const cpu = t.stats?.cpu_percent;
   const ram = t.stats?.memory?.used_bytes;
+  const url = showLink ? containerUrl(t.host, t.ports) : null;
 
   const act = (verb) => {
     if (window.confirm(`${verb} ${t.name} on ${t.host}?`)) {
@@ -19,9 +22,21 @@ function QaRow({ t, busy, onControl }) {
   return (
     <div className="qa-row">
       <span className={`status-dot status-dot--${running ? "ok" : "bad"}`} />
-      <span className="qa-name" title={`${t.name} · ${t.host}`}>
-        {t.name}
-      </span>
+      {url ? (
+        <a
+          className="qa-name qa-name-link"
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={`Open ${url}`}
+        >
+          {t.name}
+        </a>
+      ) : (
+        <span className="qa-name" title={`${t.name} · ${t.host}`}>
+          {t.name}
+        </span>
+      )}
       <span className="qa-stat">{cpu != null ? `${cpu}%` : "—"}</span>
       <span className="qa-stat">{ram != null ? formatBytes(ram) : "—"}</span>
       <div className="qa-row-btns">
@@ -47,14 +62,35 @@ function QaRow({ t, busy, onControl }) {
 }
 
 function QuickActions({ pins, containers, onControl, onNavigate }) {
+  const {
+    settings: { pinGroups, quickActionLinks },
+  } = useSettings();
+
   const pinned = new Set(pins);
   const targets = [];
   for (const [host, list] of Object.entries(containers)) {
     for (const c of list) {
-      if (pinned.has(pinKey(host, c.name))) targets.push({ host, ...c });
+      const key = pinKey(host, c.name);
+      if (pinned.has(key)) targets.push({ host, key, ...c });
     }
   }
   targets.sort((a, b) => a.name.localeCompare(b.name));
+
+  // Group by the label set in Settings → Site customization; containers
+  // without one fall into a single unlabeled group. Skip the group
+  // headers entirely when nobody's labeled anything — the common case.
+  const groups = new Map();
+  for (const t of targets) {
+    const label = pinGroups[t.key] || "";
+    if (!groups.has(label)) groups.set(label, []);
+    groups.get(label).push(t);
+  }
+  const labeled = [...groups.keys()].some((label) => label);
+  const groupOrder = [...groups.keys()].sort((a, b) => {
+    if (!a) return 1;
+    if (!b) return -1;
+    return a.localeCompare(b);
+  });
 
   return (
     <div className="quick-actions">
@@ -64,16 +100,22 @@ function QuickActions({ pins, containers, onControl, onNavigate }) {
           control here.
         </p>
       ) : (
-        <div className="qa-rows">
-          {targets.map((t) => (
-            <QaRow
-              key={`${t.host}-${t.id}`}
-              t={t}
-              busy={Boolean(onControl.pending[`${t.host}-${t.id}`])}
-              onControl={onControl}
-            />
-          ))}
-        </div>
+        groupOrder.map((label) => (
+          <div className="qa-rows" key={label || "__ungrouped"}>
+            {labeled && (
+              <div className="qa-group-label">{label || "Ungrouped"}</div>
+            )}
+            {groups.get(label).map((t) => (
+              <QaRow
+                key={`${t.host}-${t.id}`}
+                t={t}
+                busy={Boolean(onControl.pending[`${t.host}-${t.id}`])}
+                onControl={onControl}
+                showLink={quickActionLinks}
+              />
+            ))}
+          </div>
+        ))
       )}
 
       <div className="qa-group qa-group--nav">
