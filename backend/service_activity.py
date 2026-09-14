@@ -2,10 +2,19 @@
 images whose own API can answer that question — qBittorrent (active
 torrents) and Jellyfin (active playback sessions) so far.
 
-Not a general app-health framework: one image-name match -> probe
-function per app, fleet-wide credentials (a homelab realistically runs
-one instance of each), and a container we don't recognize just gets no
-badge. Add a new ``(needle, probe_fn)`` pair to ``_PROBES`` to extend it.
+Not a general app-health framework: one probe function per app,
+fleet-wide credentials (a homelab realistically runs one instance of
+each), and a container we don't recognize just gets no badge. Add a new
+``(needle, probe_fn)`` pair to ``_PROBES`` to extend it.
+
+A container is matched to a probe in this order: an explicit manual
+override (set inline on its row in the Containers tab) always wins; then
+a ``homelab.live-activity`` Docker label on the container itself (set it
+on the compose service, e.g. ``homelab.live-activity: qbittorrent``) —
+explicit and doesn't depend on how the image happens to be named; then a
+same-effort fallback of matching the image name against the known apps.
+The label needs the agent to report container labels in its ``/containers``
+response; if it doesn't, matching just falls through to the image check.
 
 Each probe does real HTTP calls, so results are cached per container for
 CACHE_SECONDS — the /ws loop runs once per connected browser tab, and
@@ -103,7 +112,7 @@ def _qbittorrent_activity(url: str) -> dict | None:
     if uploading:
         parts.append(f"{uploading} seeding")
 
-    return {"source": "api", "app": "qBittorrent", "detail": ", ".join(parts)}
+    return {"app": "qBittorrent", "detail": ", ".join(parts)}
 
 
 def _jellyfin_activity(url: str) -> dict | None:
@@ -135,7 +144,6 @@ def _jellyfin_activity(url: str) -> dict | None:
     label = "user" if count == 1 else "users"
 
     return {
-        "source": "api",
         "app": "Jellyfin",
         "detail": f"{count} {label} streaming ({', '.join(users)})",
     }
@@ -148,29 +156,44 @@ _PROBES = [
     ("jellyfin", _jellyfin_activity),
 ]
 
-# app name (as used in a service_activity_overrides.json value) -> probe
-# function. Keep in sync with service_activity_overrides.VALID_APPS.
+# app name (as used in a service_activity_overrides.json value, or in the
+# homelab.live-activity label) -> probe function. Keep in sync with
+# service_activity_overrides.VALID_APPS.
 _PROBES_BY_NAME = {needle: fn for needle, fn in _PROBES}
+
+LABEL_KEY = "homelab.live-activity"
 
 
 def override_key(host: str, container: dict) -> str:
     """The key this container would use in service_activity_overrides.json
     — same shape as a pin key (``"host/container-name"``). Exposed so
-    callers (main.py's resource_activity fallback) can check the same
-    override without duplicating the format."""
+    main.py can check the same override without duplicating the format."""
     return f"{host}/{container.get('name') or ''}"
+
+
+def _label_value(container: dict) -> str:
+    labels = container.get("labels") or {}
+    return (labels.get(LABEL_KEY) or "").strip().lower()
 
 
 def _match(container: dict, override: str | None = None):
     """override, when given, is this container's
-    service_activity_overrides.json value: "none" always skips it,
-    a known app name always probes as that app (regardless of image),
-    and anything else (unset, or a value we don't recognize) falls back
-    to the image-name auto-match."""
+    service_activity_overrides.json value and always wins: "none" skips
+    it, a known app name probes as that app regardless of label or image.
+
+    Without an override, a homelab.live-activity label on the container
+    decides next (also "none" or a known app name); only when neither
+    says anything does the image name get checked."""
     if override == "none":
         return None
     if override in _PROBES_BY_NAME:
         return _PROBES_BY_NAME[override]
+
+    label = _label_value(container)
+    if label == "none":
+        return None
+    if label in _PROBES_BY_NAME:
+        return _PROBES_BY_NAME[label]
 
     image = (container.get("image") or "").lower()
     return next((fn for needle, fn in _PROBES if needle in image), None)

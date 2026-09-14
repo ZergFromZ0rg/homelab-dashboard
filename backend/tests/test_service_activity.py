@@ -33,12 +33,13 @@ def _reset(monkeypatch):
     yield
 
 
-def _container(image, cid="abc", ports=None, name="c"):
+def _container(image, cid="abc", ports=None, name="c", labels=None):
     return {
         "id": cid,
         "name": name,
         "image": image,
         "ports": ports or {"8080/tcp": [8080]},
+        "labels": labels or {},
     }
 
 
@@ -76,7 +77,7 @@ def test_qbittorrent_active_when_a_torrent_is_transferring(monkeypatch):
     assert sa.stale("nas", c) is True
 
     result = sa.refresh("nas", c)
-    assert result == {"source": "api", "app": "qBittorrent", "detail": "1 downloading"}
+    assert result == {"app": "qBittorrent", "detail": "1 downloading"}
     # picked the WebUI port (8080), not the torrent protocol port (6881)
     assert all(url.startswith("http://nas:8080/") for url in seen_urls)
 
@@ -134,7 +135,7 @@ def test_jellyfin_reports_active_sessions(monkeypatch):
     monkeypatch.setattr(sa.requests, "get", fake_get)
 
     result = sa.refresh("nas", _container("jellyfin/jellyfin", cid="jf1"))
-    assert result == {"source": "api", "app": "Jellyfin", "detail": "1 user streaming (zerg)"}
+    assert result == {"app": "Jellyfin", "detail": "1 user streaming (zerg)"}
 
 
 def test_jellyfin_no_sessions_is_none(monkeypatch):
@@ -206,7 +207,7 @@ def test_override_probes_a_non_matching_image_as_the_named_app(monkeypatch):
 
     assert sa.stale("nas", c, overrides) is True
     result = sa.refresh("nas", c, overrides)
-    assert result == {"source": "api", "app": "Jellyfin", "detail": "1 user streaming (zerg)"}
+    assert result == {"app": "Jellyfin", "detail": "1 user streaming (zerg)"}
 
 
 def test_override_key_is_host_and_container_name_not_id():
@@ -230,4 +231,75 @@ def test_unknown_override_value_falls_back_to_image_match(monkeypatch):
     c = _container("qbittorrent", name="torrent-box")
     overrides = {"nas/torrent-box": "not-a-real-app"}
     result = sa.refresh("nas", c, overrides)
-    assert result == {"source": "api", "app": "qBittorrent", "detail": "1 downloading"}
+    assert result == {"app": "qBittorrent", "detail": "1 downloading"}
+
+
+def test_label_probes_a_non_matching_image_as_the_named_app(monkeypatch):
+    def fake_get(url, headers, timeout):
+        return FakeResponse(
+            200, [{"UserName": "zerg", "NowPlayingItem": {"Name": "Movie"}}]
+        )
+
+    monkeypatch.setattr(sa.requests, "get", fake_get)
+
+    # Custom image name — wouldn't match "jellyfin" by substring, but the
+    # container carries the label.
+    c = _container(
+        "ghcr.io/acme/media-server:latest",
+        labels={"homelab.live-activity": "jellyfin"},
+    )
+    assert sa.stale("nas", c) is True
+    result = sa.refresh("nas", c)
+    assert result == {"app": "Jellyfin", "detail": "1 user streaming (zerg)"}
+
+
+def test_label_none_suppresses_a_matching_image(monkeypatch):
+    class FakeSession:
+        def post(self, url, data, timeout):
+            raise AssertionError("should not probe when the label says none")
+
+    monkeypatch.setattr(sa.requests, "Session", FakeSession)
+
+    c = _container("qbittorrent", labels={"homelab.live-activity": "none"})
+    assert sa.stale("nas", c) is False
+    assert sa.refresh("nas", c) is None
+
+
+def test_manual_override_wins_over_label(monkeypatch):
+    def fake_get(url, headers, timeout):
+        return FakeResponse(
+            200, [{"UserName": "zerg", "NowPlayingItem": {"Name": "Movie"}}]
+        )
+
+    monkeypatch.setattr(sa.requests, "get", fake_get)
+
+    # Label says qBittorrent, but a manual override on this container says
+    # Jellyfin — the override is the more explicit, more recent choice.
+    c = _container(
+        "qbittorrent", name="x", labels={"homelab.live-activity": "qbittorrent"}
+    )
+    overrides = {"nas/x": "jellyfin"}
+    result = sa.refresh("nas", c, overrides)
+    assert result == {"app": "Jellyfin", "detail": "1 user streaming (zerg)"}
+
+
+def test_unrecognized_label_value_falls_back_to_image_match(monkeypatch):
+    class FakeSession:
+        def post(self, url, data, timeout):
+            return FakeResponse(200, text="Ok.")
+
+        def get(self, url, timeout):
+            return FakeResponse(200, [{"dlspeed": 5, "upspeed": 0}])
+
+    monkeypatch.setattr(sa.requests, "Session", FakeSession)
+
+    c = _container("qbittorrent", labels={"homelab.live-activity": "plex"})
+    result = sa.refresh("nas", c)
+    assert result == {"app": "qBittorrent", "detail": "1 downloading"}
+
+
+def test_missing_labels_key_is_fine():
+    c = _container("nginx:latest")
+    del c["labels"]
+    assert sa.stale("nas", c) is False
+    assert sa.refresh("nas", c) is None

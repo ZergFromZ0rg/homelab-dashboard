@@ -17,7 +17,6 @@ from backend import activity
 from backend import alerts
 from backend import live_history
 from backend import service_activity
-from backend import resource_activity
 from backend import auth
 from backend import scheduler_api
 from backend.registry import registry
@@ -314,17 +313,6 @@ async def websocket_endpoint(websocket: WebSocket):
                         )
                     else:
                         live = service_activity.peek(host, container, live_overrides)
-
-                    # No app-specific answer (no probe matched, no creds,
-                    # or it's simply idle) — fall back to "does this
-                    # container's CPU/network look spiked versus its own
-                    # recent baseline". override == "none" opts a
-                    # container out of both, not just the API probe.
-                    override = live_overrides.get(
-                        service_activity.override_key(host, container)
-                    )
-                    if not live and override != "none":
-                        live = resource_activity.busy(host, container)
 
                     if live:
                         container["live_activity"] = live

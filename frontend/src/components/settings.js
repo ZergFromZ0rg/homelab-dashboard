@@ -39,7 +39,6 @@ export const DEFAULT_SETTINGS = {
   graphWindowMinutes: 30,
   showContainerUptime: true,
   showLiveActivity: true,
-  showResourceActivity: true,
   homeCards: DEFAULT_HOME_CARDS,
   pinGroups: {},
   quickActionLinks: true,

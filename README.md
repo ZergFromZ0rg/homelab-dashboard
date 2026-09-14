@@ -102,44 +102,32 @@ just render as plain text.
 
 A handful of containers can report whether they're actually *in use*
 right now, not just running: qBittorrent (active torrents) and Jellyfin
-(active playback sessions) so far, via `backend/service_activity.py`. It
-matches by image name and, for a match, hits that app's own API over the
-fleet network — same host:port the name-link above would open — cached
-per container for 15s so N browser tabs (each running their own `/ws`
-loop) don't hammer the app's API every 2s. Needs credentials set on the
-backend (`QBITTORRENT_USERNAME`/`QBITTORRENT_PASSWORD`,
-`JELLYFIN_API_KEY` — see `.env.example`); a matching container with none
-set just gets no badge (logged once). Shown as a small green badge on the
-container row and in Quick Actions — e.g. "3 downloading, 5 seeding" or
-"1 user streaming (zerg)" — toggleable in **Settings**. Add a new
-`(image-substring, probe_fn)` pair to extend it to another app.
+(active playback sessions) so far, via `backend/service_activity.py`. For
+a match, it hits that app's own API over the fleet network — same
+host:port the name-link above would open — cached per container for 15s
+so N browser tabs (each running their own `/ws` loop) don't hammer the
+app's API every 2s. Needs credentials set on the backend
+(`QBITTORRENT_USERNAME`/`QBITTORRENT_PASSWORD`, `JELLYFIN_API_KEY` — see
+`.env.example`); a matching container with none set just gets no badge
+(logged once). Shown as a small green badge on the container row and in
+Quick Actions — e.g. "3 downloading, 5 seeding" or "1 user streaming
+(zerg)" — toggleable in **Settings**. Add a new `(needle, probe_fn)` pair
+to extend it to another app.
 
-The image match can be overridden per container — force one to be probed
-as a specific app (a custom/renamed image, or to pick one instance if you
-run more than one) or turn probing off for it — in **Settings →
-Live-activity overrides**. Unlike the rest of Settings this is saved
+A container is matched to a probe in this order: a manual override —
+the small dropdown next to its pin star in the Containers tab — always
+wins ("Don't probe" skips it, or force it to a specific app regardless of
+label or image); then a `homelab.live-activity` Docker label on the
+container itself (set it on the compose service, e.g.
+`homelab.live-activity: qbittorrent` — explicit, doesn't depend on how
+the image happens to be named, and needs the agent to report container
+labels in its `/containers` response); only when neither says anything
+does the image name get checked as a last resort. The override is saved
 server-side (`backend/service_activity_overrides.py`, `/data/
 service_activity_overrides.json`, `GET`/`PUT
 /api/service-activity-overrides`, included in every `/ws` tick), same
-pattern as pins/todos, since it changes what the backend actually probes
-— the same on every browser, not a per-browser display choice.
-
-Any container with no answer from the above (unmatched image, no
-credentials, or the API check failed) gets a fallback from
-`backend/resource_activity.py`: an amber "busy" badge when its CPU or
-network use spikes well above *its own* recent baseline — a fixed global
-threshold doesn't work since normal load varies wildly between containers
-(a monitoring agent parked at 20% CPU is unremarkable; qBittorrent
-jumping from 0% to 20% is not). The baseline is an EWMA of CPU%/RX/TX,
-updated every reconcile tick (~5s, in-memory only, not persisted) and
-frozen while a spike is active so a sustained spike can't drag its own
-baseline up and erase itself. No credentials needed, works for any
-container — but it's a guess, not a confirmed answer (a backup job would
-look "busy" too), hence the amber vs. green. Tunable via
-`RESOURCE_ACTIVITY_CPU_FACTOR`/`_MIN_DELTA`/`NET_FACTOR`/`_MIN_BPS` (see
-`.env.example`); toggle it off separately from the API-based badges in
-**Settings**, or opt one container out entirely with a "Don't probe"
-override (suppresses this fallback too, not just the API probe).
+pattern as pins/todos — the same on every browser, since it changes what
+the backend actually probes, not a per-browser display choice.
 
 **Settings** holds per-browser display preferences (`localStorage`, not
 synced across devices): the sparkline time window, whether container

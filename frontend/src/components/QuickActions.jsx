@@ -6,18 +6,13 @@ import { useSettings } from "./settings";
 // One compact row per pinned container — status dot, name, CPU / RAM, and
 // start-or-stop + restart. Plus jumps to the tabs where the rest lives.
 
-function QaRow({ t, busy, onControl, showLink, showLiveActivity, showResourceActivity }) {
+function QaRow({ t, busy, onControl, showLink, showLiveActivity }) {
   const running = t.status === "running";
   const primary = running ? "Stop" : "Start";
   const cpu = t.stats?.cpu_percent;
   const ram = t.stats?.memory?.used_bytes;
   const url = showLink ? containerUrl(t.host, t.ports) : null;
-  const live =
-    showLiveActivity &&
-    t.live_activity &&
-    (t.live_activity.source !== "resource" || showResourceActivity)
-      ? t.live_activity
-      : null;
+  const live = showLiveActivity ? t.live_activity : null;
 
   const act = (verb) => {
     if (window.confirm(`${verb} ${t.name} on ${t.host}?`)) {
@@ -45,10 +40,7 @@ function QaRow({ t, busy, onControl, showLink, showLiveActivity, showResourceAct
           </span>
         )}
         {live && (
-          <span
-            className={`qa-live ${live.source === "resource" ? "qa-live--resource" : ""}`}
-            title={live.app ? `${live.app}: ${live.detail}` : live.detail}
-          >
+          <span className="qa-live" title={`${live.app}: ${live.detail}`}>
             {live.detail}
           </span>
         )}
@@ -79,7 +71,7 @@ function QaRow({ t, busy, onControl, showLink, showLiveActivity, showResourceAct
 
 function QuickActions({ pins, containers, onControl, onNavigate }) {
   const {
-    settings: { pinGroups, quickActionLinks, showLiveActivity, showResourceActivity },
+    settings: { pinGroups, quickActionLinks, showLiveActivity },
   } = useSettings();
 
   const pinned = new Set(pins);
@@ -129,7 +121,6 @@ function QuickActions({ pins, containers, onControl, onNavigate }) {
                 onControl={onControl}
                 showLink={quickActionLinks}
                 showLiveActivity={showLiveActivity}
-                showResourceActivity={showResourceActivity}
               />
             ))}
           </div>

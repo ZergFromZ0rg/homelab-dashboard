@@ -3,7 +3,7 @@ import { needsAttention } from "./containerSort";
 import { formatBytes, formatBytesPerSec } from "./format";
 import Heartbeat from "./Heartbeat";
 import Stat from "./Stat";
-import { useSettings } from "./settings";
+import { useSettings, LIVE_ACTIVITY_OVERRIDE_OPTIONS } from "./settings";
 
 function formatStartedAt(value) {
   if (!value || value.startsWith("0001-")) return "—";
@@ -48,16 +48,15 @@ function ContainerRow({
   pinned,
   onTogglePin,
   showHost,
+  liveActivityOverride,
+  onSetLiveActivityOverride,
 }) {
   const {
-    settings: { showContainerUptime, showLiveActivity, showResourceActivity },
+    settings: { showContainerUptime, showLiveActivity },
   } = useSettings();
 
   const live = container.live_activity;
-  const showLive =
-    showLiveActivity &&
-    live &&
-    (live.source !== "resource" || showResourceActivity);
+  const showLive = showLiveActivity && Boolean(live);
 
   const key = `${host}-${container.id}`;
   const action = pending[key];
@@ -140,13 +139,26 @@ function ContainerRow({
           <div className="container-badges">
             {showLive && (
               <span
-                className={`container-badge-live ${
-                  live.source === "resource" ? "container-badge-live--resource" : ""
-                }`}
-                title={live.app ? `${live.app}: ${live.detail}` : live.detail}
+                className="container-badge-live"
+                title={`${live.app}: ${live.detail}`}
               >
                 {live.detail}
               </span>
+            )}
+
+            {showLiveActivity && onSetLiveActivityOverride && (
+              <select
+                className="live-override-select"
+                value={liveActivityOverride || ""}
+                title="Live-activity probe: force this container to a specific app, or turn probing off for it"
+                onChange={(e) => onSetLiveActivityOverride(e.target.value)}
+              >
+                {LIVE_ACTIVITY_OVERRIDE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
             )}
 
             {container.deployed_by === "homelab-dashboard" && (

@@ -368,6 +368,8 @@ function App() {
           onControl={control}
           pins={pins}
           onSetPins={setPins}
+          serviceActivityOverrides={serviceActivityOverrides}
+          onSetServiceActivityOverrides={setServiceActivityOverrides}
         />
       )}
 
@@ -376,12 +378,7 @@ function App() {
       )}
 
       {activeTab === "settings" && (
-        <SiteSettings
-          pins={pins}
-          containers={containers}
-          serviceActivityOverrides={serviceActivityOverrides}
-          onSetServiceActivityOverrides={setServiceActivityOverrides}
-        />
+        <SiteSettings pins={pins} containers={containers} />
       )}
     </main>
     </SettingsProvider>
