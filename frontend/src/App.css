@@ -1285,6 +1285,15 @@ h1 {
   border-color: var(--accent);
 }
 
+.deploy-token-row {
+  display: flex;
+  gap: 6px;
+}
+
+.deploy-token-row .deploy-input {
+  flex: 1;
+}
+
 .deploy-textarea {
   resize: vertical;
   font-family: var(--mono);

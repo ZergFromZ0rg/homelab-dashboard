@@ -4,11 +4,16 @@
 // picked to stay clear of green/red/amber (already online/offline/
 // warning elsewhere in the app). Falls back to --accent for any tab not
 // listed here.
+//
+// Must also stay clear of hostColor.js's HOST_COLORS palette — a tab and
+// a host are two different identity signals that happen to share screen
+// space (e.g. a host chip next to the Containers tab), so an exact color
+// match between them would misread as "this tab is that host".
 const TAB_COLORS = {
   overview: "var(--accent)",
   system: "var(--main-host)",
-  containers: "#c084fc",
-  deploy: "#f472b6",
+  containers: "#38bdf8",
+  deploy: "#f0abfc",
 };
 
 function Tabs({ tabs, active, onChange }) {

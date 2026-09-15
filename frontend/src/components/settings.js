@@ -37,6 +37,10 @@ export const DEFAULT_HOME_CARDS = Object.fromEntries(
   HOME_CARD_OPTIONS.map((c) => [c.key, true])
 );
 
+// Keep in sync with containerSort.js's own default — this is the
+// fallback used before settings load / for anyone who's never touched it.
+export const DEFAULT_HIGH_RESTART_COUNT = 5;
+
 export const DEFAULT_SETTINGS = {
   graphWindowMinutes: 30,
   heartbeatWindowMinutes: 120,
@@ -45,6 +49,7 @@ export const DEFAULT_SETTINGS = {
   homeCards: DEFAULT_HOME_CARDS,
   pinGroups: {},
   quickActionLinks: true,
+  highRestartCount: DEFAULT_HIGH_RESTART_COUNT,
 };
 
 export const SettingsContext = createContext(null);

@@ -1,4 +1,5 @@
 import MachineVitals from "./MachineVitals";
+import { hostColor } from "./hostColor";
 
 // The machine the dashboard itself runs on — same card size as every
 // other node (it's not more important, just easier to find), marked out
@@ -13,7 +14,7 @@ function MainSystem({ host, machine, history }) {
     >
       <div className="machine-header">
         <h2>
-          {host}
+          <span style={{ color: hostColor(host) }}>{host}</span>
           <span className="machine-badge">Dashboard host</span>
         </h2>
 

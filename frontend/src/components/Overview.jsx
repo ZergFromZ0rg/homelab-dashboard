@@ -128,6 +128,7 @@ function Overview({
             <QuickActions
               pins={pins}
               containers={containers}
+              machines={machines}
               onControl={onControl}
               onNavigate={onNavigate}
             />

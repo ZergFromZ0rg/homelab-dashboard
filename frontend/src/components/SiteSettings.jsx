@@ -259,6 +259,29 @@ function SiteSettings({ pins, containers }) {
           streaming" — shown on the container row and in Quick Actions.
           Matched automatically by image name.
         </p>
+
+        <label className="settings-row">
+          <span>Restart-loop threshold</span>
+          <input
+            className="deploy-input"
+            style={{ width: "60px" }}
+            type="number"
+            min="1"
+            step="1"
+            value={settings.highRestartCount}
+            onChange={(e) => {
+              const value = Number(e.target.value);
+              if (Number.isFinite(value) && value >= 1) {
+                update({ highRestartCount: Math.round(value) });
+              }
+            }}
+          />
+        </label>
+        <p className="settings-hint">
+          A container with at least this many restarts (or a failing
+          healthcheck) floats to the top of its host group with a red edge
+          marker.
+        </p>
       </SettingsCard>
 
       <SettingsCard title="Live-activity credentials">

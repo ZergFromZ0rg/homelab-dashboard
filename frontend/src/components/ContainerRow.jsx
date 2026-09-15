@@ -51,7 +51,7 @@ function ContainerRow({
   showHost,
 }) {
   const {
-    settings: { showContainerUptime, showLiveActivity },
+    settings: { showContainerUptime, showLiveActivity, highRestartCount },
   } = useSettings();
 
   const live = container.live_activity;
@@ -61,7 +61,7 @@ function ContainerRow({
   const action = pending[key];
   const busy = Boolean(action);
   const error = errors?.[key];
-  const attention = needsAttention(container);
+  const attention = needsAttention(container, highRestartCount);
 
   // Stop and restart both drop the service — easy to hit by mistake in a
   // dense list, so make them deliberate.

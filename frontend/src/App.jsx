@@ -343,11 +343,12 @@ function App() {
           onControl={control}
           pins={pins}
           onSetPins={setPins}
+          connected={connected}
         />
       )}
 
       {activeTab === "deploy" && (
-        <DeployTab machines={machines} deployments={deployments} />
+        <DeployTab machines={machines} deployments={deployments} connected={connected} />
       )}
 
       {activeTab === "settings" && (

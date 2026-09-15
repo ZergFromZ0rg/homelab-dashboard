@@ -39,11 +39,14 @@ function relativeTime(seconds) {
   return `${Math.floor(delta / 86400)}d ago`;
 }
 
+// How many recent events show before the "N more" toggle.
+const COLLAPSED_EVENT_COUNT = 2;
+
 function EventLog({ events }) {
   const [open, setOpen] = useState(false);
   if (!events?.length) return null;
 
-  const shown = open ? events : events.slice(-2);
+  const shown = open ? events : events.slice(-COLLAPSED_EVENT_COUNT);
 
   return (
     <div className="deployment-events">
@@ -57,13 +60,13 @@ function EventLog({ events }) {
           <span className="deployment-event-time">{relativeTime(e.at)}</span>
         </div>
       ))}
-      {events.length > 2 && (
+      {events.length > COLLAPSED_EVENT_COUNT && (
         <button
           type="button"
           className="deployment-events-toggle"
           onClick={() => setOpen((v) => !v)}
         >
-          {open ? "less" : `${events.length - 2} more`}
+          {open ? "less" : `${events.length - COLLAPSED_EVENT_COUNT} more`}
         </button>
       )}
     </div>
@@ -114,7 +117,11 @@ function DeploymentCard({ record, onError }) {
       </div>
 
       <div className="deployment-image">
-        {isStack ? `${spec.resources?.memory_mb ?? "?"} MB · compose project` : spec.image}
+        {isStack
+          ? spec.resources?.memory_mb != null
+            ? `${spec.resources.memory_mb} MB · compose project`
+            : "no memory limit set · compose project"
+          : spec.image}
       </div>
       {record.reason && <p className="deployment-reason">{record.reason}</p>}
       {record.error && <p className="deployment-error">{record.error}</p>}
@@ -132,9 +139,11 @@ function DeploymentCard({ record, onError }) {
         <button
           type="button"
           disabled={busy}
-          onClick={() =>
-            act(() => removeDeployment(record.id), "remove")
-          }
+          onClick={() => {
+            if (window.confirm(`Remove ${title}? This stops and deletes it.`)) {
+              act(() => removeDeployment(record.id), "remove");
+            }
+          }}
         >
           {busy === "remove" ? "…" : "Remove"}
         </button>
@@ -143,7 +152,7 @@ function DeploymentCard({ record, onError }) {
   );
 }
 
-function DeploymentList({ deployments }) {
+function DeploymentList({ deployments, connected }) {
   const [error, setError] = useState(null);
   const records = [...(deployments ?? [])].sort(
     (a, b) => b.created_at - a.created_at
@@ -159,7 +168,11 @@ function DeploymentList({ deployments }) {
       {error && <p className="placement-warning">⚠ {error}</p>}
 
       {records.length === 0 ? (
-        <div className="empty-state">Nothing deployed through the scheduler yet.</div>
+        <div className="empty-state">
+          {connected === false
+            ? "Connecting…"
+            : "Nothing deployed through the scheduler yet."}
+        </div>
       ) : (
         records.map((record) => (
           <DeploymentCard key={record.id} record={record} onError={setError} />

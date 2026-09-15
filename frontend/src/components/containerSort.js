@@ -7,13 +7,15 @@ export const SORT_OPTIONS = [
 
 // A container is "needs attention" when its healthcheck is failing or it's
 // been restarting a lot — these float to the top of a host group (ahead of
-// the chosen sort, behind pins) and get a red marker.
+// the chosen sort, behind pins) and get a red marker. The restart
+// threshold is user-configurable (Settings → Containers); this is only the
+// fallback for a caller that doesn't pass one.
 export const HIGH_RESTART_COUNT = 5;
 
-export function needsAttention(container) {
+export function needsAttention(container, restartThreshold = HIGH_RESTART_COUNT) {
   return (
     container.health === "unhealthy" ||
-    (container.restart_count ?? 0) >= HIGH_RESTART_COUNT
+    (container.restart_count ?? 0) >= restartThreshold
   );
 }
 

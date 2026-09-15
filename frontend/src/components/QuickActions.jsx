@@ -7,7 +7,7 @@ import { hostColor } from "./hostColor";
 // One compact row per pinned container — status dot, name, CPU / RAM, and
 // start-or-stop + restart. Plus jumps to the tabs where the rest lives.
 
-function QaRow({ t, busy, onControl, showLink, showLiveActivity }) {
+function QaRow({ t, busy, onControl, showLink, showLiveActivity, hostReachable }) {
   const running = t.status === "running";
   const primary = running ? "Stop" : "Start";
   const cpu = t.stats?.cpu_percent;
@@ -21,9 +21,20 @@ function QaRow({ t, busy, onControl, showLink, showLiveActivity }) {
     }
   };
 
+  // A container's own status can be stale if its host's agent isn't
+  // reachable — a green dot there would read as "fine" when the number
+  // behind it might be minutes old.
+  const dotState = !hostReachable ? "warn" : running ? "ok" : "bad";
+  const dotTitle = !hostReachable
+    ? `${t.host}'s agent is unreachable — status may be stale`
+    : undefined;
+
   return (
     <div className="qa-row">
-      <span className={`status-dot status-dot--${running ? "ok" : "bad"}`} />
+      <span
+        className={`status-dot status-dot--${dotState}`}
+        title={dotTitle}
+      />
       <div className="qa-name-wrap">
         <div className="qa-name-line">
           {url ? (
@@ -77,7 +88,7 @@ function QaRow({ t, busy, onControl, showLink, showLiveActivity }) {
   );
 }
 
-function QuickActions({ pins, containers, onControl, onNavigate }) {
+function QuickActions({ pins, containers, machines, onControl, onNavigate }) {
   const {
     settings: { pinGroups, quickActionLinks, showLiveActivity },
   } = useSettings();
@@ -129,6 +140,7 @@ function QuickActions({ pins, containers, onControl, onNavigate }) {
                 onControl={onControl}
                 showLink={quickActionLinks}
                 showLiveActivity={showLiveActivity}
+                hostReachable={machines?.[t.host]?.agent_reachable !== false}
               />
             ))}
           </div>

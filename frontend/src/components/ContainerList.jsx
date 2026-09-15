@@ -5,13 +5,16 @@ import { sortContainers, needsAttention } from "./containerSort";
 import { pinKey, togglePin } from "./containerPins";
 import { useLocalStorage } from "./useLocalStorage";
 import { hostColor } from "./hostColor";
+import { useSettings } from "./settings";
 
 // Attention rows (unhealthy / restart-looping) float to the top of a host
 // group, ahead of the chosen sort.
-function orderContainers(list, sortBy) {
+function orderContainers(list, sortBy, restartThreshold) {
   const sorted = sortContainers(list, sortBy);
   return [...sorted].sort(
-    (a, b) => (needsAttention(a) ? 0 : 1) - (needsAttention(b) ? 0 : 1)
+    (a, b) =>
+      (needsAttention(a, restartThreshold) ? 0 : 1) -
+      (needsAttention(b, restartThreshold) ? 0 : 1)
   );
 }
 
@@ -34,8 +37,9 @@ function HostGroup({
   collapsed,
   sortBy,
   onHostState,
+  restartThreshold,
 }) {
-  const ordered = orderContainers(containers, sortBy);
+  const ordered = orderContainers(containers, sortBy, restartThreshold);
 
   const runningCount = containers.filter((c) => c.status === "running").length;
   const unhealthyCount = containers.filter((c) => c.health === "unhealthy").length;
@@ -104,7 +108,17 @@ function HostGroup({
   );
 }
 
-function ContainerList({ containers, machines, onControl, pins, onSetPins }) {
+function ContainerList({
+  containers,
+  machines,
+  onControl,
+  pins,
+  onSetPins,
+  connected,
+}) {
+  const {
+    settings: { highRestartCount },
+  } = useSettings();
   const hosts = useMemo(() => Object.keys(containers).sort(), [containers]);
 
   const [query, setQuery] = useLocalStorage("homelab.containerSearch", "");
@@ -160,7 +174,11 @@ function ContainerList({ containers, machines, onControl, pins, onSetPins }) {
   return (
     <section className="containers-section">
       {hosts.length === 0 ? (
-        <div className="empty-state">No agents reporting containers yet.</div>
+        <div className="empty-state">
+          {connected === false
+            ? "Connecting…"
+            : "No agents reporting containers yet."}
+        </div>
       ) : (
         <div className="container-search">
           <input
@@ -235,6 +253,7 @@ function ContainerList({ containers, machines, onControl, pins, onSetPins }) {
             sortBy={hostState[host]?.sortBy ?? "name"}
             collapsed={query ? false : hostState[host]?.collapsed ?? true}
             onHostState={(patch) => updateHostState(host, patch)}
+            restartThreshold={highRestartCount}
           />
         );
       })}
