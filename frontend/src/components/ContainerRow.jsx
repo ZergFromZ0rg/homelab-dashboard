@@ -82,6 +82,10 @@ function ContainerRow({
   const url = containerUrl(host, container.ports);
   const cpuPercent = stats?.cpu_percent;
   const ramPercent = memory?.percent;
+  // A container with no memory cap reports limit_bytes 0 and, with it,
+  // percent 0 — indistinguishable from "using nothing" unless we call out
+  // the missing limit explicitly.
+  const hasRamLimit = memory?.limit_bytes > 0;
 
   // Docker's cpu_percent is 100% per logical CPU (a container fully using
   // 6 threads shows 600%), so a flat cap at 100 makes a single-threaded
@@ -207,16 +211,25 @@ function ContainerRow({
                 {memory?.used_bytes != null
                   ? formatBytes(memory.used_bytes)
                   : "—"}
-                {ramPercent != null && <small> · {ramPercent}%</small>}
+                {hasRamLimit ? (
+                  <small>
+                    {" "}
+                    / {formatBytes(memory.limit_bytes)} · {ramPercent}%
+                  </small>
+                ) : (
+                  memory?.used_bytes != null && <small> · no limit</small>
+                )}
               </>
             }
           >
-            <div className="mini-bar">
-              <div
-                className="mini-bar-fill mini-bar-fill--ram"
-                style={{ width: `${Math.min(ramPercent ?? 0, 100)}%` }}
-              />
-            </div>
+            {hasRamLimit && (
+              <div className="mini-bar">
+                <div
+                  className="mini-bar-fill mini-bar-fill--ram"
+                  style={{ width: `${Math.min(ramPercent ?? 0, 100)}%` }}
+                />
+              </div>
+            )}
           </Stat>
         </div>
 
