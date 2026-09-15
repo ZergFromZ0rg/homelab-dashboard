@@ -113,30 +113,6 @@ h1 {
   border-bottom-color: var(--accent);
 }
 
-.main-system {
-  border: 1px solid var(--border);
-  padding: 10px 12px;
-  background: var(--bg-card);
-  margin-bottom: 12px;
-}
-
-.main-system.offline {
-  opacity: 0.55;
-}
-
-.main-system-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.main-system-header h2 {
-  margin: 1px 0 0;
-  text-transform: capitalize;
-  font-size: 16px;
-}
-
 .nodes-section {
   margin-bottom: 12px;
 }
@@ -163,6 +139,15 @@ h1 {
   opacity: 0.55;
 }
 
+.machine-card--main {
+  border-color: var(--main-host);
+  background: var(--main-host-bg);
+}
+
+.machine-card--main:hover {
+  box-shadow: 0 0 0 1px var(--main-host);
+}
+
 .machine-header {
   display: flex;
   justify-content: space-between;
@@ -174,6 +159,19 @@ h1 {
   margin: 0;
   text-transform: capitalize;
   font-size: 13px;
+}
+
+.machine-badge {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--main-host);
+  border: 1px solid var(--main-host);
+  padding: 1px 5px;
+  vertical-align: middle;
 }
 
 .status {
@@ -677,24 +675,6 @@ h1 {
   margin-right: 5px;
 }
 
-.live-override-select {
-  font: inherit;
-  font-size: 9px;
-  color: var(--text-muted);
-  background: var(--bg-subtle);
-  border: 1px solid var(--border);
-  border-radius: 0;
-  padding: 1px 3px;
-  cursor: pointer;
-  max-width: 96px;
-}
-
-.live-override-select:hover,
-.live-override-select:focus {
-  color: var(--text);
-  border-color: var(--accent);
-  outline: none;
-}
 
 .container-status.running {
   color: var(--online);
@@ -879,6 +859,12 @@ h1 {
   background: var(--accent-bg);
   border-color: var(--accent);
   color: var(--accent);
+}
+
+.container-actions button:active:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
 }
 
 .container-actions button:disabled {
@@ -2296,6 +2282,24 @@ select.deploy-input[multiple] {
 .qa-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* The Stop/Restart pair on each pinned row — same weight as the
+   Containers tab's action buttons (filled hover, not just an outline
+   color swap), since these trigger the exact same control action. */
+.qa-row-btns .qa-btn {
+  padding: 5px 10px;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.qa-row-btns .qa-btn:hover:not(:disabled) {
+  background: var(--accent-bg);
+}
+
+.qa-row-btns .qa-btn:active:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
 }
 
 .qa-group-label {

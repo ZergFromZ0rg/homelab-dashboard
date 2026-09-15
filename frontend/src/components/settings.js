@@ -24,15 +24,6 @@ export const HEARTBEAT_WINDOW_OPTIONS = [
   { value: 120, label: "2 hours" },
 ];
 
-// Keep in sync with backend/service_activity._PROBES_BY_NAME and
-// backend/service_activity_overrides.VALID_APPS.
-export const LIVE_ACTIVITY_OVERRIDE_OPTIONS = [
-  { value: "", label: "Auto-detect" },
-  { value: "none", label: "Don't probe" },
-  { value: "qbittorrent", label: "qBittorrent" },
-  { value: "jellyfin", label: "Jellyfin" },
-];
-
 export const HOME_CARD_OPTIONS = [
   { key: "summary", label: "Summary stats" },
   { key: "attention", label: "Attention" },

@@ -1,13 +1,21 @@
 import MachineVitals from "./MachineVitals";
 
+// The machine the dashboard itself runs on — same card size as every
+// other node (it's not more important, just easier to find), marked out
+// with a light-blue outline and badge instead of a separate full-width
+// section.
 function MainSystem({ host, machine, history }) {
   return (
-    <section className={`main-system ${machine.online ? "online" : "offline"}`}>
-      <div className="main-system-header">
-        <div>
-          <p className="eyebrow">Main System</p>
-          <h2>{host}</h2>
-        </div>
+    <div
+      className={`machine-card machine-card--main ${
+        machine.online ? "online" : "offline"
+      }`}
+    >
+      <div className="machine-header">
+        <h2>
+          {host}
+          <span className="machine-badge">Dashboard host</span>
+        </h2>
 
         <span className="status">
           <span className="status-dot" />
@@ -16,7 +24,7 @@ function MainSystem({ host, machine, history }) {
       </div>
 
       <MachineVitals machine={machine} history={history} />
-    </section>
+    </div>
   );
 }
 

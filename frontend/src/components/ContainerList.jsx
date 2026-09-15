@@ -30,8 +30,6 @@ function HostGroup({
   agentReachable,
   onControl,
   onTogglePin,
-  serviceActivityOverrides,
-  onSetLiveActivityOverride,
   collapsed,
   sortBy,
   onHostState,
@@ -97,12 +95,6 @@ function HostGroup({
               onClearError={onControl.clearError}
               pinned={false}
               onTogglePin={() => onTogglePin(pinKey(host, container.name))}
-              liveActivityOverride={
-                serviceActivityOverrides[pinKey(host, container.name)]
-              }
-              onSetLiveActivityOverride={(value) =>
-                onSetLiveActivityOverride(pinKey(host, container.name), value)
-              }
             />
           ))}
         </div>
@@ -111,15 +103,7 @@ function HostGroup({
   );
 }
 
-function ContainerList({
-  containers,
-  machines,
-  onControl,
-  pins,
-  onSetPins,
-  serviceActivityOverrides,
-  onSetServiceActivityOverrides,
-}) {
+function ContainerList({ containers, machines, onControl, pins, onSetPins }) {
   const hosts = useMemo(() => Object.keys(containers).sort(), [containers]);
 
   const [query, setQuery] = useLocalStorage("homelab.containerSearch", "");
@@ -159,13 +143,6 @@ function ContainerList({
   );
 
   const setPin = (key) => onSetPins(togglePin(pins, key));
-
-  const setLiveActivityOverride = (key, value) => {
-    const next = { ...serviceActivityOverrides };
-    if (value) next[key] = value;
-    else delete next[key];
-    onSetServiceActivityOverrides(next);
-  };
 
   const updateHostState = (host, patch) =>
     setHostState((current) => ({
@@ -231,17 +208,6 @@ function ContainerList({
                 onTogglePin={() =>
                   setPin(pinKey(container.__host, container.name))
                 }
-                liveActivityOverride={
-                  serviceActivityOverrides[
-                    pinKey(container.__host, container.name)
-                  ]
-                }
-                onSetLiveActivityOverride={(value) =>
-                  setLiveActivityOverride(
-                    pinKey(container.__host, container.name),
-                    value
-                  )
-                }
               />
             ))}
           </div>
@@ -265,8 +231,6 @@ function ContainerList({
             agentReachable={machines?.[host]?.agent_reachable}
             onControl={onControl}
             onTogglePin={setPin}
-            serviceActivityOverrides={serviceActivityOverrides}
-            onSetLiveActivityOverride={setLiveActivityOverride}
             sortBy={hostState[host]?.sortBy ?? "name"}
             collapsed={query ? false : hostState[host]?.collapsed ?? true}
             onHostState={(patch) => updateHostState(host, patch)}

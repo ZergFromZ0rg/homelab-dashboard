@@ -3,7 +3,7 @@ import { needsAttention } from "./containerSort";
 import { formatBytes, formatBytesPerSec } from "./format";
 import Heartbeat from "./Heartbeat";
 import Stat from "./Stat";
-import { useSettings, LIVE_ACTIVITY_OVERRIDE_OPTIONS } from "./settings";
+import { useSettings } from "./settings";
 
 function formatStartedAt(value) {
   if (!value || value.startsWith("0001-")) return "—";
@@ -48,8 +48,6 @@ function ContainerRow({
   pinned,
   onTogglePin,
   showHost,
-  liveActivityOverride,
-  onSetLiveActivityOverride,
 }) {
   const {
     settings: { showContainerUptime, showLiveActivity },
@@ -144,21 +142,6 @@ function ContainerRow({
               >
                 {live.detail}
               </span>
-            )}
-
-            {showLiveActivity && onSetLiveActivityOverride && (
-              <select
-                className="live-override-select"
-                value={liveActivityOverride || ""}
-                title="Live-activity probe: force this container to a specific app, or turn probing off for it"
-                onChange={(e) => onSetLiveActivityOverride(e.target.value)}
-              >
-                {LIVE_ACTIVITY_OVERRIDE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
             )}
 
             {container.deployed_by === "homelab-dashboard" && (

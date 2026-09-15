@@ -9,11 +9,6 @@ import { SettingsProvider } from "./components/SettingsContext";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { loadCachedPins, cachePins, putPins } from "./components/containerPins";
 import { loadCachedTodos, cacheTodos, putTodos } from "./components/todosApi";
-import {
-  loadCachedServiceActivityOverrides,
-  cacheServiceActivityOverrides,
-  putServiceActivityOverrides,
-} from "./components/serviceActivityOverridesApi";
 import "./App.css";
 
 const EMPTY_OVERVIEW = { ok: true, issues: [], recommendations: [] };
@@ -69,13 +64,11 @@ function useContainerControl() {
   return { pending, errors, run, clearError };
 }
 
-// State the server owns (pins, todos, service-activity overrides): the
-// WebSocket pushes the canonical copy, edits go out as an optimistic PUT
-// that rolls back on failure, and a localStorage cache fills the first
-// paint before the first WS tick. Works for an array (pins/todos) or a
-// plain object (overrides) — anything JSON-comparable. `adopt` and `set`
-// are stable (they work through a ref), so the socket effect can close
-// over them without going stale.
+// State the server owns (pins, todos): the WebSocket pushes the
+// canonical copy, edits go out as an optimistic PUT that rolls back on
+// failure, and a localStorage cache fills the first paint before the
+// first WS tick. `adopt` and `set` are stable (they work through a
+// ref), so the socket effect can close over them without going stale.
 function useServerList(loadCached, cache, put) {
   const [items, setItems] = useState(loadCached);
   const ref = useRef(items);
@@ -141,15 +134,6 @@ function useDashboardSocket() {
     cacheTodos,
     putTodos
   );
-  const [
-    serviceActivityOverrides,
-    adoptServiceActivityOverrides,
-    setServiceActivityOverrides,
-  ] = useServerList(
-    loadCachedServiceActivityOverrides,
-    cacheServiceActivityOverrides,
-    putServiceActivityOverrides
-  );
 
   useEffect(() => {
     let ws;
@@ -173,7 +157,6 @@ function useDashboardSocket() {
         setLastUpdate(Date.now());
         adoptPins(data.pins);
         adoptTodos(data.todos);
-        adoptServiceActivityOverrides(data.service_activity_overrides);
 
         setSnap({
           machines: data.machines,
@@ -203,18 +186,16 @@ function useDashboardSocket() {
       clearTimeout(reconnectTimer);
       ws?.close();
     };
-  }, [adoptPins, adoptTodos, adoptServiceActivityOverrides]);
+  }, [adoptPins, adoptTodos]);
 
   return {
     ...snap,
     pins,
     todos,
-    serviceActivityOverrides,
     connected,
     lastUpdate,
     setPins,
     setTodos,
-    setServiceActivityOverrides,
   };
 }
 
@@ -257,13 +238,11 @@ function App() {
     overview,
     pins,
     todos,
-    serviceActivityOverrides,
     mainHost,
     connected,
     lastUpdate,
     setPins,
     setTodos,
-    setServiceActivityOverrides,
   } = useDashboardSocket();
 
   const [activeTab, setActiveTab] = useState("overview");
@@ -327,38 +306,34 @@ function App() {
         />
       )}
 
-      {activeTab === "system" && (
-        <>
-          {hasMainHost && (
-            <MainSystem
-              host={mainHost}
-              machine={machines[mainHost]}
-              history={history[mainHost]}
-            />
-          )}
+      {activeTab === "system" && (hasMainHost || nodeNames.length > 0) && (
+        <section className="nodes-section">
+          <div className="section-header">
+            <div>
+              <p className="eyebrow">Fleet</p>
+              <h2>Nodes</h2>
+            </div>
+          </div>
 
-          {nodeNames.length > 0 && (
-            <section className="nodes-section">
-              <div className="section-header">
-                <div>
-                  <p className="eyebrow">Fleet</p>
-                  <h2>Nodes</h2>
-                </div>
-              </div>
+          <div className="machine-grid">
+            {hasMainHost && (
+              <MainSystem
+                host={mainHost}
+                machine={machines[mainHost]}
+                history={history[mainHost]}
+              />
+            )}
 
-              <div className="machine-grid">
-                {nodeNames.map((name) => (
-                  <MachineCard
-                    key={name}
-                    name={name}
-                    machine={machines[name]}
-                    history={history[name]}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
-        </>
+            {nodeNames.map((name) => (
+              <MachineCard
+                key={name}
+                name={name}
+                machine={machines[name]}
+                history={history[name]}
+              />
+            ))}
+          </div>
+        </section>
       )}
 
       {activeTab === "containers" && (
@@ -368,8 +343,6 @@ function App() {
           onControl={control}
           pins={pins}
           onSetPins={setPins}
-          serviceActivityOverrides={serviceActivityOverrides}
-          onSetServiceActivityOverrides={setServiceActivityOverrides}
         />
       )}
 

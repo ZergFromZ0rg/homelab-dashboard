@@ -257,9 +257,7 @@ function SiteSettings({ pins, containers }) {
           For containers the backend knows how to ask (currently
           qBittorrent, Jellyfin) — e.g. "2 downloading" or "1 user
           streaming" — shown on the container row and in Quick Actions.
-          Matched by image name; override which app a container probes as
-          (or turn it off) on the container's own row in the Containers
-          tab, next to its pin star.
+          Matched automatically by image name.
         </p>
       </SettingsCard>
 

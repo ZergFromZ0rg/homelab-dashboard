@@ -102,14 +102,12 @@ just render as plain text.
 
 A handful of containers can report whether they're actually *in use*
 right now, not just running: qBittorrent (active torrents) and Jellyfin
-(active playback sessions) so far, via `backend/service_activity.py`. For
-a match (by image name, or a manual override — the small dropdown next
-to a container's pin star in the Containers tab, "Don't probe" or force
-it to a specific app regardless of image), it hits that app's own API
-over the fleet network — same host:port the name-link above would open —
-cached per container for 15s so N browser tabs (each running their own
-`/ws` loop) don't hammer the app's API every 2s. Shown as a small green
-badge on the container row and in Quick Actions — e.g. "3 downloading, 5
+(active playback sessions) so far, via `backend/service_activity.py`.
+Matched by image name; for a match, it hits that app's own API over the
+fleet network — same host:port the name-link above would open — cached
+per container for 15s so N browser tabs (each running their own `/ws`
+loop) don't hammer the app's API every 2s. Shown as a small green badge
+on the container row and in Quick Actions — e.g. "3 downloading, 5
 seeding" or "1 user streaming (zerg)" — toggleable in **Settings**. Add a
 new `(needle, probe_fn)` pair to `_PROBES` to extend it to another app.
 
@@ -121,13 +119,6 @@ as every other secret this project already keeps as an env var). A
 var (see `.env.example`) still works and is used as a fallback when
 nothing's set in Settings. A matched container with credentials from
 neither place just gets no badge (logged once).
-
-The manual override is saved server-side too
-(`backend/service_activity_overrides.py`, `/data/
-service_activity_overrides.json`, `GET`/`PUT
-/api/service-activity-overrides`, included in every `/ws` tick), same
-pattern as pins/todos — the same on every browser, since it changes what
-the backend actually probes, not a per-browser display choice.
 
 **Settings** holds per-browser display preferences (`localStorage`, not
 synced across devices): the sparkline time window, whether container

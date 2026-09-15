@@ -177,62 +177,6 @@ def test_cache_expires(monkeypatch):
     assert sa.stale("nas", c) is True
 
 
-def test_override_none_suppresses_a_matching_image(monkeypatch):
-    class FakeSession:
-        def post(self, url, data, timeout):
-            raise AssertionError("should not probe when overridden to none")
-
-    monkeypatch.setattr(sa.requests, "Session", FakeSession)
-
-    c = _container("qbittorrent", name="torrent-box")
-    overrides = {"nas/torrent-box": "none"}
-
-    assert sa.stale("nas", c, overrides) is False
-    assert sa.refresh("nas", c, overrides) is None
-
-
-def test_override_probes_a_non_matching_image_as_the_named_app(monkeypatch):
-    def fake_get(url, headers, timeout):
-        assert headers["X-Emby-Token"] == "key123"
-        return FakeResponse(
-            200, [{"UserName": "zerg", "NowPlayingItem": {"Name": "Movie"}}]
-        )
-
-    monkeypatch.setattr(sa.requests, "get", fake_get)
-
-    # Custom image name — wouldn't match "jellyfin" by substring.
-    c = _container("ghcr.io/acme/media-server:latest", name="media")
-    overrides = {"nas/media": "jellyfin"}
-
-    assert sa.stale("nas", c, overrides) is True
-    result = sa.refresh("nas", c, overrides)
-    assert result == {"app": "Jellyfin", "detail": "1 user streaming (zerg)"}
-
-
-def test_override_key_is_host_and_container_name_not_id():
-    # A "none" override on a *different* container name shouldn't apply
-    # here even though the image still matches qBittorrent's needle.
-    c = _container("qbittorrent", name="torrent-box")
-    overrides = {"nas/some-other-name": "none"}
-    assert sa.stale("nas", c, overrides) is True  # falls back to image match
-
-
-def test_unknown_override_value_falls_back_to_image_match(monkeypatch):
-    class FakeSession:
-        def post(self, url, data, timeout):
-            return FakeResponse(200, text="Ok.")
-
-        def get(self, url, timeout):
-            return FakeResponse(200, [{"dlspeed": 5, "upspeed": 0}])
-
-    monkeypatch.setattr(sa.requests, "Session", FakeSession)
-
-    c = _container("qbittorrent", name="torrent-box")
-    overrides = {"nas/torrent-box": "not-a-real-app"}
-    result = sa.refresh("nas", c, overrides)
-    assert result == {"app": "qBittorrent", "detail": "1 downloading"}
-
-
 def test_settings_credentials_are_used_when_present(monkeypatch):
     # No env vars at all — only Settings-entered credentials should be
     # used, proving the env vars aren't required once configured this way.

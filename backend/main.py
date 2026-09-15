@@ -11,7 +11,6 @@ from backend.prometheus import get_machine_stats, get_machine_history
 from backend.docker import get_all_containers, control_container
 from backend.pins import PinStore
 from backend.todos import TodoStore
-from backend.service_activity_overrides import ServiceActivityOverrideStore
 from backend.service_activity_credentials import ServiceActivityCredentialStore
 from backend.log import system as system_log
 from backend import activity
@@ -39,7 +38,6 @@ app.include_router(scheduler_api.router)
 
 pins = PinStore()
 todos = TodoStore()
-service_activity_overrides = ServiceActivityOverrideStore()
 service_activity_credentials = ServiceActivityCredentialStore()
 
 # The host the dashboard itself runs on, if any — it gets its own
@@ -231,23 +229,6 @@ def set_pins(payload: dict):
     return {"pins": pins.replace(keys)}
 
 
-@app.get("/api/service-activity-overrides")
-def list_service_activity_overrides():
-    """Manual per-container overrides for service_activity's probing
-    (Settings → Containers → live-activity). Shared across browsers —
-    an override changes what the backend actually probes, not just what
-    one browser displays. Also included in every /ws tick."""
-    return {"overrides": service_activity_overrides.all()}
-
-
-@app.put("/api/service-activity-overrides")
-def set_service_activity_overrides(payload: dict):
-    overrides = payload.get("overrides")
-    if not isinstance(overrides, dict):
-        raise HTTPException(status_code=400, detail="'overrides' must be an object")
-    return {"overrides": service_activity_overrides.replace(overrides)}
-
-
 @app.get("/api/service-activity-credentials")
 def get_service_activity_credentials():
     """Which service_activity apps have credentials configured — never
@@ -326,7 +307,6 @@ async def websocket_endpoint(websocket: WebSocket):
                 machines, agent_data
             )
 
-            live_overrides = service_activity_overrides.all()
             live_credentials = service_activity_credentials.all()
 
             # Sampling happens in the reconcile loop (always on); here we
@@ -344,16 +324,15 @@ async def websocket_endpoint(websocket: WebSocket):
                     # whether they're actively in use right now. Only the
                     # cache-miss path does real HTTP calls, off the event
                     # loop — most ticks just read the last result back.
-                    if service_activity.stale(host, container, live_overrides):
+                    if service_activity.stale(host, container):
                         live = await asyncio.to_thread(
                             service_activity.refresh,
                             host,
                             container,
-                            live_overrides,
                             live_credentials,
                         )
                     else:
-                        live = service_activity.peek(host, container, live_overrides)
+                        live = service_activity.peek(host, container)
 
                     if live:
                         container["live_activity"] = live
@@ -374,7 +353,6 @@ async def websocket_endpoint(websocket: WebSocket):
                 "deployments": dumps,
                 "pins": pins.all(),
                 "todos": todos.all(),
-                "service_activity_overrides": live_overrides,
                 "activity": activity.recent(),
                 "overview": _overview(machines, dumps, stale_nodes),
                 "server_time": time.time(),

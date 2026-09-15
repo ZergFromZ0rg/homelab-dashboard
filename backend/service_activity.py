@@ -6,13 +6,10 @@ Not a general app-health framework: one probe function per app, and a
 container we don't recognize just gets no badge. Add a new
 ``(needle, probe_fn)`` pair to ``_PROBES`` to extend it.
 
-A container is matched to a probe by image name; a manual override (the
-dropdown inline on its row in the Containers tab) beats that when set —
-"none" always skips it, a known app name always probes as that app
-regardless of image. Credentials come from Settings → Live-activity
-credentials (server-side, entered from the dashboard itself) with the
-``QBITTORRENT_USERNAME``/``JELLYFIN_API_KEY`` env vars as a fallback for
-anyone who'd rather configure it that way.
+A container is matched to a probe by image name. Credentials come from
+Settings → Live-activity credentials (server-side, entered from the
+dashboard itself) with the ``QBITTORRENT_USERNAME``/``JELLYFIN_API_KEY``
+env vars as a fallback for anyone who'd rather configure it that way.
 
 Each probe does real HTTP calls, so results are cached per container for
 CACHE_SECONDS — the /ws loop runs once per connected browser tab, and
@@ -158,8 +155,8 @@ def _jellyfin_activity(url: str, creds: dict) -> dict | None:
 
 # Container image (lowercased) substring -> probe function. First match
 # wins; checked in this order. The name on the left is also the value
-# used in service_activity_overrides.json and in Settings →
-# Live-activity credentials — keep all three in sync when adding an app.
+# used in Settings → Live-activity credentials — keep both in sync when
+# adding an app.
 _PROBES = [
     ("qbittorrent", _qbittorrent_activity),
     ("jellyfin", _jellyfin_activity),
@@ -167,24 +164,8 @@ _PROBES = [
 _PROBES_BY_NAME = dict(_PROBES)
 
 
-def override_key(host: str, container: dict) -> str:
-    """The key this container would use in service_activity_overrides.json
-    — same shape as a pin key (``"host/container-name"``). Exposed so
-    main.py can check the same override without duplicating the format."""
-    return f"{host}/{container.get('name') or ''}"
-
-
-def _match(container: dict, override: str | None = None) -> str | None:
-    """Returns the matched app name (a key of _PROBES_BY_NAME), or None.
-
-    override, when given, is this container's service_activity_overrides
-    value and always wins: "none" skips it, a known app name probes as
-    that app regardless of image. Otherwise falls back to image name."""
-    if override == "none":
-        return None
-    if override in _PROBES_BY_NAME:
-        return override
-
+def _match(container: dict) -> str | None:
+    """Returns the matched app name (a key of _PROBES_BY_NAME), or None."""
     image = (container.get("image") or "").lower()
     return next((needle for needle, _ in _PROBES if needle in image), None)
 
@@ -193,7 +174,7 @@ def _cache_key(host: str, container: dict) -> tuple:
     return (host, container.get("id"))
 
 
-def peek(host: str, container: dict, overrides: dict | None = None) -> dict | None:
+def peek(host: str, container: dict) -> dict | None:
     """Non-blocking: today's cached result, or None if we have nothing
     fresh (either never probed, or probed-and-not-active — both render
     the same, no badge)."""
@@ -204,12 +185,11 @@ def peek(host: str, container: dict, overrides: dict | None = None) -> dict | No
     return None
 
 
-def stale(host: str, container: dict, overrides: dict | None = None) -> bool:
-    """True when this is a container we know how to probe (by image match
-    or manual override) and its cached result (if any) has expired — the
-    caller should run refresh() for it off the event loop."""
-    override = (overrides or {}).get(override_key(host, container))
-    if _match(container, override) is None:
+def stale(host: str, container: dict) -> bool:
+    """True when this is a container we know how to probe (by image
+    match) and its cached result (if any) has expired — the caller
+    should run refresh() for it off the event loop."""
+    if _match(container) is None:
         return False
     with _cache_lock:
         entry = _cache.get(_cache_key(host, container))
@@ -219,7 +199,6 @@ def stale(host: str, container: dict, overrides: dict | None = None) -> bool:
 def refresh(
     host: str,
     container: dict,
-    overrides: dict | None = None,
     credentials: dict | None = None,
 ) -> dict | None:
     """Blocking — makes the actual HTTP calls and caches the result. Run
@@ -228,8 +207,7 @@ def refresh(
     ``credentials`` is the whole Settings-configured map
     (``{"qbittorrent": {...}, "jellyfin": {...}}``); only the matched
     app's entry (if any) is handed to its probe function."""
-    override = (overrides or {}).get(override_key(host, container))
-    name = _match(container, override)
+    name = _match(container)
     if name is None:
         return None
 
