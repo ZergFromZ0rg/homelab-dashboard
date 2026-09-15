@@ -138,66 +138,79 @@ function MachineVitals({ machine, history }) {
       </div>
 
       {machine.gpu?.available !== false &&
-        (machine.gpu?.devices?.[0] || machine.gpu) &&
+        (machine.gpu?.devices?.length || machine.gpu) &&
         (() => {
-          const gpu = machine.gpu.devices?.[0] || machine.gpu;
+          const devices = machine.gpu.devices?.length
+            ? machine.gpu.devices
+            : [machine.gpu];
 
           // Agents that can't reach NVML report a name like
           // "NVIDIA GPU 10DE:2187" — split the trailing PCI id onto its
           // own muted line instead of letting it wrap mid-name.
-          const pciMatch = (gpu.name || "").match(
-            /^(.*?)[\s(]*([0-9a-f]{4}:[0-9a-f]{4})\)?$/i
-          );
-          const gpuName = (pciMatch?.[1] || gpu.name || "Detected GPU").trim();
-          const pciId = pciMatch?.[2];
+          const pciMatch = (name) =>
+            (name || "").match(/^(.*?)[\s(]*([0-9a-f]{4}:[0-9a-f]{4})\)?$/i);
 
-          return (
-            <div className="gpu-stats">
-              <Stat
-                label={`GPU${machine.agent_stale_age != null ? " · stale" : ""}`}
-                value={gpuName}
-              >
-                {pciId && <small>{pciId.toUpperCase()}</small>}
-                {gpu.vendor && <small>{gpu.vendor.toUpperCase()}</small>}
-              </Stat>
+          return devices.map((gpu, index) => {
+            const match = pciMatch(gpu.name);
+            const gpuName = (match?.[1] || gpu.name || "Detected GPU").trim();
+            const pciId = match?.[2];
+            // History is only sampled for the first device (see
+            // backend/live_history.py) — later devices get stats but no
+            // sparkline.
+            const showHistory = index === 0;
 
-              {gpu.utilization_percent != null && (
-                <Stat label="UTILIZATION" value={`${gpu.utilization_percent}%`} />
-              )}
-
-              {(gpu.memory_used_mb != null || gpu.memory_total_mb != null) && (
+            return (
+              <div className="gpu-stats" key={gpu.device_id ?? index}>
                 <Stat
-                  label="VRAM"
-                  value={`${gpu.memory_used_mb ?? "—"} / ${
-                    gpu.memory_total_mb ?? "—"
-                  } MB`}
-                />
-              )}
-
-              {gpu.temperature_c != null && (
-                <Stat label="GPU TEMP" value={`${gpu.temperature_c}°C`}>
-                  <Sparkline
-                    points={history?.gpu_temperature}
-                    variant="cpu"
-                    windowMinutes={windowMinutes}
-                  />
+                  label={`GPU${devices.length > 1 ? ` ${index + 1}/${devices.length}` : ""}${
+                    machine.agent_stale_age != null ? " · stale" : ""
+                  }`}
+                  value={gpuName}
+                >
+                  {pciId && <small>{pciId.toUpperCase()}</small>}
+                  {gpu.vendor && <small>{gpu.vendor.toUpperCase()}</small>}
                 </Stat>
-              )}
 
-              {(gpu.power_draw_w != null || gpu.power_limit_w != null) && (
-                <Stat
-                  label="POWER"
-                  value={`${gpu.power_draw_w ?? "—"} / ${
-                    gpu.power_limit_w ?? "—"
-                  } W`}
-                />
-              )}
+                {gpu.utilization_percent != null && (
+                  <Stat label="UTILIZATION" value={`${gpu.utilization_percent}%`} />
+                )}
 
-              {gpu.fan_percent != null && (
-                <Stat label="FAN" value={`${gpu.fan_percent}%`} />
-              )}
-            </div>
-          );
+                {(gpu.memory_used_mb != null || gpu.memory_total_mb != null) && (
+                  <Stat
+                    label="VRAM"
+                    value={`${gpu.memory_used_mb ?? "—"} / ${
+                      gpu.memory_total_mb ?? "—"
+                    } MB`}
+                  />
+                )}
+
+                {gpu.temperature_c != null && (
+                  <Stat label="GPU TEMP" value={`${gpu.temperature_c}°C`}>
+                    {showHistory && (
+                      <Sparkline
+                        points={history?.gpu_temperature}
+                        variant="cpu"
+                        windowMinutes={windowMinutes}
+                      />
+                    )}
+                  </Stat>
+                )}
+
+                {(gpu.power_draw_w != null || gpu.power_limit_w != null) && (
+                  <Stat
+                    label="POWER"
+                    value={`${gpu.power_draw_w ?? "—"} / ${
+                      gpu.power_limit_w ?? "—"
+                    } W`}
+                  />
+                )}
+
+                {gpu.fan_percent != null && (
+                  <Stat label="FAN" value={`${gpu.fan_percent}%`} />
+                )}
+              </div>
+            );
+          });
         })()}
 
       {machine.disk_io?.length > 0 && (

@@ -221,10 +221,50 @@ function ContainerRow({
         </div>
 
         <div className="container-stats-grid">
-          <Stat label="NET ↓" value={formatBytesPerSec(network?.rx_bps)} />
-          <Stat label="NET ↑" value={formatBytesPerSec(network?.tx_bps)} />
-          <Stat label="DISK ↓" value={formatBytesPerSec(blockIo?.read_bps)} />
-          <Stat label="DISK ↑" value={formatBytesPerSec(blockIo?.write_bps)} />
+          <Stat
+            label="NET ↓"
+            value={
+              <>
+                {formatBytesPerSec(network?.rx_bps)}
+                {network?.rx_bytes != null && (
+                  <small> · {formatBytes(network.rx_bytes)}</small>
+                )}
+              </>
+            }
+          />
+          <Stat
+            label="NET ↑"
+            value={
+              <>
+                {formatBytesPerSec(network?.tx_bps)}
+                {network?.tx_bytes != null && (
+                  <small> · {formatBytes(network.tx_bytes)}</small>
+                )}
+              </>
+            }
+          />
+          <Stat
+            label="DISK ↓"
+            value={
+              <>
+                {formatBytesPerSec(blockIo?.read_bps)}
+                {blockIo?.read_bytes != null && (
+                  <small> · {formatBytes(blockIo.read_bytes)}</small>
+                )}
+              </>
+            }
+          />
+          <Stat
+            label="DISK ↑"
+            value={
+              <>
+                {formatBytesPerSec(blockIo?.write_bps)}
+                {blockIo?.write_bytes != null && (
+                  <small> · {formatBytes(blockIo.write_bytes)}</small>
+                )}
+              </>
+            }
+          />
           {showContainerUptime && (
             <Stat label="UPTIME" value={formatStartedAt(container.started_at)} />
           )}
