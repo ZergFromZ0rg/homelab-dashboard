@@ -12,6 +12,7 @@ from backend.docker import get_all_containers, control_container
 from backend.pins import PinStore
 from backend.todos import TodoStore
 from backend.service_activity_overrides import ServiceActivityOverrideStore
+from backend.service_activity_credentials import ServiceActivityCredentialStore
 from backend.log import system as system_log
 from backend import activity
 from backend import alerts
@@ -39,6 +40,7 @@ app.include_router(scheduler_api.router)
 pins = PinStore()
 todos = TodoStore()
 service_activity_overrides = ServiceActivityOverrideStore()
+service_activity_credentials = ServiceActivityCredentialStore()
 
 # The host the dashboard itself runs on, if any — it gets its own
 # top-level section instead of being shown as just another node.
@@ -246,6 +248,40 @@ def set_service_activity_overrides(payload: dict):
     return {"overrides": service_activity_overrides.replace(overrides)}
 
 
+@app.get("/api/service-activity-credentials")
+def get_service_activity_credentials():
+    """Which service_activity apps have credentials configured — never
+    the credential values themselves (write-only from the API's point of
+    view). Not part of the /ws payload — fetched once when Settings
+    opens, not something that needs to stream."""
+    return {"configured": service_activity_credentials.configured()}
+
+
+@app.put("/api/service-activity-credentials")
+def set_service_activity_credentials(payload: dict):
+    """Body: {"app": "qbittorrent", "credentials": {"username": ..., "password": ...}}
+    (or {"app": "jellyfin", "credentials": {"api_key": ...}}). Merges into
+    that app's stored fields — a blank value clears just that field."""
+    app_name = payload.get("app")
+    fields = payload.get("credentials")
+
+    if not isinstance(fields, dict):
+        raise HTTPException(status_code=400, detail="'credentials' must be an object")
+
+    try:
+        service_activity_credentials.set(app_name, fields)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    return {"configured": service_activity_credentials.configured()}
+
+
+@app.delete("/api/service-activity-credentials/{app_name}")
+def clear_service_activity_credentials(app_name: str):
+    service_activity_credentials.clear(app_name)
+    return {"configured": service_activity_credentials.configured()}
+
+
 @app.get("/api/activity")
 def list_activity():
     """Recent fleet events (container/host/deploy transitions) for the
@@ -291,6 +327,7 @@ async def websocket_endpoint(websocket: WebSocket):
             )
 
             live_overrides = service_activity_overrides.all()
+            live_credentials = service_activity_credentials.all()
 
             # Sampling happens in the reconcile loop (always on); here we
             # just read the rolling series back for the payload.
@@ -309,7 +346,11 @@ async def websocket_endpoint(websocket: WebSocket):
                     # loop — most ticks just read the last result back.
                     if service_activity.stale(host, container, live_overrides):
                         live = await asyncio.to_thread(
-                            service_activity.refresh, host, container, live_overrides
+                            service_activity.refresh,
+                            host,
+                            container,
+                            live_overrides,
+                            live_credentials,
                         )
                     else:
                         live = service_activity.peek(host, container, live_overrides)

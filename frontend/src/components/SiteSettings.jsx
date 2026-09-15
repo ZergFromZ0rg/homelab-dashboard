@@ -1,10 +1,118 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSettings, GRAPH_WINDOW_OPTIONS, HOME_CARD_OPTIONS } from "./settings";
+import {
+  getServiceActivityCredentialsStatus,
+  putServiceActivityCredentials,
+  clearServiceActivityCredentials,
+} from "./serviceActivityCredentialsApi";
 
 function splitPinKey(key) {
   const idx = key.indexOf("/");
   if (idx === -1) return { host: "", name: key };
   return { host: key.slice(0, idx), name: key.slice(idx + 1) };
+}
+
+// Keep in sync with backend/service_activity_credentials.REQUIRED_FIELDS.
+const CREDENTIAL_APPS = [
+  {
+    app: "qbittorrent",
+    label: "qBittorrent",
+    fields: [
+      { key: "username", label: "Username", type: "text" },
+      { key: "password", label: "Password", type: "password" },
+    ],
+  },
+  {
+    app: "jellyfin",
+    label: "Jellyfin",
+    fields: [{ key: "api_key", label: "API key", type: "password" }],
+  },
+];
+
+function emptyValues(fields) {
+  return Object.fromEntries(fields.map((f) => [f.key, ""]));
+}
+
+function CredentialForm({ def, configured, onSave, onClear }) {
+  const [values, setValues] = useState(() => emptyValues(def.fields));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const filled = def.fields
+    .map((f) => [f.key, values[f.key].trim()])
+    .filter(([, v]) => v);
+
+  const save = async () => {
+    if (filled.length === 0) return;
+    setSaving(true);
+    setError("");
+    try {
+      await onSave(def.app, Object.fromEntries(filled));
+      setValues(emptyValues(def.fields));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const clear = async () => {
+    if (!window.confirm(`Remove the stored ${def.label} credentials?`)) return;
+    setSaving(true);
+    setError("");
+    try {
+      await onClear(def.app);
+      setValues(emptyValues(def.fields));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="cred-row">
+      <div className="cred-row-head">
+        <span className="cred-app-name">{def.label}</span>
+        <span className={`cred-status ${configured ? "cred-status--ok" : ""}`}>
+          {configured ? "configured" : "not set"}
+        </span>
+      </div>
+      <div className="cred-fields">
+        {def.fields.map((f) => (
+          <input
+            key={f.key}
+            type={f.type}
+            autoComplete="off"
+            placeholder={configured ? `New ${f.label.toLowerCase()}` : f.label}
+            value={values[f.key]}
+            onChange={(e) =>
+              setValues((v) => ({ ...v, [f.key]: e.target.value }))
+            }
+          />
+        ))}
+        <button
+          type="button"
+          className="qa-btn"
+          disabled={filled.length === 0 || saving}
+          onClick={save}
+        >
+          {saving ? "…" : "Save"}
+        </button>
+        {configured && (
+          <button
+            type="button"
+            className="qa-btn"
+            disabled={saving}
+            onClick={clear}
+          >
+            Clear
+          </button>
+        )}
+      </div>
+      {error && <p className="cred-error">{error}</p>}
+    </div>
+  );
 }
 
 function SettingsCard({ title, children }) {
@@ -20,6 +128,22 @@ function SettingsCard({ title, children }) {
 
 function SiteSettings({ pins, containers }) {
   const { settings, update, reset } = useSettings();
+
+  const [credentialsConfigured, setCredentialsConfigured] = useState({});
+
+  useEffect(() => {
+    let cancelled = false;
+    getServiceActivityCredentialsStatus()
+      .then((configured) => {
+        if (!cancelled) setCredentialsConfigured(configured);
+      })
+      .catch((error) => {
+        console.error("Failed to load live-activity credential status:", error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const pinnedList = useMemo(
     () =>
@@ -101,12 +225,37 @@ function SiteSettings({ pins, containers }) {
           For containers the backend knows how to ask (currently
           qBittorrent, Jellyfin) — e.g. "2 downloading" or "1 user
           streaming" — shown on the container row and in Quick Actions.
-          Needs credentials set on the backend (QBITTORRENT_USERNAME /
-          JELLYFIN_API_KEY, see .env.example). Matched by a
-          `homelab.live-activity` label on the container if it has one,
-          else by image name — override either on the container's own row
-          in the Containers tab (the dropdown next to its pin star).
+          Matched by image name; override which app a container probes as
+          (or turn it off) on the container's own row in the Containers
+          tab, next to its pin star.
         </p>
+      </SettingsCard>
+
+      <SettingsCard title="Live-activity credentials">
+        <p className="settings-hint">
+          Needed for the badges above to work. Saved on the backend
+          (`/data/service_activity_credentials.json`) — a
+          QBITTORRENT_USERNAME/PASSWORD or JELLYFIN_API_KEY env var still
+          works too and is used if nothing's set here.
+        </p>
+        {CREDENTIAL_APPS.map((def) => (
+          <CredentialForm
+            key={def.app}
+            def={def}
+            configured={Boolean(credentialsConfigured[def.app])}
+            onSave={async (app, fields) => {
+              const configured = await putServiceActivityCredentials(
+                app,
+                fields
+              );
+              setCredentialsConfigured(configured);
+            }}
+            onClear={async (app) => {
+              const configured = await clearServiceActivityCredentials(app);
+              setCredentialsConfigured(configured);
+            }}
+          />
+        ))}
       </SettingsCard>
 
       <SettingsCard title="Home menu">

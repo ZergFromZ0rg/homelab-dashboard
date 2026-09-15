@@ -2,19 +2,17 @@
 images whose own API can answer that question — qBittorrent (active
 torrents) and Jellyfin (active playback sessions) so far.
 
-Not a general app-health framework: one probe function per app,
-fleet-wide credentials (a homelab realistically runs one instance of
-each), and a container we don't recognize just gets no badge. Add a new
+Not a general app-health framework: one probe function per app, and a
+container we don't recognize just gets no badge. Add a new
 ``(needle, probe_fn)`` pair to ``_PROBES`` to extend it.
 
-A container is matched to a probe in this order: an explicit manual
-override (set inline on its row in the Containers tab) always wins; then
-a ``homelab.live-activity`` Docker label on the container itself (set it
-on the compose service, e.g. ``homelab.live-activity: qbittorrent``) —
-explicit and doesn't depend on how the image happens to be named; then a
-same-effort fallback of matching the image name against the known apps.
-The label needs the agent to report container labels in its ``/containers``
-response; if it doesn't, matching just falls through to the image check.
+A container is matched to a probe by image name; a manual override (the
+dropdown inline on its row in the Containers tab) beats that when set —
+"none" always skips it, a known app name always probes as that app
+regardless of image. Credentials come from Settings → Live-activity
+credentials (server-side, entered from the dashboard itself) with the
+``QBITTORRENT_USERNAME``/``JELLYFIN_API_KEY`` env vars as a fallback for
+anyone who'd rather configure it that way.
 
 Each probe does real HTTP calls, so results are cached per container for
 CACHE_SECONDS — the /ws loop runs once per connected browser tab, and
@@ -41,6 +39,8 @@ _COMMON_WEB_PORTS = {
     9000, 9090, 9091,
 }
 
+# Fallback for anyone who'd rather configure this via .env/compose than
+# Settings → Live-activity credentials (checked first — see refresh()).
 QBITTORRENT_USERNAME = env_str("QBITTORRENT_USERNAME")
 QBITTORRENT_PASSWORD = env_str("QBITTORRENT_PASSWORD")
 JELLYFIN_API_KEY = env_str("JELLYFIN_API_KEY")
@@ -74,12 +74,16 @@ def _container_url(host: str, ports: dict | None) -> str | None:
     return f"http://{host}:{port}"
 
 
-def _qbittorrent_activity(url: str) -> dict | None:
-    if not (QBITTORRENT_USERNAME and QBITTORRENT_PASSWORD):
+def _qbittorrent_activity(url: str, creds: dict) -> dict | None:
+    username = creds.get("username") or QBITTORRENT_USERNAME
+    password = creds.get("password") or QBITTORRENT_PASSWORD
+
+    if not (username and password):
         _warn_once(
             "qbittorrent",
-            "found a qBittorrent container but QBITTORRENT_USERNAME/"
-            "QBITTORRENT_PASSWORD aren't set — skipping live-activity probing",
+            "found a qBittorrent container but no credentials are set "
+            "(Settings → Live-activity credentials, or QBITTORRENT_USERNAME/"
+            "QBITTORRENT_PASSWORD) — skipping live-activity probing",
         )
         return None
 
@@ -88,7 +92,7 @@ def _qbittorrent_activity(url: str) -> dict | None:
     try:
         login = session.post(
             f"{url}/api/v2/auth/login",
-            data={"username": QBITTORRENT_USERNAME, "password": QBITTORRENT_PASSWORD},
+            data={"username": username, "password": password},
             timeout=4,
         )
         if login.status_code != 200 or login.text.strip() != "Ok.":
@@ -115,11 +119,14 @@ def _qbittorrent_activity(url: str) -> dict | None:
     return {"app": "qBittorrent", "detail": ", ".join(parts)}
 
 
-def _jellyfin_activity(url: str) -> dict | None:
-    if not JELLYFIN_API_KEY:
+def _jellyfin_activity(url: str, creds: dict) -> dict | None:
+    api_key = creds.get("api_key") or JELLYFIN_API_KEY
+
+    if not api_key:
         _warn_once(
             "jellyfin",
-            "found a Jellyfin container but JELLYFIN_API_KEY isn't set — "
+            "found a Jellyfin container but no API key is set "
+            "(Settings → Live-activity credentials, or JELLYFIN_API_KEY) — "
             "skipping live-activity probing",
         )
         return None
@@ -127,7 +134,7 @@ def _jellyfin_activity(url: str) -> dict | None:
     try:
         response = requests.get(
             f"{url}/Sessions",
-            headers={"X-Emby-Token": JELLYFIN_API_KEY},
+            headers={"X-Emby-Token": api_key},
             timeout=4,
         )
         response.raise_for_status()
@@ -150,18 +157,14 @@ def _jellyfin_activity(url: str) -> dict | None:
 
 
 # Container image (lowercased) substring -> probe function. First match
-# wins; checked in this order.
+# wins; checked in this order. The name on the left is also the value
+# used in service_activity_overrides.json and in Settings →
+# Live-activity credentials — keep all three in sync when adding an app.
 _PROBES = [
     ("qbittorrent", _qbittorrent_activity),
     ("jellyfin", _jellyfin_activity),
 ]
-
-# app name (as used in a service_activity_overrides.json value, or in the
-# homelab.live-activity label) -> probe function. Keep in sync with
-# service_activity_overrides.VALID_APPS.
-_PROBES_BY_NAME = {needle: fn for needle, fn in _PROBES}
-
-LABEL_KEY = "homelab.live-activity"
+_PROBES_BY_NAME = dict(_PROBES)
 
 
 def override_key(host: str, container: dict) -> str:
@@ -171,32 +174,19 @@ def override_key(host: str, container: dict) -> str:
     return f"{host}/{container.get('name') or ''}"
 
 
-def _label_value(container: dict) -> str:
-    labels = container.get("labels") or {}
-    return (labels.get(LABEL_KEY) or "").strip().lower()
+def _match(container: dict, override: str | None = None) -> str | None:
+    """Returns the matched app name (a key of _PROBES_BY_NAME), or None.
 
-
-def _match(container: dict, override: str | None = None):
-    """override, when given, is this container's
-    service_activity_overrides.json value and always wins: "none" skips
-    it, a known app name probes as that app regardless of label or image.
-
-    Without an override, a homelab.live-activity label on the container
-    decides next (also "none" or a known app name); only when neither
-    says anything does the image name get checked."""
+    override, when given, is this container's service_activity_overrides
+    value and always wins: "none" skips it, a known app name probes as
+    that app regardless of image. Otherwise falls back to image name."""
     if override == "none":
         return None
     if override in _PROBES_BY_NAME:
-        return _PROBES_BY_NAME[override]
-
-    label = _label_value(container)
-    if label == "none":
-        return None
-    if label in _PROBES_BY_NAME:
-        return _PROBES_BY_NAME[label]
+        return override
 
     image = (container.get("image") or "").lower()
-    return next((fn for needle, fn in _PROBES if needle in image), None)
+    return next((needle for needle, _ in _PROBES if needle in image), None)
 
 
 def _cache_key(host: str, container: dict) -> tuple:
@@ -226,16 +216,26 @@ def stale(host: str, container: dict, overrides: dict | None = None) -> bool:
     return not entry or time.time() - entry["at"] >= CACHE_SECONDS
 
 
-def refresh(host: str, container: dict, overrides: dict | None = None) -> dict | None:
+def refresh(
+    host: str,
+    container: dict,
+    overrides: dict | None = None,
+    credentials: dict | None = None,
+) -> dict | None:
     """Blocking — makes the actual HTTP calls and caches the result. Run
-    via asyncio.to_thread, only for containers stale() flagged."""
+    via asyncio.to_thread, only for containers stale() flagged.
+
+    ``credentials`` is the whole Settings-configured map
+    (``{"qbittorrent": {...}, "jellyfin": {...}}``); only the matched
+    app's entry (if any) is handed to its probe function."""
     override = (overrides or {}).get(override_key(host, container))
-    probe_fn = _match(container, override)
-    if probe_fn is None:
+    name = _match(container, override)
+    if name is None:
         return None
 
     url = _container_url(host, container.get("ports"))
-    result = probe_fn(url) if url else None
+    creds = (credentials or {}).get(name) or {}
+    result = _PROBES_BY_NAME[name](url, creds) if url else None
 
     with _cache_lock:
         _cache[_cache_key(host, container)] = {"at": time.time(), "result": result}

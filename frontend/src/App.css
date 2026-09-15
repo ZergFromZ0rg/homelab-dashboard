@@ -2509,6 +2509,70 @@ select.deploy-input[multiple] {
   border-color: var(--accent);
 }
 
+.cred-row {
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cred-row:first-of-type {
+  border-top: none;
+}
+
+.cred-row-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cred-app-name {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.cred-status {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+}
+
+.cred-status--ok {
+  color: var(--online);
+}
+
+.cred-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cred-fields input {
+  flex: 1;
+  min-width: 120px;
+  font: inherit;
+  font-size: 11px;
+  color: var(--text);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  padding: 5px 7px;
+}
+
+.cred-fields input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.cred-error {
+  margin: 0;
+  font-size: 10px;
+  color: var(--offline);
+}
+
 .settings-reset {
   padding-top: 2px;
 }
