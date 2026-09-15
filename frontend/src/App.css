@@ -85,9 +85,12 @@ h1 {
   gap: 2px;
   margin-bottom: 12px;
   border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .tab {
+  flex-shrink: 0;
   font: inherit;
   font-size: 12px;
   font-weight: 600;
@@ -98,6 +101,7 @@ h1 {
   padding: 8px 14px;
   cursor: pointer;
   letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
 .tab:hover {
@@ -2194,11 +2198,11 @@ select.deploy-input[multiple] {
 }
 
 .qa-row {
-  display: grid;
-  grid-template-columns: 6px minmax(0, 1fr) 40px 68px auto;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  padding: 4px 2px;
+  gap: 6px 8px;
+  padding: 6px 2px;
   border-top: 1px solid var(--border);
 }
 
@@ -2206,7 +2210,12 @@ select.deploy-input[multiple] {
   border-top: none;
 }
 
+.qa-row > .status-dot {
+  flex-shrink: 0;
+}
+
 .qa-name-wrap {
+  flex: 1 1 140px;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -2245,7 +2254,14 @@ select.deploy-input[multiple] {
   white-space: nowrap;
 }
 
+.qa-stats {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
 .qa-stat {
+  min-width: 34px;
   font-size: 10px;
   font-family: var(--mono);
   color: var(--text-muted);
@@ -2255,6 +2271,8 @@ select.deploy-input[multiple] {
 .qa-row-btns {
   display: flex;
   gap: 4px;
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 .qa-btn {

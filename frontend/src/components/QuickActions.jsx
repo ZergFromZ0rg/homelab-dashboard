@@ -48,8 +48,10 @@ function QaRow({ t, busy, onControl, showLink, showLiveActivity }) {
           </span>
         )}
       </div>
-      <span className="qa-stat">{cpu != null ? `${cpu}%` : "—"}</span>
-      <span className="qa-stat">{ram != null ? formatBytes(ram) : "—"}</span>
+      <div className="qa-stats">
+        <span className="qa-stat">{cpu != null ? `${cpu}%` : "—"}</span>
+        <span className="qa-stat">{ram != null ? formatBytes(ram) : "—"}</span>
+      </div>
       <div className="qa-row-btns">
         <button
           type="button"
