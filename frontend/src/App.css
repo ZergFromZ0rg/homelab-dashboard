@@ -109,8 +109,8 @@ h1 {
 }
 
 .tab.active {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
+  color: var(--tab-color, var(--accent));
+  border-bottom-color: var(--tab-color, var(--accent));
 }
 
 .nodes-section {
@@ -337,9 +337,10 @@ h1 {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 6px 10px;
+  padding: 6px 10px 6px 8px;
   background: var(--bg-card);
   border: 1px solid var(--border);
+  border-left: 3px solid var(--host-color, var(--border));
 }
 
 .host-header.expanded {
@@ -376,6 +377,7 @@ h1 {
   font-weight: 600;
   font-size: 12px;
   text-transform: capitalize;
+  color: var(--host-color, var(--text));
 }
 
 .host-controls {
@@ -417,6 +419,7 @@ h1 {
 .container-list {
   border: 1px solid var(--border);
   border-top: none;
+  border-left: 3px solid var(--host-color, var(--border));
   background: var(--bg-card);
 }
 

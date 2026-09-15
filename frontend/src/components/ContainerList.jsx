@@ -4,6 +4,7 @@ import SortControl from "./SortControl";
 import { sortContainers, needsAttention } from "./containerSort";
 import { pinKey, togglePin } from "./containerPins";
 import { useLocalStorage } from "./useLocalStorage";
+import { hostColor } from "./hostColor";
 
 // Attention rows (unhealthy / restart-looping) float to the top of a host
 // group, ahead of the chosen sort.
@@ -42,7 +43,7 @@ function HostGroup({
   const unreachable = agentReachable === false && containers.length === 0;
 
   return (
-    <div className="host-group">
+    <div className="host-group" style={{ "--host-color": hostColor(host) }}>
       <div className={`host-header ${collapsed ? "" : "expanded"}`}>
         <button
           type="button"

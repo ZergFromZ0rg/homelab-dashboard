@@ -6,6 +6,8 @@
 // CPU utilisation % are both in. Physical core count is shown alongside
 // when node_exporter reports it.
 
+import { hostColor } from "./hostColor";
+
 function nodeRows(machines) {
   return Object.entries(machines ?? {})
     .map(([name, m]) => {
@@ -81,7 +83,7 @@ function FleetCapacity({ machines, deployments }) {
           className={`fleet-row ${r.online ? "" : "fleet-row--off"}`}
         >
           <span className="fleet-node">
-            {r.name}
+            <span style={{ color: hostColor(r.name) }}>{r.name}</span>
             {cpuTag(r) && <span className="fleet-cpu-tag">{cpuTag(r)}</span>}
           </span>
 

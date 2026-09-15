@@ -4,6 +4,7 @@ import { formatBytes, formatBytesPerSec } from "./format";
 import Heartbeat from "./Heartbeat";
 import Stat from "./Stat";
 import { useSettings } from "./settings";
+import { hostColor } from "./hostColor";
 
 function formatStartedAt(value) {
   if (!value || value.startsWith("0001-")) return "—";
@@ -127,7 +128,15 @@ function ContainerRow({
                   <strong>{container.name}</strong>
                 )}
                 {showHost && (
-                  <span className="container-host-chip">{host}</span>
+                  <span
+                    className="container-host-chip"
+                    style={{
+                      color: hostColor(host),
+                      borderColor: hostColor(host),
+                    }}
+                  >
+                    {host}
+                  </span>
                 )}
               </div>
               <span>{container.image}</span>

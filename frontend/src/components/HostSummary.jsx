@@ -2,6 +2,7 @@
 // on the System Stats tab.
 
 import { diskLabel } from "./diskLabel";
+import { hostColor } from "./hostColor";
 
 function Bar({ label, pct }) {
   const known = typeof pct === "number";
@@ -43,7 +44,9 @@ function HostSummary({ machines, containers }) {
               <span
                 className={`status-dot status-dot--${offline ? "bad" : "ok"}`}
               />
-              <span className="host-row-name">{name}</span>
+              <span className="host-row-name" style={{ color: hostColor(name) }}>
+                {name}
+              </span>
               <span className="host-row-count">
                 {offline ? "offline" : `${running} running`}
               </span>

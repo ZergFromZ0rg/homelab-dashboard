@@ -2,6 +2,7 @@ import { pinKey } from "./containerPins";
 import { containerUrl } from "./containerLink";
 import { formatBytes } from "./format";
 import { useSettings } from "./settings";
+import { hostColor } from "./hostColor";
 
 // One compact row per pinned container — status dot, name, CPU / RAM, and
 // start-or-stop + restart. Plus jumps to the tabs where the rest lives.
@@ -40,7 +41,9 @@ function QaRow({ t, busy, onControl, showLink, showLiveActivity }) {
               {t.name}
             </span>
           )}
-          <span className="qa-host">{t.host}</span>
+          <span className="qa-host" style={{ color: hostColor(t.host) }}>
+            {t.host}
+          </span>
         </div>
         {live && (
           <span className="qa-live" title={`${live.app}: ${live.detail}`}>
