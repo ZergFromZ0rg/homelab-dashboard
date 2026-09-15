@@ -259,6 +259,36 @@ so it works with ntfy, Gotify, Discord, Slack-compatible webhooks,
 healthchecks.io, or your own receiver. Transitions are also logged on the
 `scheduler` logger.
 
+## Self-update
+
+An "⟳ Update" button next to the connection pill in the header can pull
+the latest code and rebuild/restart `dashboard-api` + `dashboard-web`
+from the dashboard itself — off by default, hidden entirely unless it's
+been explicitly enabled, since it needs the Docker socket, which is
+root-equivalent host access for anyone who can reach the dashboard's API.
+
+To enable it:
+
+```bash
+# .env
+HOST_REPO_PATH=/home/you/homelab-dashboard   # this repo's checkout path on the Docker host
+
+docker compose -f compose.yml -f compose.self-update.yml up -d
+```
+
+`compose.self-update.yml` is a small overlay (not applied by default)
+that mounts `/var/run/docker.sock` into `dashboard-api` and requires
+`HOST_REPO_PATH` — read it before enabling. `backend/self_update.py`
+never runs `git pull`/`docker compose` in its own process (that would
+recreate its own container mid-command); it asks the Docker daemon to
+run a short-lived sibling container that does the actual pull/build/
+restart and reports back via its own logs and exit code, polled from
+`GET /api/self-update` since the browser's connection to dashboard-api
+drops partway through and can't just wait on the trigger's response. Set
+`API_TOKEN` too if the dashboard is reachable beyond a trusted network —
+the trigger route (`POST /api/self-update`) requires it the same way
+node registration and the Deploy tab's routes do.
+
 ## Run
 
 Standing the whole system up (Prometheus, the dashboard, an agent per

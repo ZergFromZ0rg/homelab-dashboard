@@ -2,10 +2,7 @@
 // backend requires one, is read from sessionStorage (set via the token
 // box in the Deploy tab) and sent as X-Register-Token.
 
-function authHeaders() {
-  const token = sessionStorage.getItem("apiToken");
-  return token ? { "X-Register-Token": token } : {};
-}
+import { authHeaders } from "./apiAuth";
 
 async function jsonOrThrow(response) {
   const body = await response.json().catch(() => ({}));

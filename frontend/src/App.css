@@ -7,8 +7,10 @@
 
 header {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
+  gap: 10px;
   margin-bottom: 14px;
 }
 
@@ -78,6 +80,54 @@ h1 {
   color: var(--warning);
   border-color: var(--warning);
   background: var(--warning-bg);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.self-update {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.self-update-btn {
+  font: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--text);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.self-update-btn:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.self-update-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.self-update-result {
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.self-update-result--ok {
+  color: var(--online);
+}
+
+.self-update-result--bad {
+  color: var(--offline);
 }
 
 .tabs {

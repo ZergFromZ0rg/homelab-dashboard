@@ -18,6 +18,7 @@ from backend import activity
 from backend import alerts
 from backend import live_history
 from backend import service_activity
+from backend import self_update
 from backend import auth
 from backend import scheduler_api
 from backend.registry import registry
@@ -184,6 +185,26 @@ def delete_node(
 ):
     auth.check_token(x_register_token)
     return {"ok": registry.remove(name)}
+
+
+@app.get("/api/self-update")
+def get_self_update_status():
+    """Whether self-update is configured (HOST_REPO_PATH + reachable
+    Docker socket) and the state of the most recent run, if any. Safe to
+    leave open — no secrets, nothing it can trigger by itself."""
+    return self_update.status()
+
+
+@app.post("/api/self-update")
+def trigger_self_update(x_register_token: str | None = Header(default=None)):
+    """Pulls the latest code and rebuilds/restarts dashboard-api +
+    dashboard-web. Gated like node registration and the deploy routes —
+    this effectively has host-level reach through the Docker socket."""
+    auth.check_token(x_register_token)
+    try:
+        return self_update.trigger()
+    except RuntimeError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
 
 
 @app.post("/api/containers/{host}/{container_id}/{action}")

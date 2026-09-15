@@ -1,0 +1,25 @@
+# Optional overlay enabling the "Update" button next to the connection
+# pill in the header — pulls the latest homelab-dashboard code and
+# rebuilds/restarts dashboard-api + dashboard-web, from the dashboard
+# itself.
+#
+# NOT included by default. Mounting the Docker socket into dashboard-api
+# gives whoever can reach its API root-equivalent control of this host —
+# not a decision to make silently. Opt in explicitly:
+#
+#   docker compose -f compose.yml -f compose.self-update.yml up -d
+#
+# Also required:
+#   - HOST_REPO_PATH in your .env: this repo's checkout path *on this
+#     host* (not inside any container) — e.g. /home/you/homelab-dashboard.
+#     The updater container's volumes are resolved by the Docker daemon
+#     against the host filesystem, so this has to be the real host path.
+#   - If dashboard-api is reachable beyond a trusted network, set
+#     API_TOKEN too (see .env.example) — the button's POST route requires
+#     it the same way node registration and the Deploy tab's routes do.
+services:
+  dashboard-api:
+    environment:
+      HOST_REPO_PATH: ${HOST_REPO_PATH:?set HOST_REPO_PATH in .env to this repo's checkout path on the Docker host}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
