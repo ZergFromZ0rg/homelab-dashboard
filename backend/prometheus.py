@@ -9,12 +9,15 @@ PROMETHEUS = os.getenv(
     "http://localhost:9090",
 )
 
-# History charts cover the last 30 minutes at 1-minute resolution. The
-# range query is only re-run every HISTORY_REFRESH_SECONDS regardless of
-# how often get_machine_history() is called — the /ws loop calls it every
-# 2s, but re-running a 30-minute range query that often would just hammer
+# History charts cover the last 2 hours at 1-minute resolution — the
+# Settings tab lets the user zoom a sparkline in to 10m/15m/30m/1h/2h by
+# slicing this client-side (frontend/src/components/historyWindow.js), so
+# the backend just needs to fetch enough for the widest choice. The range
+# query is only re-run every HISTORY_REFRESH_SECONDS regardless of how
+# often get_machine_history() is called — the /ws loop calls it every 2s,
+# but re-running a 2-hour range query that often would just hammer
 # Prometheus for data that hasn't meaningfully changed.
-HISTORY_WINDOW_SECONDS = 30 * 60
+HISTORY_WINDOW_SECONDS = 2 * 60 * 60
 HISTORY_STEP_SECONDS = 60
 HISTORY_REFRESH_SECONDS = 30
 

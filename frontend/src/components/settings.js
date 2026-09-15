@@ -11,6 +11,17 @@ export const GRAPH_WINDOW_OPTIONS = [
   { value: 10, label: "10 min" },
   { value: 15, label: "15 min" },
   { value: 30, label: "30 min" },
+  { value: 60, label: "1 hour" },
+  { value: 120, label: "2 hours" },
+];
+
+// Keep in sync with backend/live_history.HEARTBEAT_BUCKET_SECONDS and
+// WINDOW_SECONDS — each option here must divide evenly into a whole
+// number of native buckets so Heartbeat.jsx can merge them cleanly.
+export const HEARTBEAT_WINDOW_OPTIONS = [
+  { value: 30, label: "30 min" },
+  { value: 60, label: "1 hour" },
+  { value: 120, label: "2 hours" },
 ];
 
 // Keep in sync with backend/service_activity._PROBES_BY_NAME and
@@ -37,6 +48,7 @@ export const DEFAULT_HOME_CARDS = Object.fromEntries(
 
 export const DEFAULT_SETTINGS = {
   graphWindowMinutes: 30,
+  heartbeatWindowMinutes: 120,
   showContainerUptime: true,
   showLiveActivity: true,
   homeCards: DEFAULT_HOME_CARDS,

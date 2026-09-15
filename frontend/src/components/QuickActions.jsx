@@ -24,21 +24,24 @@ function QaRow({ t, busy, onControl, showLink, showLiveActivity }) {
     <div className="qa-row">
       <span className={`status-dot status-dot--${running ? "ok" : "bad"}`} />
       <div className="qa-name-wrap">
-        {url ? (
-          <a
-            className="qa-name qa-name-link"
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            title={`Open ${url}`}
-          >
-            {t.name}
-          </a>
-        ) : (
-          <span className="qa-name" title={`${t.name} · ${t.host}`}>
-            {t.name}
-          </span>
-        )}
+        <div className="qa-name-line">
+          {url ? (
+            <a
+              className="qa-name qa-name-link"
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={`Open ${url}`}
+            >
+              {t.name}
+            </a>
+          ) : (
+            <span className="qa-name" title={t.name}>
+              {t.name}
+            </span>
+          )}
+          <span className="qa-host">{t.host}</span>
+        </div>
         {live && (
           <span className="qa-live" title={`${live.app}: ${live.detail}`}>
             {live.detail}

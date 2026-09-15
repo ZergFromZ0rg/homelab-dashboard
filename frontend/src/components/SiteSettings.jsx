@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSettings, GRAPH_WINDOW_OPTIONS, HOME_CARD_OPTIONS } from "./settings";
+import {
+  useSettings,
+  GRAPH_WINDOW_OPTIONS,
+  HEARTBEAT_WINDOW_OPTIONS,
+  HOME_CARD_OPTIONS,
+} from "./settings";
 import {
   getServiceActivityCredentialsStatus,
   putServiceActivityCredentials,
@@ -17,6 +22,8 @@ const CREDENTIAL_APPS = [
   {
     app: "qbittorrent",
     label: "qBittorrent",
+    why: "So the dashboard can log in and ask which torrents are actively transferring — that's what turns into the \"3 downloading, 5 seeding\" badge.",
+    how: 'The same login you use for its Web UI. If you haven\'t set one: in qBittorrent, go to Settings → Web UI → set a username and password there first, then enter that same pair here.',
     fields: [
       { key: "username", label: "Username", type: "text" },
       { key: "password", label: "Password", type: "password" },
@@ -25,6 +32,8 @@ const CREDENTIAL_APPS = [
   {
     app: "jellyfin",
     label: "Jellyfin",
+    why: "So the dashboard can ask which sessions are actively playing something — that's what turns into the \"1 user streaming (name)\" badge.",
+    how: "In Jellyfin: Dashboard → API Keys (under Advanced) → the + button → give it any name (e.g. \"homelab-dashboard\") → copy the key it generates and paste it here.",
     fields: [{ key: "api_key", label: "API key", type: "password" }],
   },
 ];
@@ -78,6 +87,8 @@ function CredentialForm({ def, configured, onSave, onClear }) {
           {configured ? "configured" : "not set"}
         </span>
       </div>
+      {def.why && <p className="cred-why">{def.why}</p>}
+      {def.how && <p className="cred-how">How to get it: {def.how}</p>}
       <div className="cred-fields">
         {def.fields.map((f) => (
           <input
@@ -199,6 +210,27 @@ function SiteSettings({ pins, containers }) {
       </SettingsCard>
 
       <SettingsCard title="Containers">
+        <label className="settings-row">
+          <span>Heartbeat window</span>
+          <select
+            value={settings.heartbeatWindowMinutes}
+            onChange={(e) =>
+              update({ heartbeatWindowMinutes: Number(e.target.value) })
+            }
+          >
+            {HEARTBEAT_WINDOW_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <p className="settings-hint">
+          How far back the up/down heartbeat bar on each container row
+          looks — a shorter window means each bar covers less time, so a
+          brief blip is easier to spot.
+        </p>
+
         <label className="settings-check">
           <input
             type="checkbox"

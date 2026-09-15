@@ -21,7 +21,14 @@ WINDOW_SECONDS = 2 * 60 * 60
 # The sample cadence is the reconcile loop's (~5s); size the ring buffer
 # for a bit more than one full window at that rate.
 MAX_SAMPLES = WINDOW_SECONDS // 4
-HEARTBEAT_BUCKETS = 30
+
+# Heartbeat buckets are computed at this native resolution across the
+# full WINDOW_SECONDS (120 one-minute buckets) — finer than any single
+# display needs, so the frontend can merge them into ~30 visual bars for
+# whichever window the user picked in Settings (30m/1h/2h) without a
+# separate backend request per window size.
+HEARTBEAT_BUCKET_SECONDS = 60
+HEARTBEAT_BUCKET_COUNT = WINDOW_SECONDS // HEARTBEAT_BUCKET_SECONDS
 
 PERSIST_PATH = os.getenv("LIVE_HISTORY_FILE", "/data/live_history.json")
 PERSIST_INTERVAL_SECONDS = 30
@@ -136,14 +143,17 @@ def container_heartbeat(host: str, container_id: str) -> dict:
         ]
 
     if not samples:
-        return {"buckets": [None] * HEARTBEAT_BUCKETS, "uptime_percent": None}
+        return {
+            "buckets": [None] * HEARTBEAT_BUCKET_COUNT,
+            "bucket_seconds": HEARTBEAT_BUCKET_SECONDS,
+            "uptime_percent": None,
+        }
 
-    bucket_seconds = WINDOW_SECONDS / HEARTBEAT_BUCKETS
     buckets = []
 
-    for i in range(HEARTBEAT_BUCKETS):
-        bucket_start = now - WINDOW_SECONDS + i * bucket_seconds
-        bucket_end = bucket_start + bucket_seconds
+    for i in range(HEARTBEAT_BUCKET_COUNT):
+        bucket_start = now - WINDOW_SECONDS + i * HEARTBEAT_BUCKET_SECONDS
+        bucket_end = bucket_start + HEARTBEAT_BUCKET_SECONDS
         bucket_samples = [
             s for s in samples if bucket_start <= s["t"] < bucket_end
         ]
@@ -156,7 +166,11 @@ def container_heartbeat(host: str, container_id: str) -> dict:
     up_count = sum(1 for s in samples if _is_up(s))
     uptime_percent = round(100 * up_count / len(samples), 1)
 
-    return {"buckets": buckets, "uptime_percent": uptime_percent}
+    return {
+        "buckets": buckets,
+        "bucket_seconds": HEARTBEAT_BUCKET_SECONDS,
+        "uptime_percent": uptime_percent,
+    }
 
 
 _load()

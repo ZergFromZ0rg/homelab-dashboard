@@ -1,9 +1,3 @@
-# Optional: layer compose.self-update.yml on top of this file
-# (`docker compose -f compose.yml -f compose.self-update.yml up -d`) to
-# enable the header "Update" button (git pull + rebuild/restart from the
-# dashboard itself). Not on by default — it needs the Docker socket,
-# which is root-equivalent host access. See that file before enabling it.
-
 services:
   dashboard-api:
     build:

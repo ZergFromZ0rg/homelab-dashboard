@@ -137,12 +137,15 @@ qBittorrent + Jellyfin "Media" to group them under one header there).
 
 ## History and sparklines
 
-CPU, RAM, CPU temperature, and network cards carry a small trend line for
-the last 30 minutes, sourced from Prometheus range queries
-(`get_machine_history` in `backend/prometheus.py`). That query is re-run
-at most once every 30s and cached — the `/ws` loop calls it every 2s like
-everything else, but reuses the cached series in between instead of
-re-hitting Prometheus every tick.
+CPU, RAM, CPU temperature, and network cards carry a small trend line,
+sourced from Prometheus range queries (`get_machine_history` in
+`backend/prometheus.py`) covering the last 2 hours at 1-minute
+resolution. That query is re-run at most once every 30s and cached — the
+`/ws` loop calls it every 2s like everything else, but reuses the cached
+series in between instead of re-hitting Prometheus every tick. **Settings
+→ Graphs → Time window** (10m/15m/30m/1h/2h) slices this client-side
+(`frontend/src/components/historyWindow.js`) rather than re-querying, so
+picking a narrower window is instant.
 
 GPU temperature and each container's up/down status don't come from
 Prometheus at all (GPU is agent-reported, container status is a live
@@ -156,11 +159,17 @@ restarted. Keyed by `(host, container_id)`
 for containers, so a container that *is* recreated naturally starts a
 fresh history under its new id rather than inheriting the old one's.
 This is meant to answer "is this flapping right now", not to be a
-long-term record. Each container gets a
-30-bucket heartbeat bar plus a recent uptime % (fraction of samples where
-Docker reported it `running` and, if it has a healthcheck, not
-`unhealthy`) — this is a passive read of container status already being
-polled, not an active HTTP check the way Uptime Kuma monitors a URL.
+long-term record.
+
+Each container gets a heartbeat bar plus a recent uptime % (fraction of
+samples where Docker reported it `running` and, if it has a healthcheck,
+not `unhealthy`) — a passive read of container status already being
+polled, not an active HTTP check the way Uptime Kuma monitors a URL. The
+backend always sends 120 native one-minute buckets (the full 2h it
+keeps); the frontend slices to **Settings → Containers → Heartbeat
+window** (30m/1h/2h) and merges into 30 visual bars
+(`frontend/src/components/Heartbeat.jsx`) — a shorter window means each
+bar covers less time, so a brief blip is easier to spot.
 
 ## Deploying containers (scheduler)
 
@@ -258,36 +267,6 @@ repeat. The body is deliberately generic —
 so it works with ntfy, Gotify, Discord, Slack-compatible webhooks,
 healthchecks.io, or your own receiver. Transitions are also logged on the
 `scheduler` logger.
-
-## Self-update
-
-An "⟳ Update" button next to the connection pill in the header can pull
-the latest code and rebuild/restart `dashboard-api` + `dashboard-web`
-from the dashboard itself — off by default, hidden entirely unless it's
-been explicitly enabled, since it needs the Docker socket, which is
-root-equivalent host access for anyone who can reach the dashboard's API.
-
-To enable it:
-
-```bash
-# .env
-HOST_REPO_PATH=/home/you/homelab-dashboard   # this repo's checkout path on the Docker host
-
-docker compose -f compose.yml -f compose.self-update.yml up -d
-```
-
-`compose.self-update.yml` is a small overlay (not applied by default)
-that mounts `/var/run/docker.sock` into `dashboard-api` and requires
-`HOST_REPO_PATH` — read it before enabling. `backend/self_update.py`
-never runs `git pull`/`docker compose` in its own process (that would
-recreate its own container mid-command); it asks the Docker daemon to
-run a short-lived sibling container that does the actual pull/build/
-restart and reports back via its own logs and exit code, polled from
-`GET /api/self-update` since the browser's connection to dashboard-api
-drops partway through and can't just wait on the trigger's response. Set
-`API_TOKEN` too if the dashboard is reachable beyond a trusted network —
-the trigger route (`POST /api/self-update`) requires it the same way
-node registration and the Deploy tab's routes do.
 
 ## Run
 

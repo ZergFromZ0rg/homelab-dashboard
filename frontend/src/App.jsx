@@ -5,7 +5,6 @@ import Tabs from "./components/Tabs";
 import DeployTab from "./components/DeployTab";
 import Overview from "./components/Overview";
 import SiteSettings from "./components/SiteSettings";
-import SelfUpdateButton from "./components/SelfUpdateButton";
 import { SettingsProvider } from "./components/SettingsContext";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { loadCachedPins, cachePins, putPins } from "./components/containerPins";
@@ -307,10 +306,7 @@ function App() {
           <h1>System Dashboard</h1>
         </div>
 
-        <div className="header-actions">
-          <SelfUpdateButton />
-          <ConnectionStatus connected={connected} lastUpdate={lastUpdate} />
-        </div>
+        <ConnectionStatus connected={connected} lastUpdate={lastUpdate} />
       </header>
 
       <Tabs tabs={tabs} active={activeTab} onChange={setActiveTab} />

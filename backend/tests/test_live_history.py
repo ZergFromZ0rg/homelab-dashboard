@@ -29,8 +29,10 @@ def test_records_and_reads_back_heartbeat():
 
     hb = lh.container_heartbeat("nas", "abc")
     assert hb["uptime_percent"] == 100.0
+    assert hb["bucket_seconds"] == lh.HEARTBEAT_BUCKET_SECONDS
+    assert len(hb["buckets"]) == lh.HEARTBEAT_BUCKET_COUNT
     assert hb["buckets"][-1] == "up"  # most recent bucket has our samples
-    assert hb["buckets"][0] is None  # 29 minutes ago: no data (not "down")
+    assert hb["buckets"][0] is None  # ~2h ago: no data (not "down")
 
 
 def test_unhealthy_counts_as_down():
