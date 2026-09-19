@@ -3,7 +3,7 @@ import MachineCard from "./MachineCard";
 
 // Every host's full vitals (gauges, network, GPU, storage) as a card grid.
 // Lives on the Overview so nothing about a machine needs a separate tab.
-function HostGrid({ machines, history, mainHost }) {
+function HostGrid({ machines, containers, history, mainHost }) {
   const hasMainHost = Boolean(mainHost && machines[mainHost]);
   const others = Object.keys(machines)
     .filter((name) => name !== mainHost)
@@ -20,6 +20,7 @@ function HostGrid({ machines, history, mainHost }) {
           host={mainHost}
           machine={machines[mainHost]}
           history={history[mainHost]}
+          containers={containers?.[mainHost]}
         />
       )}
 
@@ -29,6 +30,7 @@ function HostGrid({ machines, history, mainHost }) {
           name={name}
           machine={machines[name]}
           history={history[name]}
+          containers={containers?.[name]}
         />
       ))}
     </div>

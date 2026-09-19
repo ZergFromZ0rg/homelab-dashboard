@@ -4,6 +4,7 @@ import {
   SettingsContext,
   DEFAULT_SETTINGS,
   DEFAULT_HOME_CARDS,
+  DEFAULT_PERSONAL_CARDS,
 } from "./settings";
 
 export function SettingsProvider({ children }) {
@@ -19,6 +20,8 @@ export function SettingsProvider({ children }) {
       ...DEFAULT_SETTINGS,
       ...stored,
       homeCards: { ...DEFAULT_HOME_CARDS, ...(stored?.homeCards || {}) },
+      personalCards: { ...DEFAULT_PERSONAL_CARDS, ...(stored?.personalCards || {}) },
+      links: Array.isArray(stored?.links) ? stored.links : [],
       pinGroups: stored?.pinGroups || {},
     }),
     [stored]

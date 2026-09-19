@@ -1,11 +1,12 @@
 import MachineVitals from "./MachineVitals";
+import HostFooter from "./HostFooter";
 import { hostColor } from "./hostColor";
 
 // The machine the dashboard itself runs on — same card size as every
 // other node (it's not more important, just easier to find), marked out
 // with a light-blue outline and badge instead of a separate full-width
 // section.
-function MainSystem({ host, machine, history }) {
+function MainSystem({ host, machine, history, containers }) {
   return (
     <div
       className={`machine-card machine-card--main ${
@@ -25,6 +26,7 @@ function MainSystem({ host, machine, history }) {
       </div>
 
       <MachineVitals machine={machine} history={history} />
+      <HostFooter machine={machine} containers={containers} />
     </div>
   );
 }

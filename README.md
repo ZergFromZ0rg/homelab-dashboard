@@ -45,15 +45,15 @@ utilization, temp and power.
 
 ## Layout
 
-Three sections in a sticky top bar — **Overview**, **Containers**,
-**Deploy** — plus a gear button that opens **Settings** as a right-hand
-drawer over whichever section you're on (Esc closes it). The bar also
-carries the connection pill and the dashboard's title/subtitle (both
-editable in Settings → Appearance). The layout reflows down to phone
-width; below ~1040px each container becomes a small stacked card.
+Five sections in a sticky top bar — **Overview**, **Servers**,
+**Containers**, **Deploy**, **Personal** — plus a gear button that opens
+**Settings** as a right-hand drawer over whichever section you're on (Esc
+closes it). The bar also carries the connection pill and the dashboard's
+title/subtitle (both editable in Settings → Appearance). The layout reflows
+down to phone width (the tab bar scrolls sideways there); below ~1040px
+each container becomes a small stacked card.
 
-**Overview** (default) is the everything-at-a-glance page — nothing about a
-machine needs its own tab:
+**Overview** (default) is the one-glance page:
 
 - a four-across summary row (health / hosts online / containers running /
   alert count);
@@ -61,18 +61,21 @@ machine needs its own tab:
   is healthy, otherwise a severity-coded list of problems each with a
   *View* jump and a plain next-step. Deterministic: it reuses the same
   checks the alert loop runs (`alerts.evaluate`) plus stale nodes, no LLM;
-  host problems scroll to the host cards below;
-- **Hosts** — a full card per machine: CPU / temperature / RAM gauges with
-  sparklines, network, every GPU, disk I/O and storage. The machine the
-  dashboard itself runs on is marked "Dashboard host" and listed first;
+  host problems jump to the Servers tab;
+- **Servers** — one small tile per machine with its headline bars (CPU,
+  RAM, fullest disk, GPU); red at 85%+. Click a tile for the full card;
 - a right-hand rail: **Quick actions** (restart / stop for your pinned
-  containers, jumps to Deploy / Containers), the editable **to-do list**
-  (add / rename (click) / toggle / delete / drag-reorder, saved to
-  `/data/todos.json` — `GET`/`PUT /api/todos`, in every `/ws` tick — so
-  it's the same on every browser), and **Recent activity** (container
-  start/stop/restart, host up/down, agent unreachable and scheduler
-  deploy/move/fail events, diffed from the fleet snapshot each reconcile
-  tick and kept in `/data/activity.json`).
+  containers, jumps to Deploy / Containers) and **Recent activity**
+  (container start/stop/restart, host up/down, agent unreachable and
+  scheduler deploy/move/fail events, diffed from the fleet snapshot each
+  reconcile tick and kept in `/data/activity.json`).
+
+**Servers** is the full view of every machine: a facts row (servers online,
+containers running, CPU threads, GPUs), then a card per host — CPU /
+temperature / RAM gauges with sparklines, network, every GPU, disk I/O and
+storage, plus a footer with how many containers run there and whether its
+agent is connected / stale / unreachable. The machine the dashboard itself
+runs on is marked "Dashboard host" and listed first.
 
 **Containers** is one dense table row per container: name/image (with
 live-activity and "scheduled" chips), status + health + a tiny heartbeat
@@ -84,6 +87,29 @@ RAM / status), and its collapsed state and sort are remembered per browser
 (`localStorage`). A filter box matches container name or image across
 every host, and the status chips (All / Running / Needs attention /
 Stopped) narrow it further; Expand all / Collapse all handle the groups.
+
+**Personal** is the non-fleet stuff, each card switchable in Settings:
+
+- a **greeting** with the date, a clock, and a one-line fleet status;
+- the editable **to-do list** — add / rename (click) / toggle / delete /
+  drag-reorder, saved to `/data/todos.json` (`GET`/`PUT /api/todos`, in
+  every `/ws` tick) so it's the same on every browser;
+- **weather** — current conditions and a 5-day forecast from
+  [Open-Meteo](https://open-meteo.com/) (no API key). Pick your city right
+  on the card (°C/°F toggle too); it's a per-browser preference;
+- **word of the day** from English Wiktionary's feed;
+- **quick links** — your bookmarks, added on the card. Bare LAN addresses
+  (`192.168.1.1:8080`, `router.local`) default to `http://`, everything
+  else to `https://`; only http(s) links are accepted. Stored per browser
+  (`localStorage`) alongside the other display preferences.
+
+Weather, city search and the word of the day are fetched **by the
+backend** (`backend/personal.py`, `GET /api/personal/weather|places|word`),
+not the browser, and cached in memory (weather 15 min, word 1 h, city
+search 24 h). That means the `dashboard-api` container needs outbound
+internet for those cards; if it has none they show "couldn't load" while
+the rest of the dashboard is unaffected, and a failed refresh keeps serving
+the last good value.
 
 Any container can be **pinned** with the star on its row. Pinned
 containers are lifted out of their host groups into a single **Pinned**

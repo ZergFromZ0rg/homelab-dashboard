@@ -3,7 +3,7 @@ import os
 import time
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Header, HTTPException, Query, WebSocket, WebSocketDisconnect
 
 import requests
 
@@ -15,6 +15,7 @@ from backend.service_activity_credentials import ServiceActivityCredentialStore
 from backend.log import system as system_log
 from backend import activity
 from backend import alerts
+from backend import personal
 from backend import live_history
 from backend import service_activity
 from backend import auth
@@ -270,9 +271,44 @@ def list_activity():
     return {"activity": activity.recent()}
 
 
+def _personal(fn, *args):
+    """Run a Personal-tab provider call; a dead upstream is a 502, bad
+    input (already range-checked by FastAPI) a 400."""
+    try:
+        return fn(*args)
+    except personal.PersonalDataError as error:
+        raise HTTPException(status_code=502, detail=str(error))
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+
+
+@app.get("/api/personal/weather")
+def personal_weather(
+    lat: float = Query(ge=-90, le=90),
+    lon: float = Query(ge=-180, le=180),
+    units: str = "metric",
+):
+    """Current conditions + a 5-day forecast for a point (Open-Meteo,
+    cached server-side). The location itself is a per-browser preference,
+    so it comes in on every call rather than being stored here."""
+    return _personal(personal.get_weather, lat, lon, units)
+
+
+@app.get("/api/personal/places")
+def personal_places(q: str = Query(min_length=2, max_length=80)):
+    """City search for picking a weather location."""
+    return {"places": _personal(personal.search_places, q)}
+
+
+@app.get("/api/personal/word")
+def personal_word():
+    """Today's Wiktionary word of the day."""
+    return _personal(personal.get_word_of_the_day)
+
+
 @app.get("/api/todos")
 def list_todos():
-    """The Overview to-do list. Shared across browsers; also in every /ws tick."""
+    """The to-do list (Personal tab). Shared across browsers; also in every /ws tick."""
     return {"todos": todos.all()}
 
 

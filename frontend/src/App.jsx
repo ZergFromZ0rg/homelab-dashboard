@@ -2,6 +2,8 @@ import ContainerList from "./components/ContainerList";
 import Tabs from "./components/Tabs";
 import DeployTab from "./components/DeployTab";
 import Overview from "./components/Overview";
+import ServersTab from "./components/ServersTab";
+import PersonalTab from "./components/PersonalTab";
 import SiteSettings from "./components/SiteSettings";
 import SettingsDrawer from "./components/SettingsDrawer";
 import { useSettings } from "./components/settings";
@@ -10,10 +12,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { loadCachedPins, cachePins, putPins } from "./components/containerPins";
 import { loadCachedTodos, cacheTodos, putTodos } from "./components/todosApi";
 import "./App.css";
-import { demoSnapshot } from "./demoData";
-
-// Dev-only: /?demo previews the UI from a fixture, no backend needed.
-const DEMO = import.meta.env.DEV && new URLSearchParams(window.location.search).has("demo");
+import { DEMO, demoSnapshot } from "./demoData";
 
 const EMPTY_OVERVIEW = { ok: true, issues: [], recommendations: [] };
 
@@ -315,6 +314,9 @@ function App() {
 
   const openTodos = todos.filter((t) => !t.done).length;
 
+  const hostNames = Object.keys(machines);
+  const hostsOffline = hostNames.filter((n) => !machines[n].online).length;
+
   const tabs = [
     {
       value: "overview",
@@ -322,24 +324,22 @@ function App() {
       count: overview.ok ? null : overview.issues.length,
       tone: "bad",
     },
+    {
+      value: "servers",
+      label: "Servers",
+      count: hostNames.length || null,
+      tone: hostsOffline ? "bad" : undefined,
+    },
     { value: "containers", label: "Containers", count: totalContainers },
     { value: "deploy", label: "Deploy", count: activeDeployments },
+    { value: "personal", label: "Personal", count: openTodos || null },
   ];
 
   // Anything that says "go look at X" (Attention → View, Quick actions →
-  // Containers) funnels through here. "hosts" is a spot on the Overview, not
-  // a tab of its own.
+  // Containers) funnels through here.
   const navigate = (target) => {
-    if (target === "hosts") {
-      setActiveTab("overview");
-      requestAnimationFrame(() =>
-        document.getElementById("hosts")?.scrollIntoView({ behavior: "smooth", block: "start" })
-      );
-    } else if (target === "settings") {
-      setSettingsOpen(true);
-    } else {
-      setActiveTab(target);
-    }
+    if (target === "settings") setSettingsOpen(true);
+    else setActiveTab(target);
   };
 
   return (
@@ -357,16 +357,21 @@ function App() {
             overview={overview}
             machines={machines}
             containers={containers}
-            history={history}
-            mainHost={mainHost}
             deployments={deployments}
             activity={activity}
             pins={pins}
-            todos={todos}
-            openTodos={openTodos}
             onControl={control}
-            onSetTodos={setTodos}
             onNavigate={navigate}
+          />
+        )}
+
+        {activeTab === "servers" && (
+          <ServersTab
+            machines={machines}
+            containers={containers}
+            history={history}
+            mainHost={mainHost}
+            connected={connected}
           />
         )}
 
@@ -383,6 +388,15 @@ function App() {
 
         {activeTab === "deploy" && (
           <DeployTab machines={machines} deployments={deployments} connected={connected} />
+        )}
+
+        {activeTab === "personal" && (
+          <PersonalTab
+            overview={overview}
+            todos={todos}
+            onSetTodos={setTodos}
+            openTodos={openTodos}
+          />
         )}
 
         <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)}>

@@ -1,3 +1,5 @@
+import { useEffect, useRef } from "react";
+
 // Each tab gets its own identity color (the active underline/label), so
 // which-tab-am-I-on becomes a color you recognize, not just text you
 // read — teal stays Overview's (the existing --accent), the rest are
@@ -11,15 +13,26 @@
 // match between them would misread as "this tab is that host".
 const TAB_COLORS = {
   overview: "var(--accent)",
+  servers: "#a5b4fc",
   containers: "#38bdf8",
   deploy: "#f0abfc",
+  personal: "#fda4af",
 };
 
 // tab: { value, label, count?, tone? } — `tone: "bad"` paints the count as
 // an alert (e.g. open issues on Overview).
 function Tabs({ tabs, active, onChange }) {
+  const navRef = useRef(null);
+
+  // On a phone the bar scrolls sideways; keep the current tab in view.
+  useEffect(() => {
+    navRef.current
+      ?.querySelector(".tab.active")
+      ?.scrollIntoView({ inline: "center", block: "nearest" });
+  }, [active]);
+
   return (
-    <nav className="tabs" aria-label="Sections">
+    <nav className="tabs" aria-label="Sections" ref={navRef}>
       {tabs.map((tab) => (
         <button
           key={tab.value}

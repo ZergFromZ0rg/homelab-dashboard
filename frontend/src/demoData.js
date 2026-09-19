@@ -2,6 +2,9 @@
 // realistic fleet and no backend. Never bundled into a production build
 // (App.jsx only references it behind import.meta.env.DEV).
 
+export const DEMO =
+  import.meta.env.DEV && new URLSearchParams(window.location.search).has("demo");
+
 const now = () => Date.now() / 1000;
 
 function series(base, wobble, n = 120) {
@@ -228,3 +231,38 @@ export function demoSnapshot() {
     ],
   };
 }
+
+// Personal tab fixtures (weather / word of the day) so /?demo needs no backend.
+export const demoPersonal = {
+  weather: (units) => {
+    const f = units === "imperial";
+    const t = (c) => (f ? Math.round((c * 9) / 5 + 32) : c);
+    const day = (i) => new Date(Date.now() + i * 86400_000).toISOString().slice(0, 10);
+    return {
+      units: { temp: f ? "°F" : "°C", wind: f ? "mph" : "km/h" },
+      timezone: "America/Toronto",
+      current: { temperature: t(17), feels_like: t(15), humidity: 63, wind: f ? 9 : 15, code: 2, is_day: true },
+      daily: [
+        { date: day(0), code: 2, high: t(19), low: t(9), precip: 8 },
+        { date: day(1), code: 3, high: t(21), low: t(11), precip: 20 },
+        { date: day(2), code: 61, high: t(17), low: t(10), precip: 70 },
+        { date: day(3), code: 80, high: t(16), low: t(8), precip: 55 },
+        { date: day(4), code: 0, high: t(20), low: t(7), precip: 0 },
+      ],
+    };
+  },
+  places: (q) => [
+    { name: q.charAt(0).toUpperCase() + q.slice(1), region: "Ontario", country: "Canada", latitude: 43.46, longitude: -80.52 },
+    { name: q.charAt(0).toUpperCase() + q.slice(1), region: "Iowa", country: "United States", latitude: 42.49, longitude: -92.34 },
+  ],
+  word: {
+    word: "supernova",
+    part_of_speech: "n",
+    definitions: [
+      "(astronomy) A bright and powerful explosion of a massive star which is sudden but brief.",
+      "(figurative) Something which is brilliant or explosive.",
+    ],
+    url: "https://en.wiktionary.org/wiki/supernova#English",
+    date: new Date().toISOString().slice(0, 10),
+  },
+};

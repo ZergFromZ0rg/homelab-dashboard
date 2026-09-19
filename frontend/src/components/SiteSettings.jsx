@@ -4,6 +4,7 @@ import {
   GRAPH_WINDOW_OPTIONS,
   HEARTBEAT_WINDOW_OPTIONS,
   HOME_CARD_OPTIONS,
+  PERSONAL_CARD_OPTIONS,
 } from "./settings";
 import {
   getServiceActivityCredentialsStatus,
@@ -210,6 +211,39 @@ function SiteSettings({ pins, containers }) {
         </label>
       </SettingsCard>
 
+      <SettingsCard title="Personal tab">
+        <label className="settings-row settings-row--stack">
+          <span>Your name (used in the greeting; optional)</span>
+          <input
+            className="deploy-input"
+            type="text"
+            maxLength={40}
+            value={settings.displayName}
+            onChange={(e) => update({ displayName: e.target.value })}
+          />
+        </label>
+        <p className="settings-hint">
+          Choose which cards show. The weather location and units are set on
+          the weather card itself; quick links are added on their card.
+        </p>
+        <div className="settings-checklist">
+          {PERSONAL_CARD_OPTIONS.map((opt) => (
+            <label className="settings-check" key={opt.key}>
+              <input
+                type="checkbox"
+                checked={settings.personalCards[opt.key]}
+                onChange={(e) =>
+                  update({
+                    personalCards: { ...settings.personalCards, [opt.key]: e.target.checked },
+                  })
+                }
+              />
+              {opt.label}
+            </label>
+          ))}
+        </div>
+      </SettingsCard>
+
       <SettingsCard title="Graphs">
         <label className="settings-row">
           <span>Time window</span>
@@ -228,7 +262,7 @@ function SiteSettings({ pins, containers }) {
         </label>
         <p className="settings-hint">
           How much history the CPU / RAM / network / temperature graphs on
-          the host cards on the Overview show.
+          the host cards on the Servers tab show.
         </p>
       </SettingsCard>
 

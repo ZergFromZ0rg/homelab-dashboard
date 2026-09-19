@@ -28,11 +28,22 @@ export const HEARTBEAT_WINDOW_OPTIONS = [
 export const HOME_CARD_OPTIONS = [
   { key: "summary", label: "Summary stats" },
   { key: "attention", label: "Attention" },
-  { key: "hosts", label: "Hosts" },
+  { key: "hosts", label: "Hosts (compact)" },
   { key: "quickActions", label: "Quick actions" },
   { key: "activity", label: "Recent activity" },
-  { key: "todo", label: "To-do" },
 ];
+
+export const PERSONAL_CARD_OPTIONS = [
+  { key: "greeting", label: "Greeting" },
+  { key: "todo", label: "To-do" },
+  { key: "weather", label: "Weather" },
+  { key: "word", label: "Word of the day" },
+  { key: "links", label: "Quick links" },
+];
+
+export const DEFAULT_PERSONAL_CARDS = Object.fromEntries(
+  PERSONAL_CARD_OPTIONS.map((c) => [c.key, true])
+);
 
 export const DEFAULT_HOME_CARDS = Object.fromEntries(
   HOME_CARD_OPTIONS.map((c) => [c.key, true])
@@ -41,6 +52,11 @@ export const DEFAULT_HOME_CARDS = Object.fromEntries(
 export const DEFAULT_SETTINGS = {
   siteTitle: "System Dashboard",
   siteSubtitle: "Zerg Homelab",
+  displayName: "",
+  weatherLocation: null, // { name, region, country, lat, lon }
+  temperatureUnits: "metric", // "metric" | "imperial"
+  links: [], // [{ id, label, url }]
+  personalCards: DEFAULT_PERSONAL_CARDS,
   graphWindowMinutes: 30,
   heartbeatWindowMinutes: 120,
   showContainerUptime: true,

@@ -1,7 +1,8 @@
 import MachineVitals from "./MachineVitals";
+import HostFooter from "./HostFooter";
 import { hostColor } from "./hostColor";
 
-function MachineCard({ name, machine, history }) {
+function MachineCard({ name, machine, history, containers }) {
   return (
     <div className={`machine-card ${machine.online ? "online" : "offline"}`}>
       <div className="machine-header">
@@ -14,6 +15,7 @@ function MachineCard({ name, machine, history }) {
       </div>
 
       <MachineVitals machine={machine} history={history} />
+      <HostFooter machine={machine} containers={containers} />
     </div>
   );
 }
