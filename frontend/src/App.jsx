@@ -1,15 +1,19 @@
 import ContainerList from "./components/ContainerList";
-import MainSystem from "./components/MainSystem";
-import MachineCard from "./components/MachineCard";
 import Tabs from "./components/Tabs";
 import DeployTab from "./components/DeployTab";
 import Overview from "./components/Overview";
 import SiteSettings from "./components/SiteSettings";
+import SettingsDrawer from "./components/SettingsDrawer";
+import { useSettings } from "./components/settings";
 import { SettingsProvider } from "./components/SettingsContext";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { loadCachedPins, cachePins, putPins } from "./components/containerPins";
 import { loadCachedTodos, cacheTodos, putTodos } from "./components/todosApi";
 import "./App.css";
+import { demoSnapshot } from "./demoData";
+
+// Dev-only: /?demo previews the UI from a fixture, no backend needed.
+const DEMO = import.meta.env.DEV && new URLSearchParams(window.location.search).has("demo");
 
 const EMPTY_OVERVIEW = { ok: true, issues: [], recommendations: [] };
 
@@ -112,30 +116,37 @@ function useServerList(loadCached, cache, put) {
 // retried — a dropped socket left the dashboard frozen until a manual
 // refresh. Back off 1s → 2s → 4s … capped at 15s.
 function useDashboardSocket() {
-  const [snap, setSnap] = useState({
-    machines: {},
-    containers: {},
-    history: {},
-    deployments: [],
-    activity: [],
-    mainHost: null,
-    overview: EMPTY_OVERVIEW,
-  });
-  const [connected, setConnected] = useState(false);
-  const [lastUpdate, setLastUpdate] = useState(null);
+  const [demo] = useState(() => (DEMO ? demoSnapshot() : null));
+  const [snap, setSnap] = useState(
+    demo ?? {
+      machines: {},
+      containers: {},
+      history: {},
+      deployments: [],
+      activity: [],
+      mainHost: null,
+      overview: EMPTY_OVERVIEW,
+    }
+  );
+  const [connected, setConnected] = useState(Boolean(demo));
+  const [lastUpdate, setLastUpdate] = useState(() => (demo ? Date.now() : null));
 
   const [pins, adoptPins, setPins] = useServerList(
-    loadCachedPins,
-    cachePins,
-    putPins
+    demo ? () => demo.pins : loadCachedPins,
+    demo ? () => {} : cachePins,
+    demo ? async (next) => next : putPins
   );
   const [todos, adoptTodos, setTodos] = useServerList(
-    loadCachedTodos,
-    cacheTodos,
-    putTodos
+    demo ? () => demo.todos : loadCachedTodos,
+    demo ? () => {} : cacheTodos,
+    demo ? async (next) => next : putTodos
   );
 
   useEffect(() => {
+    if (demo) {
+      const id = setInterval(() => setLastUpdate(Date.now()), 2000);
+      return () => clearInterval(id);
+    }
     let ws;
     let retryDelay = 1000;
     let reconnectTimer;
@@ -186,7 +197,7 @@ function useDashboardSocket() {
       clearTimeout(reconnectTimer);
       ws?.close();
     };
-  }, [adoptPins, adoptTodos]);
+  }, [demo, adoptPins, adoptTodos]);
 
   return {
     ...snap,
@@ -228,6 +239,50 @@ function ConnectionStatus({ connected, lastUpdate }) {
   return <div className={className}>{label}</div>;
 }
 
+// Sticky top bar (brand, sections, connection, settings gear) around the
+// page content. Lives inside SettingsProvider so the title can be a setting.
+function AppShell({ tabs, activeTab, onTab, connected, lastUpdate, onOpenSettings, children }) {
+  const {
+    settings: { siteTitle, siteSubtitle },
+  } = useSettings();
+
+  return (
+    <div className="app">
+      <header className="topbar">
+        <div className="topbar-inner">
+          <div className="brand">
+            <span className="brand-mark" aria-hidden="true" />
+            <div className="brand-text">
+              <h1>{siteTitle}</h1>
+              {siteSubtitle && <p className="eyebrow">{siteSubtitle}</p>}
+            </div>
+          </div>
+
+          <Tabs tabs={tabs} active={activeTab} onChange={onTab} />
+
+          <div className="topbar-actions">
+            <ConnectionStatus connected={connected} lastUpdate={lastUpdate} />
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={onOpenSettings}
+              aria-label="Open settings"
+              title="Settings"
+            >
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="dashboard">{children}</main>
+    </div>
+  );
+}
+
 function App() {
   const {
     machines,
@@ -246,13 +301,8 @@ function App() {
   } = useDashboardSocket();
 
   const [activeTab, setActiveTab] = useState("overview");
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const control = useContainerControl();
-
-  const hasMainHost = Boolean(mainHost && machines[mainHost]);
-
-  const nodeNames = Object.keys(machines)
-    .filter((name) => name !== mainHost)
-    .sort();
 
   const totalContainers = Object.values(containers).reduce(
     (sum, list) => sum + list.length,
@@ -268,93 +318,77 @@ function App() {
   const tabs = [
     {
       value: "overview",
-      label: overview.ok ? "Overview" : `Overview (${overview.issues.length})`,
+      label: "Overview",
+      count: overview.ok ? null : overview.issues.length,
+      tone: "bad",
     },
-    { value: "system", label: "System Stats" },
-    { value: "containers", label: `Containers (${totalContainers})` },
-    { value: "deploy", label: `Deploy (${activeDeployments})` },
-    { value: "settings", label: "Settings" },
+    { value: "containers", label: "Containers", count: totalContainers },
+    { value: "deploy", label: "Deploy", count: activeDeployments },
   ];
+
+  // Anything that says "go look at X" (Attention → View, Quick actions →
+  // Containers) funnels through here. "hosts" is a spot on the Overview, not
+  // a tab of its own.
+  const navigate = (target) => {
+    if (target === "hosts") {
+      setActiveTab("overview");
+      requestAnimationFrame(() =>
+        document.getElementById("hosts")?.scrollIntoView({ behavior: "smooth", block: "start" })
+      );
+    } else if (target === "settings") {
+      setSettingsOpen(true);
+    } else {
+      setActiveTab(target);
+    }
+  };
 
   return (
     <SettingsProvider>
-    <main className="dashboard">
-      <header>
-        <div>
-          <p className="eyebrow">Zerg Homelab</p>
-          <h1>System Dashboard</h1>
-        </div>
+      <AppShell
+        tabs={tabs}
+        activeTab={activeTab}
+        onTab={setActiveTab}
+        connected={connected}
+        lastUpdate={lastUpdate}
+        onOpenSettings={() => setSettingsOpen(true)}
+      >
+        {activeTab === "overview" && (
+          <Overview
+            overview={overview}
+            machines={machines}
+            containers={containers}
+            history={history}
+            mainHost={mainHost}
+            deployments={deployments}
+            activity={activity}
+            pins={pins}
+            todos={todos}
+            openTodos={openTodos}
+            onControl={control}
+            onSetTodos={setTodos}
+            onNavigate={navigate}
+          />
+        )}
 
-        <ConnectionStatus connected={connected} lastUpdate={lastUpdate} />
-      </header>
+        {activeTab === "containers" && (
+          <ContainerList
+            containers={containers}
+            machines={machines}
+            onControl={control}
+            pins={pins}
+            onSetPins={setPins}
+            connected={connected}
+          />
+        )}
 
-      <Tabs tabs={tabs} active={activeTab} onChange={setActiveTab} />
+        {activeTab === "deploy" && (
+          <DeployTab machines={machines} deployments={deployments} connected={connected} />
+        )}
 
-      {activeTab === "overview" && (
-        <Overview
-          overview={overview}
-          machines={machines}
-          containers={containers}
-          deployments={deployments}
-          activity={activity}
-          pins={pins}
-          todos={todos}
-          openTodos={openTodos}
-          onControl={control}
-          onSetTodos={setTodos}
-          onNavigate={setActiveTab}
-        />
-      )}
-
-      {activeTab === "system" && (hasMainHost || nodeNames.length > 0) && (
-        <section className="nodes-section">
-          <div className="section-header">
-            <div>
-              <p className="eyebrow">Fleet</p>
-              <h2>Nodes</h2>
-            </div>
-          </div>
-
-          <div className="machine-grid">
-            {hasMainHost && (
-              <MainSystem
-                host={mainHost}
-                machine={machines[mainHost]}
-                history={history[mainHost]}
-              />
-            )}
-
-            {nodeNames.map((name) => (
-              <MachineCard
-                key={name}
-                name={name}
-                machine={machines[name]}
-                history={history[name]}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {activeTab === "containers" && (
-        <ContainerList
-          containers={containers}
-          machines={machines}
-          onControl={control}
-          pins={pins}
-          onSetPins={setPins}
-          connected={connected}
-        />
-      )}
-
-      {activeTab === "deploy" && (
-        <DeployTab machines={machines} deployments={deployments} connected={connected} />
-      )}
-
-      {activeTab === "settings" && (
-        <SiteSettings pins={pins} containers={containers} />
-      )}
-    </main>
+        <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)}>
+          <SiteSettings pins={pins} containers={containers} />
+        </SettingsDrawer>
+      </AppShell>
     </SettingsProvider>
   );
 }

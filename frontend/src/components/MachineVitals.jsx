@@ -20,6 +20,79 @@ function formatUptime(seconds) {
   return `${days}d ${hours}h`;
 }
 
+// Agents that can't reach NVML report a name like "NVIDIA GPU 10DE:2187" —
+// split the trailing PCI id onto its own muted line instead of letting it
+// wrap mid-name.
+function pciMatch(name) {
+  return (name || "").match(/^(.*?)[\s(]*([0-9a-f]{4}:[0-9a-f]{4})\)?$/i);
+}
+
+// A host reports GPUs as {available, count, devices: [...]}; a couple of
+// call sites in older data (or tests) pass the single-device shape
+// directly as `machine.gpu` — normalize both to an array.
+function gpuDevices(machine) {
+  if (machine.gpu?.available === false) return [];
+  if (machine.gpu?.devices?.length) return machine.gpu.devices;
+  return machine.gpu ? [machine.gpu] : [];
+}
+
+function GpuDevice({ gpu, index, total, stale, history, windowMinutes }) {
+  const match = pciMatch(gpu.name);
+  const gpuName = (match?.[1] || gpu.name || "Detected GPU").trim();
+  const pciId = match?.[2];
+  // History is only sampled for the first device (see
+  // backend/live_history.py) — later devices get stats but no sparkline.
+  const showHistory = index === 0;
+
+  return (
+    <div className="gpu-stats">
+      <Stat
+        label={`GPU${total > 1 ? ` ${index + 1}/${total}` : ""}${
+          stale ? " · stale" : ""
+        }`}
+        value={gpuName}
+      >
+        {pciId && <small>{pciId.toUpperCase()}</small>}
+        {gpu.vendor && <small>{gpu.vendor.toUpperCase()}</small>}
+      </Stat>
+
+      {gpu.utilization_percent != null && (
+        <Stat label="UTILIZATION" value={`${gpu.utilization_percent}%`} />
+      )}
+
+      {(gpu.memory_used_mb != null || gpu.memory_total_mb != null) && (
+        <Stat
+          label="VRAM"
+          value={`${gpu.memory_used_mb ?? "—"} / ${
+            gpu.memory_total_mb ?? "—"
+          } MB`}
+        />
+      )}
+
+      {gpu.temperature_c != null && (
+        <Stat label="GPU TEMP" value={`${gpu.temperature_c}°C`}>
+          {showHistory && (
+            <Sparkline
+              points={history?.gpu_temperature}
+              variant="cpu"
+              windowMinutes={windowMinutes}
+            />
+          )}
+        </Stat>
+      )}
+
+      {(gpu.power_draw_w != null || gpu.power_limit_w != null) && (
+        <Stat
+          label="POWER"
+          value={`${gpu.power_draw_w ?? "—"} / ${gpu.power_limit_w ?? "—"} W`}
+        />
+      )}
+
+      {gpu.fan_percent != null && <Stat label="FAN" value={`${gpu.fan_percent}%`} />}
+    </div>
+  );
+}
+
 function MachineVitals({ machine, history }) {
   const {
     settings: { graphWindowMinutes: windowMinutes },
@@ -137,81 +210,17 @@ function MachineVitals({ machine, history }) {
         </Stat>
       </div>
 
-      {machine.gpu?.available !== false &&
-        (machine.gpu?.devices?.length || machine.gpu) &&
-        (() => {
-          const devices = machine.gpu.devices?.length
-            ? machine.gpu.devices
-            : [machine.gpu];
-
-          // Agents that can't reach NVML report a name like
-          // "NVIDIA GPU 10DE:2187" — split the trailing PCI id onto its
-          // own muted line instead of letting it wrap mid-name.
-          const pciMatch = (name) =>
-            (name || "").match(/^(.*?)[\s(]*([0-9a-f]{4}:[0-9a-f]{4})\)?$/i);
-
-          return devices.map((gpu, index) => {
-            const match = pciMatch(gpu.name);
-            const gpuName = (match?.[1] || gpu.name || "Detected GPU").trim();
-            const pciId = match?.[2];
-            // History is only sampled for the first device (see
-            // backend/live_history.py) — later devices get stats but no
-            // sparkline.
-            const showHistory = index === 0;
-
-            return (
-              <div className="gpu-stats" key={gpu.device_id ?? index}>
-                <Stat
-                  label={`GPU${devices.length > 1 ? ` ${index + 1}/${devices.length}` : ""}${
-                    machine.agent_stale_age != null ? " · stale" : ""
-                  }`}
-                  value={gpuName}
-                >
-                  {pciId && <small>{pciId.toUpperCase()}</small>}
-                  {gpu.vendor && <small>{gpu.vendor.toUpperCase()}</small>}
-                </Stat>
-
-                {gpu.utilization_percent != null && (
-                  <Stat label="UTILIZATION" value={`${gpu.utilization_percent}%`} />
-                )}
-
-                {(gpu.memory_used_mb != null || gpu.memory_total_mb != null) && (
-                  <Stat
-                    label="VRAM"
-                    value={`${gpu.memory_used_mb ?? "—"} / ${
-                      gpu.memory_total_mb ?? "—"
-                    } MB`}
-                  />
-                )}
-
-                {gpu.temperature_c != null && (
-                  <Stat label="GPU TEMP" value={`${gpu.temperature_c}°C`}>
-                    {showHistory && (
-                      <Sparkline
-                        points={history?.gpu_temperature}
-                        variant="cpu"
-                        windowMinutes={windowMinutes}
-                      />
-                    )}
-                  </Stat>
-                )}
-
-                {(gpu.power_draw_w != null || gpu.power_limit_w != null) && (
-                  <Stat
-                    label="POWER"
-                    value={`${gpu.power_draw_w ?? "—"} / ${
-                      gpu.power_limit_w ?? "—"
-                    } W`}
-                  />
-                )}
-
-                {gpu.fan_percent != null && (
-                  <Stat label="FAN" value={`${gpu.fan_percent}%`} />
-                )}
-              </div>
-            );
-          });
-        })()}
+      {gpuDevices(machine).map((gpu, index, devices) => (
+        <GpuDevice
+          key={gpu.device_id ?? index}
+          gpu={gpu}
+          index={index}
+          total={devices.length}
+          stale={machine.agent_stale_age != null}
+          history={history}
+          windowMinutes={windowMinutes}
+        />
+      ))}
 
       {machine.disk_io?.length > 0 && (
         <div className="disk-io-list">

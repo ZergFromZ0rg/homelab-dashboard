@@ -11,26 +11,33 @@
 // match between them would misread as "this tab is that host".
 const TAB_COLORS = {
   overview: "var(--accent)",
-  system: "var(--main-host)",
   containers: "#38bdf8",
   deploy: "#f0abfc",
 };
 
+// tab: { value, label, count?, tone? } — `tone: "bad"` paints the count as
+// an alert (e.g. open issues on Overview).
 function Tabs({ tabs, active, onChange }) {
   return (
-    <div className="tabs">
+    <nav className="tabs" aria-label="Sections">
       {tabs.map((tab) => (
         <button
           key={tab.value}
           type="button"
           className={`tab ${active === tab.value ? "active" : ""}`}
           style={{ "--tab-color": TAB_COLORS[tab.value] || "var(--accent)" }}
+          aria-current={active === tab.value ? "page" : undefined}
           onClick={() => onChange(tab.value)}
         >
           {tab.label}
+          {tab.count != null && (
+            <span className={`tab-count ${tab.tone ? `tab-count--${tab.tone}` : ""}`}>
+              {tab.count}
+            </span>
+          )}
         </button>
       ))}
-    </div>
+    </nav>
   );
 }
 

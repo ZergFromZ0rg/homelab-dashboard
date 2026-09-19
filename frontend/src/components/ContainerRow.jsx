@@ -1,8 +1,8 @@
+import { useState } from "react";
 import { avatarColor, containerUrl } from "./containerLink";
 import { needsAttention } from "./containerSort";
 import { formatBytes, formatBytesPerSec } from "./format";
 import Heartbeat from "./Heartbeat";
-import Stat from "./Stat";
 import { useSettings } from "./settings";
 import { hostColor } from "./hostColor";
 
@@ -38,10 +38,24 @@ function ContainerAvatar({ name }) {
   );
 }
 
+function Detail({ label, value, sub }) {
+  return (
+    <div className="crow-detail-item">
+      <span>{label}</span>
+      <strong>{value}</strong>
+      {sub && <small>{sub}</small>}
+    </div>
+  );
+}
+
+// One container as a single dense table row. The columns line up with
+// ContainerTableHead; everything that doesn't fit on one line (heartbeat
+// history, cumulative traffic, image size, ...) is behind the chevron.
 function ContainerRow({
   container,
   host,
   hostCores,
+  staleAge,
   pending,
   errors,
   onControl,
@@ -51,8 +65,9 @@ function ContainerRow({
   showHost,
 }) {
   const {
-    settings: { showContainerUptime, showLiveActivity, highRestartCount },
+    settings: { showLiveActivity, highRestartCount },
   } = useSettings();
+  const [open, setOpen] = useState(false);
 
   const live = container.live_activity;
   const showLive = showLiveActivity && Boolean(live);
@@ -62,6 +77,7 @@ function ContainerRow({
   const busy = Boolean(action);
   const error = errors?.[key];
   const attention = needsAttention(container, highRestartCount);
+  const running = container.status === "running";
 
   // Stop and restart both drop the service — easy to hit by mistake in a
   // dense list, so make them deliberate.
@@ -97,249 +113,251 @@ function ContainerRow({
 
   return (
     <div
-      className={`container-row ${pinned ? "container-row--pinned" : ""} ${
-        attention ? "container-row--attention" : ""
-      }`}
+      className={[
+        "crow",
+        pinned && "crow--pinned",
+        attention && "crow--attention",
+        !running && "crow--off",
+        open && "crow--open",
+      ]
+        .filter(Boolean)
+        .join(" ")}
     >
-      <div className="container-main">
-        <div className="container-title">
-          <div className="container-identity">
-            <button
-              type="button"
-              className={`pin-btn ${pinned ? "pinned" : ""}`}
-              onClick={onTogglePin}
-              aria-pressed={pinned}
-              title={pinned ? "Unpin container" : "Pin container to top"}
-            >
-              {pinned ? "★" : "☆"}
-            </button>
+      <div className="crow-line">
+        <button
+          type="button"
+          className={`pin-btn ${pinned ? "pinned" : ""}`}
+          onClick={onTogglePin}
+          aria-pressed={pinned}
+          title={pinned ? "Unpin container" : "Pin container to top"}
+        >
+          {pinned ? "★" : "☆"}
+        </button>
 
-            <ContainerAvatar name={container.name} />
-
-            <div className="container-name-block">
-              <div className="container-name-line">
-                {url ? (
-                  <a
-                    className="container-link"
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title={`Open ${url}`}
-                  >
-                    {container.name}
-                  </a>
-                ) : (
-                  <strong>{container.name}</strong>
-                )}
-                {showHost && (
-                  <span
-                    className="container-host-chip"
-                    style={{
-                      color: hostColor(host),
-                      borderColor: hostColor(host),
-                    }}
-                  >
-                    {host}
-                  </span>
-                )}
-              </div>
-              <span>{container.image}</span>
+        <div className="c-name">
+          <ContainerAvatar name={container.name} />
+          <div className="c-name-block">
+            <div className="c-name-line">
+              {url ? (
+                <a
+                  className="container-link"
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={`Open ${url}`}
+                >
+                  {container.name}
+                </a>
+              ) : (
+                <strong>{container.name}</strong>
+              )}
+              {showHost && (
+                <span
+                  className="chip chip--host"
+                  style={{ color: hostColor(host), borderColor: hostColor(host) }}
+                >
+                  {host}
+                </span>
+              )}
+              {showLive && (
+                <span className="chip chip--live" title={`${live.app}: ${live.detail}`}>
+                  {live.detail}
+                </span>
+              )}
+              {container.deployed_by === "homelab-dashboard" && (
+                <span className="chip chip--accent" title="Placed by the scheduler">
+                  scheduled
+                </span>
+              )}
             </div>
+            <span className="c-image" title={container.image}>
+              {container.image}
+            </span>
           </div>
+        </div>
 
-          <div className="container-badges">
-            {showLive && (
-              <span
-                className="container-badge-live"
-                title={`${live.app}: ${live.detail}`}
-              >
-                {live.detail}
-              </span>
-            )}
-
-            {container.deployed_by === "homelab-dashboard" && (
-              <span className="container-badge-scheduled" title="Placed by the scheduler">
-                scheduled
-              </span>
-            )}
-
+        <div className="c-state">
+          <div className="c-state-line">
+            <span className={`container-status ${container.status}`}>
+              {action ? `${action}…` : container.status}
+            </span>
             {container.health && (
               <span className={`container-health ${container.health}`}>
                 {container.health}
               </span>
             )}
-
-            <span className={`container-status ${container.status}`}>
-              {action ? `${action}...` : container.status}
-            </span>
+            {staleAge != null && (
+              <span
+                className="container-status stale"
+                title={`${host}'s agent hasn't responded in ${staleAge}s — the numbers here may be a little old`}
+              >
+                stale
+              </span>
+            )}
           </div>
+          <Heartbeat heartbeat={container.heartbeat} compact />
         </div>
 
-        <Heartbeat heartbeat={container.heartbeat} />
-
-        <div className="container-primary-stats">
-          <Stat
-            label="CPU"
-            value={
-              <>
-                {cpuPercent != null ? `${cpuPercent}%` : "—"}
-                {hostCores != null && cpuPercent > 100 && (
-                  <small> · {(cpuPercent / 100).toFixed(1)} vCPU</small>
-                )}
-              </>
+        <div className="c-cpu">
+          <span className="c-value">
+            {cpuPercent != null ? `${cpuPercent}%` : "—"}
+            {hostCores != null && cpuPercent > 100 && (
+              <small> · {(cpuPercent / 100).toFixed(1)} vCPU</small>
+            )}
+          </span>
+          <div
+            className="mini-bar"
+            title={
+              hostCores != null
+                ? `${cpuBarPercent.toFixed(1)}% of host (${hostCores} vCPU)`
+                : undefined
             }
           >
             <div
-              className="mini-bar"
-              title={
-                hostCores != null
-                  ? `${cpuBarPercent.toFixed(1)}% of host (${hostCores} vCPU)`
-                  : undefined
-              }
-            >
+              className="mini-bar-fill mini-bar-fill--cpu"
+              style={{ width: `${cpuBarPercent}%` }}
+            />
+          </div>
+        </div>
+
+        <div className="c-ram">
+          <span className="c-value">
+            {memory?.used_bytes != null ? formatBytes(memory.used_bytes) : "—"}
+            {hasRamLimit ? (
+              <small>
+                {" "}
+                / {formatBytes(memory.limit_bytes)} · {ramPercent}%
+              </small>
+            ) : (
+              memory?.used_bytes != null && <small> · no limit</small>
+            )}
+          </span>
+          {hasRamLimit ? (
+            <div className="mini-bar">
               <div
-                className="mini-bar-fill mini-bar-fill--cpu"
-                style={{ width: `${cpuBarPercent}%` }}
+                className="mini-bar-fill mini-bar-fill--ram"
+                style={{ width: `${Math.min(ramPercent ?? 0, 100)}%` }}
               />
             </div>
-          </Stat>
-
-          <Stat
-            label="RAM"
-            value={
-              <>
-                {memory?.used_bytes != null
-                  ? formatBytes(memory.used_bytes)
-                  : "—"}
-                {hasRamLimit ? (
-                  <small>
-                    {" "}
-                    / {formatBytes(memory.limit_bytes)} · {ramPercent}%
-                  </small>
-                ) : (
-                  memory?.used_bytes != null && <small> · no limit</small>
-                )}
-              </>
-            }
-          >
-            {hasRamLimit && (
-              <div className="mini-bar">
-                <div
-                  className="mini-bar-fill mini-bar-fill--ram"
-                  style={{ width: `${Math.min(ramPercent ?? 0, 100)}%` }}
-                />
-              </div>
-            )}
-          </Stat>
-        </div>
-
-        <div className="container-stats-grid">
-          <Stat
-            label="NET ↓"
-            value={
-              <>
-                {formatBytesPerSec(network?.rx_bps)}
-                {network?.rx_bytes != null && (
-                  <small> · {formatBytes(network.rx_bytes)}</small>
-                )}
-              </>
-            }
-          />
-          <Stat
-            label="NET ↑"
-            value={
-              <>
-                {formatBytesPerSec(network?.tx_bps)}
-                {network?.tx_bytes != null && (
-                  <small> · {formatBytes(network.tx_bytes)}</small>
-                )}
-              </>
-            }
-          />
-          <Stat
-            label="DISK ↓"
-            value={
-              <>
-                {formatBytesPerSec(blockIo?.read_bps)}
-                {blockIo?.read_bytes != null && (
-                  <small> · {formatBytes(blockIo.read_bytes)}</small>
-                )}
-              </>
-            }
-          />
-          <Stat
-            label="DISK ↑"
-            value={
-              <>
-                {formatBytesPerSec(blockIo?.write_bps)}
-                {blockIo?.write_bytes != null && (
-                  <small> · {formatBytes(blockIo.write_bytes)}</small>
-                )}
-              </>
-            }
-          />
-          {showContainerUptime && (
-            <Stat label="UPTIME" value={formatStartedAt(container.started_at)} />
+          ) : (
+            <div className="mini-bar mini-bar--none" />
           )}
-          <Stat label="RESTARTS" value={container.restart_count ?? "—"} />
-          <Stat
-            label="IMAGE"
-            value={
-              container.size?.image_bytes != null
-                ? formatBytes(container.size.image_bytes)
-                : "—"
-            }
-          />
-          <Stat
-            label="ROOTFS"
-            value={
-              container.size?.rootfs_bytes != null
-                ? formatBytes(container.size.rootfs_bytes)
-                : "—"
-            }
-          />
         </div>
-      </div>
 
-      <div className="container-actions">
-        {protectedContainer ? (
-          <span className="protected-label">Protected</span>
-        ) : (
-          <>
-            <div className="container-action-buttons">
-              {container.status !== "running" && (
+        <div className="c-net">
+          <span title="Download">↓ {formatBytesPerSec(network?.rx_bps)}</span>
+          <span title="Upload">↑ {formatBytesPerSec(network?.tx_bps)}</span>
+        </div>
+
+        <div className="c-uptime">{formatStartedAt(container.started_at)}</div>
+
+        <div className="c-actions">
+          {protectedContainer ? (
+            <span className="protected-label">Protected</span>
+          ) : (
+            <>
+              {!running && (
                 <button
+                  type="button"
+                  className="btn btn--sm"
                   disabled={busy}
                   onClick={() => onControl(host, container.id, "start")}
                 >
                   Start
                 </button>
               )}
-
-              {container.status === "running" && (
-                <button disabled={busy} onClick={() => confirmControl("Stop")}>
+              {running && (
+                <button
+                  type="button"
+                  className="btn btn--sm"
+                  disabled={busy}
+                  onClick={() => confirmControl("Stop")}
+                >
                   Stop
                 </button>
               )}
-
-              <button disabled={busy} onClick={() => confirmControl("Restart")}>
-                Restart
-              </button>
-            </div>
-
-            {error && (
               <button
                 type="button"
-                className="container-control-error"
-                onClick={() => onClearError?.(key)}
-                title="Dismiss"
+                className="btn btn--sm"
+                disabled={busy}
+                onClick={() => confirmControl("Restart")}
               >
-                {error}
+                Restart
               </button>
-            )}
-          </>
-        )}
+            </>
+          )}
+          <button
+            type="button"
+            className="btn btn--sm btn--ghost crow-toggle"
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+            title={open ? "Hide details" : "Show details"}
+          >
+            <span className="crow-chevron">▾</span>
+          </button>
+        </div>
       </div>
+
+      {error && (
+        <button
+          type="button"
+          className="container-control-error"
+          onClick={() => onClearError?.(key)}
+          title="Dismiss"
+        >
+          {error}
+        </button>
+      )}
+
+      {open && (
+        <div className="crow-detail">
+          <Heartbeat heartbeat={container.heartbeat} />
+          <div className="crow-detail-grid">
+            <Detail
+              label="Network in"
+              value={formatBytesPerSec(network?.rx_bps)}
+              sub={network?.rx_bytes != null ? `${formatBytes(network.rx_bytes)} total` : null}
+            />
+            <Detail
+              label="Network out"
+              value={formatBytesPerSec(network?.tx_bps)}
+              sub={network?.tx_bytes != null ? `${formatBytes(network.tx_bytes)} total` : null}
+            />
+            <Detail
+              label="Disk read"
+              value={formatBytesPerSec(blockIo?.read_bps)}
+              sub={blockIo?.read_bytes != null ? `${formatBytes(blockIo.read_bytes)} total` : null}
+            />
+            <Detail
+              label="Disk write"
+              value={formatBytesPerSec(blockIo?.write_bps)}
+              sub={blockIo?.write_bytes != null ? `${formatBytes(blockIo.write_bytes)} total` : null}
+            />
+            <Detail label="Restarts" value={container.restart_count ?? "—"} />
+            <Detail
+              label="Image size"
+              value={
+                container.size?.image_bytes != null
+                  ? formatBytes(container.size.image_bytes)
+                  : "—"
+              }
+            />
+            <Detail
+              label="Root filesystem"
+              value={
+                container.size?.rootfs_bytes != null
+                  ? formatBytes(container.size.rootfs_bytes)
+                  : "—"
+              }
+            />
+            <Detail
+              label="Container"
+              value={container.id}
+              sub={container.compose_project ? `stack: ${container.compose_project}` : null}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

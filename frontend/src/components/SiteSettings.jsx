@@ -187,6 +187,29 @@ function SiteSettings({ pins, containers }) {
 
   return (
     <div className="settings-tab">
+      <SettingsCard title="Appearance">
+        <label className="settings-row settings-row--stack">
+          <span>Dashboard title</span>
+          <input
+            className="deploy-input"
+            type="text"
+            maxLength={40}
+            value={settings.siteTitle}
+            onChange={(e) => update({ siteTitle: e.target.value })}
+          />
+        </label>
+        <label className="settings-row settings-row--stack">
+          <span>Subtitle (above the title; leave empty to hide)</span>
+          <input
+            className="deploy-input"
+            type="text"
+            maxLength={40}
+            value={settings.siteSubtitle}
+            onChange={(e) => update({ siteSubtitle: e.target.value })}
+          />
+        </label>
+      </SettingsCard>
+
       <SettingsCard title="Graphs">
         <label className="settings-row">
           <span>Time window</span>
@@ -205,7 +228,7 @@ function SiteSettings({ pins, containers }) {
         </label>
         <p className="settings-hint">
           How much history the CPU / RAM / network / temperature graphs on
-          the System Stats tab show.
+          the host cards on the Overview show.
         </p>
       </SettingsCard>
 
@@ -226,9 +249,9 @@ function SiteSettings({ pins, containers }) {
           </select>
         </label>
         <p className="settings-hint">
-          How far back the up/down heartbeat bar on each container row
-          looks — a shorter window means each bar covers less time, so a
-          brief blip is easier to spot.
+          How far back each container's up/down heartbeat strip looks — a
+          shorter window means each bar covers less time, so a brief blip is
+          easier to spot.
         </p>
 
         <label className="settings-check">
@@ -242,7 +265,7 @@ function SiteSettings({ pins, containers }) {
           Show container uptime
         </label>
         <p className="settings-hint">
-          Hides the UPTIME stat on each container row in the Containers tab.
+          Hides the Uptime column in the Containers tab.
         </p>
 
         <label className="settings-check">
@@ -313,7 +336,7 @@ function SiteSettings({ pins, containers }) {
 
       <SettingsCard title="Home menu">
         <p className="settings-hint">
-          Choose which cards show on the Overview tab.
+          Choose which sections show on the Overview.
         </p>
         <div className="settings-checklist">
           {HOME_CARD_OPTIONS.map((opt) => (

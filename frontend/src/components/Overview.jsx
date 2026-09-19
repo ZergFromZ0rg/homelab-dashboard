@@ -1,7 +1,7 @@
 import RebalancePanel from "./RebalancePanel";
 import TodoList from "./TodoList";
 import SummaryRow from "./SummaryRow";
-import HostSummary from "./HostSummary";
+import HostGrid from "./HostGrid";
 import ActivityFeed from "./ActivityFeed";
 import QuickActions from "./QuickActions";
 import { useSettings } from "./settings";
@@ -22,7 +22,7 @@ function OverviewCard({ title, count, children }) {
 
 // issue key -> which tab to open for the details
 function issueTab(key) {
-  if (/:offline|:agent|:stale/.test(key)) return "system";
+  if (/:offline|:agent|:stale/.test(key)) return "hosts";
   if (key.startsWith("deploy:")) return "deploy";
   return "containers";
 }
@@ -83,6 +83,8 @@ function Overview({
   overview,
   machines,
   containers,
+  history,
+  mainHost,
   deployments,
   activity,
   pins,
@@ -96,10 +98,11 @@ function Overview({
     settings: { homeCards },
   } = useSettings();
 
-  const anySide = homeCards.todo;
+  const hostCount = Object.keys(machines).length;
+  const showRail = homeCards.quickActions || homeCards.todo || homeCards.activity;
 
   return (
-    <div className={`overview ${anySide ? "" : "overview--full"}`}>
+    <div className={`overview ${showRail ? "" : "overview--full"}`}>
       <div className="overview-main">
         {homeCards.summary && (
           <SummaryRow
@@ -118,35 +121,39 @@ function Overview({
         )}
 
         {homeCards.hosts && (
-          <OverviewCard title="Hosts">
-            <HostSummary machines={machines} containers={containers} />
-          </OverviewCard>
-        )}
-
-        {homeCards.quickActions && (
-          <OverviewCard title="Quick actions">
-            <QuickActions
-              pins={pins}
-              containers={containers}
-              machines={machines}
-              onControl={onControl}
-              onNavigate={onNavigate}
-            />
-          </OverviewCard>
-        )}
-
-        {homeCards.activity && (
-          <OverviewCard title="Recent activity">
-            <ActivityFeed activity={activity} />
-          </OverviewCard>
+          <section id="hosts" className="overview-section">
+            <div className="overview-section-head">
+              <h2>Hosts</h2>
+              <span className="overview-card-count">{hostCount}</span>
+            </div>
+            <HostGrid machines={machines} history={history} mainHost={mainHost} />
+          </section>
         )}
       </div>
 
-      {anySide && (
+      {showRail && (
         <aside className="overview-side">
+          {homeCards.quickActions && (
+            <OverviewCard title="Quick actions">
+              <QuickActions
+                pins={pins}
+                containers={containers}
+                machines={machines}
+                onControl={onControl}
+                onNavigate={onNavigate}
+              />
+            </OverviewCard>
+          )}
+
           {homeCards.todo && (
             <OverviewCard title="To-do" count={openTodos || null}>
               <TodoList todos={todos} onChange={onSetTodos} compact />
+            </OverviewCard>
+          )}
+
+          {homeCards.activity && (
+            <OverviewCard title="Recent activity">
+              <ActivityFeed activity={activity} />
             </OverviewCard>
           )}
         </aside>

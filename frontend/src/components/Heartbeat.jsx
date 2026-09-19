@@ -20,7 +20,8 @@ function mergeGroup(group) {
   return known.includes("down") ? "down" : "up";
 }
 
-function Heartbeat({ heartbeat }) {
+// `compact` is the inline table variant: bars only, no uptime text.
+function Heartbeat({ heartbeat, compact = false }) {
   const {
     settings: { heartbeatWindowMinutes: windowMinutes },
   } = useSettings();
@@ -47,7 +48,7 @@ function Heartbeat({ heartbeat }) {
     : null;
 
   return (
-    <div className="heartbeat">
+    <div className={`heartbeat ${compact ? "heartbeat--compact" : ""}`}>
       <div className="heartbeat-bars">
         {bars.map((state, i) => (
           <div
@@ -58,10 +59,12 @@ function Heartbeat({ heartbeat }) {
         ))}
       </div>
 
-      <span className="heartbeat-uptime">
-        {uptimePercent != null ? `${uptimePercent}%` : "—"} (
-        {windowLabel(windowMinutes)})
-      </span>
+      {!compact ? (
+        <span className="heartbeat-uptime">
+          {uptimePercent != null ? `${uptimePercent}%` : "—"} (
+          {windowLabel(windowMinutes)})
+        </span>
+      ) : null}
     </div>
   );
 }

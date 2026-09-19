@@ -7,7 +7,7 @@ import { hostColor } from "./hostColor";
 // One compact row per pinned container — status dot, name, CPU / RAM, and
 // start-or-stop + restart. Plus jumps to the tabs where the rest lives.
 
-function QaRow({ t, busy, onControl, showLink, showLiveActivity, hostReachable }) {
+function QaRow({ t, busy, onControl, showLink, showLiveActivity, staleAge }) {
   const running = t.status === "running";
   const primary = running ? "Stop" : "Start";
   const cpu = t.stats?.cpu_percent;
@@ -21,12 +21,16 @@ function QaRow({ t, busy, onControl, showLink, showLiveActivity, hostReachable }
     }
   };
 
-  // A container's own status can be stale if its host's agent isn't
-  // reachable — a green dot there would read as "fine" when the number
-  // behind it might be minutes old.
-  const dotState = !hostReachable ? "warn" : running ? "ok" : "bad";
-  const dotTitle = !hostReachable
-    ? `${t.host}'s agent is unreachable — status may be stale`
+  // A container only ever shows up here at all when its host's agent is
+  // reachable (an unreachable agent reports an empty container list, so
+  // there'd be nothing to pin in the first place — see
+  // backend/docker.py's get_host_data). The real "this might be a little
+  // old" signal is staleness: the backend is briefly serving its last-good
+  // snapshot through a poll hiccup rather than blanking the host.
+  const stale = staleAge != null;
+  const dotState = stale ? "warn" : running ? "ok" : "bad";
+  const dotTitle = stale
+    ? `${t.host}'s agent hasn't responded in ${staleAge}s — status may be stale`
     : undefined;
 
   return (
@@ -140,7 +144,7 @@ function QuickActions({ pins, containers, machines, onControl, onNavigate }) {
                 onControl={onControl}
                 showLink={quickActionLinks}
                 showLiveActivity={showLiveActivity}
-                hostReachable={machines?.[t.host]?.agent_reachable !== false}
+                staleAge={machines?.[t.host]?.agent_stale_age}
               />
             ))}
           </div>

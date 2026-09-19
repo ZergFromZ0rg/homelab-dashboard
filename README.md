@@ -9,6 +9,13 @@ instances, pushed to the browser over a WebSocket.
 - `frontend/` — React + Vite, served by nginx, which also proxies `/api/`
   and `/ws` to the backend.
 
+## Previewing the UI without a backend
+
+`npm run dev` in `frontend/`, then open `/?demo` — a fake three-host fleet
+(GPU, unhealthy container, live-activity badges, alerts) renders with no
+backend or agents running. Dev builds only; the fixture isn't part of the
+production bundle.
+
 ## Adding a machine
 
 Nothing here needs editing. Two things make a machine show up:
@@ -38,7 +45,15 @@ utilization, temp and power.
 
 ## Layout
 
-Five tabs. **Overview** (default) is the at-a-glance control surface:
+Three sections in a sticky top bar — **Overview**, **Containers**,
+**Deploy** — plus a gear button that opens **Settings** as a right-hand
+drawer over whichever section you're on (Esc closes it). The bar also
+carries the connection pill and the dashboard's title/subtitle (both
+editable in Settings → Appearance). The layout reflows down to phone
+width; below ~1040px each container becomes a small stacked card.
+
+**Overview** (default) is the everything-at-a-glance page — nothing about a
+machine needs its own tab:
 
 - a four-across summary row (health / hosts online / containers running /
   alert count);
@@ -46,24 +61,29 @@ Five tabs. **Overview** (default) is the at-a-glance control surface:
   is healthy, otherwise a severity-coded list of problems each with a
   *View* jump and a plain next-step. Deterministic: it reuses the same
   checks the alert loop runs (`alerts.evaluate`) plus stale nodes, no LLM;
-- **Hosts** — a compact CPU / RAM / disk / GPU bar row per host (the full
-  gauges stay on System Stats);
-- **Quick actions** — restart / stop for your pinned containers, jumps to
-  Deploy / Containers;
-- **Recent activity** — container start/stop/restart, host up/down, agent
-  unreachable and scheduler deploy/move/fail events, diffed from the fleet
-  snapshot each reconcile tick and kept in `/data/activity.json`;
-- an editable **to-do list** — add / rename (click) / toggle / delete /
-  drag-reorder, saved to `/data/todos.json` (`GET`/`PUT /api/todos`, in
-  every `/ws` tick) so it's the same on every browser.
+  host problems scroll to the host cards below;
+- **Hosts** — a full card per machine: CPU / temperature / RAM gauges with
+  sparklines, network, every GPU, disk I/O and storage. The machine the
+  dashboard itself runs on is marked "Dashboard host" and listed first;
+- a right-hand rail: **Quick actions** (restart / stop for your pinned
+  containers, jumps to Deploy / Containers), the editable **to-do list**
+  (add / rename (click) / toggle / delete / drag-reorder, saved to
+  `/data/todos.json` — `GET`/`PUT /api/todos`, in every `/ws` tick — so
+  it's the same on every browser), and **Recent activity** (container
+  start/stop/restart, host up/down, agent unreachable and scheduler
+  deploy/move/fail events, diffed from the fleet snapshot each reconcile
+  tick and kept in `/data/activity.json`).
 
-**System Stats** is the old host view — the Main System panel plus
-the Nodes grid. **Containers** shows every host's containers in one place,
-grouped and collapsible per host, each group with its own independent
-sort control (name / CPU / RAM / status). Each
-group's collapsed state and sort choice are remembered per browser
-(`localStorage`). A filter box at the top matches container name or image
-across every host and auto-expands the groups that still have matches.
+**Containers** is one dense table row per container: name/image (with
+live-activity and "scheduled" chips), status + health + a tiny heartbeat
+strip, CPU, memory (with its limit, or "no limit"), network, uptime, and
+Stop/Restart. The chevron on a row expands the rest — the full heartbeat,
+cumulative traffic, disk I/O, image and root-filesystem size. Hosts are
+grouped and open by default; each group has its own sort (name / CPU /
+RAM / status), and its collapsed state and sort are remembered per browser
+(`localStorage`). A filter box matches container name or image across
+every host, and the status chips (All / Running / Needs attention /
+Stopped) narrow it further; Expand all / Collapse all handle the groups.
 
 Any container can be **pinned** with the star on its row. Pinned
 containers are lifted out of their host groups into a single **Pinned**
@@ -75,7 +95,7 @@ and show up the same on every browser. `localStorage` keeps a copy only
 to avoid a flash of unpinned rows on the first paint after a reload.
 
 Containers whose healthcheck is failing or that have restarted a lot
-(`>= 5`) float to the top of their host group ahead of the sort, with a
+(`>= 5` by default, adjustable in Settings) float to the top of their host group ahead of the sort, with a
 red edge marker. **Stop** and **Restart** ask for confirmation; a failed
 control action shows its error inline on the row until dismissed.
 
@@ -84,9 +104,8 @@ socket is open but no update has landed in ~8s, and **RECONNECTING** with
 an elapsed counter while the WebSocket is down — it retries on its own
 with a backoff, so a dropped connection recovers without a refresh.
 
-The machine the dashboard itself runs on gets its own full-width "Main
-System" panel at the top of Overview instead of being listed as just
-another node in the "Nodes" grid below — auto-detected, no configuration
+The machine the dashboard itself runs on is marked "Dashboard host" and
+listed first among the host cards — auto-detected, no configuration
 needed: Docker sets a container's `HOSTNAME` env var to its own short
 container ID, and every agent already reports that same ID in its
 container list (an agent lists every container on its host, dashboard-api
@@ -120,9 +139,10 @@ var (see `.env.example`) still works and is used as a fallback when
 nothing's set in Settings. A matched container with credentials from
 neither place just gets no badge (logged once).
 
-**Settings** holds per-browser display preferences (`localStorage`, not
-synced across devices): the sparkline time window, whether container
-uptime and live-activity badges show, which Overview cards are visible,
+**Settings** (the gear in the top bar) holds per-browser display
+preferences (`localStorage`, not synced across devices): the dashboard
+title, the graph time window, whether the uptime column and live-activity
+badges show, the restart-loop threshold, which Overview sections are visible,
 and per-pin group labels + web-UI links for Quick Actions (e.g. label
 qBittorrent + Jellyfin "Media" to group them under one header there).
 
