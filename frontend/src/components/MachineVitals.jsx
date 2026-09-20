@@ -2,7 +2,11 @@ import Sparkline from "./Sparkline";
 import Gauge from "./Gauge";
 import Stat from "./Stat";
 import { diskLabel } from "./diskLabel";
-import { formatBytes, formatBytesPerSec as formatSpeed } from "./format";
+import {
+  formatBytes,
+  formatBytesPerSec as formatSpeed,
+  formatDaysUntilFull,
+} from "./format";
 import { windowPoints } from "./historyWindow";
 import { useSettings } from "./settings";
 
@@ -10,6 +14,16 @@ import { useSettings } from "./settings";
 // just a "how close to uncomfortably hot" scale so the ring fills
 // proportionally instead of needing its own 0-100 metric.
 const CPU_TEMP_GAUGE_MAX = 90;
+
+// Show a fill forecast once it's within a month; colour it as it gets close
+// (same lines the Attention rules use: 7 days warns, ~2 days is critical).
+const FORECAST_SHOW_DAYS = 30;
+
+function forecastTone(days) {
+  if (days <= 2) return "bad";
+  if (days <= 7) return "warn";
+  return "none";
+}
 
 function formatUptime(seconds) {
   if (seconds == null) return "—";
@@ -254,6 +268,18 @@ function MachineVitals({ machine, history }) {
                   {filesystem.free_bytes != null && (
                     <small> · {formatBytes(filesystem.free_bytes)} free</small>
                   )}
+                  {filesystem.days_until_full != null &&
+                    filesystem.days_until_full <= FORECAST_SHOW_DAYS && (
+                      <small
+                        className={`disk-forecast disk-forecast--${forecastTone(
+                          filesystem.days_until_full
+                        )}`}
+                        title="At the rate it has been filling recently"
+                      >
+                        {" "}
+                        · {formatDaysUntilFull(filesystem.days_until_full)}
+                      </small>
+                    )}
                 </strong>
               </div>
 

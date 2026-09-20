@@ -73,8 +73,12 @@ each container becomes a small stacked card.
 **Servers** is the full view of every machine: a facts row (servers online,
 containers running, CPU threads, GPUs), then a card per host — CPU /
 temperature / RAM gauges with sparklines, network, every GPU, disk I/O and
-storage, plus a footer with how many containers run there and whether its
-agent is connected / stale / unreachable. The machine the dashboard itself
+storage, plus a footer with how many containers run there, whether its
+agent is connected / stale / unreachable, and how its config backup is
+doing ("backup 3h ago", "backup stale", "backup failing", "no backup"). Each
+disk shows a fill forecast ("full in ~7 d") once it's within a month, amber
+inside a week and red inside ~2 days. The facts row's **Backups** tile
+counts hosts with a healthy backup out of those that have one set up. The machine the dashboard itself
 runs on is marked "Dashboard host" and listed first.
 
 **Containers** is one dense table row per container: name/image (with
@@ -296,7 +300,41 @@ URL when something crosses a line — and again when it clears:
   `ALERT_BREACH_CYCLES` consecutive checks (default 2 — a single spike
   won't page you; host-offline and deployment failures fire on the first
   check)
+- a filesystem passes `ALERT_DISK_PERCENT` (default 90, critical at
+  `ALERT_DISK_CRITICAL_PERCENT`, default 97), or is on course to fill within
+  `ALERT_DISK_FORECAST_DAYS` (default 7) at its current rate — see below;
+- a CPU or GPU temperature passes `ALERT_TEMP_CELSIUS` (default 85);
+- a container's healthcheck is failing, or it's crash-looping (Docker says
+  it's restarting, or it has restarted `ALERT_RESTART_COUNT` times (default
+  5) and started within `ALERT_RESTART_WINDOW_MINUTES` (default 30) — the
+  window keeps a container that restarted five times last spring from
+  alerting forever);
+- a host's configuration backup is failing or stale — see below;
 - a scheduler-managed deployment goes `failed` or `node_offline`
+
+These same rules drive the Overview's **Attention** panel (worst first,
+each with a next step), with or without a webhook — the webhook just also
+pushes them to you.
+
+**Disk-full forecast.** Each filesystem carries `days_until_full`, from
+Prometheus: `free_space / -deriv(free_space[DISK_FORECAST_WINDOW])`
+(default window `24h`), only for disks that are actually filling and only
+when it's under a year out. It's re-queried at most every 5 minutes, and
+shows on the Servers tab as "full in ~9 d" beside the disk. The trend is a
+regression over the window, so a big download that's later deleted can
+briefly look alarming; a longer window smooths that, a shorter one reacts
+faster to a runaway log.
+
+**Backup status.** Each agent's `GET /backup` (its scheduled push of your
+compose files to a git repo — see homelab-agent's Configuration Backup) is
+polled by the backend (cached a minute) and reduced to one state: `ok`,
+`stale` (last success older than `ALERT_BACKUP_MAX_AGE_HOURS`, default: 1.5x
+the agent's interval and at least interval + 2 h), `failing` (the last
+attempt errored), `pending`, `not_configured`, `disabled`, or `unsupported`
+(an agent old enough to lack the route). Ages are measured against the
+agent's own clock, so a skewed host clock can't fake a stale backup. Only
+`failing` and `stale` alert; a host with no backup configured just shows
+"no backup" on its Servers card.
 
 Only state *changes* are sent, so a condition that stays true doesn't
 repeat. The body is deliberately generic —

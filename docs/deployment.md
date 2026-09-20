@@ -334,8 +334,11 @@ docker compose logs -f dashboard-api | grep ' scheduler '
 ## Step 6 — Alerting (optional)
 
 Set a webhook URL and the backend notifies you on state changes — a host
-going offline, its agent going unreachable, RAM/CPU over threshold, or a
-managed deployment failing — and again when the condition clears.
+going offline, its agent going unreachable, RAM/CPU/temperature over
+threshold, a disk nearly full or on course to fill within a week, an
+unhealthy or crash-looping container, a failing or stale config backup, or
+a managed deployment failing — and again when the condition clears. The
+same rules always feed the Overview's Attention panel, webhook or not.
 
 ```ini
 ALERT_WEBHOOK_URL=https://ntfy.sh/my-homelab-topic
@@ -343,7 +346,13 @@ ALERT_RAM_PERCENT=90
 ALERT_CPU_PERCENT=95
 ALERT_INTERVAL=60         # seconds between checks
 ALERT_BREACH_CYCLES=2     # consecutive over-threshold checks before a RAM/CPU alert fires
+ALERT_DISK_PERCENT=90     # disk usage warning (critical at ALERT_DISK_CRITICAL_PERCENT, 97)
+ALERT_DISK_FORECAST_DAYS=7  # warn when a disk will be full within this many days
+ALERT_TEMP_CELSIUS=85
 ```
+
+See `.env.example` for the full list (restart-loop window, backup max age,
+forecast window).
 
 The POST body is `{status, key, title, message, host, timestamp}` —
 `status` is `firing` or `resolved`. It works as-is with ntfy and

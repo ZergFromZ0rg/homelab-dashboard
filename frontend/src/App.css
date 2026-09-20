@@ -3864,3 +3864,13 @@ textarea {
 .gpu-stats > div:first-child {
   grid-column: 1 / -1;
 }
+
+/* Disk-fill forecast beside a disk's usage figure */
+
+.disk-forecast--warn {
+  color: var(--warning);
+}
+
+.disk-forecast--bad {
+  color: var(--offline);
+}

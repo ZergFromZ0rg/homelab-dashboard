@@ -6,10 +6,13 @@ import ActivityFeed from "./ActivityFeed";
 import QuickActions from "./QuickActions";
 import { useSettings } from "./settings";
 
-// issue key -> which tab to open for the details
+// issue key -> which tab to open for the details: host-level problems
+// (offline, disk, temperature, backup...) live on Servers, container ones
+// on Containers.
 function issueTab(key) {
-  if (/:offline|:agent|:stale/.test(key)) return "servers";
   if (key.startsWith("deploy:")) return "deploy";
+  if (key.startsWith("container:")) return "containers";
+  if (key.startsWith("host:")) return "servers";
   return "containers";
 }
 

@@ -39,6 +39,16 @@ services:
       ALERT_CPU_PERCENT: ${ALERT_CPU_PERCENT:-}
       ALERT_INTERVAL: ${ALERT_INTERVAL:-}
       ALERT_BREACH_CYCLES: ${ALERT_BREACH_CYCLES:-}
+      # Disk / temperature / container / backup rules (also drive the
+      # Overview Attention panel). Defaults apply if unset.
+      ALERT_DISK_PERCENT: ${ALERT_DISK_PERCENT:-}
+      ALERT_DISK_CRITICAL_PERCENT: ${ALERT_DISK_CRITICAL_PERCENT:-}
+      ALERT_DISK_FORECAST_DAYS: ${ALERT_DISK_FORECAST_DAYS:-}
+      DISK_FORECAST_WINDOW: ${DISK_FORECAST_WINDOW:-}
+      ALERT_TEMP_CELSIUS: ${ALERT_TEMP_CELSIUS:-}
+      ALERT_RESTART_COUNT: ${ALERT_RESTART_COUNT:-}
+      ALERT_RESTART_WINDOW_MINUTES: ${ALERT_RESTART_WINDOW_MINUTES:-}
+      ALERT_BACKUP_MAX_AGE_HOURS: ${ALERT_BACKUP_MAX_AGE_HOURS:-}
       # Live "currently in use" badges for qBittorrent / Jellyfin
       # containers. Leave unset to skip probing that app.
       QBITTORRENT_USERNAME: ${QBITTORRENT_USERNAME:-}

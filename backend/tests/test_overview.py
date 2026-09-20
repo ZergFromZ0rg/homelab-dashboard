@@ -38,3 +38,51 @@ def test_failed_deployment_and_stale_node():
     assert "deploy:d1" in keys
     assert "host:nuc-2:stale" in keys
     assert ov["ok"] is False
+
+
+# --- the new rule families surface in the Attention panel --------------------
+
+
+def _issue(ov, fragment):
+    return next(i for i in ov["issues"] if fragment in i["key"])
+
+
+def test_disk_and_forecast_show_up_with_their_own_severities():
+    fs = [{"device": "sda1", "mountpoint": "/mnt/media", "used_percent": 98.0,
+           "free_bytes": 1e11, "days_until_full": 1.0}]
+    ov = _overview({"nas": _m(filesystems=fs)}, [], set())
+
+    assert _issue(ov, ":disk:")["severity"] == "bad"
+    assert _issue(ov, ":diskfull:")["severity"] == "bad"
+    assert any("docker system prune" in r for r in ov["recommendations"])
+    assert any("filling up" in r for r in ov["recommendations"])
+
+
+def test_unhealthy_container_reaches_the_overview():
+    ov = _overview(
+        {"nuc": _m()}, [], set(),
+        {"nuc": [{"id": "1", "name": "nextcloud", "status": "running",
+                  "health": "unhealthy", "restart_count": 0}]},
+    )
+    issue = _issue(ov, "container:nuc:nextcloud:unhealthy")
+    assert issue["severity"] == "bad"
+    assert any("docker logs nextcloud" in r for r in ov["recommendations"])
+
+
+def test_backup_and_temperature_recommendations():
+    ov = _overview(
+        {"nas": _m(temperature=95, backup={"state": "failing", "last_error": "x"})},
+        [], set(),
+    )
+    assert _issue(ov, ":temp")["severity"] == "warn"
+    assert any("BACKUP_REPO" in r for r in ov["recommendations"])
+    assert any("fans" in r for r in ov["recommendations"])
+
+
+def test_worst_issues_are_listed_first():
+    ov = _overview(
+        {"a": _m(ram=97.0), "b": _m(online=False)}, [], set(),
+    )
+    severities = [i["severity"] for i in ov["issues"]]
+    assert severities == sorted(severities, key=lambda s: s != "bad")
+    assert severities[0] == "bad"

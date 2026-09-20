@@ -66,6 +66,21 @@ SKIP_MOUNT_EXACT = {
 # bogus sensor reading and is dropped.
 MAX_TEMP_C = 115
 
+# "When will this disk be full?" is the trend of free space over this window
+# (a PromQL range, e.g. 6h / 24h / 3d). Longer smooths out a big download
+# that was later deleted; shorter reacts sooner to a runaway log.
+_FORECAST_WINDOW_RE = re.compile(r"^\d+[smhdw]$")
+FORECAST_WINDOW = os.getenv("DISK_FORECAST_WINDOW", "24h").strip()
+if not _FORECAST_WINDOW_RE.match(FORECAST_WINDOW):
+    FORECAST_WINDOW = "24h"
+
+# Forecasts further out than this aren't useful ("full in 3 years") and are
+# mostly noise from a near-flat trend, so they're dropped.
+MAX_FORECAST_DAYS = 365
+FORECAST_REFRESH_SECONDS = 300
+
+_forecast_cache = {"data": {}, "fetched_at": 0.0}
+
 
 def query(promql: str):
     response = requests.get(
@@ -152,7 +167,60 @@ def get_physical_cores() -> dict:
     return {job: len(pairs) for job, pairs in seen.items() if pairs}
 
 
+def get_filesystem_forecasts() -> dict:
+    """(job, device, mountpoint) -> seconds until the filesystem is full at
+    its current rate of filling. Only filesystems that are actually filling
+    (a negative trend in free space) appear.
+
+    The trend is a 24h-ish regression, so it moves slowly: it's re-queried
+    at most every FORECAST_REFRESH_SECONDS however often stats are polled,
+    and a Prometheus hiccup keeps the last answer rather than dropping every
+    forecast for a tick.
+    """
+    now = time.time()
+
+    if now - _forecast_cache["fetched_at"] < FORECAST_REFRESH_SECONDS:
+        return _forecast_cache["data"]
+
+    selector = f'node_filesystem_avail_bytes{{fstype!~"{PSEUDO_FSTYPE_RE}"}}'
+    promql = f"{selector} / (-deriv({selector}[{FORECAST_WINDOW}]) > 0)"
+
+    try:
+        results = query(promql)
+    except (requests.RequestException, ValueError, KeyError):
+        _forecast_cache["fetched_at"] = now
+        return _forecast_cache["data"]
+
+    forecasts = {}
+
+    for result in results:
+        metric = result["metric"]
+        key = (metric.get("job"), metric.get("device"), metric.get("mountpoint"))
+
+        try:
+            seconds = float(result["value"][1])
+        except (TypeError, ValueError):
+            continue
+
+        if seconds > 0 and seconds != float("inf"):
+            forecasts[key] = seconds
+
+    _forecast_cache.update(data=forecasts, fetched_at=now)
+    return forecasts
+
+
+def days_until_full(seconds: float | None) -> float | None:
+    if seconds is None or seconds <= 0:
+        return None
+
+    days = seconds / 86400
+
+    return round(days, 1) if days <= MAX_FORECAST_DAYS else None
+
+
 def get_filesystems():
+    forecasts = get_filesystem_forecasts()
+
     size_results = query(
         f'node_filesystem_size_bytes{{fstype!~"{PSEUDO_FSTYPE_RE}"}}'
     )
@@ -212,6 +280,7 @@ def get_filesystems():
         # since that's what it actually represents.
         real = [entry for entry in entries if entry[0] not in SKIP_MOUNT_EXACT]
         mountpoint, total, available = (real or entries)[0]
+        forecast = forecasts.get((job, device, mountpoint))
 
         if mountpoint in SKIP_MOUNT_EXACT:
             mountpoint = "/"
@@ -226,6 +295,7 @@ def get_filesystems():
             "used_bytes": int(used),
             "free_bytes": int(available),
             "used_percent": round(used_percent, 1),
+            "days_until_full": days_until_full(forecast),
         })
 
     for entries in filesystems.values():

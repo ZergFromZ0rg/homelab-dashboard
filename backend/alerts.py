@@ -8,6 +8,10 @@ Rules (all thresholds are env-tunable):
 - a host's agent stops responding
 - a host's RAM or CPU sits above its threshold for ``ALERT_BREACH_CYCLES``
   consecutive checks (a single spike doesn't page you)
+- a filesystem is nearly full, or on course to fill within a few days
+- a CPU/GPU temperature sits above its threshold
+- a container is unhealthy, crash-looping, or restarting
+- a host's configuration backup is failing or has gone stale
 - a scheduler-managed deployment goes ``failed`` or ``node_offline``
 
 ``AlertMonitor.poll`` is the pure state machine — feed it successive fleet
@@ -28,7 +32,9 @@ endpoints, healthchecks.io, or your own receiver:
 
 from __future__ import annotations
 
+import re
 import time
+from datetime import datetime, timezone
 
 import requests
 
@@ -38,6 +44,17 @@ from backend.log import system
 WEBHOOK_URL = env_str("ALERT_WEBHOOK_URL")
 RAM_PERCENT = env_float("ALERT_RAM_PERCENT", 90)
 CPU_PERCENT = env_float("ALERT_CPU_PERCENT", 95)
+DISK_PERCENT = env_float("ALERT_DISK_PERCENT", 90)
+DISK_CRITICAL_PERCENT = env_float("ALERT_DISK_CRITICAL_PERCENT", 97)
+# Warn when a filesystem is on course to be full within this many days; it
+# turns critical at a quarter of that (min 1 day).
+DISK_FORECAST_DAYS = env_float("ALERT_DISK_FORECAST_DAYS", 7)
+TEMP_CELSIUS = env_float("ALERT_TEMP_CELSIUS", 85)
+# A container that has restarted at least this many times and (re)started
+# within the window below is treated as crash-looping. The count alone would
+# flag a container that restarted five times last spring forever.
+RESTART_COUNT = int(env_float("ALERT_RESTART_COUNT", 5))
+RESTART_WINDOW_SECONDS = env_float("ALERT_RESTART_WINDOW_MINUTES", 30) * 60
 INTERVAL_SECONDS = env_float("ALERT_INTERVAL", 60)
 # Consecutive breaching checks before a resource alert fires. Host-offline
 # and deployment-failed alerts always fire on the first check.
@@ -63,11 +80,12 @@ class AlertMonitor:
         self,
         machines: dict[str, dict],
         deployments: list[dict],
+        containers: dict[str, list] | None = None,
         *,
         now: float | None = None,
     ) -> list[dict]:
         now = now or time.time()
-        raw = evaluate(machines, deployments)
+        raw = evaluate(machines, deployments, containers, now=now)
 
         # Debounce resource alerts: they only count as "breaching" once
         # they've been seen ``breach_cycles`` checks running.
@@ -122,48 +140,215 @@ def _event(status: str, key: str, alert: dict, now: float) -> dict:
     }
 
 
+_FRACTION_RE = re.compile(r"(\.\d{6})\d+")
+
+
+def _started_epoch(value) -> float | None:
+    """Docker's ``StartedAt`` (RFC 3339, nanosecond precision, or the
+    ``0001-01-01`` zero value for a container that never started)."""
+    if not isinstance(value, str) or value.startswith("0001-"):
+        return None
+
+    try:
+        parsed = datetime.fromisoformat(
+            _FRACTION_RE.sub(r"\1", value).replace("Z", "+00:00")
+        )
+    except ValueError:
+        return None
+
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+
+    return parsed.timestamp()
+
+
+def _ago(seconds: float) -> str:
+    hours = seconds / 3600
+    if hours < 1:
+        return f"{max(1, round(seconds / 60))} min"
+    if hours < 48:
+        return f"{hours:.0f} h"
+    return f"{hours / 24:.0f} days"
+
+
+def _host_alerts(name: str, m: dict) -> dict[str, dict]:
+    out: dict[str, dict] = {}
+
+    # A host with neither Prometheus nor a reachable agent — treat as
+    # offline only if Prometheus had it as a real target at some point
+    # (``online`` present and now False).
+    if m.get("online") is False:
+        out[f"host:{name}:offline"] = {
+            "title": f"{name} offline",
+            "message": f"{name} is not responding to Prometheus scrapes",
+            "host": name,
+        }
+
+    if m.get("agent_reachable") is False and m.get("online"):
+        out[f"host:{name}:agent"] = {
+            "title": f"{name} agent unreachable",
+            "message": f"{name} is up but its homelab-agent is not responding",
+            "host": name,
+        }
+
+    ram = m.get("ram")
+    if isinstance(ram, (int, float)) and ram >= RAM_PERCENT:
+        out[f"host:{name}:ram"] = {
+            "title": f"{name} RAM high",
+            "message": f"{name} RAM at {ram:.0f}% (threshold {RAM_PERCENT:.0f}%)",
+            "host": name,
+            "debounce": True,
+        }
+
+    cpu = m.get("cpu")
+    if isinstance(cpu, (int, float)) and cpu >= CPU_PERCENT:
+        out[f"host:{name}:cpu"] = {
+            "title": f"{name} CPU high",
+            "message": f"{name} CPU at {cpu:.0f}% (threshold {CPU_PERCENT:.0f}%)",
+            "host": name,
+            "debounce": True,
+        }
+
+    temp = m.get("temperature")
+    if isinstance(temp, (int, float)) and temp >= TEMP_CELSIUS:
+        out[f"host:{name}:temp"] = {
+            "title": f"{name} running hot",
+            "message": f"{name} CPU at {temp:.0f}°C (threshold {TEMP_CELSIUS:.0f}°C)",
+            "host": name,
+            "severity": "warn",
+            "debounce": True,
+        }
+
+    gpu = m.get("gpu") or {}
+    for index, device in enumerate(gpu.get("devices") or []):
+        gpu_temp = device.get("temperature_c")
+        if isinstance(gpu_temp, (int, float)) and gpu_temp >= TEMP_CELSIUS:
+            out[f"host:{name}:gpu-temp:{index}"] = {
+                "title": f"{name} GPU running hot",
+                "message": (
+                    f"{name} GPU {device.get('name') or index} at {gpu_temp:.0f}°C "
+                    f"(threshold {TEMP_CELSIUS:.0f}°C)"
+                ),
+                "host": name,
+                "severity": "warn",
+                "debounce": True,
+            }
+
+    for fs in m.get("filesystems") or []:
+        mount = fs.get("mountpoint") or fs.get("device") or "?"
+        used = fs.get("used_percent")
+        days = fs.get("days_until_full")
+
+        if isinstance(used, (int, float)) and used >= DISK_PERCENT:
+            free = fs.get("free_bytes")
+            free_text = f", {free / 1e9:.0f} GB free" if isinstance(free, (int, float)) else ""
+            out[f"host:{name}:disk:{mount}"] = {
+                "title": f"{name} {mount} is {used:.0f}% full",
+                "message": f"{mount} on {name} is {used:.0f}% full{free_text}",
+                "host": name,
+                "severity": "bad" if used >= DISK_CRITICAL_PERCENT else "warn",
+            }
+
+        if isinstance(days, (int, float)) and days <= DISK_FORECAST_DAYS:
+            # Round half up (Python's round() is half-to-even) so this reads
+            # the same as the UI's "full in ~N d".
+            whole = int(days + 0.5)
+            out[f"host:{name}:diskfull:{mount}"] = {
+                "title": f"{name} {mount} filling up",
+                "message": (
+                    f"{mount} on {name} will be full in about "
+                    f"{whole} day{'s' if whole != 1 else ''} at its current rate"
+                ),
+                "host": name,
+                "severity": "bad" if days <= max(1, DISK_FORECAST_DAYS / 4) else "warn",
+                "debounce": True,
+            }
+
+    backup = m.get("backup") or {}
+    state = backup.get("state")
+    if state == "failing":
+        error = backup.get("last_error") or "unknown error"
+        out[f"host:{name}:backup"] = {
+            "title": f"{name} backup failing",
+            "message": f"The last backup on {name} failed: {error}",
+            "host": name,
+            "severity": "bad",
+        }
+    elif state == "stale":
+        age = backup.get("last_success_age")
+        out[f"host:{name}:backup"] = {
+            "title": f"{name} backup is stale",
+            "message": (
+                f"The last successful backup on {name} was "
+                f"{_ago(age)} ago" if isinstance(age, (int, float))
+                else f"The backup on {name} hasn't succeeded recently"
+            ),
+            "host": name,
+            "severity": "warn",
+        }
+
+    return out
+
+
+def _container_alerts(
+    host: str, containers: list[dict], now: float
+) -> dict[str, dict]:
+    out: dict[str, dict] = {}
+
+    for c in containers:
+        cname = c.get("name") or c.get("id") or "?"
+        base = f"container:{host}:{cname}"
+
+        if c.get("health") == "unhealthy":
+            out[f"{base}:unhealthy"] = {
+                "title": f"{cname} is unhealthy",
+                "message": f"{cname} on {host} is failing its healthcheck",
+                "host": host,
+                "severity": "bad",
+            }
+
+        restarts = c.get("restart_count") or 0
+        started = _started_epoch(c.get("started_at"))
+        recently_started = (
+            started is not None and now - started <= RESTART_WINDOW_SECONDS
+        )
+
+        if c.get("status") == "restarting" or (
+            restarts >= RESTART_COUNT and recently_started
+        ):
+            out[f"{base}:restarting"] = {
+                "title": f"{cname} keeps restarting",
+                "message": (
+                    f"{cname} on {host} has restarted {restarts} time"
+                    f"{'' if restarts == 1 else 's'} and is crash-looping"
+                ),
+                "host": host,
+                "severity": "bad",
+            }
+
+    return out
+
+
 def evaluate(
-    machines: dict[str, dict], deployments: list[dict]
+    machines: dict[str, dict],
+    deployments: list[dict],
+    containers: dict[str, list] | None = None,
+    *,
+    now: float | None = None,
 ) -> dict[str, dict]:
     """Current raw breaches, keyed by a stable alert key. Pure — also used
-    by the Overview status panel, not just the alert loop."""
+    by the Overview status panel, not just the alert loop.
+
+    An alert may carry ``severity`` ("warn" | "bad"); without one the caller
+    decides (RAM/CPU are warnings, everything else is bad)."""
+    now = now or time.time()
     out: dict[str, dict] = {}
 
     for name, m in machines.items():
-        # A host with neither Prometheus nor a reachable agent — treat as
-        # offline only if Prometheus had it as a real target at some point
-        # (``online`` present and now False).
-        if m.get("online") is False:
-            out[f"host:{name}:offline"] = {
-                "title": f"{name} offline",
-                "message": f"{name} is not responding to Prometheus scrapes",
-                "host": name,
-            }
+        out.update(_host_alerts(name, m))
 
-        if m.get("agent_reachable") is False and m.get("online"):
-            out[f"host:{name}:agent"] = {
-                "title": f"{name} agent unreachable",
-                "message": f"{name} is up but its homelab-agent is not responding",
-                "host": name,
-            }
-
-        ram = m.get("ram")
-        if isinstance(ram, (int, float)) and ram >= RAM_PERCENT:
-            out[f"host:{name}:ram"] = {
-                "title": f"{name} RAM high",
-                "message": f"{name} RAM at {ram:.0f}% (threshold {RAM_PERCENT:.0f}%)",
-                "host": name,
-                "debounce": True,
-            }
-
-        cpu = m.get("cpu")
-        if isinstance(cpu, (int, float)) and cpu >= CPU_PERCENT:
-            out[f"host:{name}:cpu"] = {
-                "title": f"{name} CPU high",
-                "message": f"{name} CPU at {cpu:.0f}% (threshold {CPU_PERCENT:.0f}%)",
-                "host": name,
-                "debounce": True,
-            }
+    for host, host_containers in (containers or {}).items():
+        out.update(_container_alerts(host, host_containers or [], now))
 
     for record in deployments:
         status = record.get("status")

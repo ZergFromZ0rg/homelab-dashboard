@@ -66,6 +66,7 @@ def _offline_machine(reachable: bool) -> dict:
         "network_tx": None,
         "filesystems": [],
         "disk_io": [],
+        "backup": None,
     }
 
 
@@ -83,6 +84,7 @@ def merge_agent_snapshot(
         reachable = data.get("reachable", False)
         machines.setdefault(host, _offline_machine(reachable))
         machines[host]["gpu"] = data.get("gpu")
+        machines[host]["backup"] = data.get("backup")
         machines[host]["agent_reachable"] = reachable
         machines[host]["agent_stale_age"] = data.get("stale_age")
         containers[host] = data.get("containers", [])
@@ -693,19 +695,23 @@ async def _alert_loop() -> None:
     if not alerts.enabled():
         return
     sched_log.info(
-        "alerts on: webhook every %.0fs, RAM>%.0f%%, CPU>%.0f%% "
-        "(%d checks before firing)",
+        "alerts on: webhook every %.0fs, RAM>%.0f%%, CPU>%.0f%%, disk>%.0f%% "
+        "or full within %.0fd, temp>%.0f°C, container/backup health "
+        "(%d checks before a resource alert fires)",
         alerts.INTERVAL_SECONDS,
         alerts.RAM_PERCENT,
         alerts.CPU_PERCENT,
+        alerts.DISK_PERCENT,
+        alerts.DISK_FORECAST_DAYS,
+        alerts.TEMP_CELSIUS,
         alerts.BREACH_CYCLES,
     )
     while True:
         await asyncio.sleep(alerts.INTERVAL_SECONDS)
         try:
-            _, machines, _, _, _ = await asyncio.to_thread(_build_fleet)
+            _, machines, containers, _, _ = await asyncio.to_thread(_build_fleet)
             dumps = [d.model_dump() for d in deployments.all()]
-            events = alert_monitor.poll(machines, dumps)
+            events = alert_monitor.poll(machines, dumps, containers)
             for event in events:
                 level = sched_log.warning if event["status"] == "firing" else sched_log.info
                 level("alert %s: %s", event["status"], event["message"])

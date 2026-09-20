@@ -79,6 +79,7 @@ function machine(o) {
     agent_reachable: true,
     agent_stale_age: null,
     gpu: o.gpu ?? { available: false, count: 0, devices: [] },
+    backup: o.backup ?? { state: "not_configured" },
   };
 }
 
@@ -96,9 +97,10 @@ export function demoSnapshot() {
       load: 2.4,
       rx: 4_800_000,
       tx: 1_200_000,
+      backup: { state: "ok", running: false, interval_hours: 12, last_success_age: 3 * 3600, last_run_age: 3 * 3600, last_error: null, projects: 4 },
       fs: [
         { device: "/dev/nvme0n1p2", mountpoint: "/", used_percent: 46, used_bytes: 460e9, total_bytes: 1000e9, free_bytes: 540e9 },
-        { device: "/dev/sda1", mountpoint: "/mnt/media", used_percent: 88, used_bytes: 15.8e12, total_bytes: 18e12, free_bytes: 2.2e12 },
+        { device: "/dev/sda1", mountpoint: "/mnt/media", used_percent: 88, used_bytes: 15.8e12, total_bytes: 18e12, free_bytes: 2.2e12, days_until_full: 6.5 },
       ],
       gpu: {
         available: true,
@@ -130,6 +132,7 @@ export function demoSnapshot() {
       load: 0.3,
       rx: 220_000,
       tx: 90_000,
+      backup: { state: "ok", running: false, interval_hours: 12, last_success_age: 40 * 60, last_run_age: 40 * 60, last_error: null, projects: 2 },
       fs: [{ device: "/dev/sda2", mountpoint: "/", used_percent: 52, used_bytes: 250e9, total_bytes: 480e9, free_bytes: 230e9 }],
     }),
     "nuc-media": machine({
@@ -137,13 +140,14 @@ export function demoSnapshot() {
       threads: 4,
       cores: 4,
       cpu: 71,
-      ram: 88,
+      ram: 91,
       ramGb: 16,
       temp: 74,
       uptimeDays: 3,
       load: 3.1,
       rx: 12_000_000,
       tx: 900_000,
+      backup: { state: "failing", running: false, interval_hours: 12, last_success_age: 30 * 3600, last_run_age: 120, last_error: "push rejected after retries: authentication failed", projects: 3 },
       fs: [{ device: "/dev/nvme0n1p1", mountpoint: "/", used_percent: 91, used_bytes: 218e9, total_bytes: 240e9, free_bytes: 22e9 }],
     }),
   };
@@ -214,14 +218,24 @@ export function demoSnapshot() {
       { at: t - 86400, kind: "deploy", text: "whoami deployed to bigboy" },
     ],
     mainHost: "thinkpad",
+    // Mirrors what backend/alerts.py + main._overview would produce for the
+    // fleet above (worst first, same keys and wording).
     overview: {
       ok: false,
       issues: [
-        { key: "container:nuc-media:nextcloud", severity: "bad", title: "nextcloud is unhealthy", message: "On nuc-media, restarted 7 times." },
-        { key: "host:nuc-media:ram", severity: "warn", title: "nuc-media RAM at 88%", message: "Consider moving a container off this host." },
-        { key: "disk:bigboy:/mnt/media", severity: "warn", title: "bigboy /mnt/media is 88% full", message: "2.2 TB free." },
+        { key: "container:nuc-media:nextcloud:unhealthy", severity: "bad", title: "nextcloud is unhealthy", message: "nextcloud on nuc-media is failing its healthcheck" },
+        { key: "host:nuc-media:backup", severity: "bad", title: "nuc-media backup failing", message: "The last backup on nuc-media failed: push rejected after retries: authentication failed" },
+        { key: "host:bigboy:diskfull:/mnt/media", severity: "warn", title: "bigboy /mnt/media filling up", message: "/mnt/media on bigboy will be full in about 7 days at its current rate" },
+        { key: "host:nuc-media:disk:/", severity: "warn", title: "nuc-media / is 91% full", message: "/ on nuc-media is 91% full, 22 GB free" },
+        { key: "host:nuc-media:ram", severity: "warn", title: "nuc-media RAM high", message: "nuc-media RAM at 91% (threshold 90%)" },
       ],
-      recommendations: [],
+      recommendations: [
+        "Read nextcloud's logs on nuc-media (docker logs nextcloud) — its healthcheck is failing.",
+        "Check homelab-agent's logs on nuc-media and its BACKUP_REPO / GITHUB_TOKEN settings.",
+        "bigboy is filling up — find what's growing (docker system df, du -sh) before it hits 100%.",
+        "Free space on nuc-media — clear old logs and images (docker system prune) or extend the volume.",
+        "Free memory on nuc-media or move a workload off it.",
+      ],
     },
     pins: ["bigboy/jellyfin", "bigboy/qbittorrent", "nuc-media/plex"],
     todos: [

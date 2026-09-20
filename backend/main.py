@@ -75,32 +75,55 @@ def _detect_main_host(agent_data: dict) -> str | None:
 
 # One templated next-step per issue-key family, for the Overview
 # "Recommendations" list. Rebalance moves come separately (with buttons).
+# Keys look like ``host:<name>:<kind>[:<extra>]`` or
+# ``container:<host>:<name>:<kind>`` or ``deploy:<id>``.
 def _recommendation(key: str, host: str | None) -> str:
     where = host or "the host"
-    if key.endswith(":ram"):
-        return f"Free memory on {where} or move a workload off it."
-    if key.endswith(":cpu"):
-        return f"{where} CPU is saturated — find the runaway container."
-    if key.endswith(":offline"):
-        return f"{where} is unreachable — check its power and network."
-    if key.endswith(":agent"):
-        return f"{where} is up but homelab-agent isn't responding — restart that container."
-    if key.endswith(":stale"):
-        return f"{where} hasn't checked in — confirm homelab-agent is still running."
-    if key.startswith("deploy:"):
+    parts = key.split(":")
+
+    if parts[0] == "deploy":
         return "Redeploy the failed workload, or check its container logs."
-    return ""
+
+    if parts[0] == "container":
+        name = parts[2] if len(parts) > 2 else "the container"
+        kind = parts[3] if len(parts) > 3 else ""
+        if kind == "unhealthy":
+            return f"Read {name}'s logs on {where} (docker logs {name}) — its healthcheck is failing."
+        if kind == "restarting":
+            return f"{name} is crash-looping on {where} — read its logs (docker logs {name}) to see why it exits."
+        return ""
+
+    kind = parts[2] if len(parts) > 2 else ""
+    return {
+        "ram": f"Free memory on {where} or move a workload off it.",
+        "cpu": f"{where} CPU is saturated — find the runaway container.",
+        "offline": f"{where} is unreachable — check its power and network.",
+        "agent": f"{where} is up but homelab-agent isn't responding — restart that container.",
+        "stale": f"{where} hasn't checked in — confirm homelab-agent is still running.",
+        "temp": f"{where} is running hot — check its fans, dust and airflow.",
+        "gpu-temp": f"{where}'s GPU is running hot — check its fan and case airflow.",
+        "disk": f"Free space on {where} — clear old logs and images (docker system prune) or extend the volume.",
+        "diskfull": f"{where} is filling up — find what's growing (docker system df, du -sh) before it hits 100%.",
+        "backup": f"Check homelab-agent's logs on {where} and its BACKUP_REPO / GITHUB_TOKEN settings.",
+    }.get(kind, "")
 
 
-def _overview(machines: dict, deployment_dumps: list[dict], stale_nodes: set[str]) -> dict:
+def _overview(
+    machines: dict,
+    deployment_dumps: list[dict],
+    stale_nodes: set[str],
+    containers: dict | None = None,
+) -> dict:
     """At-a-glance fleet health for the landing page: the same breaches the
     alert loop watches, plus stale nodes, turned into a flat issue list and
     a set of plain next-steps. Deterministic — no LLM."""
     issues: list[dict] = []
     recs: list[str] = []
 
-    for key, alert in alerts.evaluate(machines, deployment_dumps).items():
-        severity = "warn" if key.endswith((":ram", ":cpu")) else "bad"
+    for key, alert in alerts.evaluate(machines, deployment_dumps, containers).items():
+        severity = alert.get("severity") or (
+            "warn" if key.endswith((":ram", ":cpu")) else "bad"
+        )
         issues.append(
             {
                 "key": key,
@@ -126,6 +149,9 @@ def _overview(machines: dict, deployment_dumps: list[dict], stale_nodes: set[str
         rec = _recommendation(key, name)
         if rec not in recs:
             recs.append(rec)
+
+    # Worst first; the sort is stable so equal severities keep their order.
+    issues.sort(key=lambda issue: issue["severity"] != "bad")
 
     return {"ok": not issues, "issues": issues, "recommendations": recs}
 
@@ -390,7 +416,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 "pins": pins.all(),
                 "todos": todos.all(),
                 "activity": activity.recent(),
-                "overview": _overview(machines, dumps, stale_nodes),
+                "overview": _overview(machines, dumps, stale_nodes, containers),
                 "server_time": time.time(),
             })
 

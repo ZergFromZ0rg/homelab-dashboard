@@ -15,10 +15,12 @@ function Fact({ label, value, sub, bad }) {
 function ServersTab({ machines, containers, history, mainHost, connected }) {
   const names = Object.keys(machines);
   const online = names.filter((n) => machines[n].online).length;
-  const gpus = names.reduce((n, name) => {
-    const g = machines[name].gpu;
-    return n + (g && g.available !== false ? g.devices?.length || 0 : 0);
-  }, 0);
+  // Hosts that have a backup set up at all, and how many of those are fine.
+  const backupStates = names
+    .map((n) => machines[n].backup?.state)
+    .filter((s) => ["ok", "stale", "failing", "pending"].includes(s));
+  const backupsOk = backupStates.filter((s) => s === "ok" || s === "pending").length;
+  const backupsBad = backupStates.length - backupsOk;
   const lists = Object.values(containers);
   const total = lists.reduce((n, l) => n + l.length, 0);
   const running = lists.reduce(
@@ -45,7 +47,12 @@ function ServersTab({ machines, containers, history, mainHost, connected }) {
         />
         <Fact label="Containers" value={`${running} / ${total}`} sub="running" />
         <Fact label="CPU threads" value={cores || "—"} sub="across the fleet" />
-        <Fact label="GPUs" value={gpus} />
+        <Fact
+          label="Backups"
+          value={backupStates.length ? `${backupsOk} / ${backupStates.length}` : "—"}
+          sub={backupStates.length ? "healthy" : "none configured"}
+          bad={backupsBad > 0}
+        />
       </div>
 
       <HostGrid
