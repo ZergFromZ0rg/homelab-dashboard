@@ -1644,6 +1644,97 @@ select.deploy-input[multiple] {
   overflow-wrap: anywhere;
 }
 
+/* ----- Add a node ----- */
+
+.addnode {
+  margin-top: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.addnode-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  padding: 2px 0;
+  cursor: pointer;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.addnode-toggle:hover {
+  color: var(--text);
+}
+
+.addnode-toggle .host-toggle {
+  transition: transform 0.15s ease;
+  transform: rotate(-90deg);
+}
+
+.addnode-toggle.expanded .host-toggle {
+  transform: none;
+}
+
+.addnode-body {
+  margin-top: 8px;
+  max-width: 760px;
+}
+
+.addnode-note {
+  margin: 0 0 8px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.addnode-note--small {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.addnode-note code {
+  font-family: var(--mono);
+  font-size: 10px;
+  background: var(--bg-subtle);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+.addnode-command {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-subtle);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.addnode-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.addnode-opt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
 /* ----- Container history charts ----- */
 
 .ccharts {

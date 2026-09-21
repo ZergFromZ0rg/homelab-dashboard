@@ -465,6 +465,23 @@ backups are polled; a briefly unreachable agent keeps its last known
 version rather than blanking, since the card already says it's
 unreachable.
 
+## Adding a node
+
+The Servers tab ends with an **Add a node** panel: a `curl | sh` command
+with this dashboard's address already in it. Run it on the new machine and
+the node appears here within a minute — Docker is the only prerequisite.
+
+The address comes from `window.location.origin`, the URL *you* reached the
+dashboard at. The backend can't supply it: it sees a bind address, not
+however you got here. The browser's copy is the one address known to work
+from somewhere other than the dashboard's own host, which is exactly what
+the new node needs.
+
+Two things the panel says out loud, because both are silent failures
+otherwise: the host's name must match its Prometheus `job_name` or it
+shows containers with no host metrics, and a dashboard with `API_TOKEN`
+set needs `--token` on that command.
+
 ## Updating the fleet
 
 The Servers tab's **Agents** tile counts how many are current and offers

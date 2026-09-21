@@ -1,3 +1,4 @@
+import AddNode from "./AddNode";
 import FleetUpdate from "./FleetUpdate";
 import HostGrid from "./HostGrid";
 
@@ -63,6 +64,8 @@ function ServersTab({ machines, containers, history, mainHost, connected }) {
         history={history}
         mainHost={mainHost}
       />
+
+      <AddNode />
     </section>
   );
 }
