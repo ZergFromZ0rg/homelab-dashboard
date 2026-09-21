@@ -36,11 +36,45 @@ function backupChip(backup) {
   }
 }
 
+// What the agent is running. "rebuild" means the checkout on that host has
+// moved past the image — someone pulled without rebuilding, which is the
+// state you can act on right now. "behind" means the remote has moved and
+// a rebuild would pull it. Nothing at all for an agent too old to say.
+function versionChip(version) {
+  const short = version?.source?.short;
+
+  switch (version?.state) {
+    case "rebuild":
+      return {
+        label: "rebuild to apply",
+        tone: "warn",
+        title: `${short} is checked out on this host but the running agent was built before it`,
+      };
+    case "behind":
+      return {
+        label: "update available",
+        tone: "warn",
+        title: `the remote has moved past ${short}; a rebuild will pull it`,
+      };
+    case "current":
+      return { label: `agent ${short}`, tone: "ok", title: "up to date" };
+    case "unsupported":
+      return {
+        label: "agent version unknown",
+        tone: "none",
+        title: "this agent predates version reporting — rebuild it once",
+      };
+    default:
+      return null;
+  }
+}
+
 // Server-level facts that aren't host metrics: what runs on it and whether
 // its agent is talking to us. Sits under a host's vitals.
 function HostFooter({ machine, containers }) {
   const list = containers || [];
   const backup = backupChip(machine.backup);
+  const version = versionChip(machine.agent_version);
   const running = list.filter((c) => c.status === "running").length;
   const unhealthy = list.filter((c) => c.health === "unhealthy").length;
 
@@ -63,6 +97,11 @@ function HostFooter({ machine, containers }) {
       {backup && (
         <span className={`chip chip--${backup.tone}`} title={backup.title || undefined}>
           {backup.label}
+        </span>
+      )}
+      {version && (
+        <span className={`chip chip--${version.tone}`} title={version.title}>
+          {version.label}
         </span>
       )}
     </div>

@@ -3,6 +3,7 @@ import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from backend import backups
+from backend import versions
 from backend.env import env_float, env_str
 from backend.log import system as log
 
@@ -56,6 +57,8 @@ def get_host_data(host, base_url):
             # Cached for a minute inside backups, so this is a real request
             # only occasionally, not on every tick.
             "backup": backups.status_for(host, base_url),
+            # Also cached, for the same reason.
+            "agent_version": versions.for_host(host, base_url),
         }
         _LAST_GOOD[host] = {**snapshot, "at": time.time()}
         return host, snapshot
@@ -72,6 +75,7 @@ def get_host_data(host, base_url):
                 "gpu": cached["gpu"],
                 "updated_at": cached["updated_at"],
                 "backup": cached.get("backup"),
+                "agent_version": cached.get("agent_version"),
                 "reachable": True,
                 "stale": True,
                 "stale_age": round(now - cached["at"], 1),
@@ -95,6 +99,7 @@ def get_host_data(host, base_url):
             "gpu": None,
             "updated_at": None,
             "backup": None,
+            "agent_version": None,
             "reachable": False,
         }
 

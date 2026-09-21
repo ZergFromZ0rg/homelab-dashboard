@@ -67,6 +67,7 @@ def _offline_machine(reachable: bool) -> dict:
         "filesystems": [],
         "disk_io": [],
         "backup": None,
+        "agent_version": None,
     }
 
 
@@ -85,6 +86,7 @@ def merge_agent_snapshot(
         machines.setdefault(host, _offline_machine(reachable))
         machines[host]["gpu"] = data.get("gpu")
         machines[host]["backup"] = data.get("backup")
+        machines[host]["agent_version"] = data.get("agent_version")
         machines[host]["agent_reachable"] = reachable
         machines[host]["agent_stale_age"] = data.get("stale_age")
         containers[host] = data.get("containers", [])

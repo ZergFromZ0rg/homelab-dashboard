@@ -172,6 +172,9 @@ def test_agent_poll_attaches_backup_and_merge_puts_it_on_the_machine(monkeypatch
 
     monkeypatch.setattr(docker.requests, "get", lambda *a, **k: Resp())
     monkeypatch.setattr(docker.backups, "status_for", lambda host, url: {"state": "ok"})
+    # The poll also asks for the agent's version now; this test isn't about
+    # that, and the stub above would otherwise answer /version too.
+    monkeypatch.setattr(docker.versions, "for_host", lambda host, url: {"state": "current"})
     docker._LAST_GOOD.clear()
 
     host, snapshot = docker.get_host_data("nuc", "http://nuc:8123")

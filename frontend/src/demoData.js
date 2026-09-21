@@ -94,6 +94,10 @@ function machine(o) {
     agent_stale_age: null,
     gpu: o.gpu ?? { available: false, count: 0, devices: [] },
     backup: o.backup ?? { state: "not_configured" },
+    agent_version: o.agentVersion ?? {
+      state: "current",
+      source: { short: "db2e663", branch: "main" },
+    },
   };
 }
 
@@ -220,6 +224,7 @@ export function demoSnapshot() {
       rx: 4_800_000,
       tx: 1_200_000,
       backup: { state: "ok", running: false, interval_hours: 12, last_success_age: 3 * 3600, last_run_age: 3 * 3600, last_error: null, projects: 4 },
+      agentVersion: { state: "behind", source: { short: "2736742", branch: "main" } },
       fs: [
         { device: "/dev/nvme0n1p2", mountpoint: "/", used_percent: 46, used_bytes: 460e9, total_bytes: 1000e9, free_bytes: 540e9 },
         { device: "/dev/sda1", mountpoint: "/mnt/media", used_percent: 88, used_bytes: 15.8e12, total_bytes: 18e12, free_bytes: 2.2e12, days_until_full: 6.5 },

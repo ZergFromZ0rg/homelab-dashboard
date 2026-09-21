@@ -420,6 +420,28 @@ Not in scope: compose stacks, automatic rescheduling when a node dies
 (there's a manual "redeploy elsewhere" button), cross-node networking, and
 stateful volume migration (a named volume stays on its node).
 
+## Agent versions
+
+Each host card carries a chip saying what its agent is running:
+
+| Chip | Means |
+| --- | --- |
+| `agent db2e663` | up to date |
+| **rebuild to apply** | the checkout on that host has moved past the running image — someone pulled and didn't rebuild |
+| **update available** | the remote has commits that host doesn't; a rebuild pulls them |
+| `agent version unknown` | an agent from before version reporting; rebuild it once |
+
+The agent works this out from three facts (`GET /version`): its checkout's
+HEAD, when its image was built, and one `git ls-remote`. It compares the
+image's **build time** against the commit date rather than a commit baked
+in at build time — a baked commit goes wrong as soon as a container is
+restarted without being rebuilt, which happens a lot.
+
+`backend/versions.py` polls it and caches for a minute, the same way
+backups are polled; a briefly unreachable agent keeps its last known
+version rather than blanking, since the card already says it's
+unreachable.
+
 ## Rebuilding from the dashboard
 
 A **Rebuild** button on a container row pulls its Compose project's git
