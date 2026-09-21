@@ -40,6 +40,7 @@ export const PERSONAL_CARD_OPTIONS = [
   { key: "todo", label: "To-do" },
   { key: "notes", label: "Notes" },
   { key: "weather", label: "Weather" },
+  { key: "calendar", label: "Calendar" },
   { key: "word", label: "Word of the day" },
   { key: "links", label: "Quick links" },
 ];

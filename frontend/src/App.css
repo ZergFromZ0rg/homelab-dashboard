@@ -1553,6 +1553,54 @@ select.deploy-input[multiple] {
   overflow-wrap: anywhere;
 }
 
+/* ----- Calendar ----- */
+
+.calendar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  text-align: center;
+}
+
+.calendar-weekday {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding-bottom: 4px;
+}
+
+.calendar-day {
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1;
+  padding: 7px 0;
+  border-radius: 7px;
+  color: var(--text);
+}
+
+.calendar-day--weekend {
+  color: var(--offline);
+}
+
+/* The days either side of the month keep the grid square but shouldn't
+   compete with the month you're looking at. */
+.calendar-day--outside {
+  opacity: 0.32;
+}
+
+.calendar-day--today {
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
 /* ----- Alert history ----- */
 
 .alert-history {
