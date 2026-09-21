@@ -92,6 +92,9 @@ def _fetch(base_url: str) -> dict:
             # daemon, so the UI can say "unattributed" rather than implying
             # every one of these is host traffic.
             "attributed": bool(body.get("attributed")),
+            # Whether the agent could name the processes behind the rows no
+            # container claimed.
+            "processes": bool(body.get("processes")),
             "updated_at": body.get("updated_at"),
             "peers": peers if isinstance(peers, list) else [],
         }

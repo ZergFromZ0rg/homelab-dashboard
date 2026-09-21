@@ -284,12 +284,18 @@ of the *connection*, not of the host, so for an inbound flow the counters
 are swapped: reading them raw would report a 4 GB stream *out* of Jellyfin
 as 4 GB coming in.
 
-Traffic the agent can't match to a container — something on the host
-itself — is shown dimmed with its raw conntrack endpoints (`src` opened the
-connection, and the byte columns are that connection's two directions).
-Those rows aren't relabelled, because deciding which end is local would
-mean guessing from address ranges, and both ends of an inbound LAN
-connection are private.
+Traffic that isn't a container's is named by the **process** holding the
+socket instead — `gitea → 140.82.121.4:443` — in plain text rather than the
+accent colour, so the two kinds of owner stay apart at a glance. A row
+with neither is dimmed: the socket had already closed (conntrack keeps an
+entry a while after), or the agent couldn't read the host's socket tables,
+in which case the panel says so.
+
+Rows without a container keep their raw conntrack endpoints either way
+(`src` opened the connection, and the byte columns are that connection's
+two directions). They aren't relabelled, because deciding which end is
+local would mean guessing from address ranges, and both ends of an inbound
+LAN connection are private.
 
 The panel needs the agent set up for it: its host's conntrack table has to
 be readable (free if that agent already mounts the host filesystem for

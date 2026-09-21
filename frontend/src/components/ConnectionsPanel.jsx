@@ -15,21 +15,30 @@ import { formatBytes } from "./format";
 // of view — so the row says "jellyfin ← 192.168.1.40:8096" and the arrows
 // mean what you'd expect.
 //
-// When it didn't (traffic belonging to the host itself), the endpoints
-// stay exactly as conntrack recorded them: src opened the connection, and
-// the byte columns are that connection's two directions rather than the
-// host's. Relabelling those would mean guessing which end is local, which
-// address ranges can't tell you — both sides of an inbound LAN connection
-// are private.
+// When it didn't, the flow belongs to the host itself, and the agent
+// names the *process* holding the socket instead — "sshd → 10.0.2.1:22".
+//
+// Either way the endpoints of an unattributed row stay exactly as
+// conntrack recorded them: src opened the connection, and the byte columns
+// are that connection's two directions rather than the host's.
+// Relabelling those would mean guessing which end is local, which address
+// ranges can't tell you — both sides of an inbound LAN connection are
+// private. A row with neither a container nor a process is dimmed.
 function PeerRow({ peer }) {
   const attributed = Boolean(peer.container);
 
   if (!attributed) {
     const port = peer.dport != null ? `:${peer.dport}` : "";
     return (
-      <tr className="conn-row--raw">
+      <tr className={peer.process ? "" : "conn-row--raw"}>
         <td className="conn-peer">
-          <span>{peer.src}</span>
+          {peer.process ? (
+            <strong className="conn-owner conn-owner--host" title={`pid ${peer.pid}`}>
+              {peer.process}
+            </strong>
+          ) : (
+            <span>{peer.src}</span>
+          )}
           <span className="conn-arrow">→</span>
           <span>
             {peer.dst}
@@ -137,6 +146,13 @@ function ConnectionsPanel({ host }) {
                   This agent couldn't reach its Docker daemon, so nothing is
                   matched to a container — endpoints are shown as conntrack
                   recorded them.
+                </p>
+              )}
+
+              {data.attributed && data.processes === false && (
+                <p className="conn-note">
+                  Traffic that isn't a container's can't be named on this
+                  host — its socket tables weren't readable.
                 </p>
               )}
 

@@ -1725,6 +1725,12 @@ select.deploy-input[multiple] {
   font-weight: 600;
 }
 
+/* A host process is named, but it isn't a container — a different colour
+   keeps the two kinds of owner apart at a glance. */
+.conn-owner--host {
+  color: var(--text);
+}
+
 /* Rows the agent couldn't match to a container: still real traffic, but
    the endpoints are raw and the byte columns mean something subtly
    different, so they sit back a little. */

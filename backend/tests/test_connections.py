@@ -23,6 +23,7 @@ AGENT_OK = {
     "available": True,
     "accounting": True,
     "attributed": True,
+    "processes": True,
     "source": "/host/nf_conntrack",
     "flows_total": 12,
     "conversations_total": 3,
@@ -222,3 +223,24 @@ def test_attribution_flag_and_fields_survive_the_hop(monkeypatch):
 def test_an_agent_without_attribution_reads_as_false(monkeypatch):
     respond(monkeypatch, FakeResponse(200, {**AGENT_OK, "attributed": False}))
     assert connections.for_host("bigboy", "http://x")["attributed"] is False
+
+
+def test_process_names_survive_the_hop(monkeypatch):
+    payload = {
+        **AGENT_OK,
+        "peers": [{
+            "proto": "tcp", "src": "192.168.1.10", "dst": "140.82.121.4",
+            "dport": 443, "flows": 2, "container": None, "direction": None,
+            "process": "gitea", "pid": 812,
+        }],
+    }
+    respond(monkeypatch, FakeResponse(200, payload))
+
+    peer = connections.for_host("bigboy", "http://x")["peers"][0]
+
+    assert peer["process"] == "gitea" and peer["pid"] == 812
+
+
+def test_an_agent_that_could_not_read_socket_tables_reads_as_false(monkeypatch):
+    respond(monkeypatch, FakeResponse(200, {**AGENT_OK, "processes": False}))
+    assert connections.for_host("bigboy", "http://x")["processes"] is False
