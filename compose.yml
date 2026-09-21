@@ -60,6 +60,10 @@ services:
       JELLYFIN_API_KEY: ${JELLYFIN_API_KEY:-}
     volumes:
       - dashboard-data:/data
+    # Lets the backend send unprivileged ICMP echo (Ping checks) without
+    # granting any extra capability.
+    sysctls:
+      net.ipv4.ping_group_range: "0 2147483647"
     networks:
       - dashboard
       - prometheus_net

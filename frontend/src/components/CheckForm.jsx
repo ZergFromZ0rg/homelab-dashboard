@@ -3,15 +3,29 @@ import TokenBox from "./TokenBox";
 
 const TYPES = [
   { value: "http", label: "Website / API", hint: "GET a URL and expect a healthy answer." },
+  {
+    value: "keyword",
+    label: "Website + text",
+    hint: "Like Website / API, and the page must also contain some text — catches an error page served with a 200.",
+  },
+  {
+    value: "ping",
+    label: "Ping",
+    hint: "One ICMP echo (IPv4). Some hosts and networks drop ping — use a Port check if that's yours.",
+  },
   { value: "tcp", label: "Port", hint: "Open a TCP connection to host:port." },
   { value: "dns", label: "DNS lookup", hint: "Resolve a hostname." },
 ];
 
 const TARGET_HELP = {
   http: { placeholder: "192.168.1.10:8096 or https://jellyfin.example.com", label: "Address" },
+  keyword: { placeholder: "192.168.1.10:8096 or https://jellyfin.example.com", label: "Address" },
+  ping: { placeholder: "192.168.1.1 or router.local", label: "Host or IP" },
   tcp: { placeholder: "192.168.1.10:22", label: "Host and port" },
   dns: { placeholder: "example.com", label: "Hostname" },
 };
+
+const isWeb = (type) => type === "http" || type === "keyword";
 
 // One-click starting points for the two checks everyone wants.
 const PRESETS = [
@@ -28,6 +42,8 @@ function blank(check) {
     timeout: check?.timeout ?? 5,
     expect_status: check?.expect_status ?? "",
     verify_tls: check?.verify_tls ?? true,
+    keyword: check?.keyword ?? "",
+    keyword_mode: check?.keyword_mode ?? "present",
   };
 }
 
@@ -54,7 +70,8 @@ function CheckForm({ check, onSubmit, onCancel }) {
         ...values,
         interval: Number(values.interval),
         timeout: Number(values.timeout),
-        expect_status: values.type === "http" && values.expect_status !== "" ? Number(values.expect_status) : null,
+        expect_status: isWeb(values.type) && values.expect_status !== "" ? Number(values.expect_status) : null,
+        keyword: values.type === "keyword" ? values.keyword : null,
       });
     } catch (err) {
       setError(err.message);
@@ -63,6 +80,7 @@ function CheckForm({ check, onSubmit, onCancel }) {
   };
 
   const help = TARGET_HELP[values.type];
+  const typeHint = TYPES.find((t) => t.value === values.type)?.hint;
 
   return (
     <form className="check-form" onSubmit={submit}>
@@ -97,6 +115,8 @@ function CheckForm({ check, onSubmit, onCancel }) {
         ))}
       </div>
 
+      <p className="settings-hint check-type-hint">{typeHint}</p>
+
       <div className="check-form-grid">
         <label className="deploy-field">
           <span className="deploy-label">Name</span>
@@ -120,6 +140,34 @@ function CheckForm({ check, onSubmit, onCancel }) {
           />
         </label>
       </div>
+
+      {values.type === "keyword" && (
+        <div className="check-keyword">
+          <label className="deploy-field">
+            <span className="deploy-label">Text to look for</span>
+            <input
+              className="deploy-input"
+              value={values.keyword}
+              maxLength={200}
+              placeholder="Jellyfin"
+              onChange={(e) => set({ keyword: e.target.value })}
+              required
+            />
+          </label>
+          <label className="settings-check">
+            <input
+              type="checkbox"
+              checked={values.keyword_mode === "absent"}
+              onChange={(e) => set({ keyword_mode: e.target.checked ? "absent" : "present" })}
+            />
+            Fail if this text <em>is</em> on the page (e.g. "error") instead of when it's missing
+          </label>
+          <p className="settings-hint">
+            Not case-sensitive. Looks in the first 512 KB of the page. Latency
+            is the time to download it.
+          </p>
+        </div>
+      )}
 
       <button
         type="button"
@@ -155,7 +203,7 @@ function CheckForm({ check, onSubmit, onCancel }) {
               onChange={(e) => set({ timeout: e.target.value })}
             />
           </label>
-          {values.type === "http" && (
+          {isWeb(values.type) && (
             <>
               <label className="deploy-field">
                 <span className="deploy-label">Expected status (blank = any below 400)</span>

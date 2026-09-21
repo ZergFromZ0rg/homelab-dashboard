@@ -13,6 +13,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { loadCachedPins, cachePins, putPins } from "./components/containerPins";
 import { loadCachedTodos, cacheTodos, putTodos } from "./components/todosApi";
 import "./App.css";
+import brandImage from "./assets/brand.webp";
 import { DEMO, demoSnapshot } from "./demoData";
 
 const EMPTY_OVERVIEW = { ok: true, issues: [], recommendations: [] };
@@ -253,7 +254,9 @@ function AppShell({ tabs, activeTab, onTab, connected, lastUpdate, onOpenSetting
       <header className="topbar">
         <div className="topbar-inner">
           <div className="brand">
-            <span className="brand-mark" aria-hidden="true" />
+            <span className="brand-mark" aria-hidden="true">
+              <img src={brandImage} alt="" />
+            </span>
             <div className="brand-text">
               <h1>{siteTitle}</h1>
               {siteSubtitle && <p className="eyebrow">{siteSubtitle}</p>}

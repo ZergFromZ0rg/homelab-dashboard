@@ -378,6 +378,13 @@ machine's LAN IP or hostname for anything on the dashboard host (not
 request to whatever address it's given. Check history lives in the
 `dashboard-data` volume.
 
+Two of the check types have a prerequisite worth knowing: **Ping** needs the
+container to be allowed to send ICMP — `compose.yml` sets
+`net.ipv4.ping_group_range` on `dashboard-api` for exactly that (if you
+changed the compose file, keep it, or give the container `CAP_NET_RAW`); and
+**Website + text** reads the first 512 KB of the page, so the text has to be
+near the top.
+
 ---
 
 ## Logs

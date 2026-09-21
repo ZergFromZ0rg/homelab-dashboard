@@ -87,7 +87,7 @@ def test_numbers_are_range_checked():
 
 
 def test_name_type_and_flags_are_validated():
-    for bad in ({"name": ""}, {"name": "x" * 61}, {"type": "ping"}, {"verify_tls": "no"}, {"paused": 1}):
+    for bad in ({"name": ""}, {"name": "x" * 61}, {"type": "smtp"}, {"verify_tls": "no"}, {"paused": 1}):
         with pytest.raises(ValueError):
             build_spec({"name": "x", "type": "dns", "target": "a.b", **bad})
 
@@ -107,6 +107,15 @@ def test_unknown_fields_and_ids_are_ignored():
 # --- probes against real local servers -------------------------------------------
 
 
+PAGES = {
+    "/page": (200, b"<html><body>Welcome to <b>Jellyfin</b> media server</body></html>"),
+    "/errorpage": (200, b"<html>Fatal error: database connection failed</html>"),
+    "/503page": (503, b"<html>Jellyfin is starting up</html>"),
+    "/big": (200, b"x" * 4000 + b" NEEDLE"),
+    "/unicode": (200, "Bienvenue \u00e0 la m\u00e9diath\u00e8que".encode("utf-8")),
+}
+
+
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/redirect":
@@ -121,6 +130,20 @@ class Handler(BaseHTTPRequestHandler):
             time.sleep(2.5)
             self.send_response(200)
             self.end_headers()
+        elif self.path == "/trickle":
+            # Headers promptly, then the body arrives far too late.
+            self.send_response(200)
+            self.send_header("Content-Length", "10")
+            self.end_headers()
+            self.wfile.flush()
+            time.sleep(3)
+        elif self.path in PAGES:
+            code, body = PAGES[self.path]
+            self.send_response(code)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
         else:
             code = {"/ok": 200, "/missing": 404, "/boom": 503, "/auth": 401}.get(self.path, 200)
             self.send_response(code)
@@ -486,3 +509,240 @@ def test_overview_lists_down_checks_with_their_hint():
     issue = next(i for i in ov["issues"] if i["key"] == "check:abc")
     assert issue["severity"] == "bad"
     assert any("reachable from the dashboard host" in r for r in ov["recommendations"])
+
+
+# --- keyword checks ------------------------------------------------------------------
+
+
+def kw_spec(url, keyword, **kw):
+    return build_spec({"name": "kw", "type": "keyword", "target": url, "keyword": keyword, "timeout": 1, **kw})
+
+
+def test_keyword_spec_validation():
+    spec = build_spec({"name": "x", "type": "keyword", "target": "nas:8096", "keyword": "  Jellyfin "})
+    assert spec["target"] == "http://nas:8096" and spec["keyword"] == "Jellyfin"
+    assert spec["keyword_mode"] == "present" and spec["verify_tls"] is True
+
+    for bad in ("", "   ", None, "x" * 201, "two\nlines"):
+        with pytest.raises(ValueError):
+            build_spec({"name": "x", "type": "keyword", "target": "nas", "keyword": bad})
+    with pytest.raises(ValueError):
+        build_spec({"name": "x", "type": "keyword", "target": "nas", "keyword": "a", "keyword_mode": "sometimes"})
+
+
+def test_keyword_is_ignored_on_other_types_and_expect_status_still_applies():
+    other = build_spec({"name": "x", "type": "http", "target": "nas", "keyword": "hello", "keyword_mode": "absent"})
+    assert other["keyword"] is None and other["keyword_mode"] == "present"
+    kw = build_spec({"name": "x", "type": "keyword", "target": "nas", "keyword": "a", "expect_status": 401})
+    assert kw["expect_status"] == 401
+
+
+def test_keyword_found_is_up_and_latency_covers_the_download(server):
+    result = probe(kw_spec(server + "/page", "Jellyfin"))
+    assert result.ok and result.detail == 'HTTP 200 · found "Jellyfin"'
+    assert result.ms is not None
+
+
+def test_keyword_match_is_case_insensitive_and_handles_unicode(server):
+    assert probe(kw_spec(server + "/page", "WELCOME TO")).ok
+    assert probe(kw_spec(server + "/unicode", "m\u00e9diath\u00e8que")).ok
+
+
+def test_keyword_missing_is_down_even_though_the_page_loaded(server):
+    result = probe(kw_spec(server + "/page", "Plex"))
+    assert not result.ok and result.detail == 'HTTP 200 · "Plex" not found'
+    assert result.ms is not None      # we did get an answer; latency is still real
+
+
+def test_absent_mode_flips_the_condition(server):
+    good = probe(kw_spec(server + "/page", "Fatal error", keyword_mode="absent"))
+    assert good.ok and "not present" in good.detail
+    bad = probe(kw_spec(server + "/errorpage", "Fatal error", keyword_mode="absent"))
+    assert not bad.ok and "unwanted text" in bad.detail
+
+
+def test_a_bad_status_wins_over_the_keyword(server):
+    result = probe(kw_spec(server + "/503page", "Jellyfin"))
+    assert not result.ok and result.detail == "HTTP 503"   # never even reads the body
+
+
+def test_expect_status_applies_to_keyword_checks_too(server):
+    assert probe(kw_spec(server + "/503page", "starting", expect_status=503)).ok
+
+
+def test_body_read_is_capped(server, monkeypatch):
+    # The keyword sits after 4000 bytes; with a 2 KB cap it must not be found,
+    # and the message should say the page was only partly read.
+    monkeypatch.setattr(checks, "MAX_BODY_BYTES", 2048)
+    result = probe(kw_spec(server + "/big", "NEEDLE"))
+    assert not result.ok
+    assert result.detail == 'HTTP 200 · "NEEDLE" not found in the first 2 KB'
+
+    monkeypatch.setattr(checks, "MAX_BODY_BYTES", 512 * 1024)
+    assert probe(kw_spec(server + "/big", "NEEDLE")).ok
+
+
+def test_a_server_that_stalls_mid_body_times_out(server):
+    result = probe(kw_spec(server + "/trickle", "anything"))
+    assert not result.ok and "timed out" in result.detail
+
+
+def test_keyword_check_reports_connection_errors_like_http():
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+    result = probe(kw_spec(f"http://127.0.0.1:{port}", "x"))
+    assert not result.ok and "refused" in result.detail
+
+
+# --- ping checks ----------------------------------------------------------------------
+
+
+import struct
+
+
+def test_ping_target_validation():
+    assert build_spec({"name": "x", "type": "ping", "target": "192.168.1.1"})["target"] == "192.168.1.1"
+    assert build_spec({"name": "x", "type": "ping", "target": "router.local"})["target"] == "router.local"
+    for bad in ("", "a b", "http://x.y", "1.2.3.4:80", "bad$host"):
+        with pytest.raises(ValueError):
+            build_spec({"name": "x", "type": "ping", "target": bad})
+
+
+def test_icmp_checksum_makes_a_packet_verify_to_zero():
+    packet = checks._echo_request(0x1234, 7)
+    assert checks._icmp_checksum(packet) == 0
+    assert packet[0] == 8 and packet[1] == 0                      # echo request
+    assert struct.unpack("!HH", packet[4:8]) == (0x1234, 7)
+
+
+def test_icmp_body_strips_an_ipv4_header_only_when_there_is_one():
+    icmp = struct.pack("!BBHHH", 0, 0, 0, 1, 2)
+    ip_header = bytes([0x45]) + bytes(19)                          # version 4, IHL 5
+    assert checks._icmp_body(ip_header + icmp) == icmp
+    assert checks._icmp_body(icmp) == icmp                         # type 0 can't look like 0x4N
+
+
+class FakeIcmpSocket:
+    def __init__(self, replies, raw=False):
+        self.replies = list(replies)
+        self.sent = None
+
+    def sendto(self, data, addr):
+        self.sent = data
+
+    def settimeout(self, value):
+        self.timeout = value
+
+    def recvfrom(self, size):
+        if not self.replies:
+            raise socket.timeout()
+        reply = self.replies.pop(0)
+        return (reply(self.sent) if callable(reply) else reply), ("127.0.0.1", 0)
+
+    def close(self):
+        self.closed = True
+
+
+def echo_reply(header=b"", ident_delta=0, seq_delta=0):
+    def build(sent):
+        _t, _c, _s, ident, seq = struct.unpack("!BBHHH", sent[:8])
+        return header + struct.pack("!BBHHH", 0, 0, 0, ident + ident_delta, seq + seq_delta) + sent[8:]
+    return build
+
+
+def patch_socket(monkeypatch, replies, raw=False):
+    fake = FakeIcmpSocket(replies)
+    monkeypatch.setattr(checks, "_open_icmp_socket", lambda: (fake, raw))
+    return fake
+
+
+PING = {"name": "gw", "type": "ping", "target": "127.0.0.1", "timeout": 1}
+
+
+def test_ping_reply_is_up_with_latency(monkeypatch):
+    fake = patch_socket(monkeypatch, [echo_reply()])
+    result = probe(build_spec(PING))
+    assert result.ok and result.detail == "reply from 127.0.0.1" and result.ms >= 0
+    assert fake.closed
+
+
+def test_ping_reply_with_an_ip_header_is_understood(monkeypatch):
+    patch_socket(monkeypatch, [echo_reply(header=bytes([0x45]) + bytes(19))])
+    assert probe(build_spec(PING)).ok
+
+
+def test_ping_ignores_replies_that_are_not_ours_then_times_out(monkeypatch):
+    patch_socket(monkeypatch, [echo_reply(seq_delta=1)])
+    result = probe(build_spec(PING))
+    assert not result.ok and "no reply" in result.detail
+
+
+def test_raw_sockets_also_match_the_identifier(monkeypatch):
+    patch_socket(monkeypatch, [echo_reply(ident_delta=1)], raw=True)
+    assert not probe(build_spec(PING)).ok
+    patch_socket(monkeypatch, [echo_reply()], raw=True)
+    assert probe(build_spec(PING)).ok
+
+
+def test_ping_destination_unreachable(monkeypatch):
+    patch_socket(monkeypatch, [struct.pack("!BBHHH", 3, 1, 0, 0, 0)])
+    result = probe(build_spec(PING))
+    assert not result.ok and result.detail == "host unreachable"
+
+
+def test_ping_without_icmp_permission_explains_the_fix(monkeypatch):
+    def denied():
+        raise PermissionError("nope")
+
+    monkeypatch.setattr(checks, "_open_icmp_socket", denied)
+    result = probe(build_spec(PING))
+    assert not result.ok and "ping_group_range" in result.detail and "Port check" in result.detail
+
+
+def test_ping_unresolvable_host():
+    result = probe(build_spec({**PING, "target": "definitely-not-real.invalid"}))
+    assert not result.ok and "DNS lookup failed" in result.detail
+
+
+def test_ping_loopback_for_real():
+    try:
+        sock, _ = checks._open_icmp_socket()
+        sock.close()
+    except OSError:
+        pytest.skip("ICMP sockets aren't permitted in this environment")
+    result = probe(build_spec(PING))
+    assert result.ok and result.ms < 1000
+
+
+# --- the new types through the service and API -------------------------------------------
+
+
+def test_editing_the_keyword_resets_history(tmp_path):
+    service = make_service(tmp_path)
+    spec = service.store.create({"name": "k", "type": "keyword", "target": "nas", "keyword": "a"})
+    service.record(spec["id"], Result(True, 5.0, "ok"), time.time())
+
+    before, after = service.store.update(spec["id"], {"keyword": "b"})
+    service.changed(before, after)
+    assert service.summary(after)["status"] == "pending"
+
+
+def test_api_roundtrip_for_keyword_and_ping(client):
+    kw = client.post("/api/checks", json={"name": "JF", "type": "keyword", "target": "nas:8096",
+                                          "keyword": "Jellyfin", "keyword_mode": "absent"})
+    assert kw.status_code == 201
+    body = kw.json()
+    assert (body["keyword"], body["keyword_mode"], body["type"]) == ("Jellyfin", "absent", "keyword")
+
+    ping = client.post("/api/checks", json={"name": "GW", "type": "ping", "target": "192.168.1.1"})
+    assert ping.status_code == 201 and ping.json()["keyword"] is None
+
+    missing = client.post("/api/checks", json={"name": "x", "type": "keyword", "target": "nas"})
+    assert missing.status_code == 400 and "text to look for" in missing.json()["detail"]
+
+
+def test_a_down_keyword_check_alerts_with_its_type_and_reason():
+    alert = alerts.evaluate({}, [], None, [down_check(type="keyword", detail='HTTP 200 · "Jellyfin" not found')],
+                            now=1_000.0 + 60)["check:abc"]
+    assert "keyword" in alert["message"] and "not found" in alert["message"]

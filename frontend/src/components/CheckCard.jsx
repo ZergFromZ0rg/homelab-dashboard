@@ -5,7 +5,7 @@ import Sparkline from "./Sparkline";
 import { deleteCheck, runCheck, updateCheck } from "./checksApi";
 import { formatAge, formatDuration, formatLatency } from "./format";
 
-const TYPE_LABEL = { http: "HTTP", tcp: "TCP", dns: "DNS" };
+const TYPE_LABEL = { http: "HTTP", keyword: "KEYWORD", ping: "PING", tcp: "TCP", dns: "DNS" };
 
 // Second-level precision: on a monitoring page "just now" hides whether the
 // last probe was 3s or 55s ago.
@@ -99,7 +99,7 @@ function CheckCard({ check, now }) {
             </span>
           )}
         </div>
-        {check.type === "http" ? (
+        {check.type === "http" || check.type === "keyword" ? (
           <a
             className="check-target"
             href={check.target}
@@ -113,6 +113,13 @@ function CheckCard({ check, now }) {
           <span className="check-target">{check.target}</span>
         )}
       </div>
+
+      {check.type === "keyword" && (
+        <div className="check-keyword-line">
+          {check.keyword_mode === "absent" ? "Fails if the page contains" : "Page must contain"}{" "}
+          <q>{check.keyword}</q>
+        </div>
+      )}
 
       <div className="check-main">
         <div>

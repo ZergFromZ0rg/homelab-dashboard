@@ -4,11 +4,15 @@ A container being ``running`` doesn't mean Jellyfin serves a page, the
 router answers, or the internet is up. A check is a small probe the dashboard
 backend runs on a schedule:
 
-    http   GET a URL; up if it answers with the expected status (default: any
-           non-error, i.e. < 400 after redirects). Latency = time to response
-           headers.
-    tcp    open a TCP connection to host:port. Latency = connect time.
-    dns    resolve a hostname with the backend's resolver. Latency = lookup.
+    http     GET a URL; up if it answers with the expected status (default:
+             any non-error, i.e. < 400 after redirects). Latency = time to
+             response headers.
+    keyword  like http, and the page must also contain (or, inverted, must
+             NOT contain) some text — catches an error page served with a
+             200. Latency = time to download the page (first 512 KB).
+    ping     one ICMP echo to an IPv4 host. Latency = round trip.
+    tcp      open a TCP connection to host:port. Latency = connect time.
+    dns      resolve a hostname with the backend's resolver. Latency = lookup.
 
 The probes run *from the dashboard backend*, so they test reachability from
 where the dashboard lives ("localhost" means the dashboard container itself —
@@ -28,7 +32,9 @@ from __future__ import annotations
 
 import asyncio
 import re
+import random
 import socket
+import struct
 import threading
 import time
 import uuid
@@ -48,7 +54,8 @@ from backend.log import system as log
 CHECKS_FILE = Path(env_str("CHECKS_FILE", "/data/checks.json"))
 HISTORY_FILE = Path(env_str("CHECK_HISTORY_FILE", "/data/check_history.json"))
 
-TYPES = ("http", "tcp", "dns")
+TYPES = ("http", "keyword", "ping", "tcp", "dns")
+HTTP_TYPES = ("http", "keyword")
 
 MAX_CHECKS = 100
 MAX_NAME_LENGTH = 60
@@ -68,6 +75,10 @@ BUCKET_RETENTION_SECONDS = 30 * 86400
 RECENT_POINTS = 40
 PERSIST_EVERY_SECONDS = 60
 MAX_DETAIL_LENGTH = 200
+MAX_KEYWORD_LENGTH = 200
+KEYWORD_MODES = ("present", "absent")
+# How much of a page a keyword check reads before giving up on finding text.
+MAX_BODY_BYTES = 512 * 1024
 
 USER_AGENT = "homelab-dashboard/1.0 (service check)"
 MAX_REDIRECTS = 5
@@ -83,7 +94,10 @@ RANGES = {
 _HOST_RE = re.compile(r"^[A-Za-z0-9]([A-Za-z0-9._-]{0,251}[A-Za-z0-9])?$")
 _LOCAL_SUFFIX_RE = re.compile(r"\.(local|lan|home|internal)$", re.IGNORECASE)
 _IPV4_RE = re.compile(r"^\d{1,3}(\.\d{1,3}){3}$")
-EDITABLE = ("name", "type", "target", "interval", "timeout", "expect_status", "verify_tls", "paused")
+EDITABLE = (
+    "name", "type", "target", "interval", "timeout", "expect_status",
+    "verify_tls", "paused", "keyword", "keyword_mode",
+)
 
 
 # ---------------------------------------------------------------------------
@@ -134,6 +148,22 @@ def _clean_dns_target(raw: str) -> str:
     return host
 
 
+def _clean_ping_target(raw: str) -> str:
+    host = raw.strip()
+    if not _HOST_RE.match(host) or len(host) > 253:
+        raise ValueError("target must be a hostname or IPv4 address, e.g. 192.168.1.1")
+    return host
+
+
+def _clean_keyword(value, mode) -> tuple[str, str]:
+    keyword = str(value or "").strip()
+    if not 1 <= len(keyword) <= MAX_KEYWORD_LENGTH or "\n" in keyword or "\r" in keyword:
+        raise ValueError(f"the text to look for must be 1-{MAX_KEYWORD_LENGTH} characters on one line")
+    if mode not in KEYWORD_MODES:
+        raise ValueError("keyword_mode must be 'present' or 'absent'")
+    return keyword, mode
+
+
 def _number(value, label, low, high, default, integer=False):
     if value in (None, ""):
         return default
@@ -169,7 +199,13 @@ def build_spec(payload: dict, existing: dict | None = None) -> dict:
     target = merged.get("target")
     if not isinstance(target, str):
         raise ValueError("target is required")
-    target = {"http": _clean_http_target, "tcp": _clean_tcp_target, "dns": _clean_dns_target}[kind](target)
+    target = {
+        "http": _clean_http_target,
+        "keyword": _clean_http_target,
+        "ping": _clean_ping_target,
+        "tcp": _clean_tcp_target,
+        "dns": _clean_dns_target,
+    }[kind](target)
 
     interval = _number(merged.get("interval"), "interval", MIN_INTERVAL, MAX_INTERVAL, DEFAULT_INTERVAL, integer=True)
     timeout = _number(merged.get("timeout"), "timeout", MIN_TIMEOUT, MAX_TIMEOUT, DEFAULT_TIMEOUT)
@@ -177,10 +213,17 @@ def build_spec(payload: dict, existing: dict | None = None) -> dict:
         raise ValueError("timeout can't be longer than the interval")
 
     expect = merged.get("expect_status")
-    if kind == "http":
+    if kind in HTTP_TYPES:
         expect = _number(expect, "expected status", 100, 599, None, integer=True)
     else:
         expect = None
+
+    if kind == "keyword":
+        keyword, keyword_mode = _clean_keyword(
+            merged.get("keyword"), merged.get("keyword_mode") or "present"
+        )
+    else:
+        keyword, keyword_mode = None, "present"
 
     verify = merged.get("verify_tls", True)
     paused = merged.get("paused", False)
@@ -195,7 +238,9 @@ def build_spec(payload: dict, existing: dict | None = None) -> dict:
         "interval": interval,
         "timeout": timeout,
         "expect_status": expect,
-        "verify_tls": verify if kind == "http" else True,
+        "verify_tls": verify if kind in HTTP_TYPES else True,
+        "keyword": keyword,
+        "keyword_mode": keyword_mode,
         "paused": paused,
         "created_at": merged.get("created_at") or time.time(),
     }
@@ -217,8 +262,45 @@ def _short(text: object) -> str:
     return " ".join(str(text).split())[:MAX_DETAIL_LENGTH]
 
 
+def _read_text(response, started: float, timeout: float) -> tuple[str, bool]:
+    """Read up to MAX_BODY_BYTES of a response as text. -> (text, truncated).
+    Raises TimeoutError if the whole read takes longer than ``timeout``, so
+    a server that trickles bytes can't hold a check open forever."""
+    chunks: list[bytes] = []
+    size = 0
+    truncated = False
+
+    for chunk in response.iter_content(chunk_size=16384):
+        if time.perf_counter() - started > timeout:
+            raise TimeoutError
+        chunks.append(chunk)
+        size += len(chunk)
+        if size >= MAX_BODY_BYTES:
+            truncated = True
+            break
+
+    return b"".join(chunks)[:MAX_BODY_BYTES].decode("utf-8", errors="replace"), truncated
+
+
+def _keyword_result(spec: dict, code: int, text: str, truncated: bool, ms: float) -> Result:
+    keyword = spec["keyword"]
+    shown = keyword if len(keyword) <= 40 else keyword[:37] + "..."
+    found = keyword.lower() in text.lower()
+
+    if spec["keyword_mode"] == "absent":
+        if found:
+            return Result(False, ms, _short(f'HTTP {code} · unwanted text "{shown}" found'))
+        return Result(True, ms, _short(f'HTTP {code} · "{shown}" not present'))
+
+    if found:
+        return Result(True, ms, _short(f'HTTP {code} · found "{shown}"'))
+    where = f" in the first {MAX_BODY_BYTES // 1024} KB" if truncated else ""
+    return Result(False, ms, _short(f'HTTP {code} · "{shown}" not found{where}'))
+
+
 def _probe_http(spec: dict) -> Result:
     timeout = spec["timeout"]
+    keyword_check = spec["type"] == "keyword"
     started = time.perf_counter()
 
     session = requests.Session()
@@ -235,14 +317,23 @@ def _probe_http(spec: dict) -> Result:
                 timeout=(timeout, timeout),
                 verify=spec.get("verify_tls", True),
                 allow_redirects=True,
-                stream=True,  # headers only; never download a big body
+                stream=True,  # headers first; never download a big body blindly
             )
-        ms = (time.perf_counter() - started) * 1000
+
         code = response.status_code
+        expected = spec.get("expect_status")
+        status_ok = code == expected if expected else code < 400
+
+        if keyword_check and status_ok:
+            text, truncated = _read_text(response, started, timeout)
+            ms = (time.perf_counter() - started) * 1000
+            return _keyword_result(spec, code, text, truncated, ms)
+
+        ms = (time.perf_counter() - started) * 1000
         response.close()
     except requests.exceptions.SSLError as error:
         return Result(False, None, _short(f"TLS error: {error}"))
-    except requests.exceptions.Timeout:
+    except (requests.exceptions.Timeout, TimeoutError):
         return Result(False, None, f"timed out after {timeout:g}s")
     except requests.exceptions.TooManyRedirects:
         return Result(False, None, "too many redirects")
@@ -253,12 +344,8 @@ def _probe_http(spec: dict) -> Result:
     finally:
         session.close()
 
-    expected = spec.get("expect_status")
-    ok = code == expected if expected else code < 400
-    detail = f"HTTP {code}" if ok else (
-        f"HTTP {code} (expected {expected})" if expected else f"HTTP {code}"
-    )
-    return Result(ok, ms, detail)
+    detail = f"HTTP {code} (expected {expected})" if expected and not status_ok else f"HTTP {code}"
+    return Result(status_ok, ms, detail)
 
 
 def _connection_reason(error: Exception) -> str:
@@ -303,10 +390,110 @@ def _probe_dns(spec: dict) -> Result:
     return Result(bool(answers), ms, f"resolved to {address}")
 
 
+def _icmp_checksum(data: bytes) -> int:
+    if len(data) % 2:
+        data += b"\0"
+    total = sum(struct.unpack(f"!{len(data) // 2}H", data))
+    total = (total >> 16) + (total & 0xFFFF)
+    total += total >> 16
+    return ~total & 0xFFFF
+
+
+def _echo_request(ident: int, seq: int, payload: bytes = b"homelab-dashboard") -> bytes:
+    header = struct.pack("!BBHHH", 8, 0, 0, ident, seq)
+    checksum = _icmp_checksum(header + payload)
+    return struct.pack("!BBHHH", 8, 0, checksum, ident, seq) + payload
+
+
+def _icmp_body(packet: bytes) -> bytes:
+    """The ICMP message inside whatever a socket handed back: raw sockets
+    (and macOS datagram ones) include the IPv4 header, Linux datagram ones
+    don't. An IPv4 header starts 0x4N; no ICMP message we care about does."""
+    if packet and packet[0] >> 4 == 4:
+        return packet[(packet[0] & 0x0F) * 4:]
+    return packet
+
+
+def _open_icmp_socket() -> tuple[socket.socket, bool]:
+    """-> (socket, is_raw). Unprivileged datagram ICMP first (Linux needs the
+    container's net.ipv4.ping_group_range to include its gid; macOS just
+    works), then a raw socket (root with CAP_NET_RAW)."""
+    try:
+        return socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_ICMP), False
+    except OSError:
+        pass
+    return socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP), True
+
+
+ICMP_DENIED = (
+    "ICMP isn't permitted for the dashboard container (needs "
+    "net.ipv4.ping_group_range or CAP_NET_RAW) — use a Port check instead"
+)
+
+
+def _probe_ping(spec: dict) -> Result:
+    host = spec["target"]
+    timeout = spec["timeout"]
+
+    try:
+        address = socket.getaddrinfo(host, None, socket.AF_INET, socket.SOCK_STREAM)[0][4][0]
+    except socket.gaierror:
+        return Result(False, None, "DNS lookup failed (IPv4 only)")
+
+    try:
+        sock, raw = _open_icmp_socket()
+    except OSError:
+        return Result(False, None, ICMP_DENIED)
+
+    ident = random.randrange(1, 0xFFFF)
+    seq = random.randrange(1, 0xFFFF)
+
+    try:
+        started = time.perf_counter()
+        try:
+            sock.sendto(_echo_request(ident, seq), (address, 0))
+        except PermissionError:
+            return Result(False, None, ICMP_DENIED)
+        except OSError as error:
+            return Result(False, None, _short(f"send failed: {error}"))
+
+        while True:
+            remaining = timeout - (time.perf_counter() - started)
+            if remaining <= 0:
+                return Result(False, None, f"no reply within {timeout:g}s")
+            sock.settimeout(remaining)
+            try:
+                data, _ = sock.recvfrom(1024)
+            except (socket.timeout, TimeoutError):
+                return Result(False, None, f"no reply within {timeout:g}s")
+            except OSError as error:
+                return Result(False, None, _short(f"receive failed: {error}"))
+
+            message = _icmp_body(data)
+            if len(message) < 8:
+                continue
+            kind, _code, _sum, got_ident, got_seq = struct.unpack("!BBHHH", message[:8])
+            if kind == 0 and got_seq == seq and (not raw or got_ident == ident):
+                ms = (time.perf_counter() - started) * 1000
+                return Result(True, ms, f"reply from {address}")
+            if kind == 3:
+                return Result(False, None, "host unreachable")
+            if kind == 11:
+                return Result(False, None, "TTL exceeded in transit")
+    finally:
+        sock.close()
+
+
 def probe(spec: dict) -> Result:
     """Run one check once. Never raises: any failure is a failed Result."""
     try:
-        return {"http": _probe_http, "tcp": _probe_tcp, "dns": _probe_dns}[spec["type"]](spec)
+        return {
+            "http": _probe_http,
+            "keyword": _probe_http,
+            "ping": _probe_ping,
+            "tcp": _probe_tcp,
+            "dns": _probe_dns,
+        }[spec["type"]](spec)
     except Exception as error:  # noqa: BLE001 - a probe must not kill its worker
         log.warning("check %s crashed: %s", spec.get("name"), error)
         return Result(False, None, _short(f"probe error: {error}"))
@@ -472,7 +659,10 @@ class CheckService:
     def changed(self, before: dict, after: dict) -> None:
         """A check was edited: a different target means old samples describe
         something else, so start fresh; anything else just re-runs soon."""
-        if any(before[k] != after[k] for k in ("type", "target", "expect_status", "verify_tls")):
+        if any(
+            before.get(k) != after.get(k)
+            for k in ("type", "target", "expect_status", "verify_tls", "keyword", "keyword_mode")
+        ):
             self.forget(after["id"])
         self.run_now(after["id"])
 
@@ -537,7 +727,13 @@ class CheckService:
             ]
 
             return {
-                **{k: spec[k] for k in ("id", "name", "type", "target", "interval", "timeout", "expect_status", "verify_tls", "paused")},
+                **{
+                    k: spec[k]
+                    for k in (
+                        "id", "name", "type", "target", "interval", "timeout",
+                        "expect_status", "verify_tls", "paused", "keyword", "keyword_mode",
+                    )
+                },
                 "status": status,
                 "last_ok": None if last is None else last[1],
                 "latency_ms": round(last[2], 1) if last and last[1] and last[2] is not None else None,

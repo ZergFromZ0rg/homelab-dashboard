@@ -106,6 +106,20 @@ schedule, keeping latency and history:
   an IP, `localhost`, a single-label name or `*.local/.lan/.home/.internal`,
   `https://` otherwise. "Accept a self-signed certificate" skips TLS
   verification for that check.
+- **Website + text** (`keyword`) — like the above, and the page must also
+  *contain* some text (or, with "Fail if this text is on the page", must
+  *not* contain it). This catches what a plain status check can't: an app
+  that serves a friendly error page with a `200`. Matching is
+  case-insensitive over the first 512 KB of the page; a wrong status fails
+  before the body is even read, and the latency shown is the time to
+  download the page rather than just the headers.
+- **Ping** (`ping`) — one ICMP echo to an IPv4 host or address, latency
+  being the round trip. It uses an unprivileged ICMP socket (the shipped
+  `compose.yml` sets `net.ipv4.ping_group_range` so this works without extra
+  capabilities), falling back to a raw socket if the container has
+  `CAP_NET_RAW`. If neither is allowed the check says so and suggests a
+  Port check instead. Many hosts and networks drop ping; IPv6-only names
+  aren't supported.
 - **Port** (`tcp`) — open a connection to `host:port`.
 - **DNS lookup** (`dns`) — resolve a hostname with the backend's resolver.
 

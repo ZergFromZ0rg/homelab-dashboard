@@ -43,9 +43,11 @@ export function formatDaysUntilFull(days) {
   return days < 1 ? "full in <1 d" : `full in ~${Math.round(days)} d`;
 }
 
-// A latency in ms -> "23 ms" / "1.4 s".
+// A latency in ms -> "0.9 ms" / "23 ms" / "1.4 s" (a decimal under 10 ms, where
+// a LAN ping lives and rounding to a whole number would hide the difference).
 export function formatLatency(ms) {
   if (ms == null) return "—";
+  if (ms < 10) return `${ms.toFixed(1)} ms`;
   return ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(1)} s`;
 }
 

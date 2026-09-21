@@ -93,7 +93,7 @@ function wave(base, jitter, n = 40, failEvery = 0) {
 
 function demoChecks() {
   const t = now();
-  const base = { interval: 60, timeout: 5, expect_status: null, verify_tls: true, paused: false, failing: 0, down_since: null };
+  const base = { interval: 60, timeout: 5, expect_status: null, verify_tls: true, keyword: null, keyword_mode: "present", paused: false, failing: 0, down_since: null };
   return [
     { ...base, id: "k1", name: "Jellyfin", type: "http", target: "http://bigboy:8096", status: "up", last_ok: true, latency_ms: 34.2, detail: "HTTP 200", checked_at: t - 22, uptime_24h: 100, uptime_7d: 99.97, uptime_30d: 99.91, avg_ms_24h: 36.1, recent: wave(35, 6) },
     { ...base, id: "k2", name: "Router", type: "tcp", target: "192.168.1.1:443", status: "up", last_ok: true, latency_ms: 2.1, detail: "connected", checked_at: t - 41, uptime_24h: 100, uptime_7d: 100, uptime_30d: 99.99, avg_ms_24h: 2.4, recent: wave(2, 0.6) },
@@ -101,6 +101,8 @@ function demoChecks() {
     { ...base, id: "k4", name: "DNS", type: "dns", target: "example.com", status: "up", last_ok: true, latency_ms: 11.6, detail: "resolved to 93.184.215.14", checked_at: t - 33, uptime_24h: 100, uptime_7d: 99.98, uptime_30d: 99.95, avg_ms_24h: 13.2, recent: wave(12, 4) },
     { ...base, id: "k5", name: "Nextcloud", type: "http", target: "https://cloud.example.com", status: "down", last_ok: false, latency_ms: null, detail: "HTTP 502", checked_at: t - 15, down_since: t - 1080, failing: 18, uptime_24h: 93.4, uptime_7d: 98.7, uptime_30d: 99.2, avg_ms_24h: 210.5, recent: [...wave(200, 30, 22), ...Array(18).fill(null)] },
     { ...base, id: "k6", name: "Grafana", type: "http", target: "http://thinkpad:3000", status: "up", last_ok: true, latency_ms: 88.9, detail: "HTTP 200", checked_at: t - 50, failing: 1, uptime_24h: 99.5, uptime_7d: 99.8, uptime_30d: 99.9, avg_ms_24h: 71.4, recent: wave(75, 20, 40, 13) },
+    { ...base, id: "k8", name: "Gateway", type: "ping", target: "192.168.1.1", status: "up", last_ok: true, latency_ms: 0.9, detail: "reply from 192.168.1.1", checked_at: t - 12, uptime_24h: 100, uptime_7d: 100, uptime_30d: 99.99, avg_ms_24h: 1.1, recent: wave(1, 0.3) },
+    { ...base, id: "k9", name: "Pi-hole", type: "keyword", target: "http://thinkpad:8080/admin", keyword: "Pi-hole", status: "up", last_ok: true, latency_ms: 46.3, detail: 'HTTP 200 · found "Pi-hole"', checked_at: t - 27, uptime_24h: 100, uptime_7d: 99.9, uptime_30d: 99.8, avg_ms_24h: 47.9, recent: wave(47, 9) },
     { ...base, id: "k7", name: "Plex", type: "http", target: "http://nuc-media:32400/web", status: "paused", paused: true, last_ok: null, latency_ms: null, detail: null, checked_at: null, uptime_24h: null, uptime_7d: null, uptime_30d: null, avg_ms_24h: null, recent: [] },
   ];
 }
