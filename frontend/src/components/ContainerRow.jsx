@@ -3,6 +3,7 @@ import { avatarColor, containerUrl } from "./containerLink";
 import { needsAttention } from "./containerSort";
 import { formatBytes, formatBytesPerSec } from "./format";
 import Heartbeat from "./Heartbeat";
+import RebuildButton from "./RebuildButton";
 import { useSettings } from "./settings";
 import { hostColor } from "./hostColor";
 
@@ -252,6 +253,17 @@ function ContainerRow({
         <div className="c-uptime">{formatStartedAt(container.started_at)}</div>
 
         <div className="c-actions">
+          {/* Outside the protected branch on purpose: "Protected" is about
+              not stopping or deleting the agent, but replacing it with a
+              newer build is exactly what you want to do from here. */}
+          {container.rebuild && (
+            <RebuildButton
+              host={host}
+              container={container}
+              target={container.rebuild}
+            />
+          )}
+
           {protectedContainer ? (
             <span className="protected-label">Protected</span>
           ) : (

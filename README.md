@@ -418,6 +418,38 @@ Not in scope: compose stacks, automatic rescheduling when a node dies
 (there's a manual "redeploy elsewhere" button), cross-node networking, and
 stateful volume migration (a named volume stays on its node).
 
+## Rebuilding from the dashboard
+
+A **Rebuild** button on a container row pulls its Compose project's git
+checkout on that host and brings it back up with `--build`. It's how you
+update the agents themselves without SSHing to three machines.
+
+The button only appears where the agent reported a target: a container
+Compose started, whose project directory is a git checkout, on a host that
+has opted in. Its absence is the answer — there is nothing to configure on
+the dashboard side.
+
+It also appears on the agent's own row, which otherwise shows only
+`Protected`. That protection is about not stopping or deleting the agent;
+replacing it with a newer build is exactly what you want from here. The
+agent can't run that one itself — `compose up` would kill the process
+doing the running — so it hands the work to a throwaway container and the
+job comes back `handed_off`. The result shows up as the agent coming back
+online.
+
+**This is off by default, and deliberately so.** `git pull` runs whatever
+hooks the repo carries and `--build` runs whatever the Dockerfile says, so
+it is arbitrary code execution on that host — which is the point, and why
+each agent needs `REBUILD_ENABLED=1` before it will do it. `POST
+/api/rebuild/{host}` also requires the dashboard's own `API_TOKEN`, making
+it the only dashboard route with that property for that reason. See
+**Rebuilding** in the homelab-agent README.
+
+A build takes minutes, so the button starts a job and polls
+`GET /api/rebuild/{host}/{job_id}` until it settles — `done`, `failed`
+with the failing step's output on hover, or `handed_off`. One rebuild at a
+time per host.
+
 ## Alerting
 
 `backend/alerts.py` runs a loop every `ALERT_INTERVAL` seconds (default

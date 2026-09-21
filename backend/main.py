@@ -22,6 +22,7 @@ from backend import checks
 from backend import connections
 from backend import checks_api
 from backend import personal
+from backend import rebuilds
 from backend import live_history
 from backend import service_activity
 from backend import auth
@@ -302,6 +303,47 @@ def clear_service_activity_credentials(app_name: str):
     return {"configured": service_activity_credentials.configured()}
 
 
+def _agent_for(host: str) -> str:
+    nodes = registry.all()
+    if host not in nodes:
+        raise HTTPException(status_code=404, detail="Unknown host")
+    return nodes[host]["url"].rstrip("/")
+
+
+@app.post("/api/rebuild/{host}")
+def start_rebuild(
+    host: str,
+    payload: dict | None = None,
+    x_register_token: str | None = Header(default=None),
+):
+    """Ask a host's agent to pull and rebuild a container's Compose project.
+
+    Token-gated here as well as on the agent: this is the one dashboard
+    route that makes a host run arbitrary code from a repo.
+    """
+    auth.check_token(x_register_token)
+
+    body = payload or {}
+    container = str(body.get("container") or "").strip()
+    if not container:
+        raise HTTPException(status_code=400, detail="container is required")
+
+    try:
+        return rebuilds.start(
+            _agent_for(host), container, pull=bool(body.get("pull", True))
+        )
+    except rebuilds.RebuildError as error:
+        raise HTTPException(status_code=error.status_code, detail=str(error))
+
+
+@app.get("/api/rebuild/{host}/{job_id}")
+def rebuild_job(host: str, job_id: str):
+    try:
+        return rebuilds.job(_agent_for(host), job_id)
+    except rebuilds.RebuildError as error:
+        raise HTTPException(status_code=error.status_code, detail=str(error))
+
+
 @app.get("/api/connections/{host}")
 def host_connections(host: str, refresh: bool = False):
     """Who one host is talking to, from its agent's conntrack table.
@@ -310,12 +352,7 @@ def host_connections(host: str, refresh: bool = False):
     interesting while someone is looking at it. Cached for 30s; ``refresh``
     forces a re-read for the panel's own reload.
     """
-    nodes = registry.all()
-
-    if host not in nodes:
-        raise HTTPException(status_code=404, detail="Unknown host")
-
-    base_url = nodes[host]["url"].rstrip("/")
+    base_url = _agent_for(host)
     return {"host": host, **connections.for_host(host, base_url, refresh=refresh)}
 
 

@@ -1614,6 +1614,28 @@ select.deploy-input[multiple] {
   gap: 2px;
 }
 
+/* ----- Rebuild ----- */
+
+.rebuild {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.rebuild-note {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+.rebuild-note--bad {
+  color: var(--offline);
+}
+
 /* ----- Connections panel ----- */
 
 .conn-panel {
