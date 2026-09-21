@@ -22,6 +22,7 @@ AGENT_OK = {
     "host": "bigboy",
     "available": True,
     "accounting": True,
+    "attributed": True,
     "source": "/host/nf_conntrack",
     "flows_total": 12,
     "conversations_total": 3,
@@ -32,7 +33,10 @@ AGENT_OK = {
             "proto": "tcp", "family": "ipv4",
             "src": "192.168.1.40", "dst": "192.168.1.10", "dport": 8096,
             "flows": 4, "orig_bytes": 51200, "reply_bytes": 4294967296,
-            "states": ["ESTABLISHED"], "container": None, "container_id": None,
+            "states": ["ESTABLISHED"], "container": "jellyfin",
+            "container_id": "bbb222", "peer_container": None, "direction": "in",
+            "peer": "192.168.1.40", "peer_port": 8096,
+            "rx_bytes": 51200, "tx_bytes": 4294967296,
         }
     ],
 }
@@ -201,3 +205,20 @@ def test_route_passes_refresh_through(client, monkeypatch):
     client.get("/api/connections/bigboy?refresh=true")
 
     assert len(calls) == 2
+
+
+def test_attribution_flag_and_fields_survive_the_hop(monkeypatch):
+    respond(monkeypatch, FakeResponse(200, AGENT_OK))
+
+    result = connections.for_host("bigboy", "http://x")
+
+    assert result["attributed"] is True
+    peer = result["peers"][0]
+    assert peer["container"] == "jellyfin"
+    assert peer["direction"] == "in"
+    assert peer["tx_bytes"] == 4294967296
+
+
+def test_an_agent_without_attribution_reads_as_false(monkeypatch):
+    respond(monkeypatch, FakeResponse(200, {**AGENT_OK, "attributed": False}))
+    assert connections.for_host("bigboy", "http://x")["attributed"] is False

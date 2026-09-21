@@ -8,29 +8,69 @@ import { formatBytes } from "./format";
 // only part of a host card that isn't already in the /ws payload, so
 // opening the panel is what triggers the fetch.
 //
-// src/dst are shown the way conntrack records them — src opened the
-// connection — rather than being relabelled "local" and "remote". Which
-// end is this host isn't in the table, and guessing it from address ranges
-// gets inbound LAN connections backwards.
+// A row reads one of two ways.
+//
+// When the agent recognised one end as a container, it has already worked
+// out which end is this host and handed back rx/tx from the host's point
+// of view — so the row says "jellyfin ← 192.168.1.40:8096" and the arrows
+// mean what you'd expect.
+//
+// When it didn't (traffic belonging to the host itself), the endpoints
+// stay exactly as conntrack recorded them: src opened the connection, and
+// the byte columns are that connection's two directions rather than the
+// host's. Relabelling those would mean guessing which end is local, which
+// address ranges can't tell you — both sides of an inbound LAN connection
+// are private.
 function PeerRow({ peer }) {
-  const port = peer.dport != null ? `:${peer.dport}` : "";
+  const attributed = Boolean(peer.container);
+
+  if (!attributed) {
+    const port = peer.dport != null ? `:${peer.dport}` : "";
+    return (
+      <tr className="conn-row--raw">
+        <td className="conn-peer">
+          <span>{peer.src}</span>
+          <span className="conn-arrow">→</span>
+          <span>
+            {peer.dst}
+            {port}
+          </span>
+        </td>
+        <td className="conn-proto">{peer.proto}</td>
+        <td className="conn-bytes">
+          {peer.orig_bytes != null ? formatBytes(peer.orig_bytes) : "—"}
+        </td>
+        <td className="conn-bytes">
+          {peer.reply_bytes != null ? formatBytes(peer.reply_bytes) : "—"}
+        </td>
+        <td className="conn-flows" title={(peer.states || []).join(", ")}>
+          {peer.flows}
+        </td>
+      </tr>
+    );
+  }
+
+  const inbound = peer.direction === "in";
+  const port = peer.peer_port != null ? `:${peer.peer_port}` : "";
 
   return (
     <tr>
       <td className="conn-peer">
-        <span>{peer.src}</span>
-        <span className="conn-arrow">→</span>
+        <strong className="conn-owner">{peer.container}</strong>
+        <span className="conn-arrow" title={inbound ? "inbound" : "outbound"}>
+          {inbound ? "←" : "→"}
+        </span>
         <span>
-          {peer.dst}
+          {peer.peer_container || peer.peer}
           {port}
         </span>
       </td>
       <td className="conn-proto">{peer.proto}</td>
-      <td className="conn-bytes">
-        {peer.orig_bytes != null ? formatBytes(peer.orig_bytes) : "—"}
+      <td className="conn-bytes" title="Received by this host">
+        {peer.rx_bytes != null ? formatBytes(peer.rx_bytes) : "—"}
       </td>
-      <td className="conn-bytes">
-        {peer.reply_bytes != null ? formatBytes(peer.reply_bytes) : "—"}
+      <td className="conn-bytes" title="Sent by this host">
+        {peer.tx_bytes != null ? formatBytes(peer.tx_bytes) : "—"}
       </td>
       <td className="conn-flows" title={(peer.states || []).join(", ")}>
         {peer.flows}
@@ -92,6 +132,14 @@ function ConnectionsPanel({ host }) {
 
           {!loading && !error && data?.available && (
             <>
+              {data.attributed === false && (
+                <p className="conn-note">
+                  This agent couldn't reach its Docker daemon, so nothing is
+                  matched to a container — endpoints are shown as conntrack
+                  recorded them.
+                </p>
+              )}
+
               {!data.accounting && (
                 <p className="conn-note">
                   Byte counts are off on this host — flows only. Enable them
@@ -107,8 +155,8 @@ function ConnectionsPanel({ host }) {
                     <tr>
                       <th>Conversation</th>
                       <th>Proto</th>
-                      <th title="Bytes from src to dst">→</th>
-                      <th title="Bytes back from dst to src">←</th>
+                      <th title="Received by this host">↓</th>
+                      <th title="Sent by this host">↑</th>
                       <th title="Connections held open">Flows</th>
                     </tr>
                   </thead>

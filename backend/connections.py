@@ -88,6 +88,10 @@ def _fetch(base_url: str) -> dict:
             "flows_total": body.get("flows_total"),
             "conversations_total": body.get("conversations_total"),
             "truncated": bool(body.get("truncated")),
+            # False when the agent could read the table but not the Docker
+            # daemon, so the UI can say "unattributed" rather than implying
+            # every one of these is host traffic.
+            "attributed": bool(body.get("attributed")),
             "updated_at": body.get("updated_at"),
             "peers": peers if isinstance(peers, list) else [],
         }

@@ -274,11 +274,22 @@ it, so the fetch happens when the panel opens and the answer is cached for
 30 seconds (`backend/connections.py`); the panel's own Refresh button
 skips that cache.
 
-`src` opened the connection and `orig_bytes` flowed `src` → `dst`. Neither
-endpoint is labelled "local": which end is the host isn't in the conntrack
-table, and inferring it from address ranges gets inbound LAN connections
-backwards. Mapping a flow onto the container that owns it — which also
-settles the local end — is the next piece of work on the agent.
+Where the agent can tell which container owns a flow, the row reads as
+`jellyfin ← 192.168.1.40:8096` — the arrow is the direction, and the two
+byte columns are what **this host** received and sent. Both ends are named
+when both are containers (`booklore → booklore-db:5432`).
+
+That distinction is doing real work. conntrack counts bytes per direction
+of the *connection*, not of the host, so for an inbound flow the counters
+are swapped: reading them raw would report a 4 GB stream *out* of Jellyfin
+as 4 GB coming in.
+
+Traffic the agent can't match to a container — something on the host
+itself — is shown dimmed with its raw conntrack endpoints (`src` opened the
+connection, and the byte columns are that connection's two directions).
+Those rows aren't relabelled, because deciding which end is local would
+mean guessing from address ranges, and both ends of an inbound LAN
+connection are private.
 
 The panel needs the agent set up for it: its host's conntrack table has to
 be readable (free if that agent already mounts the host filesystem for

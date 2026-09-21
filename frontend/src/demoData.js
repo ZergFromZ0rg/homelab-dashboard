@@ -125,13 +125,18 @@ function demoChecks() {
 export function demoConnections(host) {
   const peers = {
     bigboy: [
-      { proto: "tcp", family: "ipv4", src: "192.168.1.40", dst: "192.168.1.10", dport: 8096, flows: 4, orig_bytes: 51_200, reply_bytes: 4_294_967_296, states: ["ESTABLISHED"], container: null, container_id: null },
-      { proto: "tcp", family: "ipv4", src: "192.168.1.10", dst: "185.125.190.58", dport: 51413, flows: 37, orig_bytes: 2_147_483_648, reply_bytes: 310_000_000, states: ["ESTABLISHED", "TIME_WAIT"], container: null, container_id: null },
-      { proto: "udp", family: "ipv4", src: "192.168.1.10", dst: "1.1.1.1", dport: 53, flows: 12, orig_bytes: 3_400, reply_bytes: 18_900, states: [], container: null, container_id: null },
-      { proto: "tcp", family: "ipv4", src: "100.84.12.3", dst: "192.168.1.10", dport: 8123, flows: 2, orig_bytes: 42_000, reply_bytes: 980_000, states: ["ESTABLISHED"], container: null, container_id: null },
+      // Inbound to a published port: DNAT'd, so rx/tx are the swap of
+      // orig/reply. Someone is streaming 4 GB *out* of this host.
+      { proto: "tcp", family: "ipv4", src: "192.168.1.40", dst: "192.168.1.10", dport: 8096, flows: 4, orig_bytes: 51_200, reply_bytes: 4_294_967_296, states: ["ESTABLISHED"], container: "jellyfin", container_id: "bbb222", peer_container: null, direction: "in", peer: "192.168.1.40", peer_port: 8096, rx_bytes: 51_200, tx_bytes: 4_294_967_296 },
+      // Outbound from a container: masqueraded, so orig.src is its own IP.
+      { proto: "tcp", family: "ipv4", src: "172.18.0.4", dst: "185.125.190.58", dport: 51413, flows: 37, orig_bytes: 2_147_483_648, reply_bytes: 310_000_000, states: ["ESTABLISHED", "TIME_WAIT"], container: "qbittorrent", container_id: "ccc333", peer_container: null, direction: "out", peer: "185.125.190.58", peer_port: 51413, rx_bytes: 310_000_000, tx_bytes: 2_147_483_648 },
+      // Both ends on the same bridge.
+      { proto: "tcp", family: "ipv4", src: "172.18.0.7", dst: "172.18.0.9", dport: 5432, flows: 3, orig_bytes: 4_000, reply_bytes: 9_000, states: ["ESTABLISHED"], container: "booklore", container_id: "ddd444", peer_container: "booklore-db", direction: "out", peer: "172.18.0.9", peer_port: 5432, rx_bytes: 9_000, tx_bytes: 4_000 },
+      // Belongs to no container — the host's own resolver traffic.
+      { proto: "udp", family: "ipv4", src: "192.168.1.10", dst: "1.1.1.1", dport: 53, flows: 12, orig_bytes: 3_400, reply_bytes: 18_900, states: [], container: null, container_id: null, peer_container: null, direction: null, peer: null, peer_port: null, rx_bytes: null, tx_bytes: null },
     ],
     thinkpad: [
-      { proto: "tcp", family: "ipv4", src: "192.168.1.22", dst: "140.82.121.4", dport: 443, flows: 6, orig_bytes: 88_000, reply_bytes: 1_200_000, states: ["ESTABLISHED"], container: null, container_id: null },
+      { proto: "tcp", family: "ipv4", src: "172.19.0.2", dst: "140.82.121.4", dport: 443, flows: 6, orig_bytes: 88_000, reply_bytes: 1_200_000, states: ["ESTABLISHED"], container: "homelab-agent", container_id: "eee555", peer_container: null, direction: "out", peer: "140.82.121.4", peer_port: 443, rx_bytes: 1_200_000, tx_bytes: 88_000 },
     ],
   }[host];
 
@@ -153,6 +158,7 @@ export function demoConnections(host) {
     available: true,
     state: "ok",
     accounting: true,
+    attributed: true,
     source: "/host/proc/1/net/nf_conntrack",
     flows_total: peers.reduce((n, p) => n + p.flows, 0),
     conversations_total: peers.length,

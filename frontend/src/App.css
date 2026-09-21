@@ -1720,6 +1720,18 @@ select.deploy-input[multiple] {
   padding: 0 4px;
 }
 
+.conn-owner {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Rows the agent couldn't match to a container: still real traffic, but
+   the endpoints are raw and the byte columns mean something subtly
+   different, so they sit back a little. */
+.conn-row--raw td {
+  opacity: 0.75;
+}
+
 .conn-bytes,
 .conn-flows {
   font-family: var(--mono);
