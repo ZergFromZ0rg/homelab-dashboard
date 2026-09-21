@@ -173,3 +173,103 @@ def test_polling_a_job_through_the_route(client, monkeypatch):
     body = client.get("/api/rebuild/bigboy/9f2c1a4b8e70").json()
 
     assert body["state"] == "handed_off"
+
+
+# ---- fleet ----------------------------------------------------------------
+
+
+def test_the_dashboards_own_host_goes_last():
+    """Rebuilding it drops the connection you're watching from."""
+    assert rebuilds.order_hosts(["thinkpad", "bigboy", "nuc"], "thinkpad") == [
+        "bigboy", "nuc", "thinkpad",
+    ]
+
+
+def test_ordering_is_stable_when_the_main_host_is_not_included():
+    assert rebuilds.order_hosts(["b", "a"], "thinkpad") == ["a", "b"]
+
+
+def test_ordering_copes_with_no_main_host():
+    assert rebuilds.order_hosts(["b", "a"], None) == ["a", "b"]
+
+
+def test_fleet_starts_a_job_per_host(monkeypatch):
+    calls = respond(monkeypatch, FakeResponse(200, JOB))
+    nodes = {
+        "bigboy": {"url": "http://bigboy:8123"},
+        "thinkpad": {"url": "http://thinkpad:8123"},
+    }
+
+    out = rebuilds.fleet(nodes, None, "thinkpad")
+
+    assert out["started"] == 2 and out["failed"] == 0
+    assert [r["host"] for r in out["results"]] == ["bigboy", "thinkpad"]
+    assert [c[1] for c in calls] == [
+        "http://bigboy:8123/rebuild/self",
+        "http://thinkpad:8123/rebuild/self",
+    ]
+
+
+def test_fleet_can_be_narrowed_to_named_hosts(monkeypatch):
+    calls = respond(monkeypatch, FakeResponse(200, JOB))
+    nodes = {"bigboy": {"url": "http://a"}, "thinkpad": {"url": "http://b"}}
+
+    out = rebuilds.fleet(nodes, ["bigboy"], "thinkpad")
+
+    assert [r["host"] for r in out["results"]] == ["bigboy"]
+    assert len(calls) == 1
+
+
+def test_fleet_ignores_hosts_that_are_not_registered(monkeypatch):
+    respond(monkeypatch, FakeResponse(200, JOB))
+    nodes = {"bigboy": {"url": "http://a"}}
+
+    out = rebuilds.fleet(nodes, ["bigboy", "ghost"], None)
+
+    assert [r["host"] for r in out["results"]] == ["bigboy"]
+
+
+def test_one_host_failing_does_not_stop_the_others(monkeypatch):
+    """A host that hasn't opted in shouldn't block updating the ones that
+    have."""
+    seen = []
+
+    def fake_request(method, url, **kwargs):
+        seen.append(url)
+        if "bigboy" in url:
+            return FakeResponse(403, {"detail": "rebuilds are off on this host"})
+        return FakeResponse(200, JOB)
+
+    monkeypatch.setattr(rebuilds.requests, "request", fake_request)
+    nodes = {"bigboy": {"url": "http://bigboy"}, "thinkpad": {"url": "http://thinkpad"}}
+
+    out = rebuilds.fleet(nodes, None, "thinkpad")
+
+    assert out["started"] == 1 and out["failed"] == 1
+    by_host = {r["host"]: r for r in out["results"]}
+    assert by_host["bigboy"]["ok"] is False
+    assert "rebuilds are off" in by_host["bigboy"]["error"]
+    assert by_host["thinkpad"]["ok"] is True
+    assert len(seen) == 2, "it still tried every host"
+
+
+def test_fleet_route_requires_the_token(client, monkeypatch):
+    monkeypatch.setattr(auth, "API_TOKEN", "sekret")
+    respond(monkeypatch, FakeResponse(200, JOB))
+    monkeypatch.setattr(main, "get_all_containers", lambda nodes: {})
+
+    assert client.post("/api/fleet/rebuild", json={}).status_code == 401
+    assert client.post(
+        "/api/fleet/rebuild", json={}, headers={"X-Register-Token": "sekret"}
+    ).status_code == 200
+
+
+def test_fleet_route_rejects_a_bad_hosts_value(client, monkeypatch):
+    monkeypatch.setattr(main, "get_all_containers", lambda nodes: {})
+    resp = client.post("/api/fleet/rebuild", json={"hosts": "bigboy"})
+    assert resp.status_code == 400
+
+
+def test_fleet_route_with_no_agents(client, monkeypatch):
+    monkeypatch.setattr(main.registry, "all", lambda: {})
+    assert client.post("/api/fleet/rebuild", json={}).status_code == 400

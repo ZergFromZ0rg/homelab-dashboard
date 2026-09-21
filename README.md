@@ -465,6 +465,24 @@ backups are polled; a briefly unreachable agent keeps its last known
 version rather than blanking, since the card already says it's
 unreachable.
 
+## Updating the fleet
+
+The Servers tab's **Agents** tile counts how many are current and offers
+one button when any aren't. It only appears when something is actually
+out of date — a control that does nothing most of the time teaches you to
+ignore it.
+
+`POST /api/fleet/rebuild` asks each agent to rebuild **itself**
+(`POST /rebuild/self` on the agent, so the dashboard never has to work out
+which container is the agent on a given host). It returns as soon as every
+job exists rather than waiting for builds that take minutes, and one host
+refusing doesn't stop the rest — the result is reported host by host.
+
+**The dashboard's own host goes last.** Rebuilding its agent takes that
+agent down for a minute, and on a single-box setup it's also the machine
+serving the page you started from; doing it first means watching the rest
+of the fleet through a connection that just dropped.
+
 ## Rebuilding from the dashboard
 
 A **Rebuild** button on a container row pulls its Compose project's git

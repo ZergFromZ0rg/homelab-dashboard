@@ -82,3 +82,46 @@ def job(base_url: str, job_id: str) -> dict:
 
 def listing(base_url: str) -> dict:
     return _call("GET", base_url, "/rebuild")
+
+
+def start_self(base_url: str) -> dict:
+    """Rebuild an agent itself. The agent picks its own container."""
+    return _call("POST", base_url, "/rebuild/self")
+
+
+def order_hosts(hosts: list[str], main_host: str | None) -> list[str]:
+    """The host running the dashboard goes last.
+
+    Rebuilding its agent takes that agent down for a minute, and on a
+    single-box setup it's also the machine serving the page you started
+    the update from. Doing it first means watching the rest of the fleet
+    through a connection that just dropped.
+    """
+    ordered = sorted(h for h in hosts if h != main_host)
+    return ordered + ([main_host] if main_host in hosts else [])
+
+
+def fleet(nodes: dict, hosts: list[str] | None, main_host: str | None) -> dict:
+    """Ask each agent to rebuild itself, dashboard's own host last.
+
+    Each call returns as soon as that agent has a job, so this doesn't
+    wait for any build — the caller polls the jobs. One failure doesn't
+    stop the rest; the fleet is reported host by host.
+    """
+    targets = [h for h in (hosts or list(nodes)) if h in nodes]
+    results = []
+
+    for host in order_hosts(targets, main_host):
+        base_url = nodes[host]["url"].rstrip("/")
+
+        try:
+            job = start_self(base_url)
+            results.append({"host": host, "ok": True, "job": job})
+        except RebuildError as error:
+            results.append({"host": host, "ok": False, "error": str(error)})
+
+    return {
+        "started": sum(1 for r in results if r["ok"]),
+        "failed": sum(1 for r in results if not r["ok"]),
+        "results": results,
+    }

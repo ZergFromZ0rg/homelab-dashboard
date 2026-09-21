@@ -24,3 +24,16 @@ export function fetchRebuildJob(host, jobId) {
     { headers: authHeaders() }
   ).then(jsonOrThrow);
 }
+
+// Update every stale agent at once. The dashboard orders them so its own
+// host goes last — rebuilding that one drops the connection you're
+// watching from.
+export function rebuildFleet(hosts) {
+  if (DEMO) return Promise.reject(new Error(DEMO_WRITE));
+
+  return fetch("/api/fleet/rebuild", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(hosts?.length ? { hosts } : {}),
+  }).then(jsonOrThrow);
+}

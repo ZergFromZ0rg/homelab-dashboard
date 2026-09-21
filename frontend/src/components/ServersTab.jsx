@@ -1,3 +1,4 @@
+import FleetUpdate from "./FleetUpdate";
 import HostGrid from "./HostGrid";
 
 function Fact({ label, value, sub, bad }) {
@@ -47,6 +48,7 @@ function ServersTab({ machines, containers, history, mainHost, connected }) {
         />
         <Fact label="Containers" value={`${running} / ${total}`} sub="running" />
         <Fact label="CPU threads" value={cores || "—"} sub="across the fleet" />
+        <FleetUpdate machines={machines} />
         <Fact
           label="Backups"
           value={backupStates.length ? `${backupsOk} / ${backupStates.length}` : "—"}

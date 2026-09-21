@@ -3959,6 +3959,23 @@ textarea {
   border-color: color-mix(in srgb, var(--offline) 40%, transparent);
 }
 
+.fact--warn {
+  border-color: color-mix(in srgb, var(--warning) 40%, transparent);
+}
+
+.fact--warn .fact-value {
+  color: var(--warning);
+}
+
+.fact-action {
+  margin-top: 2px;
+  align-self: flex-start;
+}
+
+.fact-sub--bad {
+  color: var(--offline);
+}
+
 .fact-label {
   font-size: 12px;
   font-weight: 600;

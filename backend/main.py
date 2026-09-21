@@ -337,6 +337,35 @@ def start_rebuild(
         raise HTTPException(status_code=error.status_code, detail=str(error))
 
 
+@app.post("/api/fleet/rebuild")
+def rebuild_fleet(
+    payload: dict | None = None,
+    x_register_token: str | None = Header(default=None),
+):
+    """Update every agent, or the named ones.
+
+    Each agent rebuilds its own project and hands the work to a throwaway
+    container, so this returns as soon as the jobs exist rather than
+    waiting for builds that take minutes.
+    """
+    auth.check_token(x_register_token)
+
+    body = payload or {}
+    hosts = body.get("hosts")
+    if hosts is not None and not isinstance(hosts, list):
+        raise HTTPException(status_code=400, detail="hosts must be a list")
+
+    nodes = registry.all()
+    if not nodes:
+        raise HTTPException(status_code=400, detail="no agents are registered")
+
+    main_host = MAIN_HOST_OVERRIDE or _detect_main_host(
+        get_all_containers(nodes)
+    )
+
+    return rebuilds.fleet(nodes, hosts, main_host)
+
+
 @app.get("/api/rebuild/{host}/{job_id}")
 def rebuild_job(host: str, job_id: str):
     try:
