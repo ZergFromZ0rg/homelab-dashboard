@@ -178,6 +178,35 @@ export function demoConnections(host) {
   };
 }
 
+// Mirrors GET /api/containers/{host}/{name}/history. A daily rhythm so
+// the 7d view looks like something rather than noise.
+export function demoContainerHistory(name, range) {
+  const spans = { "6h": 6 * 3600, "24h": 86400, "7d": 7 * 86400 };
+  const span = spans[range] ?? 86400;
+  const count = 240;
+  const step = span / count;
+  const end = now();
+
+  const seed = [...name].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 997, 7);
+  const points = Array.from({ length: count }, (_, i) => {
+    const t = end - span + i * step;
+    const hour = ((t / 3600) % 24) + seed / 200;
+    const daily = Math.sin((hour / 24) * Math.PI * 2);
+    return {
+      t,
+      cpu: Math.max(0, Math.round((8 + daily * 6 + Math.sin(i / 5) * 2) * 100) / 100),
+      mem: Math.round((380 + daily * 60 + Math.sin(i / 11) * 25) * 1024 * 1024),
+    };
+  });
+
+  return {
+    range,
+    bucket_seconds: Math.round(step),
+    retention_days: 7,
+    points,
+  };
+}
+
 // Mirrors GET /api/rebalance. Nothing to move: the demo fleet's hot node
 // (nuc-media) has no scheduler-managed stateless workload on it, so a real
 // backend would return an empty list here too.

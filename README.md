@@ -310,6 +310,29 @@ homelab-agent README.
 
 Per-container throughput totals are already on each container row.
 
+## Container history
+
+Expanding a container's row shows its CPU and memory over **6h / 24h /
+7d**, hovered for an exact reading at any point.
+
+Two charts, not one. CPU percent and memory bytes on shared axes would
+need two y-scales, and the point where the two lines cross would then mean
+nothing — an artefact of how the axes were picked, which readers
+nonetheless read as a relationship.
+
+`backend/container_history.py` folds the samples the reconcile loop
+already collects into **five-minute buckets kept for a week**
+(`CONTAINER_HISTORY_DAYS`). It's keyed by container *name*, not id: an id
+changes on every recreate, so an id-keyed series would reset itself on
+every deploy — exactly when comparing before and after matters most. A
+week's buckets are downsampled server-side to about 300 points, since
+that's more than the chart has pixels for.
+
+Like the connections panel, this is **not** on the `/ws` payload —
+`GET /api/containers/{host}/{name}/history?range=` is fetched when a row
+is opened. Sending every container's week to every client every two
+seconds would be absurd.
+
 ## History and sparklines
 
 CPU, RAM, CPU temperature, and network cards carry a small trend line,

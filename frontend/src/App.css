@@ -1644,6 +1644,152 @@ select.deploy-input[multiple] {
   overflow-wrap: anywhere;
 }
 
+/* ----- Container history charts ----- */
+
+.ccharts {
+  margin: 10px 0 4px;
+}
+
+.ccharts-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.ccharts-title {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+/* One range row above both charts, so they always show the same slice. */
+.segmented--sm button {
+  font-size: 11px;
+  padding: 2px 8px;
+}
+
+.ccharts-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  transition: opacity 0.15s ease;
+}
+
+/* Refetching holds the previous render rather than collapsing. */
+.ccharts-body.is-loading {
+  opacity: 0.45;
+}
+
+.tchart {
+  min-width: 0;
+}
+
+.tchart-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.tchart-label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+/* The number leads; the reader already knows which chart they're in. */
+.tchart-now {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.tchart-now small {
+  margin-left: 6px;
+  font-family: var(--sans, inherit);
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-faint);
+}
+
+.tchart-svg {
+  display: block;
+  overflow: visible;
+}
+
+.tchart-svg:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.tchart-svg--cpu {
+  color: var(--accent);
+}
+
+.tchart-svg--ram {
+  color: var(--online);
+}
+
+/* Solid hairlines one shade off the surface — a grid, not a threshold. */
+.tchart-grid {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.tchart-ytick,
+.tchart-xtick {
+  font-family: var(--mono);
+  font-size: 9px;
+  fill: var(--text-faint);
+}
+
+.tchart-ytick {
+  text-anchor: end;
+}
+
+.tchart-xtick--end {
+  text-anchor: end;
+}
+
+.tchart-xtick--mid {
+  text-anchor: middle;
+}
+
+.tchart-line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.tchart-area {
+  fill: currentColor;
+  opacity: 0.1;
+  stroke: none;
+}
+
+.tchart-cursor {
+  stroke: var(--text-faint);
+  stroke-width: 1;
+}
+
+/* A surface ring so the dot reads against the line it sits on. */
+.tchart-dot {
+  fill: currentColor;
+  stroke: var(--bg);
+  stroke-width: 2;
+}
+
+.tchart-empty {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
 /* ----- Connections panel ----- */
 
 .conn-panel {

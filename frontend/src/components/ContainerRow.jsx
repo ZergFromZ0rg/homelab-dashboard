@@ -2,6 +2,7 @@ import { useState } from "react";
 import { avatarColor, containerUrl } from "./containerLink";
 import { needsAttention } from "./containerSort";
 import { formatBytes, formatBytesPerSec } from "./format";
+import ContainerCharts from "./ContainerCharts";
 import Heartbeat from "./Heartbeat";
 import RebuildButton from "./RebuildButton";
 import { useSettings } from "./settings";
@@ -324,6 +325,7 @@ function ContainerRow({
       {open && (
         <div className="crow-detail">
           <Heartbeat heartbeat={container.heartbeat} />
+          <ContainerCharts host={host} name={container.name} open={open} />
           <div className="crow-detail-grid">
             <Detail
               label="Network in"

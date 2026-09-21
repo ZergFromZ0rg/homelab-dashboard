@@ -20,6 +20,7 @@ from backend import alert_history
 from backend import alerts
 from backend import checks
 from backend import connections
+from backend import container_history
 from backend import checks_api
 from backend import personal
 from backend import rebuilds
@@ -342,6 +343,20 @@ def rebuild_job(host: str, job_id: str):
         return rebuilds.job(_agent_for(host), job_id)
     except rebuilds.RebuildError as error:
         raise HTTPException(status_code=error.status_code, detail=str(error))
+
+
+@app.get("/api/containers/{host}/{name}/history")
+def container_history_route(host: str, name: str, range: str = "24h"):
+    """CPU and memory for one container over hours or days.
+
+    Off the /ws payload deliberately: it's only wanted while someone has a
+    container's details open, and sending every container's week to every
+    client every two seconds would be absurd.
+    """
+    try:
+        return container_history.history(host, name, range)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
 
 
 @app.get("/api/connections/{host}")
