@@ -36,11 +36,25 @@ function RebuildButton({ host, container, target }) {
 
   async function run() {
     const what = target.service || container.name;
+
+    // An ssh remote can't be pulled from inside the helper — it has no ssh
+    // binary and none of your keys. Asking anyway just fails at the first
+    // step, so offer the build on its own and say why.
+    const pull = target.can_pull !== false;
+
     const ok = window.confirm(
       `Rebuild ${what} on ${host}?\n\n` +
-        `This runs "git pull" and "docker compose up -d --build" in ` +
+        (pull
+          ? `This runs "git pull" and "docker compose up -d --build" in `
+          : `This runs "docker compose up -d --build" in `) +
         `${target.project} on that host — whatever the repo and its ` +
-        `Dockerfile say.`
+        `Dockerfile say.` +
+        (pull
+          ? ""
+          : `\n\nIt won't pull first: ${target.project}'s remote is ` +
+            `${target.remote || "not set"}, which needs ssh keys the agent ` +
+            `doesn't have. Pull on the host yourself, or switch it to an ` +
+            `https remote.`)
     );
     if (!ok) return;
 
@@ -49,7 +63,7 @@ function RebuildButton({ host, container, target }) {
     setJob(null);
 
     try {
-      const started = await startRebuild(host, container.id);
+      const started = await startRebuild(host, container.id, { pull });
       setJob(started);
       if (started.state === "running") poll(started.id);
     } catch (e) {
@@ -73,6 +87,17 @@ function RebuildButton({ host, container, target }) {
       >
         {running ? "Rebuilding…" : "Rebuild"}
       </button>
+
+      {target.can_pull === false && !job && !error && (
+        <span
+          className="rebuild-note"
+          title={`${target.project}'s remote is ${
+            target.remote || "not set"
+          } — the agent has no ssh keys, so it will build without pulling.`}
+        >
+          build only
+        </span>
+      )}
 
       {job?.state === "handed_off" && (
         <span className="rebuild-note" title={job.steps?.at(-1)?.output}>

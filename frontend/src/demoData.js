@@ -334,7 +334,7 @@ export function demoSnapshot() {
       container("a3", "sonarr", "lscr.io/linuxserver/sonarr:latest", "bigboy", { cpu: 0.8, ramMb: 380, ports: { "8989/tcp": ["8989"] } }),
       container("a4", "radarr", "lscr.io/linuxserver/radarr:latest", "bigboy", { cpu: 0.6, ramMb: 340, ports: { "7878/tcp": ["7878"] } }),
       container("a5", "postgres", "postgres:16", "bigboy", { cpu: 1.4, ramMb: 220, limitMb: 1024, health: "healthy" }),
-      container("a6", "homelab-agent", "homelab-agent", "bigboy", { cpu: 0.4, ramMb: 60, rebuild: { project: "homelab", service: "homelab-agent" } }),
+      container("a6", "homelab-agent", "homelab-agent", "bigboy", { cpu: 0.4, ramMb: 60, rebuild: { project: "homelab", service: "homelab-agent", remote: "https://github.com/zerg/homelab-agent.git", can_pull: true } }),
       container("a7", "watchtower", "containrrr/watchtower", "bigboy", { status: "exited", cpu: 0, ramMb: 0, upHours: 200 }),
     ],
     thinkpad: [

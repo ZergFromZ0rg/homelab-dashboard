@@ -447,6 +447,12 @@ each agent needs `REBUILD_ENABLED=1` before it will do it. `POST
 it the only dashboard route with that property for that reason. See
 **Rebuilding** in the homelab-agent README.
 
+A project whose git remote is `ssh://` or `git@…` can't be pulled — the
+agent's helper has no ssh binary and none of your keys — so those rows say
+**build only** and the button rebuilds from whatever is checked out,
+explaining why in the confirm. Switch the remote to `https://` to get the
+pull back.
+
 A build takes minutes, so the button starts a job and polls
 `GET /api/rebuild/{host}/{job_id}` until it settles — `done`, `failed`
 with the failing step's output on hover, or `handed_off`. One rebuild at a
