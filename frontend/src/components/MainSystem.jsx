@@ -25,7 +25,7 @@ function MainSystem({ host, machine, history, containers }) {
         </span>
       </div>
 
-      <MachineVitals machine={machine} history={history} />
+      <MachineVitals host={host} machine={machine} history={history} />
       <HostFooter machine={machine} containers={containers} />
     </div>
   );

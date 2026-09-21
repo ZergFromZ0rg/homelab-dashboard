@@ -1,3 +1,4 @@
+import ConnectionsPanel from "./ConnectionsPanel";
 import Sparkline from "./Sparkline";
 import Gauge from "./Gauge";
 import Stat from "./Stat";
@@ -123,7 +124,7 @@ function GpuDevice({ gpu, index, total, stale, history, windowMinutes }) {
   );
 }
 
-function MachineVitals({ machine, history }) {
+function MachineVitals({ host, machine, history }) {
   const {
     settings: { graphWindowMinutes: windowMinutes },
   } = useSettings();
@@ -349,6 +350,8 @@ function MachineVitals({ machine, history }) {
           ))}
         </div>
       )}
+
+      {host && <ConnectionsPanel host={host} />}
     </>
   );
 }

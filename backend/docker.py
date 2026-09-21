@@ -34,7 +34,7 @@ DEPLOY_TIMEOUT_SECONDS = 600
 AGENT_TOKEN = env_str("AGENT_TOKEN")
 
 
-def _agent_headers() -> dict:
+def agent_headers() -> dict:
     return {"X-Agent-Token": AGENT_TOKEN} if AGENT_TOKEN else {}
 
 
@@ -137,7 +137,7 @@ def control_container(nodes, host: str, container_id: str, action: str):
 
     response = requests.post(
         f"{base_url}/containers/{container_id}/{action}",
-        headers=_agent_headers(),
+        headers=agent_headers(),
         timeout=15,
     )
 
@@ -165,7 +165,7 @@ def deploy_container(nodes: dict, host: str, spec_payload: dict) -> dict:
     response = requests.post(
         f"{base_url}/containers",
         json=spec_payload,
-        headers=_agent_headers(),
+        headers=agent_headers(),
         timeout=DEPLOY_TIMEOUT_SECONDS,
     )
 
@@ -197,7 +197,7 @@ def remove_container(nodes: dict, host: str, container_id: str) -> dict:
 
     response = requests.delete(
         f"{base_url}/containers/{container_id}",
-        headers=_agent_headers(),
+        headers=agent_headers(),
         timeout=30,
     )
     response.raise_for_status()
@@ -216,7 +216,7 @@ def deploy_stack(nodes: dict, host: str, stack_payload: dict) -> dict:
     response = requests.post(
         f"{base_url}/stacks",
         json=stack_payload,
-        headers=_agent_headers(),
+        headers=agent_headers(),
         timeout=DEPLOY_TIMEOUT_SECONDS,
     )
 
@@ -246,7 +246,7 @@ def remove_stack(nodes: dict, host: str, project: str, *, volumes: bool = False)
     response = requests.delete(
         f"{base_url}/stacks/{project}",
         params={"volumes": "1"} if volumes else None,
-        headers=_agent_headers(),
+        headers=agent_headers(),
         timeout=DEPLOY_TIMEOUT_SECONDS,
     )
     response.raise_for_status()

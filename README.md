@@ -258,9 +258,38 @@ genuinely uninteresting churn — loopback and container/bridge plumbing — so
 explain why the rows don't add up to the figure above them. Interfaces
 with no traffic at all in the window are left out.
 
-This answers "which link is that traffic on". It can't answer "which peer"
-or "which port" — node_exporter reports counters, not flows. Per-container
-throughput is already on each container row.
+This answers "which link is that traffic on". For "which peer", see below.
+
+### Connections, per peer
+
+Each host card has a collapsed **Connections** panel. Open it and the
+dashboard asks that host's agent for its conntrack table
+(`GET /api/connections/{host}` → the agent's `GET /connections`), and shows
+one row per conversation: the two endpoints, the destination port, the
+protocol, bytes each way and how many connections are being held open.
+
+This is the one host-card panel that is **not** on the `/ws` payload. A
+busy host's table is large and only interesting while someone is looking at
+it, so the fetch happens when the panel opens and the answer is cached for
+30 seconds (`backend/connections.py`); the panel's own Refresh button
+skips that cache.
+
+`src` opened the connection and `orig_bytes` flowed `src` → `dst`. Neither
+endpoint is labelled "local": which end is the host isn't in the conntrack
+table, and inferring it from address ranges gets inbound LAN connections
+backwards. Mapping a flow onto the container that owns it — which also
+settles the local end — is the next piece of work on the agent.
+
+The panel needs the agent set up for it: its host's conntrack table has to
+be readable (free if that agent already mounts the host filesystem for
+config backups) and `net.netfilter.nf_conntrack_acct=1` has to be on for
+byte counts. When either is missing the agent says exactly which, and the
+panel prints that verbatim rather than a generic failure. An agent too old
+to have the route reads as "rebuild it"; one that rejects the dashboard's
+token says to match `AGENT_TOKEN`. See **Network Connections** in the
+homelab-agent README.
+
+Per-container throughput totals are already on each container row.
 
 ## History and sparklines
 

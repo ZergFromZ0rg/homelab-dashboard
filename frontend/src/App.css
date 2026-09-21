@@ -1614,6 +1614,127 @@ select.deploy-input[multiple] {
   gap: 2px;
 }
 
+/* ----- Connections panel ----- */
+
+.conn-panel {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+.conn-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 2px 0;
+  cursor: pointer;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.conn-toggle:hover {
+  color: var(--text);
+}
+
+.conn-toggle .host-toggle {
+  transition: transform 0.15s ease;
+  transform: rotate(-90deg);
+}
+
+.conn-toggle.expanded .host-toggle {
+  transform: none;
+}
+
+.conn-count {
+  margin-left: auto;
+  font-family: var(--mono);
+  color: var(--text-faint);
+}
+
+.conn-body {
+  margin-top: 6px;
+}
+
+/* The reason line from the agent: it names the exact mount or sysctl, so
+   it has to stay readable rather than being truncated into a chip. */
+.conn-note {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 0 0 6px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.conn-note--bad {
+  color: var(--offline);
+}
+
+.conn-note code {
+  font-family: var(--mono);
+  font-size: 10px;
+  background: var(--bg-subtle);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+.conn-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.conn-table th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--text-faint);
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.conn-table td {
+  padding: 3px 0;
+  color: var(--text-muted);
+  vertical-align: top;
+}
+
+.conn-table th:not(:first-child),
+.conn-table td:not(:first-child) {
+  text-align: right;
+  padding-left: 8px;
+  white-space: nowrap;
+}
+
+.conn-peer {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.conn-arrow {
+  color: var(--text-faint);
+  padding: 0 4px;
+}
+
+.conn-bytes,
+.conn-flows {
+  font-family: var(--mono);
+}
+
+.conn-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
 /* ----- Alert history ----- */
 
 .alert-history {

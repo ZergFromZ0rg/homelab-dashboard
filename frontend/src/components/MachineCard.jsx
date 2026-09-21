@@ -14,7 +14,7 @@ function MachineCard({ name, machine, history, containers }) {
         </span>
       </div>
 
-      <MachineVitals machine={machine} history={history} />
+      <MachineVitals host={name} machine={machine} history={history} />
       <HostFooter machine={machine} containers={containers} />
     </div>
   );

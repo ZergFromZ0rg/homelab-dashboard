@@ -19,6 +19,7 @@ from backend import activity
 from backend import alert_history
 from backend import alerts
 from backend import checks
+from backend import connections
 from backend import checks_api
 from backend import personal
 from backend import live_history
@@ -299,6 +300,23 @@ def set_service_activity_credentials(payload: dict):
 def clear_service_activity_credentials(app_name: str):
     service_activity_credentials.clear(app_name)
     return {"configured": service_activity_credentials.configured()}
+
+
+@app.get("/api/connections/{host}")
+def host_connections(host: str, refresh: bool = False):
+    """Who one host is talking to, from its agent's conntrack table.
+
+    Deliberately off the /ws payload: a busy host's table is large and only
+    interesting while someone is looking at it. Cached for 30s; ``refresh``
+    forces a re-read for the panel's own reload.
+    """
+    nodes = registry.all()
+
+    if host not in nodes:
+        raise HTTPException(status_code=404, detail="Unknown host")
+
+    base_url = nodes[host]["url"].rstrip("/")
+    return {"host": host, **connections.for_host(host, base_url, refresh=refresh)}
 
 
 @app.get("/api/alerts")

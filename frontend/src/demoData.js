@@ -119,6 +119,50 @@ function demoChecks() {
   ];
 }
 
+// Mirrors GET /api/connections/{host}. bigboy is serving media and
+// seeding; nuc-media's agent hasn't had its conntrack table mounted, which
+// is the state most hosts start in.
+export function demoConnections(host) {
+  const peers = {
+    bigboy: [
+      { proto: "tcp", family: "ipv4", src: "192.168.1.40", dst: "192.168.1.10", dport: 8096, flows: 4, orig_bytes: 51_200, reply_bytes: 4_294_967_296, states: ["ESTABLISHED"], container: null, container_id: null },
+      { proto: "tcp", family: "ipv4", src: "192.168.1.10", dst: "185.125.190.58", dport: 51413, flows: 37, orig_bytes: 2_147_483_648, reply_bytes: 310_000_000, states: ["ESTABLISHED", "TIME_WAIT"], container: null, container_id: null },
+      { proto: "udp", family: "ipv4", src: "192.168.1.10", dst: "1.1.1.1", dport: 53, flows: 12, orig_bytes: 3_400, reply_bytes: 18_900, states: [], container: null, container_id: null },
+      { proto: "tcp", family: "ipv4", src: "100.84.12.3", dst: "192.168.1.10", dport: 8123, flows: 2, orig_bytes: 42_000, reply_bytes: 980_000, states: ["ESTABLISHED"], container: null, container_id: null },
+    ],
+    thinkpad: [
+      { proto: "tcp", family: "ipv4", src: "192.168.1.22", dst: "140.82.121.4", dport: 443, flows: 6, orig_bytes: 88_000, reply_bytes: 1_200_000, states: ["ESTABLISHED"], container: null, container_id: null },
+    ],
+  }[host];
+
+  if (!peers) {
+    return {
+      host,
+      available: false,
+      state: "not_configured",
+      reason:
+        "conntrack table is empty here — the agent has its own network " +
+        "namespace, so mount the host's table in " +
+        "(-v /proc/net/nf_conntrack:/host/nf_conntrack:ro).",
+      peers: [],
+    };
+  }
+
+  return {
+    host,
+    available: true,
+    state: "ok",
+    accounting: true,
+    source: "/host/proc/1/net/nf_conntrack",
+    flows_total: peers.reduce((n, p) => n + p.flows, 0),
+    conversations_total: peers.length,
+    truncated: false,
+    updated_at: now(),
+    cached_age: 0,
+    peers,
+  };
+}
+
 // Mirrors GET /api/rebalance. Nothing to move: the demo fleet's hot node
 // (nuc-media) has no scheduler-managed stateless workload on it, so a real
 // backend would return an empty list here too.
