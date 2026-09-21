@@ -418,6 +418,7 @@ function App() {
             todos={todos}
             onSetTodos={setTodos}
             openTodos={openTodos}
+            checks={checks}
           />
         )}
 

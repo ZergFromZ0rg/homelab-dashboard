@@ -9,7 +9,7 @@ import { useSettings } from "./settings";
 
 // The non-fleet stuff: to-dos, weather, a word, bookmarks. Each card can be
 // switched off in Settings; the grid reflows around whatever's left.
-function PersonalTab({ overview, todos, onSetTodos, openTodos }) {
+function PersonalTab({ overview, todos, onSetTodos, openTodos, checks = [] }) {
   const {
     settings: { personalCards: show },
   } = useSettings();
@@ -33,7 +33,7 @@ function PersonalTab({ overview, todos, onSetTodos, openTodos }) {
           <div className="personal-col">
             {show.weather && <WeatherCard />}
             {show.word && <WordCard />}
-            {show.links && <LinksCard />}
+            {show.links && <LinksCard checks={checks} />}
           </div>
         </div>
       ) : (

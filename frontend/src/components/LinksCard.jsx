@@ -1,6 +1,6 @@
 import { useState } from "react";
+import AppTile from "./AppTile";
 import Card from "./Card";
-import { avatarColor } from "./containerLink";
 import { useSettings } from "./settings";
 
 // A bare address gets a scheme: http:// for the kind of thing a homelab
@@ -29,15 +29,46 @@ function normalizeUrl(input) {
   }
 }
 
+// A check's target is a URL for http checks and a bare host (or host:port)
+// for tcp/ping/dns — both reduce to the hostname a link would point at.
+function hostOf(target) {
+  if (!target) return null;
+  try {
+    return new URL(target.includes("://") ? target : `http://${target}`)
+      .hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+// hostname -> worst status any check reports for it, so a tile shows "down"
+// when any probe of that host is failing. Paused checks aren't watching
+// anything right now, so they don't colour a tile at all.
+const STATUS_RANK = { down: 0, pending: 1, up: 2 };
+
+function watchedHosts(checks) {
+  const out = {};
+  for (const check of checks) {
+    const host = hostOf(check.target);
+    if (!host || check.paused || !(check.status in STATUS_RANK)) continue;
+    const seen = out[host];
+    if (seen == null || STATUS_RANK[check.status] < STATUS_RANK[seen]) {
+      out[host] = check.status;
+    }
+  }
+  return out;
+}
+
 function newId() {
   return typeof crypto !== "undefined" && crypto.randomUUID
     ? crypto.randomUUID()
     : `l${Date.now()}${Math.random().toString(16).slice(2)}`;
 }
 
-function LinksCard() {
+function LinksCard({ checks = [] }) {
   const { settings, update } = useSettings();
   const links = settings.links;
+  const watched = watchedHosts(checks);
   const [adding, setAdding] = useState(false);
   const [label, setLabel] = useState("");
   const [url, setUrl] = useState("");
@@ -82,30 +113,16 @@ function LinksCard() {
       )}
 
       {links.length > 0 && (
-        <ul className="links-list">
+        <div className="app-tiles">
           {links.map((l) => (
-            <li key={l.id} className="link-item">
-              <a href={l.url} target="_blank" rel="noopener noreferrer" className="link-main">
-                <span className="link-avatar" style={{ background: avatarColor(l.label) }} aria-hidden="true">
-                  {l.label.charAt(0).toUpperCase()}
-                </span>
-                <span className="link-text">
-                  <strong>{l.label}</strong>
-                  <small>{new URL(l.url).host}</small>
-                </span>
-              </a>
-              <button
-                type="button"
-                className="icon-btn icon-btn--sm"
-                onClick={() => remove(l.id)}
-                aria-label={`Remove ${l.label}`}
-                title="Remove"
-              >
-                ✕
-              </button>
-            </li>
+            <AppTile
+              key={l.id}
+              link={l}
+              status={watched[hostOf(l.url)]}
+              onRemove={() => remove(l.id)}
+            />
           ))}
-        </ul>
+        </div>
       )}
 
       {adding && (
