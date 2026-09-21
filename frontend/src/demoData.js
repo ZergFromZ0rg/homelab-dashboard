@@ -76,6 +76,18 @@ function machine(o) {
     network_tx: o.tx,
     filesystems: o.fs,
     disk_io: [{ device: "nvme0n1", name: "nvme0n1", read_bps: 8_000_000, write_bps: 2_500_000 }],
+    // The physical NIC carries the rx/tx headline; the tailscale link is
+    // real traffic that the headline doesn't count.
+    interfaces: o.ifaces ?? [
+      { device: "eth0", name: "eth0", rx_bps: o.rx, tx_bps: o.tx, in_total: true },
+      {
+        device: "tailscale0",
+        name: "tailscale0",
+        rx_bps: Math.round(o.rx * 0.08),
+        tx_bps: Math.round(o.tx * 0.15),
+        in_total: false,
+      },
+    ],
     agent_reachable: true,
     agent_stale_age: null,
     gpu: o.gpu ?? { available: false, count: 0, devices: [] },

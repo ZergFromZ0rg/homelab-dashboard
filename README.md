@@ -74,7 +74,8 @@ each container becomes a small stacked card.
 
 **Servers** is the full view of every machine: a facts row (servers online,
 containers running, CPU threads, GPUs), then a card per host — CPU /
-temperature / RAM gauges with sparklines, network, every GPU, disk I/O and
+temperature / RAM gauges with sparklines, network (with a per-interface
+breakdown — see below), every GPU, disk I/O and
 storage, plus a footer with how many containers run there, whether its
 agent is connected / stale / unreachable, and how its config backup is
 doing ("backup 3h ago", "backup stale", "backup failing", "no backup"). Each
@@ -241,6 +242,25 @@ title, the graph time window, whether the uptime column and live-activity
 badges show, the restart-loop threshold, which Overview sections are visible,
 and per-pin group labels + web-UI links for Quick Actions (e.g. label
 qBittorrent + Jellyfin "Media" to group them under one header there).
+
+### Network, per interface
+
+The **download / upload** figures on a host card sum its *physical*
+interfaces only — `VIRTUAL_IFACE_RE` in `backend/prometheus.py` drops the
+loopback, Docker bridges, veths and, deliberately, overlay links like
+`tailscale*` and `wg*`, so a busy tailnet doesn't read as WAN traffic.
+
+That makes overlay traffic invisible in the headline number, so each card
+also lists its interfaces individually underneath (`get_network_interfaces`,
+rated over a minute like the disk I/O rows). This list hides only the
+genuinely uninteresting churn — loopback and container/bridge plumbing — so
+`tailscale0`, `wg0` and `tun0` do appear, tagged **not in total** to
+explain why the rows don't add up to the figure above them. Interfaces
+with no traffic at all in the window are left out.
+
+This answers "which link is that traffic on". It can't answer "which peer"
+or "which port" — node_exporter reports counters, not flows. Per-container
+throughput is already on each container row.
 
 ## History and sparklines
 

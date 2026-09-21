@@ -31,6 +31,17 @@ VIRTUAL_IFACE_RE = (
     "|cni.*|cali.*|flannel.*|kube.*|nerdctl.*|cilium.*|ovs.*|bond.*|dummy.*"
 )
 
+# The host's rx/tx *total* deliberately counts only physical NICs
+# (VIRTUAL_IFACE_RE above), which means overlay links — Tailscale, WireGuard
+# — never show up in it at all. The per-interface breakdown exists to make
+# that visible, so it hides only the genuinely uninteresting churn: the
+# loopback and the container/bridge plumbing that comes and goes with every
+# `docker run`. Everything a packet could actually leave the box on stays.
+HIDDEN_IFACE_RE = (
+    "lo|veth.*|docker.*|br-.*|cni.*|cali.*|flannel.*|kube.*|nerdctl.*"
+    "|cilium.*|ovs.*|dummy.*"
+)
+
 # Whole physical disks only (no partitions, loop, dm, ram, zram, cd-rom).
 WHOLE_DISK_RE = (
     "sd[a-z]+|nvme[0-9]+n[0-9]+|vd[a-z]+|xvd[a-z]+|hd[a-z]+|mmcblk[0-9]+"
@@ -338,6 +349,47 @@ def get_disk_io():
     return disk_io
 
 
+def get_network_interfaces():
+    """job -> per-interface throughput, newest counters rated over a minute.
+
+    Same shape as ``get_disk_io``: one row per device, both directions, so
+    the UI can list them the way it lists disks. An interface with no
+    traffic at all in the window is dropped — a box with a dozen unused
+    NICs shouldn't push its storage section off the card.
+    """
+    receives = value_by_job_device(
+        f'irate(node_network_receive_bytes_total'
+        f'{{device!~"{HIDDEN_IFACE_RE}"}}[1m])'
+    )
+
+    transmits = value_by_job_device(
+        f'irate(node_network_transmit_bytes_total'
+        f'{{device!~"{HIDDEN_IFACE_RE}"}}[1m])'
+    )
+
+    interfaces = {}
+
+    for key in sorted(set(receives) | set(transmits)):
+        job, device = key
+        rx = receives.get(key, 0.0)
+        tx = transmits.get(key, 0.0)
+
+        if rx <= 0 and tx <= 0:
+            continue
+
+        interfaces.setdefault(job, []).append({
+            "name": device,
+            "device": device,
+            "rx_bps": round(rx, 1),
+            "tx_bps": round(tx, 1),
+            # Whether this one is counted in the host's rx/tx total, so the
+            # UI can say why the rows don't add up to the headline figure.
+            "in_total": not re.fullmatch(VIRTUAL_IFACE_RE, device),
+        })
+
+    return interfaces
+
+
 # hwmon driver names for the actual CPU package/die sensor. Without this,
 # "highest sensor on the box" just as easily picks an NVMe drive's temp3
 # (composite/max, often hotter than the CPU) or a laptop's chassis/ACPI
@@ -560,6 +612,7 @@ def get_machine_stats():
 
     filesystems = get_filesystems()
     disk_io = get_disk_io()
+    interfaces = get_network_interfaces()
 
     machines = {}
 
@@ -591,6 +644,7 @@ def get_machine_stats():
             ),
             "filesystems": filesystems.get(host, []),
             "disk_io": disk_io.get(host, []),
+            "interfaces": interfaces.get(host, []),
         }
 
     return machines

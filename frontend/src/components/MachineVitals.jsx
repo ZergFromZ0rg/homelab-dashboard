@@ -251,6 +251,26 @@ function MachineVitals({ machine, history }) {
         </Stat>
       </div>
 
+      {machine.interfaces?.length > 0 && (
+        <div className="io-list">
+          {machine.interfaces.map((iface) => (
+            <div className="io-row" key={iface.device}>
+              <strong>{iface.name}</strong>
+              <span>↓ {formatSpeed(iface.rx_bps)}</span>
+              <span>↑ {formatSpeed(iface.tx_bps)}</span>
+              {iface.in_total === false && (
+                <span
+                  className="io-row-aside"
+                  title="An overlay link — its traffic isn't counted in the download/upload figures above, which cover physical interfaces only."
+                >
+                  not in total
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
       {gpuDevices(machine).map((gpu, index, devices) => (
         <GpuDevice
           key={gpu.device_id ?? index}
@@ -264,9 +284,9 @@ function MachineVitals({ machine, history }) {
       ))}
 
       {machine.disk_io?.length > 0 && (
-        <div className="disk-io-list">
+        <div className="io-list">
           {machine.disk_io.map((disk) => (
-            <div className="disk-io-row" key={disk.device}>
+            <div className="io-row" key={disk.device}>
               <strong>{disk.name}</strong>
               <span>↓ {formatSpeed(disk.read_bps)}</span>
               <span>↑ {formatSpeed(disk.write_bps)}</span>

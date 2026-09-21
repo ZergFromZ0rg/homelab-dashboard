@@ -587,13 +587,14 @@ h1 {
   font-weight: 600;
 }
 
-.disk-io-list {
+/* "device  down  up" — the same row for disks and network interfaces. */
+.io-list {
   margin-top: 8px;
   padding-top: 6px;
   border-top: 1px solid var(--border);
 }
 
-.disk-io-row {
+.io-row {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -602,14 +603,26 @@ h1 {
   color: var(--text-muted);
 }
 
-.disk-io-row:first-child {
+.io-row:first-child {
   margin-top: 0;
 }
 
-.disk-io-row strong {
+.io-row strong {
   min-width: 56px;
   font-size: 11px;
   color: var(--text);
+}
+
+/* An overlay link (Tailscale, WireGuard) carries real traffic but isn't in
+   the DOWNLOAD/UPLOAD figures above, which count physical NICs only. Say
+   so on the row rather than leaving the numbers looking wrong. */
+.io-row-aside {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--text-faint);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 6px;
 }
 
 /* ---- Deploy tab ---------------------------------------------------------- */
