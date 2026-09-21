@@ -3,6 +3,7 @@ import ContainerRow from "./ContainerRow";
 import ContainerTableHead from "./ContainerTableHead";
 import SortControl from "./SortControl";
 import { sortContainers, needsAttention } from "./containerSort";
+import { formatBytes } from "./format";
 import { pinKey, togglePin } from "./containerPins";
 import { useLocalStorage } from "./useLocalStorage";
 import { hostColor } from "./hostColor";
@@ -23,6 +24,51 @@ function orderContainers(list, sortBy, restartThreshold) {
     (a, b) =>
       (needsAttention(a, restartThreshold) ? 0 : 1) -
       (needsAttention(b, restartThreshold) ? 0 : 1)
+  );
+}
+
+// What the visible rows add up to. Docker's cpu_percent is 100% per
+// logical CPU, so the sum is divided by the host's vCPU count to read as a
+// share of the whole machine — the same unit the host card's CPU gauge
+// uses. Memory is a plain sum of what the containers are using.
+function totals(containers, hostCores) {
+  let cpu = null;
+  let memory = null;
+
+  for (const c of containers) {
+    const stats = c.stats;
+    if (stats?.cpu_percent != null) cpu = (cpu ?? 0) + stats.cpu_percent;
+    if (stats?.memory?.used_bytes != null) {
+      memory = (memory ?? 0) + stats.memory.used_bytes;
+    }
+  }
+
+  return {
+    cpu: cpu == null ? null : cpu / (hostCores || 1),
+    memory,
+  };
+}
+
+function GroupTotals({ containers, hostCores }) {
+  const { cpu, memory } = totals(containers, hostCores);
+  if (cpu == null && memory == null) return null;
+
+  return (
+    <div className="host-total">
+      <span>
+        {containers.length} container{containers.length === 1 ? "" : "s"}
+      </span>
+      {cpu != null && (
+        <span title={hostCores ? `Share of ${hostCores} vCPU` : undefined}>
+          CPU <strong>{cpu.toFixed(2)}%</strong>
+        </span>
+      )}
+      {memory != null && (
+        <span>
+          MEM <strong>{formatBytes(memory)}</strong>
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -126,6 +172,7 @@ function HostGroup({
               onTogglePin={() => onTogglePin(pinKey(host, container.name))}
             />
           ))}
+          <GroupTotals containers={ordered} hostCores={hostCores} />
         </div>
       )}
     </div>

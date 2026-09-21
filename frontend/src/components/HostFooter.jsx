@@ -1,13 +1,30 @@
-import { formatAge } from "./format";
+import { formatAge, formatWhen } from "./format";
+
+// The agent reports the age of its last backup, not its timestamp (its own
+// clock is the honest one for "is this stale?"). For "which night was
+// that?" the dashboard's clock is close enough, so the absolute time goes
+// in the tooltip and the age stays on the chip.
+function backupWhen(backup) {
+  if (backup?.last_success_age == null) return undefined;
+  return `Last backup ${formatWhen(Date.now() / 1000 - backup.last_success_age)}`;
+}
 
 // How a backup state reads on a host card. `null` = say nothing (an old
 // agent, or we simply couldn't ask — not worth a chip).
 function backupChip(backup) {
   switch (backup?.state) {
     case "ok":
-      return { label: `backup ${formatAge(backup.last_success_age)}`, tone: "ok" };
+      return {
+        label: `backup ${formatAge(backup.last_success_age)}`,
+        tone: "ok",
+        title: backupWhen(backup),
+      };
     case "stale":
-      return { label: `backup stale · ${formatAge(backup.last_success_age)}`, tone: "warn" };
+      return {
+        label: `backup stale · ${formatAge(backup.last_success_age)}`,
+        tone: "warn",
+        title: backupWhen(backup),
+      };
     case "failing":
       return { label: "backup failing", tone: "bad", title: backup.last_error };
     case "pending":

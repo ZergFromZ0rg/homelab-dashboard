@@ -25,14 +25,30 @@ function forecastTone(days) {
   return "none";
 }
 
+// Matches ALERT_DISK_PERCENT / ALERT_DISK_CRITICAL_PERCENT, so a bar turns
+// the colour it will alert at.
+function diskTone(usedPercent) {
+  if (usedPercent >= 97) return "bad";
+  if (usedPercent >= 90) return "warn";
+  return "ok";
+}
+
+// "6m" / "3h 20m" / "7d 22h". A host that rebooted an hour ago used to
+// read "0d 1h", which buried the one thing worth noticing about it.
 function formatUptime(seconds) {
   if (seconds == null) return "—";
 
   const days = Math.floor(seconds / 86400);
   const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
 
-  return `${days}d ${hours}h`;
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
 }
+
+// Under an hour means it rebooted while you weren't looking.
+const RECENT_BOOT_SECONDS = 3600;
 
 // Agents that can't reach NVML report a name like "NVIDIA GPU 10DE:2187" —
 // split the trailing PCI id onto its own muted line instead of letting it
@@ -198,7 +214,18 @@ function MachineVitals({ machine, history }) {
           <span>
             LOAD <strong>{machine.load1 ?? "—"}</strong>
           </span>
-          <span>
+          <span
+            className={
+              machine.uptime != null && machine.uptime < RECENT_BOOT_SECONDS
+                ? "compact-stat--fresh"
+                : undefined
+            }
+            title={
+              machine.uptime != null && machine.uptime < RECENT_BOOT_SECONDS
+                ? "This host rebooted recently"
+                : undefined
+            }
+          >
             UPTIME <strong>{formatUptime(machine.uptime)}</strong>
           </span>
         </div>
@@ -285,7 +312,9 @@ function MachineVitals({ machine, history }) {
 
               <div className="disk-bar">
                 <div
-                  className="disk-bar-fill"
+                  className={`disk-bar-fill disk-bar-fill--${diskTone(
+                    filesystem.used_percent
+                  )}`}
                   style={{
                     width: `${Math.min(filesystem.used_percent, 100)}%`,
                   }}

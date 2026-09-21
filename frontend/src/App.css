@@ -520,6 +520,35 @@ h1 {
   background: var(--accent);
 }
 
+/* Same lines the disk alerts use: warn at 90%, critical at 97%. A bar you
+   can read at a glance without checking the number next to it. */
+.disk-bar-fill--warn {
+  background: var(--warning);
+}
+
+.disk-bar-fill--bad {
+  background: var(--offline);
+}
+
+.compact-stat--fresh strong {
+  color: var(--warning);
+}
+
+.host-total {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: 7px 12px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.host-total strong {
+  color: var(--text);
+  font-family: var(--mono);
+}
+
 .disk-details {
   display: flex;
   justify-content: space-between;
