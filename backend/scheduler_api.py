@@ -16,7 +16,7 @@ import time
 import requests
 from fastapi import APIRouter, Header, HTTPException
 
-from backend import alerts, autorebalance, checks, rebalance, scheduler, stacks
+from backend import alert_history, alerts, autorebalance, checks, rebalance, scheduler, stacks
 from backend import auth
 from backend.compose import ComposeError
 from backend.deployments import DeploymentStore
@@ -690,14 +690,15 @@ async def _auto_rebalance_loop() -> None:
 
 
 async def _alert_loop() -> None:
-    """Watch the fleet and POST to ALERT_WEBHOOK_URL on state changes.
-    No-op unless that URL is set."""
-    if not alerts.enabled():
-        return
+    """Watch the fleet, record every state change to the alert history and
+    POST it to ALERT_WEBHOOK_URL. The webhook is optional — without one
+    this still runs, because the history card is the dashboard's own
+    record of what fired."""
     sched_log.info(
-        "alerts on: webhook every %.0fs, RAM>%.0f%%, CPU>%.0f%%, disk>%.0f%% "
+        "alerts on: %s every %.0fs, RAM>%.0f%%, CPU>%.0f%%, disk>%.0f%% "
         "or full within %.0fd, temp>%.0f°C, container/backup health "
         "(%d checks before a resource alert fires)",
+        "webhook + history" if alerts.enabled() else "history only (no ALERT_WEBHOOK_URL)",
         alerts.INTERVAL_SECONDS,
         alerts.RAM_PERCENT,
         alerts.CPU_PERCENT,
@@ -706,6 +707,11 @@ async def _alert_loop() -> None:
         alerts.TEMP_CELSIUS,
         alerts.BREACH_CYCLES,
     )
+    # An episode left open by a restart is only closed once the monitor has
+    # had enough cycles to re-fire it — a debounced resource alert isn't in
+    # ``firing_keys`` until it has breached ``BREACH_CYCLES`` times, and
+    # sweeping before then would close and immediately reopen it.
+    cycles = 0
     while True:
         await asyncio.sleep(alerts.INTERVAL_SECONDS)
         try:
@@ -714,10 +720,17 @@ async def _alert_loop() -> None:
             events = alert_monitor.poll(
                 machines, dumps, containers, checks.service.summaries()
             )
+            cycles += 1
+
             for event in events:
                 level = sched_log.warning if event["status"] == "firing" else sched_log.info
                 level("alert %s: %s", event["status"], event["message"])
-                await asyncio.to_thread(alerts.post, event)
+                alert_history.record(event)
+                if alerts.enabled():
+                    await asyncio.to_thread(alerts.post, event)
+
+            if cycles >= alerts.BREACH_CYCLES:
+                alert_history.sweep(alert_monitor.firing_keys())
         except asyncio.CancelledError:
             raise
         except Exception as error:  # noqa: BLE001 - loop must survive

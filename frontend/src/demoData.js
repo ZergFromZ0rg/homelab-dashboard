@@ -266,6 +266,15 @@ export function demoSnapshot() {
       { at: t - 7200, kind: "container_start", text: "plex on nuc-media started" },
       { at: t - 86400, kind: "deploy", text: "whoami deployed to bigboy" },
     ],
+    // Alert episodes: the open ones match the overview issues below, plus
+    // a couple that already resolved.
+    alerts: [
+      { key: "container:nuc-media:nextcloud:unhealthy", at: t - 300, resolved_at: null, severity: "bad", host: "nuc-media", title: "nextcloud is unhealthy", message: "nextcloud on nuc-media is failing its healthcheck" },
+      { key: "check:k5", at: t - 1080, resolved_at: null, severity: "bad", host: null, title: "Nextcloud is down", message: "Nextcloud (http https://cloud.example.com) has been failing for 18 min — HTTP 502" },
+      { key: "host:nuc-media:ram", at: t - 5400, resolved_at: null, severity: "warn", host: "nuc-media", title: "nuc-media RAM high", message: "nuc-media RAM at 91% (threshold 90%)" },
+      { key: "host:bigboy:temp", at: t - 39600, resolved_at: t - 36000, severity: "warn", host: "bigboy", title: "bigboy running hot", message: "bigboy CPU at 87°C (threshold 85°C)" },
+      { key: "host:nuc-media:offline", at: t - 90000, resolved_at: t - 88800, severity: "bad", host: "nuc-media", title: "nuc-media offline", message: "nuc-media stopped responding to Prometheus" },
+    ],
     mainHost: "thinkpad",
     // Mirrors what backend/alerts.py + main._overview would produce for the
     // fleet above (worst first, same keys and wording).

@@ -31,9 +31,11 @@ services:
       AUTO_REBALANCE_MIN_GAIN: ${AUTO_REBALANCE_MIN_GAIN:-}
       AUTO_REBALANCE_COOLDOWN: ${AUTO_REBALANCE_COOLDOWN:-}
       AUTO_REBALANCE_MAX_PER_CYCLE: ${AUTO_REBALANCE_MAX_PER_CYCLE:-}
-      # Alerting: set ALERT_WEBHOOK_URL to turn it on. The backend POSTs a
-      # small JSON body there when a host goes offline, RAM/CPU sits over
-      # threshold, or a managed deployment fails — and again on recovery.
+      # Alerting: always evaluated (the Overview's Attention panel and
+      # Alert history card are fed by it). Set ALERT_WEBHOOK_URL to also
+      # have each change POSTed to you — a host going offline, RAM/CPU
+      # sitting over threshold, a managed deployment failing, and again on
+      # recovery. The history lives on the dashboard-data volume.
       ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
       ALERT_RAM_PERCENT: ${ALERT_RAM_PERCENT:-}
       ALERT_CPU_PERCENT: ${ALERT_CPU_PERCENT:-}

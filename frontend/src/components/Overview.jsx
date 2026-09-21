@@ -4,6 +4,7 @@ import HostSummary from "./HostSummary";
 import Card from "./Card";
 import { formatLatency } from "./format";
 import ActivityFeed from "./ActivityFeed";
+import AlertHistory from "./AlertHistory";
 import QuickActions from "./QuickActions";
 import { useSettings } from "./settings";
 
@@ -106,6 +107,7 @@ function Overview({
   checks,
   deployments,
   activity,
+  alerts,
   pins,
   onControl,
   onNavigate,
@@ -115,7 +117,8 @@ function Overview({
   } = useSettings();
 
   const hostCount = Object.keys(machines).length;
-  const showRail = homeCards.quickActions || homeCards.activity;
+  const showRail =
+    homeCards.quickActions || homeCards.activity || homeCards.alerts;
 
   return (
     <div className={`overview ${showRail ? "" : "overview--full"}`}>
@@ -186,6 +189,15 @@ function Overview({
                 onControl={onControl}
                 onNavigate={onNavigate}
               />
+            </Card>
+          )}
+
+          {homeCards.alerts && (
+            <Card
+              title="Alert history"
+              count={alerts.filter((a) => a.resolved_at == null).length || null}
+            >
+              <AlertHistory alerts={alerts} />
             </Card>
           )}
 

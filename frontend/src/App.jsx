@@ -125,6 +125,7 @@ function useDashboardSocket() {
       history: {},
       deployments: [],
       activity: [],
+      alerts: [],
       checks: [],
       mainHost: null,
       overview: EMPTY_OVERVIEW,
@@ -177,6 +178,7 @@ function useDashboardSocket() {
           history: data.history ?? {},
           deployments: data.deployments ?? [],
           activity: data.activity ?? [],
+          alerts: data.alerts ?? [],
           checks: data.checks ?? [],
           mainHost: data.main_host ?? null,
           overview: data.overview ?? EMPTY_OVERVIEW,
@@ -295,6 +297,7 @@ function App() {
     history,
     deployments,
     activity,
+    alerts,
     checks,
     overview,
     pins,
@@ -373,6 +376,7 @@ function App() {
             checks={checks}
             deployments={deployments}
             activity={activity}
+            alerts={alerts}
             pins={pins}
             onControl={control}
             onNavigate={navigate}

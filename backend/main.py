@@ -16,6 +16,7 @@ from backend.notes import Conflict, NoteStore
 from backend.service_activity_credentials import ServiceActivityCredentialStore
 from backend.log import system as system_log
 from backend import activity
+from backend import alert_history
 from backend import alerts
 from backend import checks
 from backend import checks_api
@@ -133,9 +134,7 @@ def _overview(
     for key, alert in alerts.evaluate(
         machines, deployment_dumps, containers, check_summaries
     ).items():
-        severity = alert.get("severity") or (
-            "warn" if key.endswith((":ram", ":cpu")) else "bad"
-        )
+        severity = alerts.severity_of(key, alert)
         issues.append(
             {
                 "key": key,
@@ -300,6 +299,13 @@ def set_service_activity_credentials(payload: dict):
 def clear_service_activity_credentials(app_name: str):
     service_activity_credentials.clear(app_name)
     return {"configured": service_activity_credentials.configured()}
+
+
+@app.get("/api/alerts")
+def list_alerts():
+    """What the alert monitor has fired, newest first. An entry with a
+    null ``resolved_at`` is still firing."""
+    return {"alerts": alert_history.recent()}
 
 
 @app.get("/api/activity")
@@ -472,6 +478,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 "pins": pins.all(),
                 "todos": todos.all(),
                 "activity": activity.recent(),
+                "alerts": alert_history.recent(),
                 "checks": check_summaries,
                 "overview": _overview(
                     machines, dumps, stale_nodes, containers, check_summaries

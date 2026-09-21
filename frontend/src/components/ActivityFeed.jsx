@@ -1,3 +1,5 @@
+import { formatWhen } from "./format";
+
 // The reconcile loop records fleet transitions to /api/activity; they
 // also ride the /ws payload. Newest first.
 
@@ -16,13 +18,6 @@ const DOT = {
   deploy_failed: "bad",
 };
 
-function when(at) {
-  const d = new Date(at * 1000);
-  const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  const today = new Date().toDateString() === d.toDateString();
-  return today ? time : `${d.toLocaleDateString([], { month: "short", day: "numeric" })} ${time}`;
-}
-
 function ActivityFeed({ activity }) {
   if (!activity || activity.length === 0) {
     return <p className="overview-empty">No activity recorded yet.</p>;
@@ -33,7 +28,7 @@ function ActivityFeed({ activity }) {
       {activity.map((e, i) => (
         <li key={`${e.at}-${i}`} className="activity-item">
           <span className={`activity-dot activity-dot--${DOT[e.kind] || "info"}`} />
-          <time className="activity-time">{when(e.at)}</time>
+          <time className="activity-time">{formatWhen(e.at)}</time>
           <span className="activity-text">{e.text}</span>
         </li>
       ))}

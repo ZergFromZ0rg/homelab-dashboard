@@ -338,7 +338,9 @@ going offline, its agent going unreachable, RAM/CPU/temperature over
 threshold, a disk nearly full or on course to fill within a week, an
 unhealthy or crash-looping container, a failing or stale config backup, or
 a managed deployment failing — and again when the condition clears. The
-same rules always feed the Overview's Attention panel, webhook or not.
+same rules always feed the Overview's Attention panel and its Alert
+history card, webhook or not; the webhook just also pushes each change to
+you.
 
 ```ini
 ALERT_WEBHOOK_URL=https://ntfy.sh/my-homelab-topic
@@ -354,7 +356,7 @@ ALERT_TEMP_CELSIUS=85
 See `.env.example` for the full list (restart-loop window, backup max age,
 forecast window).
 
-The POST body is `{status, key, title, message, host, timestamp}` —
+The POST body is `{status, key, title, message, host, severity, timestamp}` —
 `status` is `firing` or `resolved`. It works as-is with ntfy and
 healthchecks-style receivers; for Discord/Slack/Gotify put a tiny
 reshaping proxy in front, or point it at your own endpoint. Only

@@ -354,10 +354,11 @@ stateful volume migration (a named volume stays on its node).
 
 ## Alerting
 
-Off unless `ALERT_WEBHOOK_URL` is set. When it is, `backend/alerts.py`
-runs a loop every `ALERT_INTERVAL` seconds (default 60) over the same
-fleet snapshot the scheduler uses and `POST`s a small JSON body to that
-URL when something crosses a line — and again when it clears:
+`backend/alerts.py` runs a loop every `ALERT_INTERVAL` seconds (default
+60) over the same fleet snapshot the scheduler uses and records a state
+change when something crosses a line — and again when it clears. Set
+`ALERT_WEBHOOK_URL` to also have each change `POST`ed to you; without it
+the loop still runs and still keeps the history below.
 
 - a host Prometheus had `online` goes offline
 - a host is up but its agent stops responding
@@ -405,10 +406,21 @@ agent's own clock, so a skewed host clock can't fake a stale backup. Only
 
 Only state *changes* are sent, so a condition that stays true doesn't
 repeat. The body is deliberately generic —
-`{status: "firing"|"resolved", key, title, message, host, timestamp}` —
-so it works with ntfy, Gotify, Discord, Slack-compatible webhooks,
-healthchecks.io, or your own receiver. Transitions are also logged on the
-`scheduler` logger.
+`{status: "firing"|"resolved", key, title, message, host, severity,
+timestamp}` — so it works with ntfy, Gotify, Discord, Slack-compatible
+webhooks, healthchecks.io, or your own receiver. Transitions are also
+logged on the `scheduler` logger.
+
+**Alert history.** Every transition is also kept on the `/data` volume
+(`ALERT_HISTORY_FILE`, default `/data/alerts.json`, last 200), so the
+dashboard can answer "what went off last night?" without digging through
+whatever received the webhook. It's stored as *episodes* — one entry per
+alert key, opened when it fires and closed when it resolves — which is
+what the Overview's **Alert history** card shows: still-firing ones first
+with how long they've been going, then resolved ones with how long they
+lasted. `GET /api/alerts` returns the same list, and it rides the `/ws`
+payload. An episode left open by a dashboard restart is closed on the
+next cycle that doesn't re-fire it.
 
 ## Run
 

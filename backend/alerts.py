@@ -114,30 +114,47 @@ class AlertMonitor:
 
         for key in sorted(self._firing - set(breaching)):
             self._firing.discard(key)
-            events.append(
-                _event("resolved", key, {"title": _titles.get(key, key)}, now)
-            )
+            events.append(_event("resolved", key, {}, now))
 
         return events
 
+    def firing_keys(self) -> set[str]:
+        """Alert keys currently firing — what the history loop reconciles
+        its open episodes against."""
+        return set(self._firing)
 
-# Remember the human title of a firing alert so the "resolved" event can
+
+def severity_of(key: str, alert: dict) -> str:
+    """"warn" or "bad". Most alerts say which they are; a resource breach
+    that doesn't is a warning, anything else is bad."""
+    return alert.get("severity") or ("warn" if key.endswith((":ram", ":cpu")) else "bad")
+
+
+# Remember what a firing alert looked like so the "resolved" event can
 # still name it after the breach data is gone.
-_titles: dict[str, str] = {}
+_open: dict[str, dict] = {}
 
 
 def _event(status: str, key: str, alert: dict, now: float) -> dict:
-    title = alert.get("title", key)
     if status == "firing":
-        _titles[key] = title
+        title = alert.get("title", key)
+        known = {
+            "title": title,
+            "severity": severity_of(key, alert),
+            "host": alert.get("host"),
+        }
+        _open[key] = known
+        message = alert.get("message", title)
     else:
-        title = _titles.pop(key, title)
+        known = _open.pop(key, {"title": key, "severity": "bad", "host": None})
+        message = f"{known['title']} recovered"
     return {
         "status": status,
         "key": key,
-        "title": title,
-        "message": alert.get("message", title) if status == "firing" else f"{title} recovered",
-        "host": alert.get("host"),
+        "title": known["title"],
+        "message": message,
+        "host": known["host"],
+        "severity": known["severity"],
         "timestamp": now,
     }
 

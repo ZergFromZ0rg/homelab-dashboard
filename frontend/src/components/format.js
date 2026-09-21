@@ -59,3 +59,15 @@ export function formatDuration(seconds) {
   if (seconds < 86400) return `${Math.round(seconds / 3600)}h`;
   return `${Math.round(seconds / 86400)}d`;
 }
+
+// An epoch-seconds timestamp -> "14:02" today, "Sep 19 14:02" before that.
+// Shared by the activity feed and the alert history.
+export function formatWhen(at) {
+  if (at == null) return "—";
+  const d = new Date(at * 1000);
+  const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const today = new Date().toDateString() === d.toDateString();
+  return today
+    ? time
+    : `${d.toLocaleDateString([], { month: "short", day: "numeric" })} ${time}`;
+}
