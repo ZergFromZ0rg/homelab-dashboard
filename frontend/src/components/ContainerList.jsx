@@ -43,8 +43,11 @@ function totals(containers, hostCores) {
     }
   }
 
+  // Without the host's vCPU count there's nothing to express the sum as a
+  // share of, and printing Docker's raw "623%" next to a host gauge
+  // reading 8% would just look broken — so leave it out.
   return {
-    cpu: cpu == null ? null : cpu / (hostCores || 1),
+    cpu: cpu == null || !hostCores ? null : cpu / hostCores,
     memory,
   };
 }
@@ -59,7 +62,7 @@ function GroupTotals({ containers, hostCores }) {
         {containers.length} container{containers.length === 1 ? "" : "s"}
       </span>
       {cpu != null && (
-        <span title={hostCores ? `Share of ${hostCores} vCPU` : undefined}>
+        <span title={`Share of this host's ${hostCores} vCPU`}>
           CPU <strong>{cpu.toFixed(2)}%</strong>
         </span>
       )}

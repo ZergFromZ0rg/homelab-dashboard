@@ -139,3 +139,14 @@ def test_api_route_serves_the_history(monkeypatch, tmp_path):
 
     assert body["alerts"][0]["key"] == "host:nuc-1:ram"
     assert body["alerts"][0]["resolved_at"] is None
+
+
+def test_refire_refreshes_the_title():
+    alert_history.record(_event("firing", title="nuc-1 / is 91% full"))
+    alert_history.record(
+        _event("firing", timestamp=2000.0, title="nuc-1 / is 96% full")
+    )
+
+    (entry,) = alert_history.recent()
+    assert entry["title"] == "nuc-1 / is 96% full"
+    assert entry["at"] == 1000.0

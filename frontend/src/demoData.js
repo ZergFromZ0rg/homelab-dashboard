@@ -107,6 +107,13 @@ function demoChecks() {
   ];
 }
 
+// Mirrors GET /api/rebalance. Nothing to move: the demo fleet's hot node
+// (nuc-media) has no scheduler-managed stateless workload on it, so a real
+// backend would return an empty list here too.
+export function demoRebalance() {
+  return { suggestions: [], checked_at: now(), auto: false };
+}
+
 const RANGE_SHAPE = { "3h": [36, 300], "24h": [24, 3600], "7d": [84, 7200], "30d": [90, 28800] };
 
 // Mirrors GET /api/checks/{id}/history.

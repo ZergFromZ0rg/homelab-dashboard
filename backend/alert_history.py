@@ -53,7 +53,9 @@ def record(event: dict) -> None:
         if existing is not None:
             # Already tracking this one — the monitor lost its in-memory
             # state (a restart) and re-fired. Keep the original start time,
-            # which is the true one, and take the fresher wording.
+            # which is the true one, and take the fresher wording (a disk
+            # alert's title carries the percentage, so it moves too).
+            existing["title"] = event.get("title", existing.get("title"))
             existing["message"] = event.get("message", existing.get("message"))
             existing["severity"] = event.get("severity", existing.get("severity"))
         else:

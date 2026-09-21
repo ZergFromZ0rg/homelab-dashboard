@@ -18,6 +18,17 @@ function faviconUrl(href) {
   }
 }
 
+// Links are stored in localStorage, so a blob written by an older build
+// (or hand-edited) can hold something `new URL` won't parse. Showing the
+// raw string beats throwing during render and blanking the whole tab.
+function hostLabel(href) {
+  try {
+    return new URL(href).host;
+  } catch {
+    return href;
+  }
+}
+
 function AppTile({ link, status, onRemove }) {
   const [broken, setBroken] = useState(false);
   const icon = broken ? null : faviconUrl(link.url);
@@ -30,7 +41,7 @@ function AppTile({ link, status, onRemove }) {
         target="_blank"
         rel="noopener noreferrer"
         className="app-tile-link"
-        title={`${link.label} — ${new URL(link.url).host}${
+        title={`${link.label} — ${hostLabel(link.url)}${
           status ? ` (${status})` : ""
         }`}
       >

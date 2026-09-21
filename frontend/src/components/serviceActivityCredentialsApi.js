@@ -6,8 +6,15 @@
 // secret values) and written with a per-app PUT/DELETE rather than a
 // full-state replace, since the frontend never holds today's values to
 // echo back.
+//
+// /?demo has no backend: report nothing configured and refuse writes, so
+// opening Settings there doesn't fire a 404.
+import { DEMO } from "../demoData";
+
+const DEMO_WRITE = "Demo mode \u2014 changes aren't saved.";
 
 export async function getServiceActivityCredentialsStatus() {
+  if (DEMO) return {};
   const response = await fetch("/api/service-activity-credentials");
   if (!response.ok) {
     throw new Error(
@@ -19,6 +26,7 @@ export async function getServiceActivityCredentialsStatus() {
 }
 
 export async function putServiceActivityCredentials(app, credentials) {
+  if (DEMO) throw new Error(DEMO_WRITE);
   const response = await fetch("/api/service-activity-credentials", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -34,6 +42,7 @@ export async function putServiceActivityCredentials(app, credentials) {
 }
 
 export async function clearServiceActivityCredentials(app) {
+  if (DEMO) throw new Error(DEMO_WRITE);
   const response = await fetch(
     `/api/service-activity-credentials/${encodeURIComponent(app)}`,
     { method: "DELETE" }
