@@ -1,19 +1,5 @@
-// Thin wrappers around the deployment routes. The API token, when the
-// backend requires one, is read from sessionStorage (set via the token
-// box in the Deploy tab) and sent as X-Register-Token.
-
-function authHeaders() {
-  const token = sessionStorage.getItem("apiToken");
-  return token ? { "X-Register-Token": token } : {};
-}
-
-async function jsonOrThrow(response) {
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(body.detail || body.error || `Request failed: ${response.status}`);
-  }
-  return body;
-}
+// Thin wrappers around the deployment routes (token handling: apiAuth.js).
+import { authHeaders, jsonOrThrow } from "./apiAuth";
 
 export function previewPlacement(spec) {
   return fetch("/api/deployments?dry_run=1", {

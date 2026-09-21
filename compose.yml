@@ -49,6 +49,10 @@ services:
       ALERT_RESTART_COUNT: ${ALERT_RESTART_COUNT:-}
       ALERT_RESTART_WINDOW_MINUTES: ${ALERT_RESTART_WINDOW_MINUTES:-}
       ALERT_BACKUP_MAX_AGE_HOURS: ${ALERT_BACKUP_MAX_AGE_HOURS:-}
+      # Service checks (Services tab): failures in a row before "down", and
+      # how many probes may run at once. Defaults apply if unset.
+      CHECK_FAILURES_BEFORE_DOWN: ${CHECK_FAILURES_BEFORE_DOWN:-}
+      CHECK_WORKERS: ${CHECK_WORKERS:-}
       # Live "currently in use" badges for qBittorrent / Jellyfin
       # containers. Leave unset to skip probing that app.
       QBITTORRENT_USERNAME: ${QBITTORRENT_USERNAME:-}

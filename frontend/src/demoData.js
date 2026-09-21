@@ -83,6 +83,52 @@ function machine(o) {
   };
 }
 
+function wave(base, jitter, n = 40, failEvery = 0) {
+  return Array.from({ length: n }, (_, i) =>
+    failEvery && i % failEvery === failEvery - 1
+      ? null
+      : Math.round((base + Math.sin(i / 3) * jitter + ((i * 7) % 5)) * 10) / 10
+  );
+}
+
+function demoChecks() {
+  const t = now();
+  const base = { interval: 60, timeout: 5, expect_status: null, verify_tls: true, paused: false, failing: 0, down_since: null };
+  return [
+    { ...base, id: "k1", name: "Jellyfin", type: "http", target: "http://bigboy:8096", status: "up", last_ok: true, latency_ms: 34.2, detail: "HTTP 200", checked_at: t - 22, uptime_24h: 100, uptime_7d: 99.97, uptime_30d: 99.91, avg_ms_24h: 36.1, recent: wave(35, 6) },
+    { ...base, id: "k2", name: "Router", type: "tcp", target: "192.168.1.1:443", status: "up", last_ok: true, latency_ms: 2.1, detail: "connected", checked_at: t - 41, uptime_24h: 100, uptime_7d: 100, uptime_30d: 99.99, avg_ms_24h: 2.4, recent: wave(2, 0.6) },
+    { ...base, id: "k3", name: "Internet", type: "tcp", target: "1.1.1.1:443", status: "up", last_ok: true, latency_ms: 18.4, detail: "connected", checked_at: t - 9, uptime_24h: 99.79, uptime_7d: 99.6, uptime_30d: 99.7, avg_ms_24h: 21.8, recent: wave(19, 5) },
+    { ...base, id: "k4", name: "DNS", type: "dns", target: "example.com", status: "up", last_ok: true, latency_ms: 11.6, detail: "resolved to 93.184.215.14", checked_at: t - 33, uptime_24h: 100, uptime_7d: 99.98, uptime_30d: 99.95, avg_ms_24h: 13.2, recent: wave(12, 4) },
+    { ...base, id: "k5", name: "Nextcloud", type: "http", target: "https://cloud.example.com", status: "down", last_ok: false, latency_ms: null, detail: "HTTP 502", checked_at: t - 15, down_since: t - 1080, failing: 18, uptime_24h: 93.4, uptime_7d: 98.7, uptime_30d: 99.2, avg_ms_24h: 210.5, recent: [...wave(200, 30, 22), ...Array(18).fill(null)] },
+    { ...base, id: "k6", name: "Grafana", type: "http", target: "http://thinkpad:3000", status: "up", last_ok: true, latency_ms: 88.9, detail: "HTTP 200", checked_at: t - 50, failing: 1, uptime_24h: 99.5, uptime_7d: 99.8, uptime_30d: 99.9, avg_ms_24h: 71.4, recent: wave(75, 20, 40, 13) },
+    { ...base, id: "k7", name: "Plex", type: "http", target: "http://nuc-media:32400/web", status: "paused", paused: true, last_ok: null, latency_ms: null, detail: null, checked_at: null, uptime_24h: null, uptime_7d: null, uptime_30d: null, avg_ms_24h: null, recent: [] },
+  ];
+}
+
+const RANGE_SHAPE = { "3h": [36, 300], "24h": [24, 3600], "7d": [84, 7200], "30d": [90, 28800] };
+
+// Mirrors GET /api/checks/{id}/history.
+export function demoCheckHistory(id, range) {
+  const [count, width] = RANGE_SHAPE[range] ?? RANGE_SHAPE["24h"];
+  const end = Math.floor(now() / width) * width + width;
+  const down = id === "k5";
+  const per = Math.max(1, Math.round(width / 60));
+
+  const points = Array.from({ length: count }, (_, i) => {
+    const bad = down && i >= count - Math.max(1, Math.round(count * 0.06));
+    const partial = down && i === count - Math.max(1, Math.round(count * 0.06)) - 1;
+    const n = per;
+    const up = bad ? 0 : partial ? Math.round(n / 2) : n;
+    const base = id === "k2" ? 2 : id === "k3" ? 19 : 40;
+    const ms = up ? Math.round((base + Math.sin(i / 4) * base * 0.3 + (i % 5)) * 10) / 10 : null;
+    return { t: end - (count - i) * width, n, up, ms_avg: ms, ms_max: ms ? Math.round(ms * 1.8 * 10) / 10 : null };
+  });
+
+  const total = points.reduce((a, p) => a + p.n, 0);
+  const ups = points.reduce((a, p) => a + p.up, 0);
+  return { range, bucket_seconds: width, uptime: Math.round((10000 * ups) / total) / 100, points };
+}
+
 export function demoSnapshot() {
   const machines = {
     bigboy: machine({
@@ -200,6 +246,7 @@ export function demoSnapshot() {
     machines,
     containers,
     history,
+    checks: demoChecks(),
     deployments: [
       {
         id: "d1", kind: "container", status: "running", placed_on: "bigboy", score: 82,
@@ -224,12 +271,14 @@ export function demoSnapshot() {
       ok: false,
       issues: [
         { key: "container:nuc-media:nextcloud:unhealthy", severity: "bad", title: "nextcloud is unhealthy", message: "nextcloud on nuc-media is failing its healthcheck" },
+        { key: "check:k5", severity: "bad", title: "Nextcloud is down", message: "Nextcloud (http https://cloud.example.com) has been failing for 18 min — HTTP 502" },
         { key: "host:nuc-media:backup", severity: "bad", title: "nuc-media backup failing", message: "The last backup on nuc-media failed: push rejected after retries: authentication failed" },
         { key: "host:bigboy:diskfull:/mnt/media", severity: "warn", title: "bigboy /mnt/media filling up", message: "/mnt/media on bigboy will be full in about 7 days at its current rate" },
         { key: "host:nuc-media:disk:/", severity: "warn", title: "nuc-media / is 91% full", message: "/ on nuc-media is 91% full, 22 GB free" },
         { key: "host:nuc-media:ram", severity: "warn", title: "nuc-media RAM high", message: "nuc-media RAM at 91% (threshold 90%)" },
       ],
       recommendations: [
+        "Check that https://cloud.example.com is up and reachable from the dashboard host — a check runs from the dashboard container, so 'localhost' is the dashboard itself.",
         "Read nextcloud's logs on nuc-media (docker logs nextcloud) — its healthcheck is failing.",
         "Check homelab-agent's logs on nuc-media and its BACKUP_REPO / GITHUB_TOKEN settings.",
         "bigboy is filling up — find what's growing (docker system df, du -sh) before it hits 100%.",

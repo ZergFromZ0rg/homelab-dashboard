@@ -363,6 +363,23 @@ Transitions are also logged on the `scheduler` logger.
 
 ---
 
+## Step 7 — Service checks (optional)
+
+The **Services** tab probes things from the dashboard and tracks latency and
+uptime — a website or API (`http`), a port (`tcp`) or a DNS lookup (`dns`).
+Nothing to configure: open the tab, hit **+ Add check**, and use **Quick add**
+for *Internet* and *DNS*.
+
+The one thing to get right is *where the probes run*: from the
+`dashboard-api` container. So use an address that container can reach — the
+machine's LAN IP or hostname for anything on the dashboard host (not
+`localhost`, which is the container itself). If you set `API_TOKEN`
+(Step 4), adding/editing/deleting checks needs it, since the backend sends a
+request to whatever address it's given. Check history lives in the
+`dashboard-data` volume.
+
+---
+
 ## Logs
 
 Both sides log to stdout.

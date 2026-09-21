@@ -45,8 +45,8 @@ utilization, temp and power.
 
 ## Layout
 
-Five sections in a sticky top bar — **Overview**, **Servers**,
-**Containers**, **Deploy**, **Personal** — plus a gear button that opens
+Six sections in a sticky top bar — **Overview**, **Servers**,
+**Containers**, **Services**, **Deploy**, **Personal** — plus a gear button that opens
 **Settings** as a right-hand drawer over whichever section you're on (Esc
 closes it). The bar also carries the connection pill and the dashboard's
 title/subtitle (both editable in Settings → Appearance). The layout reflows
@@ -62,6 +62,8 @@ each container becomes a small stacked card.
   *View* jump and a plain next-step. Deterministic: it reuses the same
   checks the alert loop runs (`alerts.evaluate`) plus stale nodes, no LLM;
   host problems jump to the Servers tab;
+- **Services** — a chip per service check with its latency (down ones
+  first); click for the Services tab;
 - **Servers** — one small tile per machine with its headline bars (CPU,
   RAM, fullest disk, GPU); red at 85%+. Click a tile for the full card;
 - a right-hand rail: **Quick actions** (restart / stop for your pinned
@@ -91,6 +93,44 @@ RAM / status), and its collapsed state and sort are remembered per browser
 (`localStorage`). A filter box matches container name or image across
 every host, and the status chips (All / Running / Needs attention /
 Stopped) narrow it further; Expand all / Collapse all handle the groups.
+
+**Services** answers "is it actually answering?" — a container being
+`running` doesn't mean Jellyfin serves a page, the router responds, DNS
+works or the internet is up. Add a **check** (a **Quick add** covers the two
+everyone wants: *Internet* and *DNS*) and the backend probes it on a
+schedule, keeping latency and history:
+
+- **Website / API** (`http`) — GET a URL; up if it answers with a status
+  below 400 after redirects, or with the exact status you set (handy for a
+  login page that returns 401). A bare address gets a scheme: `http://` for
+  an IP, `localhost`, a single-label name or `*.local/.lan/.home/.internal`,
+  `https://` otherwise. "Accept a self-signed certificate" skips TLS
+  verification for that check.
+- **Port** (`tcp`) — open a connection to `host:port`.
+- **DNS lookup** (`dns`) — resolve a hostname with the backend's resolver.
+
+Each card shows the current latency (or *Down for 18m · HTTP 502*), a
+sparkline of recent results, uptime over 24 h / 7 d / 30 d and the average
+latency; **History** expands uptime bars and a latency chart for 3 h / 24 h /
+7 d / 30 d. Edit, pause and delete are on the card, **Check now** probes
+immediately. A check turns **down** only after `CHECK_FAILURES_BEFORE_DOWN`
+(default 2) failed probes in a row, so one dropped packet doesn't flip it;
+down checks appear in the Attention panel and, if a webhook is set, page you
+(`check:<id>` alerts, resolved when it recovers).
+
+Things to know: probes run **from the dashboard backend**, so they measure
+reachability from where the dashboard lives — `localhost` means the
+dashboard container itself, so use the LAN address or hostname of anything
+on the same machine. Creating, editing, running or deleting a check needs
+`API_TOKEN` when one is set (the backend sends requests to whatever address
+it's given; enter the token in the form's token box). Checks
+(`/data/checks.json`) and their history (`/data/check_history.json`: the
+last 3 h of raw samples plus hourly buckets for 30 days, saved every minute
+and on shutdown) live on the data volume, so a redeploy keeps your uptime
+history. Limits: 100 checks, interval 10 s–1 h, timeout 1–30 s. Endpoints:
+`GET/POST /api/checks`, `PUT/DELETE /api/checks/{id}`,
+`POST /api/checks/{id}/run`, `GET /api/checks/{id}/history?range=3h|24h|7d|30d`
+(the list also rides every `/ws` tick).
 
 **Personal** is the non-fleet stuff, each card switchable in Settings:
 
@@ -310,6 +350,7 @@ URL when something crosses a line — and again when it clears:
   window keeps a container that restarted five times last spring from
   alerting forever);
 - a host's configuration backup is failing or stale — see below;
+- a service check is down (see **Services** above);
 - a scheduler-managed deployment goes `failed` or `node_offline`
 
 These same rules drive the Overview's **Attention** panel (worst first,

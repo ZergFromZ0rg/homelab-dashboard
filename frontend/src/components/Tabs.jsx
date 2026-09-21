@@ -15,6 +15,7 @@ const TAB_COLORS = {
   overview: "var(--accent)",
   servers: "#a5b4fc",
   containers: "#38bdf8",
+  services: "#c4b5fd",
   deploy: "#f0abfc",
   personal: "#fda4af",
 };

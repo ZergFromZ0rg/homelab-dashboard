@@ -15,6 +15,8 @@ from backend.service_activity_credentials import ServiceActivityCredentialStore
 from backend.log import system as system_log
 from backend import activity
 from backend import alerts
+from backend import checks
+from backend import checks_api
 from backend import personal
 from backend import live_history
 from backend import service_activity
@@ -27,15 +29,19 @@ from backend.scheduler_api import deployments, merge_agent_snapshot
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     tasks = scheduler_api.spawn_loops()
+    tasks.append(asyncio.create_task(checks.service.run_forever()))
     try:
         yield
     finally:
         for task in tasks:
             task.cancel()
+        # Save check history so a restart doesn't lose the last minute.
+        checks.service.persist()
 
 
 app = FastAPI(lifespan=lifespan)
 app.include_router(scheduler_api.router)
+app.include_router(checks_api.router)
 
 pins = PinStore()
 todos = TodoStore()
@@ -113,6 +119,7 @@ def _overview(
     deployment_dumps: list[dict],
     stale_nodes: set[str],
     containers: dict | None = None,
+    check_summaries: list[dict] | None = None,
 ) -> dict:
     """At-a-glance fleet health for the landing page: the same breaches the
     alert loop watches, plus stale nodes, turned into a flat issue list and
@@ -120,7 +127,9 @@ def _overview(
     issues: list[dict] = []
     recs: list[str] = []
 
-    for key, alert in alerts.evaluate(machines, deployment_dumps, containers).items():
+    for key, alert in alerts.evaluate(
+        machines, deployment_dumps, containers, check_summaries
+    ).items():
         severity = alert.get("severity") or (
             "warn" if key.endswith((":ram", ":cpu")) else "bad"
         )
@@ -132,7 +141,7 @@ def _overview(
                 "severity": severity,
             }
         )
-        rec = _recommendation(key, alert.get("host"))
+        rec = alert.get("hint") or _recommendation(key, alert.get("host"))
         if rec and rec not in recs:
             recs.append(rec)
 
@@ -405,6 +414,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
             dumps = [d.model_dump() for d in deployments.all()]
             stale_nodes = {n["name"] for n in registry.listing() if n["stale"]}
+            check_summaries = checks.service.summaries()
 
             await websocket.send_json({
                 "type": "dashboard_update",
@@ -416,7 +426,10 @@ async def websocket_endpoint(websocket: WebSocket):
                 "pins": pins.all(),
                 "todos": todos.all(),
                 "activity": activity.recent(),
-                "overview": _overview(machines, dumps, stale_nodes, containers),
+                "checks": check_summaries,
+                "overview": _overview(
+                    machines, dumps, stale_nodes, containers, check_summaries
+                ),
                 "server_time": time.time(),
             })
 

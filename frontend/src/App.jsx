@@ -3,6 +3,7 @@ import Tabs from "./components/Tabs";
 import DeployTab from "./components/DeployTab";
 import Overview from "./components/Overview";
 import ServersTab from "./components/ServersTab";
+import ServicesTab from "./components/ServicesTab";
 import PersonalTab from "./components/PersonalTab";
 import SiteSettings from "./components/SiteSettings";
 import SettingsDrawer from "./components/SettingsDrawer";
@@ -123,6 +124,7 @@ function useDashboardSocket() {
       history: {},
       deployments: [],
       activity: [],
+      checks: [],
       mainHost: null,
       overview: EMPTY_OVERVIEW,
     }
@@ -174,6 +176,7 @@ function useDashboardSocket() {
           history: data.history ?? {},
           deployments: data.deployments ?? [],
           activity: data.activity ?? [],
+          checks: data.checks ?? [],
           mainHost: data.main_host ?? null,
           overview: data.overview ?? EMPTY_OVERVIEW,
         });
@@ -289,6 +292,7 @@ function App() {
     history,
     deployments,
     activity,
+    checks,
     overview,
     pins,
     todos,
@@ -331,6 +335,12 @@ function App() {
       tone: hostsOffline ? "bad" : undefined,
     },
     { value: "containers", label: "Containers", count: totalContainers },
+    {
+      value: "services",
+      label: "Services",
+      count: checks.length || null,
+      tone: checks.some((c) => c.status === "down") ? "bad" : undefined,
+    },
     { value: "deploy", label: "Deploy", count: activeDeployments },
     { value: "personal", label: "Personal", count: openTodos || null },
   ];
@@ -357,6 +367,7 @@ function App() {
             overview={overview}
             machines={machines}
             containers={containers}
+            checks={checks}
             deployments={deployments}
             activity={activity}
             pins={pins}
@@ -384,6 +395,10 @@ function App() {
             onSetPins={setPins}
             connected={connected}
           />
+        )}
+
+        {activeTab === "services" && (
+          <ServicesTab checks={checks} connected={connected} />
         )}
 
         {activeTab === "deploy" && (

@@ -29,6 +29,7 @@ export const HOME_CARD_OPTIONS = [
   { key: "summary", label: "Summary stats" },
   { key: "attention", label: "Attention" },
   { key: "hosts", label: "Hosts (compact)" },
+  { key: "services", label: "Services" },
   { key: "quickActions", label: "Quick actions" },
   { key: "activity", label: "Recent activity" },
 ];

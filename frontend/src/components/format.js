@@ -42,3 +42,18 @@ export function formatDaysUntilFull(days) {
   if (days == null) return null;
   return days < 1 ? "full in <1 d" : `full in ~${Math.round(days)} d`;
 }
+
+// A latency in ms -> "23 ms" / "1.4 s".
+export function formatLatency(ms) {
+  if (ms == null) return "—";
+  return ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(1)} s`;
+}
+
+// A span of seconds -> "45s" / "12m" / "3h" / "2d" (no "ago": "down for 12m").
+export function formatDuration(seconds) {
+  if (seconds == null || seconds < 0) return "—";
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
+  if (seconds < 86400) return `${Math.round(seconds / 3600)}h`;
+  return `${Math.round(seconds / 86400)}d`;
+}

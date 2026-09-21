@@ -12,6 +12,7 @@ Rules (all thresholds are env-tunable):
 - a CPU/GPU temperature sits above its threshold
 - a container is unhealthy, crash-looping, or restarting
 - a host's configuration backup is failing or has gone stale
+- a service check (HTTP / TCP / DNS probe) is down
 - a scheduler-managed deployment goes ``failed`` or ``node_offline``
 
 ``AlertMonitor.poll`` is the pure state machine — feed it successive fleet
@@ -81,11 +82,12 @@ class AlertMonitor:
         machines: dict[str, dict],
         deployments: list[dict],
         containers: dict[str, list] | None = None,
+        checks: list[dict] | None = None,
         *,
         now: float | None = None,
     ) -> list[dict]:
         now = now or time.time()
-        raw = evaluate(machines, deployments, containers, now=now)
+        raw = evaluate(machines, deployments, containers, checks, now=now)
 
         # Debounce resource alerts: they only count as "breaching" once
         # they've been seen ``breach_cycles`` checks running.
@@ -290,6 +292,28 @@ def _host_alerts(name: str, m: dict) -> dict[str, dict]:
     return out
 
 
+def _check_alert(check: dict, now: float) -> dict:
+    name = check.get("name") or check.get("id")
+    kind = check.get("type", "?")
+    target = check.get("target", "?")
+    since = check.get("down_since")
+    for_text = f" for {_ago(now - since)}" if isinstance(since, (int, float)) else ""
+    detail = check.get("detail")
+    return {
+        "title": f"{name} is down",
+        "message": (
+            f"{name} ({kind} {target}) has been failing{for_text}"
+            + (f" — {detail}" if detail else "")
+        ),
+        "host": None,
+        "severity": "bad",
+        "hint": (
+            f"Check that {target} is up and reachable from the dashboard host — "
+            "a check runs from the dashboard container, so 'localhost' is the dashboard itself."
+        ),
+    }
+
+
 def _container_alerts(
     host: str, containers: list[dict], now: float
 ) -> dict[str, dict]:
@@ -333,6 +357,7 @@ def evaluate(
     machines: dict[str, dict],
     deployments: list[dict],
     containers: dict[str, list] | None = None,
+    checks: list[dict] | None = None,
     *,
     now: float | None = None,
 ) -> dict[str, dict]:
@@ -349,6 +374,10 @@ def evaluate(
 
     for host, host_containers in (containers or {}).items():
         out.update(_container_alerts(host, host_containers or [], now))
+
+    for check in checks or []:
+        if check.get("status") == "down":
+            out[f"check:{check['id']}"] = _check_alert(check, now)
 
     for record in deployments:
         status = record.get("status")

@@ -16,7 +16,7 @@ import time
 import requests
 from fastapi import APIRouter, Header, HTTPException
 
-from backend import alerts, autorebalance, rebalance, scheduler, stacks
+from backend import alerts, autorebalance, checks, rebalance, scheduler, stacks
 from backend import auth
 from backend.compose import ComposeError
 from backend.deployments import DeploymentStore
@@ -711,7 +711,9 @@ async def _alert_loop() -> None:
         try:
             _, machines, containers, _, _ = await asyncio.to_thread(_build_fleet)
             dumps = [d.model_dump() for d in deployments.all()]
-            events = alert_monitor.poll(machines, dumps, containers)
+            events = alert_monitor.poll(
+                machines, dumps, containers, checks.service.summaries()
+            )
             for event in events:
                 level = sched_log.warning if event["status"] == "firing" else sched_log.info
                 level("alert %s: %s", event["status"], event["message"])

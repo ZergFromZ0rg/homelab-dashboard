@@ -2,6 +2,7 @@ import RebalancePanel from "./RebalancePanel";
 import SummaryRow from "./SummaryRow";
 import HostSummary from "./HostSummary";
 import Card from "./Card";
+import { formatLatency } from "./format";
 import ActivityFeed from "./ActivityFeed";
 import QuickActions from "./QuickActions";
 import { useSettings } from "./settings";
@@ -11,6 +12,7 @@ import { useSettings } from "./settings";
 // on Containers.
 function issueTab(key) {
   if (key.startsWith("deploy:")) return "deploy";
+  if (key.startsWith("check:")) return "services";
   if (key.startsWith("container:")) return "containers";
   if (key.startsWith("host:")) return "servers";
   return "containers";
@@ -68,10 +70,40 @@ function AttentionPanel({ overview, deployments, onNavigate }) {
   );
 }
 
+// One line of service health: a chip per check with its latency. Anything
+// that's down floats first; a click opens the Services tab.
+function ServiceChips({ checks, onOpen }) {
+  const order = { down: 0, pending: 1, up: 2, paused: 3 };
+  const sorted = [...checks].sort(
+    (a, b) => order[a.status] - order[b.status] || a.name.localeCompare(b.name)
+  );
+
+  return (
+    <div className="service-chips">
+      {sorted.map((c) => (
+        <button
+          type="button"
+          key={c.id}
+          className={`service-chip service-chip--${c.status}`}
+          onClick={onOpen}
+          title={c.status === "down" ? `${c.name} is down — ${c.detail ?? ""}` : c.target}
+        >
+          <span className={`status-dot status-dot--${c.status === "up" ? "ok" : c.status === "down" ? "bad" : "none"}`} />
+          <span className="service-chip-name">{c.name}</span>
+          <span className="service-chip-ms">
+            {c.status === "down" ? "down" : c.status === "up" ? formatLatency(c.latency_ms) : c.status}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function Overview({
   overview,
   machines,
   containers,
+  checks,
   deployments,
   activity,
   pins,
@@ -102,6 +134,23 @@ function Overview({
             deployments={deployments}
             onNavigate={onNavigate}
           />
+        )}
+
+        {homeCards.services && checks.length > 0 && (
+          <section className="overview-section">
+            <div className="overview-section-head">
+              <h2>Services</h2>
+              <span className="overview-card-count">{checks.length}</span>
+              <button
+                type="button"
+                className="btn btn--sm btn--ghost overview-section-link"
+                onClick={() => onNavigate("services")}
+              >
+                All checks →
+              </button>
+            </div>
+            <ServiceChips checks={checks} onOpen={() => onNavigate("services")} />
+          </section>
         )}
 
         {homeCards.hosts && (

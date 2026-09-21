@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useNow } from "./useNow";
 import { useSettings } from "./settings";
 
 function partOfDay(hour) {
@@ -6,15 +6,6 @@ function partOfDay(hour) {
   if (hour < 12) return "Good morning";
   if (hour < 18) return "Good afternoon";
   return "Good evening";
-}
-
-function useNow(intervalMs) {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), intervalMs);
-    return () => clearInterval(id);
-  }, [intervalMs]);
-  return now;
 }
 
 // Time-aware hello with the date and clock, plus a one-line read on the
