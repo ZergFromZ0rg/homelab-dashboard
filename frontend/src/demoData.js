@@ -242,7 +242,27 @@ export function demoSnapshot() {
         ],
       },
     }),
+    // An AMD card: read from /sys/class/drm, which needs no runtime, so
+    // it reports a vendor and a temperature and nothing else.
     thinkpad: machine({
+      gpu: {
+        available: true,
+        count: 1,
+        devices: [
+          {
+            vendor: "amd",
+            name: "AMD GPU 1002:1636",
+            device_id: "0x1636",
+            utilization_percent: null,
+            memory_used_mb: null,
+            memory_total_mb: null,
+            temperature_c: 44,
+            power_draw_w: null,
+            power_limit_w: null,
+            fan_percent: null,
+          },
+        ],
+      },
       model: "Intel Core i7-8550U",
       threads: 8,
       cores: 4,
@@ -257,7 +277,34 @@ export function demoSnapshot() {
       backup: { state: "ok", running: false, interval_hours: 12, last_success_age: 40 * 60, last_run_age: 40 * 60, last_error: null, projects: 2 },
       fs: [{ device: "/dev/sda2", mountpoint: "/", used_percent: 52, used_bytes: 250e9, total_bytes: 480e9, free_bytes: 230e9 }],
     }),
+    // The third GPU state: a card the DRM scan can see but nvidia-smi
+    // can't, i.e. the container is missing its NVIDIA runtime. Looks like
+    // an idle GPU unless something says otherwise, which is the point of
+    // the hint.
     "nuc-media": machine({
+      gpu: {
+        available: true,
+        count: 1,
+        hint:
+          "NVIDIA card detected but this container has no NVIDIA runtime, " +
+          "so utilisation, VRAM, power and fan are unavailable. Set " +
+          "AGENT_RUNTIME=nvidia (compose) or --gpus all (docker run).",
+        devices: [
+          {
+            vendor: "nvidia",
+            name: "NVIDIA GPU 10DE:2187",
+            device_id: "0x2187",
+            runtime_missing: true,
+            utilization_percent: null,
+            memory_used_mb: null,
+            memory_total_mb: null,
+            temperature_c: 41,
+            power_draw_w: null,
+            power_limit_w: null,
+            fan_percent: null,
+          },
+        ],
+      },
       model: "Intel N100",
       threads: 4,
       cores: 4,

@@ -37,11 +37,13 @@ The backend polls each agent's `/containers` snapshot every tick with an
 `AGENT_POLL_TIMEOUT` (default 8s). A single slow or dropped poll no longer
 blanks the host — the last good snapshot (container list *and* GPU card)
 keeps showing, flagged stale, for up to `AGENT_STALE_GRACE` seconds
-(default 45) before the host falls back to "agent unreachable". If the
-GPU card shows a name like `NVIDIA GPU 10DE:2187` and no live metrics,
-that's the agent's NVML-less fallback (the `10DE:2187` is the PCI id) —
-give homelab-agent GPU access on that host to get the real name, VRAM,
-utilization, temp and power.
+(default 45) before the host falls back to "agent unreachable". A GPU card
+showing a name like `NVIDIA GPU 10DE:2187` and no live metrics is the
+agent's runtime-less fallback (the `10DE:2187` is the PCI id), and the
+card now carries a line saying exactly that with the fix — it used to look
+identical to an idle GPU. AMD and Intel cards report a vendor and a
+temperature with no configuration at all; that's all `/sys/class/drm`
+exposes, not a misconfiguration.
 
 ## Layout
 

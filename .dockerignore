@@ -1,0 +1,26 @@
+# The API image does `COPY . .`, so without this it ships the whole repo:
+# the git history, the frontend's 83 MB of node_modules and its built
+# assets (which the web image builds for itself anyway).
+#
+# The web image needs frontend/ — everything listed here is either absent
+# from it or rebuilt inside it, so one file serves both.
+
+.git
+.gitignore
+.github
+
+# Rebuilt inside the web image by `npm ci` && `npm run build`.
+**/node_modules
+frontend/dist
+
+# Python noise.
+**/__pycache__
+**/*.pyc
+.pytest_cache
+
+# Nothing at runtime needs these.
+docs
+README.md
+.env
+.env.example
+.claude

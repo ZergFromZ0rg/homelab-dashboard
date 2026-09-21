@@ -284,6 +284,13 @@ function MachineVitals({ host, machine, history }) {
         />
       ))}
 
+      {/* The agent found a card it can't read properly. Without this the
+          only symptom is a GPU block with every number missing, which
+          reads like an idle card rather than a misconfigured one. */}
+      {machine.gpu?.hint && (
+        <p className="gpu-hint">{machine.gpu.hint}</p>
+      )}
+
       {machine.disk_io?.length > 0 && (
         <div className="io-list">
           {machine.disk_io.map((disk) => (
