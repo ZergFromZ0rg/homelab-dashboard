@@ -3,6 +3,7 @@ import os
 import time
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi import FastAPI, Header, HTTPException, Query, WebSocket, WebSocketDisconnect
 
 import requests
@@ -11,6 +12,7 @@ from backend.prometheus import get_machine_stats, get_machine_history
 from backend.docker import get_all_containers, control_container
 from backend.pins import PinStore
 from backend.todos import TodoStore
+from backend.notes import Conflict, NoteStore
 from backend.service_activity_credentials import ServiceActivityCredentialStore
 from backend.log import system as system_log
 from backend import activity
@@ -45,6 +47,7 @@ app.include_router(checks_api.router)
 
 pins = PinStore()
 todos = TodoStore()
+notes = NoteStore()
 service_activity_credentials = ServiceActivityCredentialStore()
 
 # The host the dashboard itself runs on, if any — it gets its own
@@ -339,6 +342,49 @@ def personal_places(q: str = Query(min_length=2, max_length=80)):
 def personal_word():
     """Today's Wiktionary word of the day."""
     return _personal(personal.get_word_of_the_day)
+
+
+@app.get("/api/notes")
+def list_notes():
+    """Personal-tab notes, newest edit first."""
+    return {"notes": notes.all()}
+
+
+@app.post("/api/notes", status_code=201)
+def create_note(payload: dict | None = None):
+    try:
+        return notes.create((payload or {}).get("body", ""))
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+
+
+@app.put("/api/notes/{note_id}")
+def save_note(note_id: str, payload: dict):
+    """Save one note. ``base_updated_at`` is the version being edited; if it
+    has since changed (another device), this answers 409 with the current
+    copy instead of overwriting it."""
+    base = payload.get("base_updated_at")
+    if base is not None and (isinstance(base, bool) or not isinstance(base, (int, float))):
+        raise HTTPException(status_code=400, detail="'base_updated_at' must be a number")
+    try:
+        note = notes.update(note_id, payload.get("body"), base)
+    except Conflict as conflict:
+        return JSONResponse(
+            status_code=409,
+            content={"detail": "This note was changed somewhere else.", "current": conflict.current},
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+    if note is None:
+        raise HTTPException(status_code=404, detail="no such note")
+    return note
+
+
+@app.delete("/api/notes/{note_id}")
+def delete_note(note_id: str):
+    if not notes.delete(note_id):
+        raise HTTPException(status_code=404, detail="no such note")
+    return {"deleted": note_id}
 
 
 @app.get("/api/todos")

@@ -152,6 +152,18 @@ history. Limits: 100 checks, interval 10 s–1 h, timeout 1–30 s. Endpoints:
 - the editable **to-do list** — add / rename (click) / toggle / delete /
   drag-reorder, saved to `/data/todos.json` (`GET`/`PUT /api/todos`, in
   every `/ws` tick) so it's the same on every browser;
+- **notes** — free-text notes, saved on the server (`/data/notes.json`) so
+  what you write on your phone is on your desktop. The list shows each
+  note's first line as its title; opening one gives an editor that
+  **autosaves** ~1 s after you stop typing (and when you leave the tab), and
+  a note you open and never write in is discarded. Every save says which
+  version it was based on, so if you edit the same note on two devices the
+  second save is refused and you're offered **Keep both**, **Use their
+  version** or **Overwrite with mine** rather than one edit silently eating
+  the other. Up to 100 notes of 20,000 characters; the list gets a search box
+  past four notes. Notes are plain text on disk and readable by anyone who
+  can reach the dashboard (like the to-do list) — don't keep secrets in them.
+  API: `GET/POST /api/notes`, `PUT/DELETE /api/notes/{id}`;
 - **weather** — current conditions and a 5-day forecast from
   [Open-Meteo](https://open-meteo.com/) (no API key). Pick your city right
   on the card (°C/°F toggle too); it's a per-browser preference;

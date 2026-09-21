@@ -331,3 +331,13 @@ export const demoPersonal = {
     date: new Date().toISOString().slice(0, 10),
   },
 };
+
+// Personal-tab notes for /?demo (kept in memory by notesApi).
+export function demoNotesSeed() {
+  const t = now();
+  return [
+    { id: "n1", created_at: t - 86400 * 3, updated_at: t - 1800, body: "Router maintenance window\n\nFirmware update Saturday 2am. Reserve a DHCP lease for the NAS first.\nPort forward 51820/udp for WireGuard." },
+    { id: "n2", created_at: t - 86400 * 9, updated_at: t - 86400 * 2, body: "Backup plan\n\n- offsite: rsync to the friend's Pi weekly\n- test a restore once a quarter\n- rotate the GitHub token in March" },
+    { id: "n3", created_at: t - 86400 * 20, updated_at: t - 86400 * 6, body: "Shopping list\n2x 4TB drives, SATA cables, a UPS for the rack" },
+  ];
+}

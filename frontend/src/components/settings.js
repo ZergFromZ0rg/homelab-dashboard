@@ -37,6 +37,7 @@ export const HOME_CARD_OPTIONS = [
 export const PERSONAL_CARD_OPTIONS = [
   { key: "greeting", label: "Greeting" },
   { key: "todo", label: "To-do" },
+  { key: "notes", label: "Notes" },
   { key: "weather", label: "Weather" },
   { key: "word", label: "Word of the day" },
   { key: "links", label: "Quick links" },

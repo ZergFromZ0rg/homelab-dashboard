@@ -1,6 +1,7 @@
 import Card from "./Card";
 import Greeting from "./Greeting";
 import LinksCard from "./LinksCard";
+import NotesCard from "./NotesCard";
 import TodoList from "./TodoList";
 import WeatherCard from "./WeatherCard";
 import WordCard from "./WordCard";
@@ -13,7 +14,7 @@ function PersonalTab({ overview, todos, onSetTodos, openTodos }) {
     settings: { personalCards: show },
   } = useSettings();
 
-  const anyCard = show.todo || show.weather || show.word || show.links;
+  const anyCard = show.todo || show.notes || show.weather || show.word || show.links;
 
   return (
     <section className="personal-tab">
@@ -27,11 +28,12 @@ function PersonalTab({ overview, todos, onSetTodos, openTodos }) {
                 <TodoList todos={todos} onChange={onSetTodos} />
               </Card>
             )}
-            {show.links && <LinksCard />}
+            {show.notes && <NotesCard />}
           </div>
           <div className="personal-col">
             {show.weather && <WeatherCard />}
             {show.word && <WordCard />}
+            {show.links && <LinksCard />}
           </div>
         </div>
       ) : (
