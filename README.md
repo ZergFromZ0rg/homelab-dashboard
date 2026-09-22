@@ -465,6 +465,41 @@ backups are polled; a briefly unreachable agent keeps its last known
 version rather than blanking, since the card already says it's
 unreachable.
 
+## The Prometheus join
+
+Host CPU, RAM, disk and temperature come from Prometheus; containers come
+from the agent. The two are joined on **one string**: an agent's
+`HOST_NAME` must equal its Prometheus `job_name`.
+
+Nothing enforces that, and until now a mismatch failed in the worst
+possible way — silently. A reachable agent is marked `online`, so the host
+card renders with every gauge blank and nothing anywhere says why.
+
+`backend/prometheus_link.py` compares the registered agents against the
+jobs Prometheus actually has and raises an Attention issue for any that
+don't line up. Where the name is close it says which job you probably
+meant:
+
+> **bigboy has no Prometheus job** — bigboy's agent is reporting, but
+> Prometheus has no job called bigboy, it has Bigboy. Host metrics are
+> blank until the two names match.
+
+Where it isn't, it gives you the stanza to paste:
+
+```yaml
+  - job_name: newbox
+    static_configs:
+      - targets: ['100.72.159.83:9100']
+```
+
+The target address is taken from the agent's own registered URL, on
+node_exporter's port — the agent is already reachable there, so the
+exporter almost certainly is too.
+
+Nothing is reported when Prometheus itself is unreachable. Every host
+looks unmatched then, and burying the one real problem under a list of
+false ones is worse than saying nothing.
+
 ## Adding a node
 
 The Servers tab ends with an **Add a node** panel: a `curl | sh` command

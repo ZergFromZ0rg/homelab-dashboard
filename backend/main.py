@@ -23,6 +23,7 @@ from backend import connections
 from backend import container_history
 from backend import checks_api
 from backend import personal
+from backend import prometheus_link
 from backend import rebuilds
 from backend import live_history
 from backend import service_activity
@@ -127,6 +128,8 @@ def _overview(
     stale_nodes: set[str],
     containers: dict | None = None,
     check_summaries: list[dict] | None = None,
+    nodes: dict | None = None,
+    prometheus_jobs: list[str] | None = None,
 ) -> dict:
     """At-a-glance fleet health for the landing page: the same breaches the
     alert loop watches, plus stale nodes, turned into a flat issue list and
@@ -163,6 +166,17 @@ def _overview(
         rec = _recommendation(key, name)
         if rec not in recs:
             recs.append(rec)
+
+    # An agent whose name doesn't match a Prometheus job. Worth surfacing
+    # because it's invisible otherwise: the host card renders "online"
+    # with every gauge blank.
+    link_issues, link_steps = prometheus_link.issues(
+        nodes or {}, prometheus_jobs or []
+    )
+    issues.extend(link_issues)
+    for step in link_steps:
+        if step not in recs:
+            recs.append(step)
 
     # Worst first; the sort is stable so equal severities keep their order.
     issues.sort(key=lambda issue: issue["severity"] != "bad")
@@ -515,6 +529,9 @@ async def websocket_endpoint(websocket: WebSocket):
             nodes = registry.all()
 
             machines = await asyncio.to_thread(get_machine_stats)
+            # Taken before merge_agent_snapshot adds stubs for agent-only
+            # hosts, so this really is "what Prometheus knows about".
+            prometheus_jobs = list(machines)
             history = await asyncio.to_thread(get_machine_history)
 
             agent_data = await asyncio.to_thread(
@@ -580,7 +597,15 @@ async def websocket_endpoint(websocket: WebSocket):
                 "alerts": alert_history.recent(),
                 "checks": check_summaries,
                 "overview": _overview(
-                    machines, dumps, stale_nodes, containers, check_summaries
+                    machines,
+                    dumps,
+                    stale_nodes,
+                    containers,
+                    check_summaries,
+                    nodes=nodes,
+                    # Prometheus keys its data by job; `machines` came from
+                    # it, so its keys are exactly the jobs that exist.
+                    prometheus_jobs=prometheus_jobs,
                 ),
                 "server_time": time.time(),
             })

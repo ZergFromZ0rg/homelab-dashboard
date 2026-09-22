@@ -442,8 +442,10 @@ export function demoSnapshot() {
         { key: "host:bigboy:diskfull:/mnt/media", severity: "warn", title: "bigboy /mnt/media filling up", message: "/mnt/media on bigboy will be full in about 7 days at its current rate" },
         { key: "host:nuc-media:disk:/", severity: "warn", title: "nuc-media / is 91% full", message: "/ on nuc-media is 91% full, 22 GB free" },
         { key: "host:nuc-media:ram", severity: "warn", title: "nuc-media RAM high", message: "nuc-media RAM at 91% (threshold 90%)" },
+        { key: "host:nuc-media:no-metrics", severity: "warn", title: "nuc-media has no Prometheus job", message: "nuc-media's agent is reporting, but Prometheus has no job called nuc-media, so its CPU, RAM, disk and temperature are blank." },
       ],
       recommendations: [
+        "Add a scrape job named nuc-media to prometheus.yml:\n  - job_name: nuc-media\n    static_configs:\n      - targets: ['nuc-media:9100']",
         "Check that https://cloud.example.com is up and reachable from the dashboard host — a check runs from the dashboard container, so 'localhost' is the dashboard itself.",
         "Read nextcloud's logs on nuc-media (docker logs nextcloud) — its healthcheck is failing.",
         "Check homelab-agent's logs on nuc-media and its BACKUP_REPO / GITHUB_TOKEN settings.",

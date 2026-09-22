@@ -1479,6 +1479,9 @@ select.deploy-input[multiple] {
 .recommendation-list li {
   font-size: 12px;
   color: var(--text);
+  /* Some next-steps are a config snippet, and HTML would otherwise
+     collapse it onto one unreadable line. */
+  white-space: pre-wrap;
   padding-left: 12px;
   position: relative;
 }
@@ -1688,6 +1691,14 @@ select.deploy-input[multiple] {
   margin: 0 0 8px;
   font-size: 12px;
   line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.addnode-note--head {
+  margin-top: 14px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--text-muted);
 }
 
