@@ -630,25 +630,24 @@ fails and says so, rather than leaving you to find out at a restore.
 
 A host is a valid destination only once you have said so, because the
 agent writes received archives itself and an unconstrained destination
-would be an arbitrary-file-write primitive on the host. In the agent's
-`compose.yml`:
-
-```yaml
-    volumes:
-      - /srv/backups:/backups
-```
-
-and in its `.env`:
+would be an arbitrary-file-write primitive on the host. One line in the
+agent's `.env`:
 
 ```
-BACKUP_DIRS=/backups
+BACKUP_HOST_DIR=/home/you/backups
 ```
 
-The mount *is* the allowlist. The agent can only write where you gave it
-write access, and the read-only `/:/host:ro` mount the other features use
-deliberately does not qualify. A job may name any directory under a root;
-it is created if it isn't there. Unset `BACKUP_DIRS` means the host stores
-nothing — it can still be a *source* for a backup kept elsewhere.
+Compose binds that directory at `/backups` and the agent stores archives
+there. Nothing else to edit — the mount is in the shipped `compose.yml`,
+defaulting to a throwaway named volume, so a host that stores no backups
+has none of its filesystem bound in.
+
+The mount is still the allowlist: the agent can only ever write under that
+one path, and the read-only `/:/host:ro` mount the other features use
+deliberately does not qualify. A job may name any directory under it; it
+is created if it isn't there. Unset means the host stores nothing — it can
+still be a *source* for a backup kept elsewhere. `BACKUP_DIRS` names roots
+directly if you want more than one, or a mount you set up yourself.
 
 If the destination agent registers under a name only the dashboard's own
 Docker network resolves (a container name), set `BACKUP_PUBLIC_URL` to an
