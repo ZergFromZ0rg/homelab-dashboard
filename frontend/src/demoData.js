@@ -520,7 +520,8 @@ export function demoBackups() {
         id: "b1",
         name: "qdrant",
         source_host: "bigboy",
-        volume: "ai-librarian_qdrant",
+        volume: null,
+        path: "/home/zerg/ai-librarian/data/qdrant",
         dest_host: "thinkpad",
         directory: "/backups/bigboy",
         interval_hours: 24,
@@ -533,13 +534,13 @@ export function demoBackups() {
         last_success_at: t - 3600 * 5,
         last_error: null,
         last_archive: {
-          name: "ai-librarian_qdrant-20260921-030000.tar.gz",
+          name: "home-zerg-ai-librarian-data-qdrant-20260921-030000.tar.gz",
           bytes: 412_836_000,
           sha256: "9f2c1a4b8e70de3c" + "0".repeat(48),
           seconds: 41.2,
           at: t - 3600 * 5,
         },
-        last_pruned: ["ai-librarian_qdrant-20260914-030000.tar.gz"],
+        last_pruned: ["home-zerg-ai-librarian-data-qdrant-20260914-030000.tar.gz"],
       },
       {
         id: "b2",
@@ -593,10 +594,10 @@ export function demoBackupTargets(host) {
   return {
     host,
     volumes: [
-      { name: "ai-librarian_qdrant", project: "ai-librarian", in_use_by: ["ai-librarian-qdrant-1"] },
       { name: "jellyfin_config", project: "jellyfin", in_use_by: ["jellyfin"] },
       { name: "portainer_data", project: null, in_use_by: ["portainer"] },
     ],
+    sources: { dirs: host === "bigboy" ? ["/home/zerg/ai-librarian"] : [] },
     store: {
       enabled: host === "thinkpad",
       roots:
@@ -611,7 +612,9 @@ export function demoBackupTargets(host) {
 export function demoBackupArchives(id) {
   const t = now();
   const job = demoBackups().backups.find((b) => b.id === id);
-  const prefix = (job?.volume || "volume").replace(/[^A-Za-z0-9._-]/g, "-");
+  const prefix = (job?.volume || job?.path || "volume")
+    .replace(/[^A-Za-z0-9._-]/g, "-")
+    .replace(/^-+|-+$/g, "");
 
   return {
     host: job?.dest_host || "thinkpad",

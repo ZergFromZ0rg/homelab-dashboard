@@ -423,3 +423,98 @@ def test_an_unregistered_host_is_a_404(jobs):
         vb._base_url(NODES, "ghost")
 
     assert caught.value.status_code == 404
+
+
+# ---- directory sources ----------------------------------------------------
+
+
+def a_path_job(**overrides):
+    return a_job(volume=None, path="/home/zerg/ai-librarian/data/qdrant", **overrides)
+
+
+def test_a_job_takes_a_volume_or_a_path_but_not_both(jobs):
+    with pytest.raises(BackupError, match="either a volume or a path"):
+        jobs.add(a_job(path="/home/zerg"))
+
+    with pytest.raises(BackupError, match="either a volume or a path"):
+        jobs.add(a_job(volume=None))
+
+
+def test_a_path_job_is_named_after_its_last_component(jobs):
+    job = jobs.add({
+        "source_host": "bigboy", "path": "/home/zerg/ai-librarian/data/qdrant",
+    })
+
+    assert job["name"] == "qdrant"
+    assert job["volume"] is None
+
+
+def test_a_path_prefix_matches_the_agents_naming():
+    """The agent turns a path's slashes into dashes; retention matches on
+    the result. If the two drift, pruning silently stops finding anything."""
+    path = "/home/zerg/ai-librarian/data/qdrant"
+
+    assert vb.archive_prefix(path) == "home-zerg-ai-librarian-data-qdrant"
+    assert vb.owns(f"{vb.archive_prefix(path)}-20260922-010203.tar.gz", path)
+
+
+def test_a_path_job_does_not_own_a_similar_paths_archives(jobs):
+    mine = "/home/zerg/ai-librarian/data/qdrant"
+    other = "/home/zerg/ai-librarian/data/qdrant2"
+
+    assert not vb.owns(f"{vb.archive_prefix(other)}-20260922-010203.tar.gz", mine)
+
+
+def test_the_same_path_twice_to_one_place_is_refused(jobs):
+    jobs.add(a_path_job())
+
+    with pytest.raises(BackupError) as caught:
+        jobs.add(a_path_job())
+
+    assert caught.value.status_code == 409
+
+
+def test_a_volume_and_a_path_are_different_sources(jobs):
+    jobs.add(a_job())
+    jobs.add(a_path_job())
+
+    assert len(jobs.all()) == 2
+
+
+def test_a_path_job_sends_a_path_not_a_volume(monkeypatch, jobs):
+    job = jobs.add(a_path_job())
+    seen = stub_calls(monkeypatch, {
+        "/backup/volumes/run": {"id": "abc"},
+        "/backup/volumes": {"store": {"receive_url": "http://thinkpad:8123"}},
+    })
+
+    vb.start_backup(NODES, job)
+
+    body = [c for c in seen if "run" in c[1]][0][2]["json"]
+    assert body["path"] == "/home/zerg/ai-librarian/data/qdrant"
+    assert "volume" not in body
+
+
+def test_pruning_a_path_job_matches_its_own_archives(monkeypatch, jobs):
+    job = jobs.add(a_path_job(keep=1))
+    prefix = vb.archive_prefix(job["path"])
+    stub_calls(monkeypatch, {
+        "/backup/archives": {"archives": [
+            archive(f"{prefix}-20260303-000000.tar.gz", 3),
+            archive(f"{prefix}-20260101-000000.tar.gz", 1),
+            archive("ai-librarian_qdrant-20260101-000000.tar.gz", 1),
+        ]},
+        "/backup/archives/delete": {"deleted": [f"{prefix}-20260101-000000.tar.gz"]},
+    })
+
+    assert vb.prune(NODES, job) == [f"{prefix}-20260101-000000.tar.gz"]
+
+
+def test_a_path_job_survives_a_restart(tmp_path):
+    path = tmp_path / "volume_backups.json"
+    BackupJobStore(path).add(a_path_job())
+
+    (reloaded,) = BackupJobStore(path).all()
+
+    assert reloaded["path"] == "/home/zerg/ai-librarian/data/qdrant"
+    assert reloaded["volume"] is None

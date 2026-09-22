@@ -584,8 +584,23 @@ live in named Docker volumes, and nothing was copying them.
 
 The **Backups** tab schedules that. One job is:
 
-> this volume, on this host, to this directory on that host, every so
+> this source, on this host, to this directory on that host, every so
 > often, keeping so many.
+
+A **source** is either a named Docker volume or a host directory. The
+second matters more than it sounds: plenty of stacks keep their data in a
+bind mount — `./data/qdrant:/qdrant/storage` — and those are invisible to
+anything that only understands volumes. Directory sources are opt-in per
+host, because sending a directory to another machine deserves a decision
+naming which directories:
+
+```
+BACKUP_SOURCE_DIRS=/home/you/ai-librarian
+```
+
+A job may then name that directory or anything under it. Unset means named
+volumes only, which is the default. The agent reads the directory through
+the `/host` mount it already has, so nothing else changes.
 
 By default a backup goes to the machine running the dashboard, because a
 copy that lives on the box it came from dies with it. The form says so out
@@ -643,8 +658,10 @@ connects.
 ### Retention
 
 `keep` is a count of that job's own archives. Several jobs can share a
-directory, and pruning only ever deletes files whose name matches the
-volume that job backs up — anything you put there by hand is left alone.
+directory, and pruning only ever deletes files whose name matches that
+job's source — anything you put there by hand is left alone. A path's
+slashes become dashes, so `/home/zerg/ai-librarian/data/qdrant` writes
+`home-zerg-ai-librarian-data-qdrant-<stamp>.tar.gz`.
 Pruning runs after a successful upload, never before, so the window where
 the new archive doesn't exist yet is never a window where the old one is
 already gone.

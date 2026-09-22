@@ -43,6 +43,10 @@ function BackupForm({ hosts, defaultDestHost, job, onSubmit, onCancel }) {
   const editing = Boolean(job);
   const initialInterval = splitInterval(job?.interval_hours ?? 24);
 
+  // A volume is picked from a list; a directory is typed, because the
+  // agent won't enumerate the host filesystem and shouldn't.
+  const [kind, setKind] = useState(job?.path ? "path" : "volume");
+  const [path, setPath] = useState(job?.path || "");
   const [name, setName] = useState(job?.name || "");
   const [sourceHost, setSourceHost] = useState(job?.source_host || hosts[0] || "");
   const [volume, setVolume] = useState(job?.volume || "");
@@ -98,8 +102,10 @@ function BackupForm({ hosts, defaultDestHost, job, onSubmit, onCancel }) {
   const loading = !sourceReady;
 
   const volumes = (sourceReady && source.data?.volumes) || [];
+  const sourceDirs = (sourceReady && source.data?.sources?.dirs) || [];
   const chosen = volumes.find((v) => v.name === volume);
   const inUse = chosen?.in_use_by || [];
+  const picked = kind === "volume" ? volume : path.trim();
   const destRoots = (destReady && dest.data?.store?.roots) || [];
   const usableRoots = destRoots.filter((r) => r.usable);
 
@@ -110,6 +116,11 @@ function BackupForm({ hosts, defaultDestHost, job, onSubmit, onCancel }) {
   const suggested = usableRoots.length
     ? `${usableRoots[0].path.replace(/\/$/, "")}/${sourceHost}`
     : "";
+  const sourceProblem =
+    kind === "path" && sourceReady && !sourceDirs.length
+      ? `${sourceHost} backs up named volumes only: set BACKUP_SOURCE_DIRS `
+        + "on its agent to allow backing up a directory"
+      : null;
   const directoryValue = directory ?? suggested;
 
   const destProblem = (destReady && !dest.data?.store?.enabled)
@@ -126,9 +137,9 @@ function BackupForm({ hosts, defaultDestHost, job, onSubmit, onCancel }) {
 
     try {
       await onSubmit({
-        name: name.trim() || volume,
+        name: name.trim() || (kind === "volume" ? volume : path.split("/").filter(Boolean).pop()),
         source_host: sourceHost,
-        volume,
+        ...(kind === "volume" ? { volume } : { path: path.trim() }),
         dest_host: destHost,
         directory: directoryValue.trim(),
         interval_hours: hours,
@@ -146,24 +157,62 @@ function BackupForm({ hosts, defaultDestHost, job, onSubmit, onCancel }) {
       <div className="backup-form-grid">
         <label>
           <span>Back up</span>
-          <select
-            value={volume}
-            onChange={(e) => setVolume(e.target.value)}
-            required
-            disabled={loading || !volumes.length}
-          >
-            <option value="">{loading ? "Reading volumes…" : "Pick a volume"}</option>
-            {volumes.map((v) => (
-              <option key={v.name} value={v.name}>
-                {v.name}
-                {v.project ? ` · ${v.project}` : ""}
-              </option>
-            ))}
-          </select>
-          {!loading && !volumes.length && (
-            <em className="field-hint">
-              {sourceHost} reported no named volumes.
-            </em>
+          <div className="segmented segmented--inline">
+            <button
+              type="button"
+              className={kind === "volume" ? "active" : ""}
+              onClick={() => setKind("volume")}
+            >
+              Volume
+            </button>
+            <button
+              type="button"
+              className={kind === "path" ? "active" : ""}
+              onClick={() => setKind("path")}
+            >
+              Directory
+            </button>
+          </div>
+
+          {kind === "volume" ? (
+            <>
+              <select
+                value={volume}
+                onChange={(e) => setVolume(e.target.value)}
+                required
+                disabled={loading || !volumes.length}
+              >
+                <option value="">
+                  {loading ? "Reading volumes…" : "Pick a volume"}
+                </option>
+                {volumes.map((v) => (
+                  <option key={v.name} value={v.name}>
+                    {v.name}
+                    {v.project ? ` · ${v.project}` : ""}
+                  </option>
+                ))}
+              </select>
+              {!loading && !volumes.length && (
+                <em className="field-hint">
+                  {sourceHost} reported no named volumes. Plenty of stacks keep
+                  their data in a bind mount instead — try Directory.
+                </em>
+              )}
+            </>
+          ) : (
+            <>
+              <input
+                value={path}
+                onChange={(e) => setPath(e.target.value)}
+                placeholder="/home/zerg/ai-librarian/data/qdrant"
+                required
+              />
+              {sourceDirs.length > 0 && (
+                <em className="field-hint">
+                  Under {sourceDirs.join(", ")} on <HostOption name={sourceHost} />
+                </em>
+              )}
+            </>
           )}
         </label>
 
@@ -247,10 +296,16 @@ function BackupForm({ hosts, defaultDestHost, job, onSubmit, onCancel }) {
           />
           <span>
             Stop its containers while copying
-            {inUse.length > 0 && (
+            {kind === "volume" && inUse.length > 0 && (
               <em className="field-hint">
                 {inUse.join(", ")} — a database copied while it's writing can
                 restore to a torn file.
+              </em>
+            )}
+            {kind === "path" && (
+              <em className="field-hint">
+                Anything bind-mounting this directory is stopped for the copy.
+                A database copied while it's writing can restore to a torn file.
               </em>
             )}
           </span>
@@ -261,11 +316,12 @@ function BackupForm({ hosts, defaultDestHost, job, onSubmit, onCancel }) {
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder={volume || "qdrant"}
+            placeholder={picked.split("/").filter(Boolean).pop() || "qdrant"}
           />
         </label>
       </div>
 
+      {sourceProblem && <p className="form-error">{sourceProblem}</p>}
       {destProblem && <p className="form-error">{destProblem}</p>}
       {error && <p className="form-error">{error}</p>}
 
@@ -273,7 +329,16 @@ function BackupForm({ hosts, defaultDestHost, job, onSubmit, onCancel }) {
         <button
           type="submit"
           className="btn"
-          disabled={saving || !volume || !directoryValue.trim()}
+          /* A job whose source or destination host isn't set up would be
+             accepted here and then fail on every run, so it can't be
+             saved — and the message above already names the fix. */
+          disabled={
+            saving
+            || !picked
+            || !directoryValue.trim()
+            || Boolean(sourceProblem)
+            || Boolean(destProblem)
+          }
         >
           {saving ? "Saving…" : editing ? "Save" : "Add backup"}
         </button>

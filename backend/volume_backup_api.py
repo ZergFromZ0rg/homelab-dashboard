@@ -20,7 +20,7 @@ from backend import auth
 from backend import volume_backups
 from backend.log import system as log
 from backend.registry import registry
-from backend.volume_backups import BackupError, store
+from backend.volume_backups import BackupError, source_of, store
 
 router = APIRouter()
 
@@ -152,7 +152,7 @@ def list_backup_archives(job_id: str,
         "host": job["dest_host"],
         "directory": job["directory"],
         "archives": [a for a in archives
-                     if volume_backups.owns(a["name"], job["volume"])],
+                     if volume_backups.owns(a["name"], source_of(job))],
         "restore_hint": (
             f"docker run --rm -v <volume>:/dest -v {job['directory']}:/src:ro "
             "alpine sh -c 'rm -rf /dest/* && tar xzf /src/<archive> -C /dest'"
@@ -175,7 +175,7 @@ def delete_backup_archives(job_id: str, payload: dict,
     if not isinstance(names, list) or not all(isinstance(n, str) for n in names):
         raise HTTPException(status_code=400, detail="names must be a list of strings")
 
-    stray = [n for n in names if not volume_backups.owns(n, job["volume"])]
+    stray = [n for n in names if not volume_backups.owns(n, source_of(job))]
 
     if stray:
         raise HTTPException(

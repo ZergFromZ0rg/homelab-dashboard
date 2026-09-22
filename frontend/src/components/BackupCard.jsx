@@ -177,7 +177,7 @@ function BackupCard({ job, hosts, defaultDestHost, now, onChanged, onDelete }) {
         <div>
           <h3>{job.name}</h3>
           <p className="backup-route">
-            <code>{job.volume}</code> on{" "}
+            <code>{job.volume || job.path}</code> on{" "}
             <span
               className="chip chip--host"
               style={{ color: hostColor(job.source_host), borderColor: hostColor(job.source_host) }}

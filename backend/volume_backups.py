@@ -6,8 +6,10 @@ no idea that other nodes exist. Everything that needs a view of the whole
 fleet lives here, so a job is configured in one place and a new node needs
 no per-host environment beyond opting in to storing archives at all.
 
-A job is: *this volume, on this host, to this directory on that host,
-every so often, keeping so many.*
+A job is: *this source, on this host, to this directory on that host,
+every so often, keeping so many.* A source is a named volume or a host
+directory — the second because most homelab data lives in a bind mount,
+and the agent has to be opted in per host to read one.
 
 Two decisions worth not relitigating:
 
@@ -70,15 +72,22 @@ class BackupError(Exception):
         self.status_code = status_code
 
 
-def archive_prefix(volume: str) -> str:
-    """The agent's own naming rule, mirrored. Kept in step by
+def source_of(job: dict) -> str:
+    """What a job copies — a volume name or a host path. One field in the
+    UI, two on the wire, because the agent mounts them differently."""
+    return job.get("volume") or job.get("path") or ""
+
+
+def archive_prefix(source: str) -> str:
+    """The agent's own naming rule, mirrored. The same sanitiser covers a
+    volume name and a path, whose slashes become dashes. Kept in step by
     ``test_prefix_matches_the_agents_naming``."""
-    return re.sub(r"[^A-Za-z0-9._-]", "-", volume).strip("-") or "volume"
+    return re.sub(r"[^A-Za-z0-9._-]", "-", source).strip("-") or "volume"
 
 
-def owns(archive_name: str, volume: str) -> bool:
+def owns(archive_name: str, source: str) -> bool:
     match = ARCHIVE.match(archive_name or "")
-    return bool(match and match.group("prefix") == archive_prefix(volume))
+    return bool(match and match.group("prefix") == archive_prefix(source))
 
 
 def _clean_job(raw: dict, *, default_dest: str | None = None) -> dict:
@@ -86,19 +95,24 @@ def _clean_job(raw: dict, *, default_dest: str | None = None) -> dict:
     falls back to a default rather than failing the whole file — a job with
     a silly interval should still back up, just not every six seconds."""
     volume = str(raw.get("volume") or "").strip()
+    path = str(raw.get("path") or "").strip()
     source = str(raw.get("source_host") or "").strip()
 
-    if not volume or not source:
-        raise BackupError("a backup job needs a volume and a source host")
+    if bool(volume) == bool(path):
+        raise BackupError("a backup job needs either a volume or a path")
+
+    if not source:
+        raise BackupError("a backup job needs a source host")
 
     interval = float(raw.get("interval_hours") or DEFAULT_INTERVAL_HOURS)
     keep = int(raw.get("keep") or DEFAULT_KEEP)
 
     return {
         "id": str(raw.get("id") or uuid.uuid4().hex[:12]),
-        "name": str(raw.get("name") or volume)[:MAX_NAME],
+        "name": str(raw.get("name") or volume or path.rsplit("/", 1)[-1])[:MAX_NAME],
         "source_host": source,
-        "volume": volume,
+        "volume": volume or None,
+        "path": path or None,
         "dest_host": str(raw.get("dest_host") or default_dest or source).strip(),
         "directory": str(raw.get("directory") or "").strip(),
         # An hour is the floor for the same reason the agent's config
@@ -166,15 +180,15 @@ class BackupJobStore:
             clash = [
                 j for j in self._jobs
                 if j["source_host"] == job["source_host"]
-                and j["volume"] == job["volume"]
+                and source_of(j) == source_of(job)
                 and j["dest_host"] == job["dest_host"]
                 and j["directory"] == job["directory"]
             ]
 
             if clash:
                 raise BackupError(
-                    f"{job['volume']} on {job['source_host']} already backs up "
-                    f"to {job['directory']} on {job['dest_host']}",
+                    f"{source_of(job)} on {job['source_host']} already backs "
+                    f"up to {job['directory']} on {job['dest_host']}",
                     status_code=409,
                 )
 
@@ -331,7 +345,7 @@ def prune(nodes: dict, job: dict) -> list[str]:
     ours.
     """
     archives = archives_in(nodes, job["dest_host"], job["directory"])
-    mine = [a for a in archives if owns(a["name"], job["volume"])]
+    mine = [a for a in archives if owns(a["name"], source_of(job))]
     excess = sorted(mine, key=lambda a: a["modified_at"], reverse=True)[job["keep"]:]
 
     if not excess:
@@ -351,10 +365,14 @@ def start_backup(nodes: dict, job: dict) -> dict:
     from backend.env import env_str
 
     payload = {
-        "volume": job["volume"],
         "directory": job["directory"],
         "stop_containers": job["stop_containers"],
     }
+
+    if job.get("volume"):
+        payload["volume"] = job["volume"]
+    else:
+        payload["path"] = job["path"]
 
     if job["dest_host"] != job["source_host"]:
         payload["remote"] = {
@@ -456,7 +474,7 @@ def run_job(nodes: dict, job: dict, *, jobs: BackupJobStore | None = None,
 
         log.info(
             "backup %s: %s -> %s:%s (%s bytes)%s",
-            job["id"], job["volume"], job["dest_host"], job["directory"],
+            job["id"], source_of(job), job["dest_host"], job["directory"],
             archive.get("bytes"),
             f", pruned {len(pruned)}" if pruned else "",
         )
