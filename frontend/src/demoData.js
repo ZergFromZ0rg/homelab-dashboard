@@ -507,3 +507,122 @@ export function demoNotesSeed() {
     { id: "n3", created_at: t - 86400 * 20, updated_at: t - 86400 * 6, body: "Shopping list\n2x 4TB drives, SATA cables, a UPS for the rack" },
   ];
 }
+
+// Volume backups. One healthy job, one that has never run, one failing —
+// enough for the tab to show each state without a backend.
+export function demoBackups() {
+  const t = now();
+
+  return {
+    default_dest_host: "thinkpad",
+    backups: [
+      {
+        id: "b1",
+        name: "qdrant",
+        source_host: "bigboy",
+        volume: "ai-librarian_qdrant",
+        dest_host: "thinkpad",
+        directory: "/backups/bigboy",
+        interval_hours: 24,
+        keep: 7,
+        stop_containers: true,
+        enabled: true,
+        running: false,
+        created_at: t - 86400 * 9,
+        last_run_at: t - 3600 * 5,
+        last_success_at: t - 3600 * 5,
+        last_error: null,
+        last_archive: {
+          name: "ai-librarian_qdrant-20260921-030000.tar.gz",
+          bytes: 412_836_000,
+          sha256: "9f2c1a4b8e70de3c" + "0".repeat(48),
+          seconds: 41.2,
+          at: t - 3600 * 5,
+        },
+        last_pruned: ["ai-librarian_qdrant-20260914-030000.tar.gz"],
+      },
+      {
+        id: "b2",
+        name: "jellyfin config",
+        source_host: "bigboy",
+        volume: "jellyfin_config",
+        dest_host: "thinkpad",
+        directory: "/backups/bigboy",
+        interval_hours: 168,
+        keep: 4,
+        stop_containers: false,
+        enabled: true,
+        running: false,
+        created_at: t - 600,
+        last_run_at: null,
+        last_success_at: null,
+        last_error: null,
+        last_archive: null,
+        last_pruned: [],
+      },
+      {
+        id: "b3",
+        name: "uptime-kuma",
+        source_host: "nuc-media",
+        volume: "uptime-kuma_data",
+        dest_host: "thinkpad",
+        directory: "/backups/nuc-media",
+        interval_hours: 24,
+        keep: 7,
+        stop_containers: false,
+        enabled: true,
+        running: false,
+        created_at: t - 86400 * 3,
+        last_run_at: t - 3600 * 2,
+        last_success_at: t - 86400 * 2,
+        last_error: "couldn't reach the agent: connection refused",
+        last_archive: {
+          name: "uptime-kuma_data-20260919-030000.tar.gz",
+          bytes: 8_412_000,
+          sha256: "de".repeat(32),
+          seconds: 2.1,
+          at: t - 86400 * 2,
+        },
+        last_pruned: [],
+      },
+    ],
+  };
+}
+
+export function demoBackupTargets(host) {
+  return {
+    host,
+    volumes: [
+      { name: "ai-librarian_qdrant", project: "ai-librarian", in_use_by: ["ai-librarian-qdrant-1"] },
+      { name: "jellyfin_config", project: "jellyfin", in_use_by: ["jellyfin"] },
+      { name: "portainer_data", project: null, in_use_by: ["portainer"] },
+    ],
+    store: {
+      enabled: host === "thinkpad",
+      roots:
+        host === "thinkpad"
+          ? [{ path: "/backups", host_path: "/srv/backups", usable: true, problem: null }]
+          : [],
+      receive_url: host === "thinkpad" ? "http://thinkpad:8123" : null,
+    },
+  };
+}
+
+export function demoBackupArchives(id) {
+  const t = now();
+  const job = demoBackups().backups.find((b) => b.id === id);
+  const prefix = (job?.volume || "volume").replace(/[^A-Za-z0-9._-]/g, "-");
+
+  return {
+    host: job?.dest_host || "thinkpad",
+    directory: job?.directory || "/backups",
+    archives: Array.from({ length: 4 }, (_, i) => ({
+      name: `${prefix}-2026091${8 - i}-030000.tar.gz`,
+      bytes: 412_836_000 - i * 1_200_000,
+      modified_at: t - i * 86400,
+    })),
+    restore_hint:
+      `docker run --rm -v <volume>:/dest -v ${job?.directory || "/backups"}:/src:ro ` +
+      "alpine sh -c 'rm -rf /dest/* && tar xzf /src/<archive> -C /dest'",
+  };
+}

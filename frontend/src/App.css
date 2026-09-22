@@ -2577,7 +2577,8 @@ select.deploy-input[multiple] {
   border-color: var(--accent);
 }
 
-.cred-error {
+.cred-error,
+.form-error {
   margin: 0;
   font-size: 11px;
   color: var(--offline);
@@ -5034,4 +5035,231 @@ a.check-target:hover {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+/* ---------------------------------------------------------------------------
+   Backups tab
+
+   A job is a route — this volume, on this host, to that directory over
+   there — so the card leads with that line rather than with a name, and
+   the state word is what you read first. Colours reuse the status vars
+   already carrying online/offline/warning everywhere else, so "behind
+   schedule" amber here means the same as amber on a host card.
+--------------------------------------------------------------------------- */
+
+.backups-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.backup {
+  padding: 14px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border-strong);
+  border-radius: var(--radius);
+}
+
+.backup--ok { border-left-color: var(--online); }
+.backup--stale { border-left-color: var(--warning); }
+.backup--failing { border-left-color: var(--offline); }
+.backup--running { border-left-color: var(--accent); }
+.backup--pending,
+.backup--paused { border-left-color: var(--border-strong); }
+
+.backup-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.backup-head h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.backup-route {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.backup-route code {
+  font-size: 11.5px;
+  padding: 1px 5px;
+  background: var(--bg-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.backup-state {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.backup-state--ok { color: var(--online); }
+.backup-state--stale { color: var(--warning); }
+.backup-state--failing { color: var(--offline); }
+.backup-state--running { color: var(--accent); }
+
+.backup-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.backup-facts > div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.backup-facts strong {
+  font-size: 14px;
+}
+
+.backup-facts em {
+  font-size: 11px;
+  font-style: normal;
+  color: var(--text-muted);
+}
+
+.backup-error {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--offline);
+  /* A failure reason can be a whole agent message; one line keeps the
+     card scannable and the title attribute carries the rest. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.backup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.backup-archives {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.backup-archives-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.backup-archive-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.backup-archive-list li {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.backup-archive-list code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.backup-restore {
+  margin-top: 10px;
+  font-size: 12px;
+}
+
+.backup-restore summary {
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.backup-restore pre {
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  font-size: 11.5px;
+  background: var(--bg-subtle);
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.backup-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.backup-form-grid > label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.backup-form-grid > label > span {
+  font-weight: 600;
+}
+
+.backup-form-wide {
+  grid-column: 1 / -1;
+}
+
+.backup-form-grid label.checkbox {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.backup-form-grid label.checkbox input {
+  margin-top: 2px;
+}
+
+.field-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.field-row input {
+  width: 80px;
+}
+
+.field-hint {
+  display: block;
+  font-size: 11px;
+  font-style: normal;
+  color: var(--text-muted);
+}
+
+.field-hint--warn {
+  color: var(--warning);
 }

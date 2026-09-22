@@ -29,6 +29,7 @@ from backend import live_history
 from backend import service_activity
 from backend import auth
 from backend import scheduler_api
+from backend import volume_backup_api
 from backend.registry import registry
 from backend.scheduler_api import deployments, merge_agent_snapshot
 
@@ -37,6 +38,7 @@ from backend.scheduler_api import deployments, merge_agent_snapshot
 async def lifespan(_: FastAPI):
     tasks = scheduler_api.spawn_loops()
     tasks.append(asyncio.create_task(checks.service.run_forever()))
+    tasks.append(asyncio.create_task(volume_backup_api.run_forever()))
     try:
         yield
     finally:
@@ -49,6 +51,7 @@ async def lifespan(_: FastAPI):
 app = FastAPI(lifespan=lifespan)
 app.include_router(scheduler_api.router)
 app.include_router(checks_api.router)
+app.include_router(volume_backup_api.router)
 
 pins = PinStore()
 todos = TodoStore()

@@ -17,6 +17,7 @@ const TAB_COLORS = {
   containers: "#38bdf8",
   services: "#c4b5fd",
   deploy: "#f0abfc",
+  backups: "#7dd3fc",
   personal: "#fda4af",
 };
 

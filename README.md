@@ -47,8 +47,8 @@ exposes, not a misconfiguration.
 
 ## Layout
 
-Six sections in a sticky top bar — **Overview**, **Servers**,
-**Containers**, **Services**, **Deploy**, **Personal** — plus a gear button that opens
+Seven sections in a sticky top bar — **Overview**, **Servers**,
+**Containers**, **Services**, **Deploy**, **Backups**, **Personal** — plus a gear button that opens
 **Settings** as a right-hand drawer over whichever section you're on (Esc
 closes it). The bar also carries the connection pill and the dashboard's
 title/subtitle (both editable in Settings → Appearance). The layout reflows
@@ -574,6 +574,105 @@ A build takes minutes, so the button starts a job and polls
 `GET /api/rebuild/{host}/{job_id}` until it settles — `done`, `failed`
 with the failing step's output on hover, or `handed_off`. One rebuild at a
 time per host.
+
+## Volume backups
+
+The config backup each agent already runs covers how a stack is *defined* —
+its compose files, pushed to a git repo. It does not cover what the
+containers have written. A database, a media library, a vector store: those
+live in named Docker volumes, and nothing was copying them.
+
+The **Backups** tab schedules that. One job is:
+
+> this volume, on this host, to this directory on that host, every so
+> often, keeping so many.
+
+By default a backup goes to the machine running the dashboard, because a
+copy that lives on the box it came from dies with it. The form says so out
+loud if you point a job back at its own host.
+
+### How a backup is taken
+
+A throwaway container is started on the source host with the volume bound
+read-only, and it tars the volume through gzip. Nothing is installed to
+make that work — the helper runs the agent's own image and uses only the
+standard library, so a backup can't break because a future Dockerfile
+change dropped a tool.
+
+Where the archive goes depends on the destination:
+
+- **Same host** — the helper has the destination bound at its real host
+  path and writes the archive itself.
+- **Another node** — the helper streams the archive to that node's agent,
+  chunked, and that agent writes it. The archive never exists in full in
+  anyone's memory or on any intermediate disk, so the size of a volume is
+  not the size of anything you need spare.
+
+Both ends hash the bytes. If what landed isn't what was sent, the run
+fails and says so, rather than leaving you to find out at a restore.
+
+### Letting a host store backups
+
+A host is a valid destination only once you have said so, because the
+agent writes received archives itself and an unconstrained destination
+would be an arbitrary-file-write primitive on the host. In the agent's
+`compose.yml`:
+
+```yaml
+    volumes:
+      - /srv/backups:/backups
+```
+
+and in its `.env`:
+
+```
+BACKUP_DIRS=/backups
+```
+
+The mount *is* the allowlist. The agent can only write where you gave it
+write access, and the read-only `/:/host:ro` mount the other features use
+deliberately does not qualify. A job may name any directory under a root;
+it is created if it isn't there. Unset `BACKUP_DIRS` means the host stores
+nothing — it can still be a *source* for a backup kept elsewhere.
+
+If the destination agent registers under a name only the dashboard's own
+Docker network resolves (a container name), set `BACKUP_PUBLIC_URL` to an
+address other hosts can reach, since it is the *source host's helper* that
+connects.
+
+### Retention
+
+`keep` is a count of that job's own archives. Several jobs can share a
+directory, and pruning only ever deletes files whose name matches the
+volume that job backs up — anything you put there by hand is left alone.
+Pruning runs after a successful upload, never before, so the window where
+the new archive doesn't exist yet is never a window where the old one is
+already gone.
+
+### Consistency
+
+A volume tarred while a database is writing to it can restore to a torn
+file. **Stop its containers while copying** stops everything using that
+volume for the duration and starts it again afterwards, and the form names
+the containers it would stop. The agent's own container is never stopped;
+if one is skipped, the job says which.
+
+### Restoring
+
+The dashboard does not restore for you. Restoring is a deliberate,
+destructive act with a stopped stack and a decision about what to
+overwrite, and a button for it would be a button for losing data. What the
+Archives panel does is tell you exactly what exists, how big it is, how old
+it is and the command to use:
+
+```bash
+docker run --rm -v <volume>:/dest -v /backups/bigboy:/src:ro \
+  alpine sh -c 'rm -rf /dest/* && tar xzf /src/<archive> -C /dest'
+```
+
+An archive is an ordinary gzipped tar. `tar tzf` reads it anywhere, with
+or without this dashboard — which is the point of not choosing a backup
+format with its own reader.
 
 ## Alerting
 

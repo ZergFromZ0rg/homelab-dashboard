@@ -2,6 +2,7 @@ import ContainerList from "./components/ContainerList";
 import Tabs from "./components/Tabs";
 import DeployTab from "./components/DeployTab";
 import Overview from "./components/Overview";
+import BackupsTab from "./components/BackupsTab";
 import ServersTab from "./components/ServersTab";
 import ServicesTab from "./components/ServicesTab";
 import PersonalTab from "./components/PersonalTab";
@@ -348,6 +349,7 @@ function App() {
       tone: checks.some((c) => c.status === "down") ? "bad" : undefined,
     },
     { value: "deploy", label: "Deploy", count: activeDeployments },
+    { value: "backups", label: "Backups" },
     { value: "personal", label: "Personal", count: openTodos || null },
   ];
 
@@ -410,6 +412,10 @@ function App() {
 
         {activeTab === "deploy" && (
           <DeployTab machines={machines} deployments={deployments} connected={connected} />
+        )}
+
+        {activeTab === "backups" && (
+          <BackupsTab machines={machines} connected={connected} />
         )}
 
         {activeTab === "personal" && (

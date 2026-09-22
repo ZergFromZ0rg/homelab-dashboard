@@ -1,0 +1,272 @@
+import { useEffect, useState } from "react";
+import BackupForm from "./BackupForm";
+import { deleteArchives, fetchBackupArchives, runBackup } from "./backupsApi";
+import { formatAge, formatBytes } from "./format";
+import { hostColor } from "./hostColor";
+
+// One backup job: what it copies, where to, when it last worked, and what
+// it has actually written.
+//
+// The state shown is deliberately about the *last success*, not the last
+// attempt. "Ran 5 minutes ago" is worthless if that run failed; what you
+// need off a glance is how old the newest archive you could restore from
+// is.
+
+function interval(hours) {
+  if (hours % 168 === 0) return `every ${hours / 168 === 1 ? "week" : `${hours / 168} weeks`}`;
+  if (hours % 24 === 0) return `every ${hours / 24 === 1 ? "day" : `${hours / 24} days`}`;
+  return `every ${hours} h`;
+}
+
+// A job is behind when its newest archive is older than one and a half
+// intervals — the same slack the config-backup status uses, so "stale"
+// means one thing across the dashboard.
+function state(job, now) {
+  if (job.running) return { key: "running", label: "Running" };
+  if (!job.enabled) return { key: "paused", label: "Paused" };
+  if (!job.last_success_at) {
+    return job.last_error
+      ? { key: "failing", label: "Never succeeded" }
+      : { key: "pending", label: "Not run yet" };
+  }
+
+  const age = now - job.last_success_at;
+
+  if (job.last_error && (job.last_run_at || 0) > job.last_success_at) {
+    return { key: "failing", label: "Last run failed" };
+  }
+
+  if (age > job.interval_hours * 3600 * 1.5) {
+    return { key: "stale", label: "Behind schedule" };
+  }
+
+  return { key: "ok", label: "Up to date" };
+}
+
+function Archives({ job, now, onClose }) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [reload, setReload] = useState(0);
+
+  // Fetched when the panel opens rather than with the job list: it costs a
+  // round trip to the destination agent, and most of the time nobody is
+  // looking at it.
+  useEffect(() => {
+    let live = true;
+
+    fetchBackupArchives(job.id)
+      .then((body) => live && setData(body))
+      .catch((e) => live && setError(e.message));
+
+    return () => {
+      live = false;
+    };
+  }, [job.id, reload]);
+
+  const remove = async (name) => {
+    setBusy(true);
+    try {
+      await deleteArchives(job.id, [name]);
+      setData(null);
+      setError(null);
+      setReload((n) => n + 1);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="backup-archives">
+      <div className="backup-archives-head">
+        <strong>Archives</strong>
+        <button type="button" className="btn btn--sm" onClick={onClose}>
+          Close
+        </button>
+      </div>
+
+      {error && <p className="form-error">{error}</p>}
+      {!data && !error && <p className="settings-hint">Reading {job.dest_host}…</p>}
+
+      {data && (
+        <>
+          <ul className="backup-archive-list">
+            {data.archives.map((archive) => (
+              <li key={archive.name}>
+                <code>{archive.name}</code>
+                <span>{formatBytes(archive.bytes)}</span>
+                <span>{formatAge(now - archive.modified_at)}</span>
+                <button
+                  type="button"
+                  className="btn btn--sm btn--ghost"
+                  disabled={busy}
+                  onClick={() => {
+                    if (window.confirm(`Delete ${archive.name}? This is a backup.`)) {
+                      remove(archive.name);
+                    }
+                  }}
+                >
+                  Delete
+                </button>
+              </li>
+            ))}
+            {!data.archives.length && <li className="muted">Nothing written yet.</li>}
+          </ul>
+
+          {/* Restoring is a deliberate, hands-on job and the dashboard
+              does not do it for you. Showing the exact command is the
+              part that is otherwise an ssh session and a guess. */}
+          <details className="backup-restore">
+            <summary>How to restore one</summary>
+            <p className="settings-hint">
+              On <strong>{data.host}</strong>, with the target volume's containers
+              stopped:
+            </p>
+            <pre>{data.restore_hint}</pre>
+          </details>
+        </>
+      )}
+    </div>
+  );
+}
+
+function BackupCard({ job, hosts, defaultDestHost, now, onChanged, onDelete }) {
+  const [editing, setEditing] = useState(false);
+  const [showArchives, setShowArchives] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  const status = state(job, now);
+  const archive = job.last_archive;
+
+  const run = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await runBackup(job.id);
+      onChanged();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (editing) {
+    return (
+      <div className="backup backup--editing">
+        <BackupForm
+          hosts={hosts}
+          defaultDestHost={defaultDestHost}
+          job={job}
+          onCancel={() => setEditing(false)}
+          onSubmit={async (values) => {
+            await onChanged(values);
+            setEditing(false);
+          }}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className={`backup backup--${status.key}`}>
+      <div className="backup-head">
+        <div>
+          <h3>{job.name}</h3>
+          <p className="backup-route">
+            <code>{job.volume}</code> on{" "}
+            <span
+              className="chip chip--host"
+              style={{ color: hostColor(job.source_host), borderColor: hostColor(job.source_host) }}
+            >
+              {job.source_host}
+            </span>{" "}
+            →{" "}
+            <span
+              className="chip chip--host"
+              style={{ color: hostColor(job.dest_host), borderColor: hostColor(job.dest_host) }}
+            >
+              {job.dest_host}
+            </span>
+            <code>{job.directory}</code>
+          </p>
+        </div>
+        <span className={`backup-state backup-state--${status.key}`}>{status.label}</span>
+      </div>
+
+      <div className="backup-facts">
+        <div>
+          <span className="fact-label">Newest archive</span>
+          <strong>{job.last_success_at ? formatAge(now - job.last_success_at) : "—"}</strong>
+          {archive?.bytes != null && <em>{formatBytes(archive.bytes)}</em>}
+        </div>
+        <div>
+          <span className="fact-label">Schedule</span>
+          <strong>{interval(job.interval_hours)}</strong>
+          {job.enabled === false && <em>paused</em>}
+        </div>
+        <div>
+          <span className="fact-label">Keeping</span>
+          <strong>{job.keep}</strong>
+          {job.last_pruned?.length > 0 && <em>pruned {job.last_pruned.length} last run</em>}
+        </div>
+        {job.stop_containers && (
+          <div>
+            <span className="fact-label">While copying</span>
+            <strong>containers stopped</strong>
+          </div>
+        )}
+      </div>
+
+      {job.last_error && (
+        <p className="backup-error" title={job.last_error}>
+          {job.last_error}
+        </p>
+      )}
+      {error && <p className="form-error">{error}</p>}
+
+      <div className="backup-actions">
+        <button type="button" className="btn btn--sm" disabled={busy || job.running} onClick={run}>
+          {job.running ? "Running…" : "Back up now"}
+        </button>
+        <button type="button" className="btn btn--sm" onClick={() => setShowArchives((v) => !v)}>
+          {showArchives ? "Hide archives" : "Archives"}
+        </button>
+        <button type="button" className="btn btn--sm" onClick={() => setEditing(true)}>
+          Edit
+        </button>
+        <button
+          type="button"
+          className="btn btn--sm"
+          onClick={() => onChanged({ enabled: !job.enabled })}
+        >
+          {job.enabled ? "Pause" : "Resume"}
+        </button>
+        <button
+          type="button"
+          className="btn btn--sm btn--ghost"
+          onClick={() => {
+            if (
+              window.confirm(
+                `Stop backing up "${job.name}"? Archives already written are kept.`
+              )
+            ) {
+              onDelete();
+            }
+          }}
+        >
+          Remove
+        </button>
+      </div>
+
+      {showArchives && (
+        <Archives job={job} now={now} onClose={() => setShowArchives(false)} />
+      )}
+    </div>
+  );
+}
+
+export default BackupCard;
