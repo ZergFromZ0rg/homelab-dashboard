@@ -244,3 +244,17 @@ def test_process_names_survive_the_hop(monkeypatch):
 def test_an_agent_that_could_not_read_socket_tables_reads_as_false(monkeypatch):
     respond(monkeypatch, FakeResponse(200, {**AGENT_OK, "processes": False}))
     assert connections.for_host("bigboy", "http://x")["processes"] is False
+
+
+def test_the_process_hint_reaches_the_panel(monkeypatch):
+    """Why nothing is named matters more than that nothing is named."""
+    respond(monkeypatch, FakeResponse(200, {
+        **AGENT_OK,
+        "processes": False,
+        "processes_hint": "needs CAP_SYS_PTRACE",
+    }))
+
+    out = connections.for_host("bigboy", "http://x")
+
+    assert out["processes"] is False
+    assert out["processes_hint"] == "needs CAP_SYS_PTRACE"

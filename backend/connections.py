@@ -95,6 +95,7 @@ def _fetch(base_url: str) -> dict:
             # Whether the agent could name the processes behind the rows no
             # container claimed.
             "processes": bool(body.get("processes")),
+            "processes_hint": body.get("processes_hint"),
             "updated_at": body.get("updated_at"),
             "peers": peers if isinstance(peers, list) else [],
         }

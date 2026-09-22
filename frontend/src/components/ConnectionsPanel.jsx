@@ -151,8 +151,9 @@ function ConnectionsPanel({ host }) {
 
               {data.attributed && data.processes === false && (
                 <p className="conn-note">
-                  Traffic that isn't a container's can't be named on this
-                  host — its socket tables weren't readable.
+                  {data.processes_hint ||
+                    "Traffic that isn't a container's can't be named on " +
+                      "this host — its socket tables weren't readable."}
                 </p>
               )}
 
