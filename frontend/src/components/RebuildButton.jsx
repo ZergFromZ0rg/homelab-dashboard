@@ -37,9 +37,9 @@ function RebuildButton({ host, container, target }) {
   async function run() {
     const what = target.service || container.name;
 
-    // An ssh remote can't be pulled from inside the helper — it has no ssh
-    // binary and none of your keys. Asking anyway just fails at the first
-    // step, so offer the build on its own and say why.
+    // An ssh remote is fine — the agent reads the same public repo over
+    // https. This is only false for a remote that's no kind of fetchable
+    // URL at all, like a local path.
     const pull = target.can_pull !== false;
 
     const ok = window.confirm(
@@ -52,9 +52,8 @@ function RebuildButton({ host, container, target }) {
         (pull
           ? ""
           : `\n\nIt won't pull first: ${target.project}'s remote is ` +
-            `${target.remote || "not set"}, which needs ssh keys the agent ` +
-            `doesn't have. Pull on the host yourself, or switch it to an ` +
-            `https remote.`)
+            `${target.remote || "not set"}, which isn't a URL the agent can ` +
+            `fetch over http(s). Pull on the host yourself.`)
     );
     if (!ok) return;
 
@@ -93,7 +92,7 @@ function RebuildButton({ host, container, target }) {
           className="rebuild-note"
           title={`${target.project}'s remote is ${
             target.remote || "not set"
-          } — the agent has no ssh keys, so it will build without pulling.`}
+          } — not a URL the agent can fetch, so it will build without pulling.`}
         >
           build only
         </span>
