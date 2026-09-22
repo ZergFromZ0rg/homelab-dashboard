@@ -645,6 +645,27 @@ lasted. `GET /api/alerts` returns the same list, and it rides the `/ws`
 payload. An episode left open by a dashboard restart is closed on the
 next cycle that doesn't re-fire it.
 
+## Setup
+
+```bash
+./setup.sh
+```
+
+Writes `.env` and starts the dashboard. It asks four things — the
+Prometheus URL, whether to generate an `API_TOKEN` and an `AGENT_TOKEN`,
+and an optional alert webhook — and leaves everything else at the defaults
+in `.env.example`. Re-running is safe; every answer defaults to what's
+already there and existing tokens are never regenerated.
+
+It checks Prometheus is reachable and, when it isn't, says why that might
+be fine (a container name only resolves inside the Docker network, not
+from your shell) rather than failing. That dependency is the one that
+breaks silently: without it you get containers and blank gauges with
+nothing explaining the difference.
+
+At the end it prints the command to add your first node, with the token
+already in it. The agent has the matching `./setup.sh` and `install.sh`.
+
 ## Run
 
 Standing the whole system up (Prometheus, the dashboard, an agent per
