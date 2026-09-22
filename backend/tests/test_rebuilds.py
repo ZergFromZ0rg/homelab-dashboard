@@ -220,6 +220,19 @@ def test_fleet_can_be_narrowed_to_named_hosts(monkeypatch):
     assert len(calls) == 1
 
 
+def test_fleet_with_an_empty_host_list_rebuilds_nothing(monkeypatch):
+    """An empty list means none of them. ``hosts or list(nodes)`` would read
+    it as all of them, so a caller that let someone deselect every host
+    would rebuild the whole fleet instead of stopping."""
+    calls = respond(monkeypatch, FakeResponse(200, JOB))
+    nodes = {"bigboy": {"url": "http://a"}, "thinkpad": {"url": "http://b"}}
+
+    out = rebuilds.fleet(nodes, [], "thinkpad")
+
+    assert out == {"started": 0, "failed": 0, "results": []}
+    assert calls == [], "no agent should have been asked for anything"
+
+
 def test_fleet_ignores_hosts_that_are_not_registered(monkeypatch):
     respond(monkeypatch, FakeResponse(200, JOB))
     nodes = {"bigboy": {"url": "http://a"}}
@@ -268,6 +281,19 @@ def test_fleet_route_rejects_a_bad_hosts_value(client, monkeypatch):
     monkeypatch.setattr(main, "get_all_containers", lambda nodes: {})
     resp = client.post("/api/fleet/rebuild", json={"hosts": "bigboy"})
     assert resp.status_code == 400
+
+
+def test_fleet_route_passes_an_empty_host_list_through(client, monkeypatch):
+    """The route validates that ``hosts`` is a list; an empty one has to
+    reach the fleet call still meaning nothing."""
+    calls = respond(monkeypatch, FakeResponse(200, JOB))
+    monkeypatch.setattr(main, "get_all_containers", lambda nodes: {})
+
+    resp = client.post("/api/fleet/rebuild", json={"hosts": []})
+
+    assert resp.status_code == 200
+    assert resp.json() == {"started": 0, "failed": 0, "results": []}
+    assert calls == []
 
 
 def test_fleet_route_with_no_agents(client, monkeypatch):

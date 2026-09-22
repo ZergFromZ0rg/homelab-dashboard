@@ -107,8 +107,15 @@ def fleet(nodes: dict, hosts: list[str] | None, main_host: str | None) -> dict:
     Each call returns as soon as that agent has a job, so this doesn't
     wait for any build — the caller polls the jobs. One failure doesn't
     stop the rest; the fleet is reported host by host.
+
+    ``hosts=None`` is the whole fleet; an explicit empty list is nothing.
+    Those are different asks and the distinction has to survive, so this
+    can't be ``hosts or list(nodes)`` — an empty list is falsy, which would
+    turn "rebuild none of them" into "rebuild all of them" for any caller
+    that let someone deselect every host.
     """
-    targets = [h for h in (hosts or list(nodes)) if h in nodes]
+    wanted = list(nodes) if hosts is None else hosts
+    targets = [h for h in wanted if h in nodes]
     results = []
 
     for host in order_hosts(targets, main_host):
