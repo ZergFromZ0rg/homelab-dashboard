@@ -58,6 +58,15 @@ function versionChip(version) {
       };
     case "current":
       return { label: `agent ${short}`, tone: "ok", title: "up to date" };
+    case "unverified":
+      // Saying "up to date" here would claim a check that never happened.
+      return {
+        label: `agent ${short}`,
+        tone: "none",
+        title:
+          "couldn't reach the remote to check for updates — an ssh remote " +
+          "needs keys the agent doesn't have, so switch it to https",
+      };
     case "unsupported":
       return {
         label: "agent version unknown",

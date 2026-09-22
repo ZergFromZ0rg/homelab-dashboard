@@ -132,5 +132,32 @@ def test_summary_counts_the_fleet():
 
     assert out == {
         "total": 5, "current": 1, "needs_rebuild": 1,
-        "behind_remote": 1, "unknown": 2,
+        "behind_remote": 1, "unverified": 0, "unknown": 2,
     }
+
+
+def test_an_unreachable_remote_is_unverified_not_current(monkeypatch):
+    """The real case: an ssh remote, no keys in the container, ls-remote
+    fails. Reporting "current" claims a check that never happened, and a
+    host three commits behind looks perfectly fine."""
+    respond(monkeypatch, FakeResponse(200, {**CURRENT, "remote_sha": None}))
+
+    assert versions.for_host("h", "http://x")["state"] == "unverified"
+
+
+def test_unverified_is_counted_apart_from_current():
+    machines = {
+        "a": {"agent_version": {"state": "current"}},
+        "b": {"agent_version": {"state": "unverified"}},
+    }
+
+    out = versions.summary(machines)
+
+    assert out["current"] == 1 and out["unverified"] == 1
+
+
+def test_a_known_stale_agent_still_outranks_an_unreachable_remote(monkeypatch):
+    respond(monkeypatch, FakeResponse(
+        200, {**CURRENT, "remote_sha": None, "needs_rebuild": True}))
+
+    assert versions.for_host("h", "http://x")["state"] == "rebuild"

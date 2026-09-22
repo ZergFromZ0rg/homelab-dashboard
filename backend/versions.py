@@ -43,14 +43,20 @@ def _state(body: dict) -> str:
     ``needs_rebuild`` wins over ``behind_remote``: if the checkout already
     carries commits the running agent doesn't, that's actionable right now
     and a rebuild picks up the remote's as well.
+
+    ``unverified`` is the one that matters. An agent whose remote couldn't
+    be reached — an ssh remote, no keys in the container, or simply no
+    network — reports no ``remote_sha``. Calling that "current" claims a
+    check that never happened, and that is exactly how a host sits three
+    commits behind looking perfectly fine.
     """
     if body.get("needs_rebuild"):
         return "rebuild"
     if body.get("behind_remote"):
         return "behind"
-    if body.get("source"):
-        return "current"
-    return "unknown"
+    if not body.get("source"):
+        return "unknown"
+    return "current" if body.get("remote_sha") else "unverified"
 
 
 def _fetch(base_url: str) -> dict:
@@ -121,6 +127,7 @@ def summary(machines: dict) -> dict:
         "current": states.get("current", 0),
         "needs_rebuild": states.get("rebuild", 0),
         "behind_remote": states.get("behind", 0),
+        "unverified": states.get("unverified", 0),
         "unknown": states.get("unknown", 0) + states.get("unsupported", 0),
     }
 

@@ -17,6 +17,12 @@ function FleetUpdate({ machines }) {
   const stale = names.filter(
     (n) => ["rebuild", "behind"].includes(machines[n].agent_version?.state)
   );
+  // Agents whose remote couldn't be reached. Not stale as far as we know,
+  // but not confirmed current either — counting them as current would
+  // hide a host sitting behind.
+  const unverified = names.filter(
+    (n) => machines[n].agent_version?.state === "unverified"
+  );
 
   async function run() {
     const ok = window.confirm(
@@ -62,6 +68,13 @@ function FleetUpdate({ machines }) {
         >
           {busy ? "Starting…" : `Update ${stale.length}`}
         </button>
+      ) : unverified.length ? (
+        <span
+          className="fact-sub"
+          title={`${unverified.join(", ")}: the remote couldn't be checked`}
+        >
+          {unverified.length} unchecked
+        </span>
       ) : (
         <span className="fact-sub">
           {known.length ? "up to date" : "version unknown"}
