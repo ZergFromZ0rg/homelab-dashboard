@@ -748,6 +748,16 @@ gpg --batch --pinentry-mode loopback --passphrase '<passphrase>' \
   -d archive.tar.gz.gpg | tar xzf - -C /the/target
 ```
 
+**A host that runs an agent may not have `gpg` installed** — one of these
+two did not. The Archives panel therefore spells the decrypt out through
+the agent's own image, which certainly does:
+
+```bash
+docker run --rm -i -v /your/backups:/src:ro --entrypoint gpg homelab-agent \
+  --batch --quiet --pinentry-mode loopback --passphrase '<passphrase>' \
+  -d /src/archive.tar.gz.gpg | tar xzf - -C /the/target
+```
+
 A backup whose only reader is the tool that made it is a hostage, not a
 backup.
 

@@ -852,7 +852,10 @@ def test_restoring_an_encrypted_archive_decrypts_first(jobs):
     commands = [s["command"] for s in steps]
 
     assert any("gpg" in c and "-d" in c for c in commands)
-    decrypt = next(i for i, c in enumerate(commands) if "gpg" in c and "-o" in c)
+    # Through the agent image, not the host's gpg: a host that runs an agent
+    # certainly has Docker and may well not have gpg. thinkpad did not.
+    assert any("docker run" in c and "gpg" in c for c in commands)
+    decrypt = next(i for i, c in enumerate(commands) if "gpg" in c and " -d " in c)
     extract = next(i for i, c in enumerate(commands) if "tar xzf" in c)
     assert decrypt < extract, "decrypt before extracting"
     assert ".gpg" not in commands[extract], "extract the plaintext, not the ciphertext"

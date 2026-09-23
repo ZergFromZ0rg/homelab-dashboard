@@ -161,19 +161,24 @@ def restore_steps(job: dict, archive: str) -> list[dict]:
     encrypted = archive.endswith(".gpg")
 
     if encrypted:
+        folder = staged.rsplit("/", 1)[0]
+        plain = staged.removesuffix(".gpg")
         steps.append({
             "where": source_host,
             "what": (
-                "Decrypt it. The passphrase is the one set on the agent that "
-                "made this backup — if it is lost, this archive is not "
-                "recoverable by any means."
+                "Decrypt it. Run through the agent's image rather than the "
+                "host's own gpg: a host that runs an agent certainly has "
+                "Docker, and may well not have gpg installed. The passphrase "
+                "is the one set on the agent that made this backup — if it is "
+                "lost, this archive cannot be recovered by any means."
             ),
             "command": (
-                f"gpg --batch --pinentry-mode loopback --passphrase '<passphrase>' "
-                f"-o {staged.removesuffix('.gpg')} -d {staged}"
+                f"docker run --rm -i -v {folder}:/src:ro --entrypoint gpg "
+                "homelab-agent --batch --quiet --pinentry-mode loopback "
+                f"--passphrase '<passphrase>' -d /src/{archive} > {plain}"
             ),
         })
-        staged = staged.removesuffix(".gpg")
+        staged = plain
 
     if job.get("volume"):
         steps.append({
@@ -218,9 +223,11 @@ def restore_steps(job: dict, archive: str) -> list[dict]:
         "where": "anywhere",
         "what": "Check the archive before trusting it — or use Verify above.",
         "command": (
-            f"gpg --batch --pinentry-mode loopback --passphrase '<passphrase>' "
-            f"-d {path} | tar tz | head"
-            if encrypted else f"tar tzf {staged} | head"
+            f"tar tzf {staged} | head" if not encrypted else
+            f"docker run --rm -i -v {path.rsplit('/', 1)[0]}:/src:ro "
+            "--entrypoint gpg homelab-agent --batch --quiet --pinentry-mode "
+            f"loopback --passphrase '<passphrase>' -d /src/{archive} "
+            "| tar tz | head"
         ),
     })
 
