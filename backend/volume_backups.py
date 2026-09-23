@@ -684,6 +684,59 @@ def run_job(nodes: dict, job: dict, *, jobs: BackupJobStore | None = None,
         jobs.mark_running(job["id"], False)
 
 
+def adopt_existing(nodes: dict, *, jobs: BackupJobStore | None = None,
+                   now=time.time) -> list[str]:
+    """Believe the disk over our own records.
+
+    A backup runs on the agent, in a helper container, and the dashboard
+    only *watches*. Restart the dashboard mid-run — a rebuild, a reboot —
+    and the archive lands perfectly while the job that asked for it looks
+    like it never ran. It then runs again, copying gigabytes that are
+    already there.
+
+    So on startup each job asks what is actually in its destination and
+    adopts anything newer than it thought it had. Cheap, once, and it makes
+    the dashboard's story match the disk's.
+    """
+    jobs = jobs or store
+    adopted = []
+
+    for job in jobs.all():
+        if not job.get("enabled"):
+            continue
+
+        try:
+            archives = archives_in(nodes, job["dest_host"], job["directory"])
+        except BackupError as error:
+            log.debug("could not check %s's archives: %s", job["id"], error)
+            continue
+
+        mine = [a for a in archives if owns(a["name"], source_of(job))]
+
+        if not mine:
+            continue
+
+        newest = max(mine, key=lambda a: a["modified_at"])
+
+        if newest["modified_at"] <= (job.get("last_success_at") or 0):
+            continue
+
+        jobs.record(
+            job["id"],
+            last_success_at=newest["modified_at"],
+            last_run_at=max(newest["modified_at"], job.get("last_run_at") or 0),
+            last_error=None,
+            last_archive={
+                "name": newest["name"], "bytes": newest["bytes"],
+                "at": newest["modified_at"],
+            },
+        )
+        adopted.append(job["id"])
+        log.info("backup %s: adopted %s from disk", job["id"], newest["name"])
+
+    return adopted
+
+
 def run_due(nodes: dict, *, jobs: BackupJobStore | None = None,
             now=time.time, sleep=time.sleep) -> list[dict]:
     """Every job that is due, one at a time.

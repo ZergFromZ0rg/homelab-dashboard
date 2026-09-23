@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { DEMO, demoHostRecovery } from "../demoData";
 import { authHeaders, jsonOrThrow } from "./apiAuth";
+import { backupProjects, fetchBackupDestinations } from "./backupsApi";
 import { formatAge, formatBytes } from "./format";
 
 // What you would have if this machine died tonight.
@@ -54,12 +55,30 @@ function HostRecovery({ host }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
+  // Which stacks to protect. Everything unprotected is ticked to start
+  // with, because that is the answer almost everyone wants and un-ticking
+  // the two you don't care about is less work than ticking the six you do.
+  const [chosen, setChosen] = useState(null);
+  const [dests, setDests] = useState(null);
+  const [destHost, setDestHost] = useState("");
+  const [result, setResult] = useState(null);
 
   async function load() {
     setBusy(true);
     setError(null);
     try {
-      setData(await fetchRecovery(host));
+      const body = await fetchRecovery(host);
+      setData(body);
+      setChosen(
+        new Set(body.projects.filter((p) => !p.protected).map((p) => p.project))
+      );
+
+      const where = await fetchBackupDestinations().catch(() => ({ destinations: [] }));
+      const usable = (where.destinations || []).filter(
+        (d) => d.can_store && d.host !== host
+      );
+      setDests(usable);
+      setDestHost((current) => current || usable[0]?.host || "");
     } catch (e) {
       setError(e.message);
     } finally {
@@ -112,7 +131,23 @@ function HostRecovery({ host }) {
                 {data.projects.map((project) => (
                   <li key={project.project}>
                     <div className="recovery-project">
-                      <strong>{project.project}</strong>
+                      {project.protected ? (
+                        <strong>{project.project}</strong>
+                      ) : (
+                        <label className="recovery-pick">
+                          <input
+                            type="checkbox"
+                            checked={chosen?.has(project.project) || false}
+                            onChange={(e) => {
+                              const next = new Set(chosen);
+                              if (e.target.checked) next.add(project.project);
+                              else next.delete(project.project);
+                              setChosen(next);
+                            }}
+                          />
+                          <strong>{project.project}</strong>
+                        </label>
+                      )}
                       {project.working_dir && <code>{project.working_dir}</code>}
                     </div>
 
@@ -158,6 +193,82 @@ function HostRecovery({ host }) {
                   </li>
                 ))}
               </ul>
+
+              {gaps > 0 && (
+                <div className="recovery-protect">
+                  <strong>Protect the ticked stacks</strong>
+                  {dests && dests.length === 0 ? (
+                    <p className="settings-hint">
+                      No other host can store backups yet. Set a backup
+                      directory on one of them first — a copy on this machine
+                      dies with this machine.
+                    </p>
+                  ) : (
+                    <>
+                      <label className="recovery-dest">
+                        <span>Send to</span>
+                        <select
+                          value={destHost}
+                          onChange={(e) => setDestHost(e.target.value)}
+                        >
+                          {(dests || []).map((d) => (
+                            <option key={d.host} value={d.host}>
+                              {d.host}
+                              {d.encrypted ? " · encrypted" : ""}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <button
+                        type="button"
+                        className="btn btn--sm"
+                        disabled={busy || !destHost || !chosen?.size}
+                        onClick={async () => {
+                          setBusy(true);
+                          setError(null);
+                          try {
+                            const out = await backupProjects({
+                              host,
+                              projects: [...chosen],
+                              dest_host: destHost,
+                              directory: `/backups/${host}`,
+                            });
+                            setResult(out);
+                            await load();
+                          } catch (e) {
+                            setError(e.message);
+                          } finally {
+                            setBusy(false);
+                          }
+                        }}
+                      >
+                        {busy ? "Working…" : `Back up ${chosen?.size || 0} stack${
+                          chosen?.size === 1 ? "" : "s"
+                        }`}
+                      </button>
+                    </>
+                  )}
+
+                  {result && (
+                    <div className="recovery-result">
+                      {result.created.length > 0 && (
+                        <p>Created {result.created.length} job
+                          {result.created.length > 1 ? "s" : ""}.</p>
+                      )}
+                      {result.already_covered.length > 0 && (
+                        <p className="settings-hint">
+                          {result.already_covered.length} already covered.
+                        </p>
+                      )}
+                      {result.refused.map((r) => (
+                        <p key={r.name} className="form-error">
+                          <code>{r.name}</code> — {r.why}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <details className="recovery-steps">
                 <summary>Rebuilding this host</summary>

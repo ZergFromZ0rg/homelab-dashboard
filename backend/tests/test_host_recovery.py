@@ -35,10 +35,13 @@ AGENT = {
             "project": "jellyfin",
             "working_dir": "/home/zerg/homelab/jellyfin",
             "containers": ["jellyfin"],
-            "volumes": [{"name": "jellyfin_config", "allowed": True}],
+            "volumes": [{"name": "jellyfin_config", "allowed": True,
+                         "bytes": 184_320_000, "files": 2_411, "partial": False}],
             "directories": [
                 {"path": "/home/zerg/homelab/jellyfin/cache", "allowed": False,
                  "bytes": 4_000_000, "files": 12, "partial": False},
+                {"path": "/home/zerg/homelab/jellyfin/empty", "allowed": True,
+                 "bytes": 0, "files": 0, "partial": False},
             ],
         },
     ],
@@ -66,8 +69,10 @@ def client(jobs, monkeypatch):
 def test_a_host_with_no_jobs_reports_everything_as_unprotected(client):
     body = client.get("/api/hosts/bigboy/recovery").json()
 
-    assert body["unprotected_count"] == 4
-    assert body["unprotected_bytes"] == 730_508_267 + 1_891_612_940 + 4_000_000
+    assert body["unprotected_count"] == 5
+    assert body["unprotected_bytes"] == (
+        730_508_267 + 1_891_612_940 + 4_000_000 + 184_320_000
+    )
     assert all(p["protected"] is False for p in body["projects"])
 
 
@@ -110,7 +115,7 @@ def test_a_job_from_another_host_does_not_count(client, jobs):
 
     body = client.get("/api/hosts/bigboy/recovery").json()
 
-    assert body["unprotected_count"] == 4
+    assert body["unprotected_count"] == 5
 
 
 def test_the_protection_carries_the_jobs_health(client, jobs):
@@ -146,3 +151,79 @@ def test_recovery_is_token_gated(client, monkeypatch):
     monkeypatch.setattr(auth, "API_TOKEN", "sekret")
 
     assert client.get("/api/hosts/bigboy/recovery").status_code == 401
+
+
+# ---- backing up whole projects --------------------------------------------
+
+
+def ask(client, **over):
+    body = {
+        "host": "bigboy", "projects": ["ai-librarian", "jellyfin"],
+        "dest_host": "thinkpad", "directory": "/backups/bigboy",
+        **over,
+    }
+    return client.post("/api/backups/from-projects", json=body)
+
+
+def test_selecting_a_project_creates_a_job_per_piece_of_its_data(client, jobs):
+    """People think in stacks — "back up jellyfin" — not in bind mounts."""
+    out = ask(client).json()
+
+    sources = sorted(c["source"] for c in out["created"])
+    assert sources == [
+        "/home/zerg/ai-librarian/data/models",
+        "/home/zerg/ai-librarian/data/qdrant",
+        "jellyfin_config",
+    ]
+    assert len(jobs.all()) == 3
+
+
+def test_a_directory_the_host_does_not_allow_is_refused_with_the_fix(client, jobs):
+    """jellyfin's cache is outside BACKUP_SOURCE_DIRS. Creating a job that
+    can only fail would be worse than saying so."""
+    out = ask(client).json()
+
+    refused = {r["name"]: r["why"] for r in out["refused"]}
+    assert "/home/zerg/homelab/jellyfin/cache" in refused
+    assert "Settings" in refused["/home/zerg/homelab/jellyfin/cache"]
+
+
+def test_applying_the_same_selection_twice_adds_nothing(client, jobs):
+    """Select everything and apply is the sane gesture; it must not
+    produce a second copy of every job."""
+    first = ask(client).json()
+    second = ask(client).json()
+
+    assert len(first["created"]) == 3
+    assert second["created"] == []
+    assert len(second["already_covered"]) == 3
+    assert len(jobs.all()) == 3
+
+
+def test_a_piece_already_covered_by_a_parent_job_is_not_duplicated(client, jobs):
+    jobs.add(a_path_job(path="/home/zerg/ai-librarian"))
+
+    out = ask(client).json()
+
+    assert "/home/zerg/ai-librarian/data/qdrant" in out["already_covered"]
+    assert not any("qdrant" in c["source"] for c in out["created"])
+
+
+def test_an_unselected_project_is_left_alone(client, jobs):
+    out = ask(client, projects=["jellyfin"]).json()
+
+    assert [c["source"] for c in out["created"]] == ["jellyfin_config"]
+
+
+def test_the_destination_is_required(client):
+    assert ask(client, dest_host="").status_code == 400
+    assert ask(client, directory="").status_code == 400
+
+
+def test_projects_must_be_a_list(client):
+    assert ask(client, projects="all of them").status_code == 400
+
+
+def test_creating_from_projects_is_token_gated(client, monkeypatch):
+    monkeypatch.setattr(auth, "API_TOKEN", "sekret")
+    assert ask(client).status_code == 401

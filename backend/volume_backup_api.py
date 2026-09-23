@@ -149,6 +149,95 @@ def _config_backup(nodes: dict, host: str) -> dict:
         return {"state": "unknown"}
 
 
+@router.post("/api/backups/from-projects")
+def backup_from_projects(payload: dict,
+                         x_register_token: str | None = Header(default=None)):
+    """Create jobs for whole projects, rather than for paths.
+
+    People think in stacks — "back up jellyfin" — not in bind mounts, and
+    the mapping from one to the other is something this already knows. So
+    the caller names projects and a destination; this works out the data
+    each one owns and creates a job per piece that isn't covered already.
+
+    Idempotent on purpose: naming a project twice adds nothing the second
+    time, so the sane gesture (select everything, apply) does not produce
+    duplicate jobs for whatever was already set up.
+    """
+    auth.check_token(x_register_token)
+
+    host = str(payload.get("host") or "").strip()
+    wanted = payload.get("projects")
+    dest_host = str(payload.get("dest_host") or "").strip()
+    directory = str(payload.get("directory") or "").strip()
+
+    if not host or not dest_host or not directory:
+        raise HTTPException(
+            status_code=400,
+            detail="host, dest_host and directory are all required",
+        )
+
+    if not isinstance(wanted, list) or not all(isinstance(p, str) for p in wanted):
+        raise HTTPException(status_code=400, detail="projects must be a list of names")
+
+    nodes = registry.all()
+
+    try:
+        found = volume_backups.projects_on(nodes, host)
+    except BackupError as error:
+        raise _fail(error)
+
+    existing = [j for j in store.all() if j["source_host"] == host]
+    created, skipped, refused = [], [], []
+
+    for project in found.get("projects", []):
+        if project["project"] not in wanted:
+            continue
+
+        pieces = (
+            [("volume", v["name"], v) for v in project.get("volumes", [])]
+            + [("path", d["path"], d) for d in project.get("directories", [])]
+        )
+
+        for kind, name, info in pieces:
+            if any(volume_backups.covers(j, kind, name) for j in existing):
+                skipped.append(name)
+                continue
+
+            # An empty source produces an empty archive every night and
+            # looks like protection. Better to say why than to create it.
+            if not info.get("bytes"):
+                refused.append({"name": name, "why": "it is empty"})
+                continue
+
+            if kind == "path" and info.get("allowed") is False:
+                refused.append({
+                    "name": name,
+                    "why": f"{host} does not allow that directory to be backed "
+                           "up yet — add it in this host's Settings",
+                })
+                continue
+
+            spec = {
+                "name": f"{project['project']} {name.rsplit('/', 1)[-1]}"[:60],
+                "source_host": host,
+                "dest_host": dest_host,
+                "directory": directory,
+                "interval_hours": payload.get("interval_hours") or 24,
+                "keep": payload.get("keep") or 7,
+                "stop_containers": bool(payload.get("stop_containers", True)),
+                **({"volume": name} if kind == "volume" else {"path": name}),
+            }
+
+            try:
+                job = store.add(spec, default_dest=dest_host)
+                created.append({"id": job["id"], "name": job["name"], "source": name})
+                existing.append(job)
+            except BackupError as error:
+                refused.append({"name": name, "why": str(error)})
+
+    return {"created": created, "already_covered": skipped, "refused": refused}
+
+
 @router.get("/api/backups/destinations")
 def backup_destinations(x_register_token: str | None = Header(default=None)):
     """Every host, and whether a backup can be sent to it.
@@ -472,6 +561,16 @@ async def run_forever() -> None:
     to a worker thread; the loop only decides *when*.
     """
     loop = asyncio.get_running_loop()
+
+    # Before scheduling anything, find out what is actually on the
+    # destinations. A run that finished while this process was restarting
+    # is a real backup, and treating it as never-happened copies it again.
+    try:
+        await loop.run_in_executor(
+            None, volume_backups.adopt_existing, registry.all()
+        )
+    except Exception as error:  # noqa: BLE001 - never block the loop starting
+        log.warning("could not adopt existing archives: %s", error)
 
     while True:
         try:

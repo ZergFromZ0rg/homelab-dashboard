@@ -927,3 +927,57 @@ def test_a_real_failure_is_still_a_failure(monkeypatch, jobs):
 
     assert out["ok"] is False
     assert "ghost" in jobs.all()[0]["last_error"]
+
+
+# ---- believing the disk ---------------------------------------------------
+
+
+def test_an_archive_that_landed_while_we_restarted_is_adopted(monkeypatch, jobs):
+    """The dashboard only watches; the backup runs on the agent. Restart
+    mid-run and the archive lands perfectly while the job looks like it
+    never ran — and then copies gigabytes that are already there."""
+    job = jobs.add(a_job())
+    prefix = vb.archive_prefix(job["volume"])
+    stub_calls(monkeypatch, {"/backup/archives": {"archives": [
+        archive(f"{prefix}-20260923-120000.tar.gz", 1790000000.0),
+    ]}})
+
+    assert vb.adopt_existing(NODES, jobs=jobs) == [job["id"]]
+
+    stored = jobs.all()[0]
+    assert stored["last_success_at"] == 1790000000.0
+    assert stored["last_archive"]["name"] == f"{prefix}-20260923-120000.tar.gz"
+    assert vb.state(stored, 1790000100.0) == "ok"
+
+
+def test_adoption_does_not_rewind_a_newer_success(monkeypatch, jobs):
+    job = jobs.add(a_job())
+    prefix = vb.archive_prefix(job["volume"])
+    jobs.record(job["id"], last_success_at=1790009999.0)
+    stub_calls(monkeypatch, {"/backup/archives": {"archives": [
+        archive(f"{prefix}-20260101-000000.tar.gz", 1790000000.0),
+    ]}})
+
+    assert vb.adopt_existing(NODES, jobs=jobs) == []
+    assert jobs.all()[0]["last_success_at"] == 1790009999.0
+
+
+def test_adoption_ignores_another_jobs_archives(monkeypatch, jobs):
+    job = jobs.add(a_job())
+    stub_calls(monkeypatch, {"/backup/archives": {"archives": [
+        archive("something-else-20260923-120000.tar.gz", 1790000000.0),
+    ]}})
+
+    assert vb.adopt_existing(NODES, jobs=jobs) == []
+    assert jobs.all()[0]["last_success_at"] is None
+
+
+def test_an_unreachable_destination_does_not_break_adoption(monkeypatch, jobs):
+    jobs.add(a_job())
+
+    def fake_call(method, url, **kwargs):
+        raise BackupError("couldn't reach the agent", status_code=502)
+
+    monkeypatch.setattr(vb, "_call", fake_call)
+
+    assert vb.adopt_existing(NODES, jobs=jobs) == []

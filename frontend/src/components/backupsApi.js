@@ -52,6 +52,12 @@ export function fetchBackupArchives(id) {
     .then(jsonOrThrow);
 }
 
+// Back up whole stacks rather than paths: name the projects, and the
+// backend works out what data each one owns. Idempotent — applying the
+// same selection twice adds nothing.
+export const backupProjects = (body) =>
+  send("POST", "/api/backups/from-projects", body);
+
 export const createBackup = (spec) => send("POST", "/api/backups", spec);
 export const updateBackup = (id, patch) => send("PUT", `/api/backups/${id}`, patch);
 export const deleteBackup = (id) => send("DELETE", `/api/backups/${id}`);

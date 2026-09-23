@@ -741,6 +741,18 @@ against — that host is exactly the one where the true answer is
 "everything". A directory outside the allowlist says so, and names the
 setting that would fix it.
 
+Each unprotected stack has a tick box, **all ticked by default**, and one
+button turns the selection into jobs — one per piece of data that stack
+owns. People think in stacks ("back up jellyfin"), not in bind mounts, and
+the mapping between them is something the dashboard already knows.
+
+It is idempotent: applying the same selection twice adds nothing, so
+"select everything and apply" does not produce duplicate jobs for what was
+already set up. A directory the host does not allow yet is refused with the
+setting that would fix it, rather than becoming a job that can only fail,
+and an empty source is refused rather than writing an empty archive every
+night that looks like protection.
+
 Coverage understands nesting: one job on `/home/zerg/ai-librarian` protects
 the four directories inside it, while a job on `.../data/qdrant` does not
 protect `.../data/models`. A job belonging to another host never counts,

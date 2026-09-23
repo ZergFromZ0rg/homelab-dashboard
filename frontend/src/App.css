@@ -5528,3 +5528,36 @@ a.check-target:hover {
   color: var(--offline);
   border-color: color-mix(in srgb, var(--offline) 45%, transparent);
 }
+
+/* Picking whole stacks to protect, rather than paths. */
+.recovery-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.recovery-protect {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.recovery-dest {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+}
+
+.recovery-result {
+  flex-basis: 100%;
+}
+
+.recovery-result p {
+  margin: 2px 0;
+}
