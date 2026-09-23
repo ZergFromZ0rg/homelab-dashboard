@@ -14,6 +14,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { loadCachedPins, cachePins, putPins } from "./components/containerPins";
 import { loadCachedTodos, cacheTodos, putTodos } from "./components/todosApi";
 import "./App.css";
+import "./theme.css";
+import { tabColor } from "./components/tabColors";
 import brandImage from "./assets/brand.webp";
 import { DEMO, demoSnapshot } from "./demoData";
 
@@ -254,8 +256,10 @@ function AppShell({ tabs, activeTab, onTab, connected, lastUpdate, onOpenSetting
     settings: { siteTitle, siteSubtitle },
   } = useSettings();
 
+  // The active tab's color tints the page backdrop, so the section you're
+  // in is a color before it's a word.
   return (
-    <div className="app">
+    <div className="app" style={{ "--page-accent": tabColor(activeTab) }}>
       <header className="topbar">
         <div className="topbar-inner">
           <div className="brand">

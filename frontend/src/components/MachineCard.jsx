@@ -4,7 +4,10 @@ import { hostColor } from "./hostColor";
 
 function MachineCard({ name, machine, history, containers }) {
   return (
-    <div className={`machine-card ${machine.online ? "online" : "offline"}`}>
+    <div
+      className={`machine-card ${machine.online ? "online" : "offline"}`}
+      style={{ "--host-color": hostColor(name) }}
+    >
       <div className="machine-header">
         <h2 style={{ color: hostColor(name) }}>{name}</h2>
 

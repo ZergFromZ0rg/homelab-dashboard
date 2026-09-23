@@ -137,17 +137,20 @@ function Overview({
   const showRail =
     homeCards.quickActions || homeCards.activity || homeCards.alerts;
 
+  // The headline numbers span the full width, above both columns, so the
+  // page starts on one even row instead of a short row beside a tall rail.
   return (
     <div className={`overview ${showRail ? "" : "overview--full"}`}>
+      {homeCards.summary && (
+        <SummaryRow
+          overview={overview}
+          machines={machines}
+          containers={containers}
+          backups={backups}
+        />
+      )}
+
       <div className="overview-main">
-        {homeCards.summary && (
-          <SummaryRow
-            overview={overview}
-            machines={machines}
-            containers={containers}
-            backups={backups}
-          />
-        )}
 
         {homeCards.attention && (
           <AttentionPanel

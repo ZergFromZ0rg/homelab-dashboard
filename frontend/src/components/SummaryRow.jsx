@@ -1,4 +1,5 @@
 import { formatAge } from "./format";
+import { tabColor } from "./tabColors";
 
 // The four-across headline: is anything broken, are the machines up, are
 // the containers up, and is your data safe. Numbers only — detail lives in
@@ -10,9 +11,14 @@ import { formatAge } from "./format";
 // question about them — "are they working?" — had no answer anywhere you
 // would naturally look.
 
-function Card({ label, value, sub, bad }) {
+// `tone` is the color of the section the number belongs to (the tab it
+// would take you to), so each tile reads as a different thing at a glance.
+function Card({ label, value, sub, bad, tone }) {
   return (
-    <div className={`summary-card ${bad ? "summary-card--bad" : ""}`}>
+    <div
+      className={`summary-card ${bad ? "summary-card--bad" : ""}`}
+      style={tone && !bad ? { "--tone": tone } : undefined}
+    >
       <span className="summary-label">{label}</span>
       <strong className="summary-value">{value}</strong>
       {sub && <span className="summary-sub">{sub}</span>}
@@ -23,7 +29,7 @@ function Card({ label, value, sub, bad }) {
 function BackupCard({ backups }) {
   if (!backups || !backups.total) {
     return (
-      <Card label="Backups" value="None" sub="nothing is backed up" bad />
+      <Card label="Backups" value="None" sub="nothing is backed up" bad tone={tabColor("backups")} />
     );
   }
 
@@ -43,6 +49,7 @@ function BackupCard({ backups }) {
             : `newest ${formatAge(age)}`
       }
       bad={attention > 0}
+      tone={tabColor("backups")}
     />
   );
 }
@@ -70,16 +77,19 @@ function SummaryRow({ overview, machines, containers, backups }) {
         value={overview.ok ? "Operational" : `${issueCount} issue${issueCount === 1 ? "" : "s"}`}
         sub={overview.ok ? "all clear" : "needs attention"}
         bad={!overview.ok}
+        tone={overview.ok ? "var(--online)" : undefined}
       />
       <Card
         label="Hosts"
         value={`${onlineHosts} / ${hosts.length || "—"}`}
         sub="online"
+        tone={tabColor("servers")}
       />
       <Card
         label="Containers"
         value={`${runningContainers} / ${totalContainers || "—"}`}
         sub="running"
+        tone={tabColor("containers")}
       />
       <BackupCard backups={backups} />
     </div>

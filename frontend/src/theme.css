@@ -1,0 +1,707 @@
+/* =====================================================================
+   Visual layer — loaded after App.css, so it wins on equal specificity.
+
+   App.css owns layout and per-component structure; this file owns how
+   surfaces look: the colored backdrop, glass panels, the top bar and
+   tabs, stat tiles, buttons. Three ideas carry it:
+
+   1. The page has a backdrop, not a flat fill. Soft glows in the active
+      tab's color (--page-accent, set on .app from tabColors.js) sit
+      behind everything, so switching tabs visibly changes the room.
+   2. Panels are frosted glass over that backdrop — translucent, blurred,
+      with a faint top highlight — instead of opaque grey boxes.
+   3. Numbers get color. Every stat tile carries a --tone: the section it
+      belongs to, or the page accent, or red/amber when something's wrong.
+   ===================================================================== */
+
+@property --page-accent {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #2dd4bf;
+}
+
+:root {
+  --bg: #080b12;
+
+  --glass: rgba(20, 26, 38, 0.58);
+  --glass-strong: rgba(24, 31, 45, 0.82);
+  --glass-hover: rgba(30, 38, 55, 0.66);
+  --glass-border: rgba(255, 255, 255, 0.075);
+  --glass-border-strong: rgba(255, 255, 255, 0.13);
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --glass-blur: blur(18px) saturate(150%);
+
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --bg-subtle: rgba(255, 255, 255, 0.045);
+  --bg-raised: rgba(255, 255, 255, 0.08);
+
+  --radius: 16px;
+  --radius-sm: 10px;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.4);
+}
+
+body {
+  background: var(--bg);
+}
+
+/* ----- Backdrop ----- */
+
+.app {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  transition: --page-accent 0.6s ease;
+}
+
+.app::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(65vw 55vh at 8% -8%, color-mix(in srgb, var(--page-accent) 34%, transparent), transparent 70%),
+    radial-gradient(50vw 45vh at 100% 0%, color-mix(in srgb, #818cf8 22%, transparent), transparent 70%),
+    radial-gradient(55vw 50vh at 85% 105%, color-mix(in srgb, var(--page-accent) 16%, transparent), transparent 70%),
+    radial-gradient(45vw 40vh at 0% 100%, color-mix(in srgb, #e879f9 12%, transparent), transparent 70%),
+    var(--bg);
+}
+
+/* A faint dot grid over the glow, fading out down the page — texture
+   rather than a flat wash. */
+.app::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+  background-size: 24px 24px;
+  mask-image: linear-gradient(to bottom, #000, transparent 65%);
+  -webkit-mask-image: linear-gradient(to bottom, #000, transparent 65%);
+}
+
+/* ----- Glass surfaces ----- */
+
+.overview-card,
+.machine-card,
+.summary-card,
+.fact,
+.deploy-pane,
+.deployment-card,
+.rebalance-card,
+.check,
+.backup,
+.host-tile,
+.empty-state,
+.fleet-capacity,
+.host-group > .container-list,
+.pinned-strip .container-list {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-highlight), var(--shadow-sm);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
+.overview-card,
+.machine-card,
+.deploy-pane {
+  border-radius: var(--radius);
+}
+
+.overview-card-head {
+  border-bottom-color: var(--glass-border);
+}
+
+/* Section headings get a short bar in the page color, so the start of a
+   section is easy to find while scrolling. */
+.overview-section-head h2,
+.services-head h2,
+.section-header h2,
+.deploy-pane .section-header .eyebrow + h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.overview-section-head h2::before,
+.services-head h2::before {
+  content: "";
+  width: 4px;
+  height: 16px;
+  border-radius: 4px;
+  background: linear-gradient(var(--page-accent), color-mix(in srgb, var(--page-accent) 30%, transparent));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--page-accent) 60%, transparent);
+}
+
+/* ----- Top bar: transparent, the page shows through ----- */
+
+.topbar {
+  background: linear-gradient(
+    to bottom,
+    rgba(8, 11, 18, 0.72),
+    rgba(8, 11, 18, 0.42)
+  );
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border-bottom: 1px solid transparent;
+  border-image: linear-gradient(
+      to right,
+      transparent,
+      color-mix(in srgb, var(--page-accent) 45%, transparent),
+      transparent
+    )
+    1;
+}
+
+.brand-mark {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+    0 0 18px color-mix(in srgb, var(--page-accent) 40%, transparent);
+}
+
+/* The tabs sit in one frosted capsule; each carries its color as a dot
+   even when it isn't selected, so the colors are learnable. */
+.tabs {
+  flex: 0 1 auto;
+  gap: 2px;
+  padding: 4px;
+  margin: 0 auto;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--glass-highlight);
+}
+
+.topbar-inner {
+  gap: 18px;
+}
+
+.tab {
+  gap: 7px;
+  padding: 6px 11px;
+  font-size: 13.5px;
+  border: 0;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.tab-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--tab-color);
+  opacity: 0.85;
+  transition: opacity 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tab:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.tab:hover .tab-dot {
+  opacity: 1;
+}
+
+.tab.active {
+  color: #fff;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--tab-color) 38%, transparent),
+    color-mix(in srgb, var(--tab-color) 16%, transparent)
+  );
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--tab-color) 45%, transparent),
+    0 4px 18px color-mix(in srgb, var(--tab-color) 28%, transparent);
+}
+
+.tab.active .tab-dot {
+  opacity: 1;
+  box-shadow: 0 0 8px var(--tab-color);
+}
+
+.tab-count {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.tab.active .tab-count:not(.tab-count--bad) {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+.icon-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--glass-border);
+}
+
+/* ----- Stat tiles (Overview summary + every tab's facts row) ----- */
+
+/* Flex, not a fixed 4-column grid: five tiles make one row of five, and
+   when a row does wrap its tiles stretch to fill it — no orphan tile
+   sitting alone under a full row. */
+.summary-row,
+.facts-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.summary-row > *,
+.facts-row > * {
+  flex: 1 1 150px;
+  min-width: 0;
+}
+
+.overview > .summary-row {
+  grid-column: 1 / -1;
+}
+
+.summary-card,
+.fact {
+  --tone: var(--page-accent);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 20px 16px;
+  border-radius: var(--radius);
+}
+
+/* A glow in the tile's color from the top-left corner and a thin bar
+   along the top edge. */
+.summary-card::before,
+.fact::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    130% 110% at 0% 0%,
+    color-mix(in srgb, var(--tone) 30%, transparent),
+    transparent 65%
+  );
+}
+
+.summary-card::after,
+.fact::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 20px;
+  right: 20px;
+  height: 2px;
+  border-radius: 0 0 2px 2px;
+  background: linear-gradient(to right, var(--tone), transparent);
+  opacity: 0.9;
+}
+
+.summary-card > *,
+.fact > * {
+  position: relative;
+}
+
+.summary-label,
+.fact-label {
+  font-size: 11.5px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--tone) 55%, var(--text-muted));
+}
+
+.summary-value,
+.fact-value {
+  font-family: var(--sans);
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.summary-sub,
+.fact-sub {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.summary-card--bad,
+.fact--bad {
+  --tone: var(--offline);
+  background: var(--glass);
+  border-color: color-mix(in srgb, var(--offline) 35%, transparent);
+}
+
+.fact--warn {
+  --tone: var(--warning);
+  border-color: color-mix(in srgb, var(--warning) 35%, transparent);
+}
+
+.summary-card--bad .summary-value,
+.fact--bad .fact-value {
+  color: var(--offline);
+}
+
+/* ----- Host identity on cards ----- */
+
+.machine-card,
+.host-tile {
+  position: relative;
+  overflow: hidden;
+}
+
+.machine-card::before,
+.host-tile::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 90px;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--host-color, var(--page-accent)) 13%, transparent),
+    transparent
+  );
+}
+
+.machine-card::after,
+.host-tile::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  pointer-events: none;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--host-color, var(--page-accent)),
+    transparent
+  );
+  opacity: 0.8;
+}
+
+.machine-card > *,
+.host-tile > * {
+  position: relative;
+}
+
+.machine-card {
+  padding: 16px 18px;
+}
+
+.machine-card:hover,
+.host-tile:hover {
+  border-color: color-mix(in srgb, var(--host-color, var(--page-accent)) 35%, transparent);
+  box-shadow:
+    var(--glass-highlight),
+    0 10px 30px color-mix(in srgb, var(--host-color, var(--page-accent)) 12%, transparent);
+}
+
+.machine-card--main {
+  background: var(--glass);
+  border-color: color-mix(in srgb, var(--main-host) 40%, transparent);
+}
+
+.machine-header h2 {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.host-tile {
+  border-radius: var(--radius);
+}
+
+/* ----- Containers: each host group framed in its host color ----- */
+
+.host-group > .container-list,
+.pinned-strip .container-list {
+  border-left: 3px solid var(--host-color, var(--accent));
+  border-top: 0;
+}
+
+/* ----- Attention panel ----- */
+
+.attention-issue {
+  border-radius: var(--radius-sm);
+  transition: background 0.12s ease;
+}
+
+.attention-issue:hover {
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.recommendation-list {
+  margin-top: 14px;
+  padding: 12px 14px 12px 16px;
+  background: color-mix(in srgb, var(--page-accent) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--page-accent) 16%, transparent);
+  border-radius: var(--radius-sm);
+}
+
+.attention-view {
+  font-size: 12.5px;
+  text-transform: none;
+  letter-spacing: 0;
+  padding: 4px 12px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--glass-border-strong);
+  border-radius: var(--radius-pill);
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.attention-view:hover {
+  background: color-mix(in srgb, var(--page-accent) 14%, transparent);
+  border-color: color-mix(in srgb, var(--page-accent) 55%, transparent);
+}
+
+/* ----- Personal: the greeting is the page's hero ----- */
+
+.greeting {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(700px 260px at 100% 0%, color-mix(in srgb, var(--page-accent) 26%, transparent), transparent 70%),
+    radial-gradient(500px 220px at 0% 100%, color-mix(in srgb, #818cf8 14%, transparent), transparent 70%),
+    var(--glass);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-highlight), var(--shadow-sm);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
+.todo-add input {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--glass-border-strong);
+}
+
+.todo-add button {
+  font-size: 12.5px;
+  text-transform: none;
+  letter-spacing: 0;
+  padding: 5px 14px;
+  background: color-mix(in srgb, var(--page-accent) 18%, transparent);
+  border-color: color-mix(in srgb, var(--page-accent) 40%, transparent);
+}
+
+/* ----- Buttons, inputs, segmented ----- */
+
+.btn,
+.qa-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--glass-border-strong);
+}
+
+.btn:hover:not(:disabled),
+.qa-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--page-accent) 14%, transparent);
+  border-color: color-mix(in srgb, var(--page-accent) 55%, transparent);
+}
+
+.btn--ghost {
+  background: transparent;
+  border-color: transparent;
+}
+
+.segmented {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--glass-border);
+  border-radius: var(--radius-pill);
+}
+
+.segmented button {
+  border-radius: var(--radius-pill);
+}
+
+.segmented button.active {
+  color: #fff;
+  background: color-mix(in srgb, var(--page-accent) 24%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--page-accent) 40%, transparent);
+}
+
+.container-search input,
+.deploy-input {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--glass-border-strong);
+}
+
+.container-search input:focus,
+.deploy-input:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--page-accent) 65%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--page-accent) 16%, transparent);
+}
+
+/* ----- Deploy tab: same language as the rest of the app ----- */
+
+.deploy-pane {
+  padding: 18px 20px;
+}
+
+.deploy-mode {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 3px;
+  gap: 2px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-pill);
+}
+
+.deploy-mode-btn,
+.deploy-mode-btn + .deploy-mode-btn {
+  flex: none;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  padding: 5px 16px;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-pill);
+}
+
+.deploy-mode-btn.active {
+  color: #fff;
+  background: color-mix(in srgb, var(--page-accent) 24%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--page-accent) 40%, transparent);
+}
+
+.deploy-label {
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.deploy-input {
+  padding: 8px 10px;
+}
+
+.deploy-add {
+  font-size: 12.5px;
+  text-transform: none;
+  letter-spacing: 0;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  border-color: var(--glass-border-strong);
+}
+
+.deploy-add:hover {
+  border-color: var(--page-accent);
+  color: var(--page-accent);
+}
+
+.deploy-row-remove {
+  border-radius: 50%;
+  border-color: var(--glass-border-strong);
+}
+
+.deploy-primary {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  padding: 8px 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--glass-border-strong);
+}
+
+.deploy-primary--go:not(:disabled) {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--page-accent) 70%, #000),
+    color-mix(in srgb, var(--page-accent) 40%, #000)
+  );
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--page-accent) 25%, transparent);
+}
+
+.deploy-primary:hover:not(:disabled) {
+  color: #fff;
+  border-color: color-mix(in srgb, var(--page-accent) 55%, transparent);
+  background: color-mix(in srgb, var(--page-accent) 22%, transparent);
+}
+
+.deployment-card {
+  border-radius: var(--radius-sm);
+}
+
+.deployment-actions button {
+  font-size: 12.5px;
+  text-transform: none;
+  letter-spacing: 0;
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--glass-border-strong);
+  border-radius: var(--radius-sm);
+}
+
+/* ----- Settings drawer: glass over the page ----- */
+
+.drawer {
+  background: var(--glass-strong);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  border-left-color: var(--glass-border-strong);
+}
+
+/* ----- Motion ----- */
+
+@keyframes tab-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.dashboard > :not(.drawer-root) {
+  animation: tab-in 0.28s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app,
+  .dashboard > * {
+    transition: none;
+    animation: none;
+  }
+}
+
+/* ----- Small screens ----- */
+
+@media (max-width: 1180px) {
+  .tabs {
+    margin: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .summary-row,
+  .facts-row {
+    gap: 10px;
+  }
+
+  .summary-card,
+  .fact {
+    padding: 12px 14px;
+  }
+
+  .summary-value,
+  .fact-value {
+    font-size: 24px;
+  }
+}

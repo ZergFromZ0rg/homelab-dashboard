@@ -12,6 +12,7 @@ function MainSystem({ host, machine, history, containers }) {
       className={`machine-card machine-card--main ${
         machine.online ? "online" : "offline"
       }`}
+      style={{ "--host-color": hostColor(host) }}
     >
       <div className="machine-header">
         <h2>

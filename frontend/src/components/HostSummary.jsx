@@ -49,6 +49,7 @@ function HostSummary({ machines, containers, onOpen }) {
             className={`host-tile ${offline ? "host-tile--off" : ""}`}
             onClick={() => onOpen?.(name)}
             title={`Open ${name} in Servers`}
+            style={{ "--host-color": hostColor(name) }}
           >
             <span className="host-tile-head">
               <span className={`status-dot status-dot--${offline ? "bad" : "ok"}`} />
