@@ -981,3 +981,41 @@ def test_an_unreachable_destination_does_not_break_adoption(monkeypatch, jobs):
     monkeypatch.setattr(vb, "_call", fake_call)
 
     assert vb.adopt_existing(NODES, jobs=jobs) == []
+
+
+# ---- the landing page -----------------------------------------------------
+
+
+def test_the_summary_counts_states_for_the_front_page(jobs):
+    """The front page said nothing about backups except, occasionally, a
+    stale failure in the alert history — the only mention anyone saw was
+    bad news that was no longer true."""
+    now = 1790000000.0
+    good = jobs.add(a_job())
+    jobs.record(good["id"], last_run_at=now, last_success_at=now)
+    bad = jobs.add(a_job(volume="other"))
+    jobs.record(bad["id"], last_run_at=now, last_error="no space left")
+    jobs.add(a_job(volume="third", enabled=False))
+
+    out = vb.summary(now, jobs=jobs)
+
+    assert out["total"] == 3
+    assert out["ok"] == 1
+    assert out["attention"] == 1
+    assert out["paused"] == 1
+    assert out["newest_success_age"] == 0
+
+
+def test_the_summary_is_empty_but_valid_with_no_jobs(jobs):
+    out = vb.summary(1790000000.0, jobs=jobs)
+
+    assert out == {"total": 0, "ok": 0, "running": 0, "paused": 0,
+                   "attention": 0, "pending": 0, "newest_success_age": None}
+
+
+def test_a_paused_job_never_counts_as_needing_attention(jobs):
+    now = 1790000000.0
+    job = jobs.add(a_job(enabled=False))
+    jobs.record(job["id"], last_success_at=now - 99999999)
+
+    assert vb.summary(now, jobs=jobs)["attention"] == 0

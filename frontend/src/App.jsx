@@ -127,6 +127,7 @@ function useDashboardSocket() {
       deployments: [],
       activity: [],
       alerts: [],
+      backups: null,
       checks: [],
       mainHost: null,
       overview: EMPTY_OVERVIEW,
@@ -180,6 +181,7 @@ function useDashboardSocket() {
           deployments: data.deployments ?? [],
           activity: data.activity ?? [],
           alerts: data.alerts ?? [],
+          backups: data.backups ?? null,
           checks: data.checks ?? [],
           mainHost: data.main_host ?? null,
           overview: data.overview ?? EMPTY_OVERVIEW,
@@ -299,6 +301,7 @@ function App() {
     deployments,
     activity,
     alerts,
+    backups,
     checks,
     overview,
     pins,
@@ -349,7 +352,12 @@ function App() {
       tone: checks.some((c) => c.status === "down") ? "bad" : undefined,
     },
     { value: "deploy", label: "Deploy", count: activeDeployments },
-    { value: "backups", label: "Backups" },
+    {
+      value: "backups",
+      label: "Backups",
+      count: backups?.total || null,
+      tone: backups?.attention ? "bad" : undefined,
+    },
     { value: "personal", label: "Personal", count: openTodos || null },
   ];
 
@@ -373,6 +381,7 @@ function App() {
         {activeTab === "overview" && (
           <Overview
             overview={overview}
+            backups={backups}
             machines={machines}
             containers={containers}
             checks={checks}

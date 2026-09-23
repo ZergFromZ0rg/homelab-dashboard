@@ -117,6 +117,7 @@ function ServiceChips({ checks, onOpen }) {
 }
 
 function Overview({
+  backups,
   overview,
   machines,
   containers,
@@ -144,6 +145,7 @@ function Overview({
             overview={overview}
             machines={machines}
             containers={containers}
+            backups={backups}
           />
         )}
 

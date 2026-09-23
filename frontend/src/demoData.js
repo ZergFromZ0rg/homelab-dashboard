@@ -433,6 +433,10 @@ export function demoSnapshot() {
     mainHost: "thinkpad",
     // Mirrors what backend/alerts.py + main._overview would produce for the
     // fleet above (worst first, same keys and wording).
+    backups: {
+      total: 3, ok: 1, running: 0, paused: 0, attention: 1, pending: 1,
+      newest_success_age: 18000,
+    },
     overview: {
       // The demo fleet is "unauthenticated" too, so the posture footnote
       // shows up in the preview the way it does in a real install.

@@ -58,7 +58,11 @@ each container becomes a small stacked card.
 **Overview** (default) is the one-glance page:
 
 - a four-across summary row (health / hosts online / containers running /
-  alert count);
+  **backups healthy**). Backups took the slot that used to hold a second
+  copy of the issue count, which said the same thing as System health
+  right beside it. Before that the front page mentioned backups only when
+  one broke, so the commonest question about them — *are they working?* —
+  had no answer anywhere you would naturally look;
 - an **Attention** panel — one line ("No issues detected") when the fleet
   is healthy, otherwise a severity-coded list of problems each with a
   *View* jump and a plain next-step. Deterministic: it reuses the same

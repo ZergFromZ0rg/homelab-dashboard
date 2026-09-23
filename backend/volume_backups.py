@@ -391,6 +391,32 @@ def verify_job(nodes: dict, job: dict, *, jobs: BackupJobStore | None = None,
         return {"ok": None, "error": str(error)}
 
 
+def summary(now: float | None = None, *, jobs: BackupJobStore | None = None) -> dict:
+    """Backup health in four numbers, for the landing page.
+
+    Cheap on purpose — it reads the in-memory store and contacts nothing —
+    because it rides the /ws tick. Without it the front page said nothing
+    about backups at all except, occasionally, a stale failure in the alert
+    history: the only mention of backups anyone saw was bad news that was
+    no longer true.
+    """
+    now = now or time.time()
+    rows = (jobs or store).all()
+    states = [state(job, now) for job in rows]
+    newest = [j["last_success_at"] for j in rows if j.get("last_success_at")]
+
+    return {
+        "total": len(rows),
+        "ok": sum(1 for s in states if s == "ok"),
+        "running": sum(1 for s in states if s == "running"),
+        "paused": sum(1 for s in states if s == "paused"),
+        # The number that decides whether the card turns red.
+        "attention": sum(1 for s in states if s in ("failing", "stale", "corrupt")),
+        "pending": sum(1 for s in states if s == "pending"),
+        "newest_success_age": (now - max(newest)) if newest else None,
+    }
+
+
 def due(job: dict, now: float | None = None) -> bool:
     """Whether a job should start. Measured from the last *attempt*, not
     the last success: a job failing every time shouldn't retry in a tight

@@ -703,6 +703,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 "activity": activity.recent(),
                 "alerts": alert_history.recent(),
                 "checks": check_summaries,
+                "backups": volume_backups.summary(),
                 "overview": _overview(
                     machines,
                     dumps,
