@@ -745,3 +745,86 @@ export function demoHostConfig(host) {
     ],
   };
 }
+
+// "If this host died" — the gap analysis. bigboy has one project covered
+// and two not; thinkpad has nothing covered, which is the case worth
+// showing because it is the one that looks fine until you ask.
+export function demoHostRecovery(host) {
+  const covered = (job, state = "ok") => ({
+    job, id: "b1", dest: "thinkpad:/backups/bigboy", state,
+  });
+
+  if (host === "bigboy") {
+    return {
+      host,
+      source_dirs: ["/home/zerg/ai-librarian"],
+      config_backup: { state: "ok", repo: "ZergFromZ0rg/homelab-backups", last_success_age: 7200 },
+      unprotected_bytes: 184_320_000 + 9_400_000,
+      unprotected_count: 2,
+      projects: [
+        {
+          project: "ai-librarian",
+          working_dir: "/home/zerg/ai-librarian",
+          containers: ["ai-librarian-qdrant-1", "ai-librarian-ui-1"],
+          protected: true,
+          items: [
+            { kind: "path", name: "/home/zerg/ai-librarian/data/qdrant", bytes: 730_508_267,
+              allowed: true, partial: false, protected_by: covered("qdrant") },
+            { kind: "path", name: "/home/zerg/ai-librarian/data/models", bytes: 1_891_612_940,
+              allowed: true, partial: false, protected_by: covered("ai-librarian models") },
+          ],
+        },
+        {
+          project: "jellyfin",
+          working_dir: "/home/zerg/homelab/jellyfin",
+          containers: ["jellyfin"],
+          protected: false,
+          items: [
+            { kind: "volume", name: "jellyfin_config", bytes: 184_320_000,
+              allowed: true, partial: false, protected_by: null },
+          ],
+        },
+        {
+          project: "portainer",
+          working_dir: "/home/zerg/docker/stacks/portainer",
+          containers: ["portainer"],
+          protected: false,
+          items: [
+            { kind: "volume", name: "portainer_data", bytes: 9_400_000,
+              allowed: true, partial: false, protected_by: null },
+          ],
+        },
+      ],
+    };
+  }
+
+  return {
+    host,
+    source_dirs: [],
+    config_backup: { state: "ok", repo: "ZergFromZ0rg/homelab-backups", last_success_age: 5400 },
+    unprotected_bytes: 2_100_000_000,
+    unprotected_count: 2,
+    projects: [
+      {
+        project: "grafana",
+        working_dir: "/home/zerg/docker/stacks/grafana",
+        containers: ["grafana"],
+        protected: false,
+        items: [
+          { kind: "volume", name: "grafana_grafana-data", bytes: 96_000_000,
+            allowed: true, partial: false, protected_by: null },
+        ],
+      },
+      {
+        project: "prometheus",
+        working_dir: "/home/zerg/docker/stacks/prometheus",
+        containers: ["prometheus"],
+        protected: false,
+        items: [
+          { kind: "path", name: "/home/zerg/docker/stacks/prometheus/data",
+            bytes: 2_004_000_000, allowed: false, partial: true, protected_by: null },
+        ],
+      },
+    ],
+  };
+}

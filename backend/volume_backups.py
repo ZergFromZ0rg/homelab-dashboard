@@ -483,6 +483,31 @@ def _receive_url(nodes: dict, host: str) -> str:
     return str(reported or _base_url(nodes, host)).rstrip("/")
 
 
+def projects_on(nodes: dict, host: str) -> dict:
+    """What this host runs and the data each project owns."""
+    return _call("GET", f"{_base_url(nodes, host)}/backup/projects", timeout=60)
+
+
+def covers(job: dict, kind: str, name: str) -> bool:
+    """Whether a job already protects this volume or directory.
+
+    A directory job covers everything beneath it, which is how one job on
+    ``/home/zerg/ai-librarian`` protects the four directories inside it. A
+    volume is matched exactly, because there is no "beneath" a volume.
+    """
+    if kind == "volume":
+        return job.get("volume") == name
+
+    path = (job.get("path") or "").rstrip("/")
+
+    if not path:
+        return False
+
+    target = name.rstrip("/")
+
+    return target == path or target.startswith(path + "/")
+
+
 def prune(nodes: dict, job: dict) -> list[str]:
     """Delete this job's oldest archives beyond ``keep``.
 

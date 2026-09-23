@@ -5417,3 +5417,114 @@ a.check-target:hover {
   margin: 6px 0 0 20px;
   color: var(--text-muted);
 }
+
+/* ----- "If this host died" ----- */
+
+.recovery {
+  padding: 10px 2px 4px;
+  font-size: 12px;
+}
+
+.recovery-config {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+}
+
+.recovery-config em {
+  font-style: normal;
+  color: var(--text-muted);
+}
+
+.recovery-config--bad { color: var(--offline); }
+.recovery-config--warn { color: var(--warning); }
+
+/* The number that makes the panel worth opening. */
+.recovery-summary {
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  background: var(--bg-subtle);
+  border-left: 2px solid var(--offline);
+  border-radius: var(--radius-sm);
+}
+
+.recovery-projects,
+.recovery-items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recovery-projects > li {
+  margin-bottom: 12px;
+}
+
+.recovery-project {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.recovery-project code,
+.recovery-items code {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.recovery-items li {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 0 3px 4px;
+}
+
+.recovery-items code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recovery-size {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Wraps under the row rather than squeezing the path. */
+.recovery-cover {
+  grid-column: 2 / -1;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.recovery-none {
+  margin: 2px 0 0 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.recovery-steps {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.recovery-steps summary {
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.recovery-steps ol {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.conn-count--bad {
+  color: var(--offline);
+  border-color: color-mix(in srgb, var(--offline) 45%, transparent);
+}

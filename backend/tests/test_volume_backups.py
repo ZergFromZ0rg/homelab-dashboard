@@ -429,7 +429,11 @@ def test_an_unregistered_host_is_a_404(jobs):
 
 
 def a_path_job(**overrides):
-    return a_job(volume=None, path="/home/zerg/ai-librarian/data/qdrant", **overrides)
+    return a_job(**{
+        "volume": None,
+        "path": "/home/zerg/ai-librarian/data/qdrant",
+        **overrides,
+    })
 
 
 def test_a_job_takes_a_volume_or_a_path_but_not_both(jobs):

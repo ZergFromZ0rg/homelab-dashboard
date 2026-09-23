@@ -1,4 +1,5 @@
 import ConnectionsPanel from "./ConnectionsPanel";
+import HostRecovery from "./HostRecovery";
 import HostSettings from "./HostSettings";
 import Sparkline from "./Sparkline";
 import Gauge from "./Gauge";
@@ -361,6 +362,7 @@ function MachineVitals({ host, machine, history }) {
 
       {host && <ConnectionsPanel host={host} />}
       {host && <HostSettings host={host} />}
+      {host && <HostRecovery host={host} />}
     </>
   );
 }

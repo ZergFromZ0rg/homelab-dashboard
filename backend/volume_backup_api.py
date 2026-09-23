@@ -62,6 +62,93 @@ def list_backups():
     return {"backups": jobs, "default_dest_host": default_dest_host()}
 
 
+@router.get("/api/hosts/{host}/recovery")
+def host_recovery(host: str, x_register_token: str | None = Header(default=None)):
+    """What you would have if this machine died tonight.
+
+    Three separate questions, because they have three separate answers and
+    a single "backup: ok" hides that:
+
+    - its **compose files**, which the agent pushes to a git repo, and which
+      are what you rebuild the stacks *from*;
+    - its **data**, which is only whatever a backup job actually covers;
+    - and everything else, which is what you would lose.
+
+    The last one is the point. A host nobody has configured reports every
+    project as unprotected rather than reporting nothing at all.
+    """
+    auth.check_token(x_register_token)
+
+    nodes = registry.all()
+
+    try:
+        found = volume_backups.projects_on(nodes, host)
+    except BackupError as error:
+        raise _fail(error)
+
+    jobs = [j for j in store.all() if j["source_host"] == host]
+
+    def protection(kind: str, name: str) -> dict | None:
+        for job in jobs:
+            if volume_backups.covers(job, kind, name):
+                return {
+                    "job": job["name"],
+                    "id": job["id"],
+                    "dest": f"{job['dest_host']}:{job['directory']}",
+                    "state": volume_backups.state(job),
+                }
+        return None
+
+    projects = []
+    unprotected_bytes = 0
+
+    for project in found.get("projects", []):
+        items = []
+
+        for volume in project.get("volumes", []):
+            items.append({**volume, "kind": "volume", "name": volume["name"],
+                          "protected_by": protection("volume", volume["name"])})
+
+        for directory in project.get("directories", []):
+            items.append({**directory, "kind": "path", "name": directory["path"],
+                          "protected_by": protection("path", directory["path"])})
+
+        for item in items:
+            if not item["protected_by"]:
+                unprotected_bytes += item.get("bytes") or 0
+
+        projects.append({
+            "project": project["project"],
+            "working_dir": project.get("working_dir"),
+            "containers": project.get("containers", []),
+            "items": items,
+            "protected": all(i["protected_by"] for i in items) if items else True,
+        })
+
+    return {
+        "host": host,
+        "source_dirs": found.get("source_dirs", []),
+        "config_backup": _config_backup(nodes, host),
+        "projects": projects,
+        "unprotected_bytes": unprotected_bytes,
+        "unprotected_count": sum(
+            1 for p in projects for i in p["items"] if not i["protected_by"]
+        ),
+    }
+
+
+def _config_backup(nodes: dict, host: str) -> dict:
+    """The compose-file backup, which is a different thing from the data and
+    is what you would actually rebuild the stacks from."""
+    from backend import backups
+
+    try:
+        return backups.status_for(host, volume_backups._base_url(nodes, host))
+    except Exception as error:  # noqa: BLE001 - a missing half is not fatal
+        log.debug("config backup status for %s: %s", host, error)
+        return {"state": "unknown"}
+
+
 @router.get("/api/backups/targets/{host}")
 def backup_targets(host: str, x_register_token: str | None = Header(default=None)):
     """What a host can back up, and whether it can store backups.

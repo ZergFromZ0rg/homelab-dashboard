@@ -720,6 +720,33 @@ nothing. An archive is also an ordinary gzipped tar, so `tar tzf` reads it
 anywhere with or without this dashboard, which is the point of not choosing
 a format with its own reader.
 
+### If this host died
+
+Every host card has an **If this host died** panel, which answers the
+question a backup system usually doesn't: not "did the backup run" but
+"what have I actually got".
+
+It separates three things, because they have three different answers and a
+single "backup: ok" hides that:
+
+- **Compose files** — pushed to a git repo by each agent, and what you
+  rebuild the stacks *from*;
+- **Data** — only whatever a backup job actually covers;
+- **Everything else** — what you would lose, in bytes.
+
+The third is the point, and it is deliberately not filtered by
+`BACKUP_SOURCE_DIRS`. A host nobody has configured reports every project as
+unprotected rather than looking clean because there is nothing to compare
+against — that host is exactly the one where the true answer is
+"everything". A directory outside the allowlist says so, and names the
+setting that would fix it.
+
+Coverage understands nesting: one job on `/home/zerg/ai-librarian` protects
+the four directories inside it, while a job on `.../data/qdrant` does not
+protect `.../data/models`. A job belonging to another host never counts,
+however similar the paths look. And "protected by a job that has never
+worked" is shown with that job's state, because it is not protection.
+
 ### Encryption, and getting a copy out of the building
 
 Archives are plain gzipped tars by default — readable by anyone who can
