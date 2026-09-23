@@ -160,6 +160,44 @@ def list_backup_archives(job_id: str,
     }
 
 
+@router.post("/api/backups/{job_id}/archives/verify")
+def verify_backup_archive(job_id: str, payload: dict,
+                          x_register_token: str | None = Header(default=None)):
+    """Read one archive back on the host that holds it.
+
+    The closest thing to a restore that isn't destructive: the whole
+    archive is decompressed and every member walked, so a bad checksum, a
+    truncated upload or a corrupted byte all show up. What it cannot tell
+    you is whether the *contents* are a working database — only starting
+    one does that.
+    """
+    auth.check_token(x_register_token)
+
+    job = store.get(job_id)
+
+    if job is None:
+        raise HTTPException(status_code=404, detail="no such backup job")
+
+    name = str(payload.get("name") or "").strip()
+
+    if not volume_backups.owns(name, source_of(job)):
+        raise HTTPException(
+            status_code=400, detail=f"{name} was not written by this job"
+        )
+
+    try:
+        return volume_backups._call(
+            "POST",
+            f"{volume_backups._base_url(registry.all(), job['dest_host'])}"
+            "/backup/archives/verify",
+            json={"directory": job["directory"], "name": name},
+            # Reading a big archive back takes as long as it takes.
+            timeout=volume_backups.VERIFY_TIMEOUT,
+        )
+    except BackupError as error:
+        raise _fail(error)
+
+
 @router.post("/api/backups/{job_id}/archives/delete")
 def delete_backup_archives(job_id: str, payload: dict,
                            x_register_token: str | None = Header(default=None)):

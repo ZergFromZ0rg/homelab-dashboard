@@ -54,6 +54,10 @@ POLL_SECONDS = env_float("VOLUME_BACKUP_POLL", 10)
 # wedged forever eventually reports something.
 MAX_RUN_SECONDS = env_float("VOLUME_BACKUP_MAX_SECONDS", 6 * 3600)
 
+# Verifying decompresses the whole archive, so it scales with the backup,
+# not with a request.
+VERIFY_TIMEOUT = env_float("VOLUME_BACKUP_VERIFY_TIMEOUT", 900)
+
 DEFAULT_INTERVAL_HOURS = env_float("VOLUME_BACKUP_INTERVAL_HOURS", 24)
 DEFAULT_KEEP = env_int("VOLUME_BACKUP_KEEP", 7)
 

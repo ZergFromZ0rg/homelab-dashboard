@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import BackupForm from "./BackupForm";
-import { deleteArchives, fetchBackupArchives, runBackup } from "./backupsApi";
+import { deleteArchives, fetchBackupArchives, runBackup, verifyArchive } from "./backupsApi";
 import { formatAge, formatBytes } from "./format";
 import { hostColor } from "./hostColor";
 
@@ -43,11 +43,28 @@ function state(job, now) {
   return { key: "ok", label: "Up to date" };
 }
 
+// The result of reading an archive back. Deliberately terse: the useful
+// states are "intact, N files" and the reason it isn't.
+function verdict(result) {
+  if (!result) return null;
+  if (result.pending) return <span className="muted">reading…</span>;
+  if (result.ok) {
+    return (
+      <span className="archive-ok" title={`${result.bytes} bytes uncompressed`}>
+        intact · {result.files} files
+      </span>
+    );
+  }
+  return <span className="archive-bad" title={result.error}>failed</span>;
+}
+
+
 function Archives({ job, now, onClose }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   const [reload, setReload] = useState(0);
+  const [checked, setChecked] = useState({});
 
   // Fetched when the panel opens rather than with the job list: it costs a
   // round trip to the destination agent, and most of the time nobody is
@@ -63,6 +80,16 @@ function Archives({ job, now, onClose }) {
       live = false;
     };
   }, [job.id, reload]);
+
+  const check = async (name) => {
+    setChecked((was) => ({ ...was, [name]: { pending: true } }));
+    try {
+      const result = await verifyArchive(job.id, name);
+      setChecked((was) => ({ ...was, [name]: result }));
+    } catch (e) {
+      setChecked((was) => ({ ...was, [name]: { ok: false, error: e.message } }));
+    }
+  };
 
   const remove = async (name) => {
     setBusy(true);
@@ -98,6 +125,15 @@ function Archives({ job, now, onClose }) {
                 <code>{archive.name}</code>
                 <span>{formatBytes(archive.bytes)}</span>
                 <span>{formatAge(now - archive.modified_at)}</span>
+                <span className="archive-check">{verdict(checked[archive.name])}</span>
+                <button
+                  type="button"
+                  className="btn btn--sm btn--ghost"
+                  disabled={checked[archive.name]?.pending}
+                  onClick={() => check(archive.name)}
+                >
+                  {checked[archive.name]?.pending ? "Reading…" : "Verify"}
+                </button>
                 <button
                   type="button"
                   className="btn btn--sm btn--ghost"

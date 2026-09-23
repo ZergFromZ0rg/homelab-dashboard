@@ -44,3 +44,8 @@ export const deleteBackup = (id) => send("DELETE", `/api/backups/${id}`);
 export const runBackup = (id) => send("POST", `/api/backups/${id}/run`);
 export const deleteArchives = (id, names) =>
   send("POST", `/api/backups/${id}/archives/delete`, { names });
+
+// Reads the archive back on the host that holds it — the whole thing,
+// through gzip, every tar member. Takes as long as the archive is big.
+export const verifyArchive = (id, name) =>
+  send("POST", `/api/backups/${id}/archives/verify`, { name });
