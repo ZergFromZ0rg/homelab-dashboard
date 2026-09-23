@@ -483,6 +483,11 @@ def _receive_url(nodes: dict, host: str) -> str:
     return str(reported or _base_url(nodes, host)).rstrip("/")
 
 
+def store_on(nodes: dict, host: str) -> dict:
+    """Whether one host can receive backups. Cheap — no measuring."""
+    return _call("GET", f"{_base_url(nodes, host)}/backup/store", timeout=8)
+
+
 def projects_on(nodes: dict, host: str) -> dict:
     """What this host runs and the data each project owns."""
     return _call("GET", f"{_base_url(nodes, host)}/backup/projects", timeout=60)

@@ -190,3 +190,44 @@ def test_reading_the_job_list_stays_open(client, monkeypatch):
     monkeypatch.setattr(auth, "API_TOKEN", "sekret")
 
     assert client.get("/api/backups").status_code == 200
+
+
+def test_destinations_say_which_hosts_can_receive(client, monkeypatch):
+    """Choosing where a backup goes should be a choice between known
+    options, not a guess you discover was wrong after selecting it."""
+    def fake_call(method, url, **kwargs):
+        if "bigboy" in url:
+            return {"host": "bigboy", "roots": [
+                {"path": "/backups", "usable": True, "host_path": "/home/zerg/backups"},
+            ], "encrypted": True}
+        return {"host": "thinkpad", "roots": [
+            {"path": "/backups", "usable": False,
+             "problem": "/backups is not backed by a directory on this host"},
+        ], "encrypted": False}
+
+    monkeypatch.setattr(vb, "_call", fake_call)
+    monkeypatch.setattr(main.registry, "all", lambda: {
+        "bigboy": {"url": "http://bigboy:8123"},
+        "thinkpad": {"url": "http://thinkpad:8123"},
+    })
+
+    out = {d["host"]: d for d in client.get("/api/backups/destinations").json()["destinations"]}
+
+    assert out["bigboy"]["can_store"] is True
+    assert out["bigboy"]["roots"] == ["/backups"]
+    assert out["bigboy"]["encrypted"] is True
+    assert out["thinkpad"]["can_store"] is False
+    assert "not backed by a directory" in out["thinkpad"]["problem"]
+
+
+def test_an_unreachable_host_is_not_a_destination(client, monkeypatch):
+    def fake_call(method, url, **kwargs):
+        raise BackupError("couldn't reach the agent", status_code=502)
+
+    monkeypatch.setattr(vb, "_call", fake_call)
+
+    out = client.get("/api/backups/destinations").json()["destinations"]
+
+    assert out, "a host that cannot be asked is still listed, with the reason"
+    assert all(d["can_store"] is False for d in out)
+    assert all("couldn't reach" in d["problem"] for d in out)

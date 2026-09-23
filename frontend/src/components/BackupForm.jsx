@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchBackupTargets } from "./backupsApi";
+import { fetchBackupDestinations, fetchBackupTargets } from "./backupsApi";
 import { formatBytes } from "./format";
 import { hostColor } from "./hostColor";
 
@@ -62,8 +62,17 @@ function BackupForm({ hosts, defaultDestHost, job, onSubmit, onCancel }) {
   const [customPath, setCustomPath] = useState(job?.path || "");
   const [name, setName] = useState(job?.name || "");
   const [sourceHost, setSourceHost] = useState(job?.source_host || hosts[0] || "");
+  // Off-host by default. A copy that lives on the machine it came from
+  // dies with that machine, and the commonest case — backing up the box
+  // that runs the dashboard — is exactly where "default to the dashboard's
+  // host" gets it wrong.
+  const initialSource = job?.source_host || hosts[0] || "";
   const [destHost, setDestHost] = useState(
-    job?.dest_host || defaultDestHost || hosts[0] || ""
+    job?.dest_host
+      || (defaultDestHost && defaultDestHost !== initialSource ? defaultDestHost : "")
+      || hosts.find((h) => h !== initialSource)
+      || hosts[0]
+      || ""
   );
   // null means "nobody has typed a directory", which is what lets the
   // suggestion below stay live as the destination changes. An edited job
@@ -83,8 +92,23 @@ function BackupForm({ hosts, defaultDestHost, job, onSubmit, onCancel }) {
   // screen under thinkpad's name.
   const [source, setSource] = useState(null);
   const [dest, setDest] = useState(null);
+  const [destinations, setDestinations] = useState(null);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
+
+  // Which hosts can receive anything. Asked once, and cheap — the agent
+  // route behind it measures nothing.
+  useEffect(() => {
+    let live = true;
+
+    fetchBackupDestinations()
+      .then((body) => live && setDestinations(body.destinations || []))
+      .catch(() => live && setDestinations([]));
+
+    return () => {
+      live = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!sourceHost) return undefined;
@@ -276,14 +300,26 @@ function BackupForm({ hosts, defaultDestHost, job, onSubmit, onCancel }) {
         <label>
           <span>To</span>
           <select value={destHost} onChange={(e) => setDestHost(e.target.value)}>
-            {hosts.map((h) => (
-              <option key={h} value={h}>{h}</option>
-            ))}
+            {hosts.map((h) => {
+              const known = destinations?.find((d) => d.host === h);
+              const label =
+                known && !known.can_store
+                  ? `${h} — can't store backups`
+                  : h === sourceHost
+                    ? `${h} — same machine`
+                    : h;
+              return (
+                <option key={h} value={h}>{label}</option>
+              );
+            })}
           </select>
           {destHost === sourceHost && (
             <em className="field-hint field-hint--warn">
               Same host — a backup that dies with the machine it's on.
             </em>
+          )}
+          {destinations?.find((d) => d.host === destHost)?.encrypted && (
+            <em className="field-hint">Archives stored here are encrypted.</em>
           )}
         </label>
 

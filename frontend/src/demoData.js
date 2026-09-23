@@ -828,3 +828,18 @@ export function demoHostRecovery(host) {
     ],
   };
 }
+
+// Which hosts can receive a backup. thinkpad can; bigboy can't, which is
+// the case the picker exists to make visible before you choose it.
+export function demoBackupDestinations() {
+  return {
+    destinations: [
+      { host: "bigboy", can_store: false, roots: [], encrypted: false,
+        problem: "bigboy stores no backups — set BACKUP_HOST_DIR in its agent's .env" },
+      { host: "nuc-media", can_store: false, roots: [], encrypted: false,
+        problem: "couldn't reach this agent" },
+      { host: "thinkpad", can_store: true, roots: ["/backups"], encrypted: true,
+        problem: null },
+    ],
+  };
+}

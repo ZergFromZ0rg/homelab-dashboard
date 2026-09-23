@@ -149,6 +149,45 @@ def _config_backup(nodes: dict, host: str) -> dict:
         return {"state": "unknown"}
 
 
+@router.get("/api/backups/destinations")
+def backup_destinations(x_register_token: str | None = Header(default=None)):
+    """Every host, and whether a backup can be sent to it.
+
+    So choosing where a backup goes is a choice between known options
+    rather than a guess you only find out was wrong after selecting it. A
+    host that cannot store anything says why, in its agent's own words.
+    """
+    auth.check_token(x_register_token)
+
+    nodes = registry.all()
+    out = []
+
+    for host in sorted(nodes):
+        try:
+            store_info = volume_backups.store_on(nodes, host)
+            roots = [r for r in store_info.get("roots") or [] if r.get("usable")]
+            blocked = [r for r in store_info.get("roots") or [] if not r.get("usable")]
+
+            out.append({
+                "host": host,
+                "can_store": bool(roots),
+                "roots": [r["path"] for r in roots],
+                "encrypted": bool(store_info.get("encrypted")),
+                "problem": (blocked[0].get("problem") if blocked else None) or (
+                    None if roots else
+                    f"{host} stores no backups — set BACKUP_HOST_DIR in its "
+                    "agent's .env to a directory on that machine"
+                ),
+            })
+        except BackupError as error:
+            out.append({
+                "host": host, "can_store": False, "roots": [],
+                "encrypted": False, "problem": str(error),
+            })
+
+    return {"destinations": out}
+
+
 @router.get("/api/backups/targets/{host}")
 def backup_targets(host: str, x_register_token: str | None = Header(default=None)):
     """What a host can back up, and whether it can store backups.

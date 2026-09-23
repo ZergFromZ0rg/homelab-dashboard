@@ -1,4 +1,10 @@
-import { DEMO, demoBackups, demoBackupArchives, demoBackupTargets } from "../demoData";
+import {
+  DEMO,
+  demoBackups,
+  demoBackupArchives,
+  demoBackupDestinations,
+  demoBackupTargets,
+} from "../demoData";
 import { authHeaders, jsonOrThrow } from "./apiAuth";
 
 // Volume backups. The job list is cheap and contacts no agent, so the tab
@@ -25,6 +31,14 @@ export function fetchBackups() {
 // What a host can back up, and whether it can store backups. The form is
 // built from this, so a host that can't store anything has to come back
 // with the reason rather than an empty list.
+// Which hosts can receive a backup at all, so choosing one is a choice
+// between known options rather than a guess.
+export function fetchBackupDestinations() {
+  if (DEMO) return Promise.resolve(demoBackupDestinations());
+  return fetch("/api/backups/destinations", { headers: authHeaders() })
+    .then(jsonOrThrow);
+}
+
 export function fetchBackupTargets(host) {
   if (DEMO) return Promise.resolve(demoBackupTargets(host));
   return fetch(`/api/backups/targets/${encodeURIComponent(host)}`, {
