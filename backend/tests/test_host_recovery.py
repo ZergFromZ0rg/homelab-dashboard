@@ -227,3 +227,101 @@ def test_projects_must_be_a_list(client):
 def test_creating_from_projects_is_token_gated(client, monkeypatch):
     monkeypatch.setattr(auth, "API_TOKEN", "sekret")
     assert ask(client).status_code == 401
+
+
+# ---- deciding not to back something up ------------------------------------
+
+
+@pytest.fixture
+def ignores(tmp_path, monkeypatch):
+    from backend import backup_ignores
+
+    store = backup_ignores.IgnoreStore(tmp_path / "ignores.json")
+    monkeypatch.setattr(backup_ignores, "store", store)
+    return store
+
+
+def test_an_ignored_stack_stops_counting_as_a_gap(client, ignores):
+    """Otherwise the panel reports the same answer forever, alongside the
+    gaps that are real, and stops being read."""
+    before = client.get("/api/hosts/bigboy/recovery").json()
+    assert before["unprotected_count"] == 5
+
+    client.put("/api/hosts/bigboy/recovery/ignore",
+               json={"projects": ["jellyfin"], "reason": "media is re-acquirable"})
+
+    after = client.get("/api/hosts/bigboy/recovery").json()
+
+    assert after["unprotected_count"] == 2, "only ai-librarian's two remain"
+    assert after["ignored_count"] == 1
+
+
+def test_an_ignored_stack_is_still_shown_with_its_reason(client, ignores):
+    """Hiding it would just move the surprise."""
+    client.put("/api/hosts/bigboy/recovery/ignore",
+               json={"projects": ["jellyfin"], "reason": "media is re-acquirable"})
+
+    body = client.get("/api/hosts/bigboy/recovery").json()
+    jellyfin = next(p for p in body["projects"] if p["project"] == "jellyfin")
+
+    assert jellyfin["ignored"]["reason"] == "media is re-acquirable"
+    assert jellyfin["items"], "its data is still listed"
+
+
+def test_ignoring_does_not_change_its_bytes_out_of_existence(client, ignores):
+    """The data is still there and still unprotected; what changed is that
+    somebody decided about it."""
+    client.put("/api/hosts/bigboy/recovery/ignore", json={"projects": ["jellyfin"]})
+
+    body = client.get("/api/hosts/bigboy/recovery").json()
+
+    assert body["unprotected_bytes"] == 730_508_267 + 1_891_612_940
+    jellyfin = next(p for p in body["projects"] if p["project"] == "jellyfin")
+    assert any(i["bytes"] for i in jellyfin["items"])
+
+
+def test_a_decision_can_be_taken_back(client, ignores):
+    client.put("/api/hosts/bigboy/recovery/ignore", json={"projects": ["jellyfin"]})
+
+    resp = client.delete("/api/hosts/bigboy/recovery/ignore/jellyfin")
+
+    assert resp.status_code == 200
+    assert client.get("/api/hosts/bigboy/recovery").json()["unprotected_count"] == 5
+
+
+def test_unignoring_something_that_was_not_ignored_is_a_404(client, ignores):
+    assert client.delete(
+        "/api/hosts/bigboy/recovery/ignore/jellyfin"
+    ).status_code == 404
+
+
+def test_decisions_are_per_host(client, ignores):
+    """Two hosts can run the same stack and disagree about whether its data
+    matters."""
+    ignores.add("thinkpad", "jellyfin", "not the one I care about")
+
+    body = client.get("/api/hosts/bigboy/recovery").json()
+
+    assert body["ignored_count"] == 0, "thinkpad's decision is not bigboy's"
+
+
+def test_decisions_survive_a_restart(tmp_path):
+    from backend import backup_ignores
+
+    path = tmp_path / "ignores.json"
+    backup_ignores.IgnoreStore(path).add("bigboy", "grafana", "replaced by this")
+
+    (row,) = backup_ignores.IgnoreStore(path).all()
+
+    assert row["project"] == "grafana"
+    assert row["reason"] == "replaced by this"
+
+
+def test_ignoring_is_token_gated(client, ignores, monkeypatch):
+    monkeypatch.setattr(auth, "API_TOKEN", "sekret")
+
+    assert client.put("/api/hosts/bigboy/recovery/ignore",
+                      json={"projects": ["x"]}).status_code == 401
+    assert client.delete(
+        "/api/hosts/bigboy/recovery/ignore/x"
+    ).status_code == 401

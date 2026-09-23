@@ -58,6 +58,16 @@ export function fetchBackupArchives(id) {
 export const backupProjects = (body) =>
   send("POST", "/api/backups/from-projects", body);
 
+// Recording that a stack is deliberately not backed up. Not hiding it —
+// it stays on the page; it stops counting as a gap.
+export const ignoreProjects = (host, projects, reason) =>
+  send("PUT", `/api/hosts/${encodeURIComponent(host)}/recovery/ignore`,
+       { projects, reason });
+
+export const unignoreProject = (host, project) =>
+  send("DELETE",
+       `/api/hosts/${encodeURIComponent(host)}/recovery/ignore/${encodeURIComponent(project)}`);
+
 export const createBackup = (spec) => send("POST", "/api/backups", spec);
 export const updateBackup = (id, patch) => send("PUT", `/api/backups/${id}`, patch);
 export const deleteBackup = (id) => send("DELETE", `/api/backups/${id}`);

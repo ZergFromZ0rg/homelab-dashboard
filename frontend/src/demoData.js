@@ -759,8 +759,9 @@ export function demoHostRecovery(host) {
       host,
       source_dirs: ["/home/zerg/ai-librarian"],
       config_backup: { state: "ok", repo: "ZergFromZ0rg/homelab-backups", last_success_age: 7200 },
-      unprotected_bytes: 184_320_000 + 9_400_000,
-      unprotected_count: 2,
+      unprotected_bytes: 184_320_000,
+      unprotected_count: 1,
+      ignored_count: 1,
       projects: [
         {
           project: "ai-librarian",
@@ -789,6 +790,8 @@ export function demoHostRecovery(host) {
           working_dir: "/home/zerg/docker/stacks/portainer",
           containers: ["portainer"],
           protected: false,
+          ignored: { host: "bigboy", project: "portainer",
+                     reason: "replaced by this dashboard", at: 0 },
           items: [
             { kind: "volume", name: "portainer_data", bytes: 9_400_000,
               allowed: true, partial: false, protected_by: null },

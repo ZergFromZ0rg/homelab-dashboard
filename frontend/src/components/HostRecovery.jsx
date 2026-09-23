@@ -1,7 +1,12 @@
 import { useState } from "react";
 import { DEMO, demoHostRecovery } from "../demoData";
 import { authHeaders, jsonOrThrow } from "./apiAuth";
-import { backupProjects, fetchBackupDestinations } from "./backupsApi";
+import {
+  backupProjects,
+  fetchBackupDestinations,
+  ignoreProjects,
+  unignoreProject,
+} from "./backupsApi";
 import { formatAge, formatBytes } from "./format";
 
 // What you would have if this machine died tonight.
@@ -69,8 +74,14 @@ function HostRecovery({ host }) {
     try {
       const body = await fetchRecovery(host);
       setData(body);
+      // Ticked: gaps nobody has decided about. A stack you already said
+      // you don't want must not be pre-selected for backing up.
       setChosen(
-        new Set(body.projects.filter((p) => !p.protected).map((p) => p.project))
+        new Set(
+          body.projects
+            .filter((p) => !p.protected && !p.ignored)
+            .map((p) => p.project)
+        )
       );
 
       const where = await fetchBackupDestinations().catch(() => ({ destinations: [] }));
@@ -105,7 +116,7 @@ function HostRecovery({ host }) {
         IF THIS HOST DIED
         {data && (
           <span className={`conn-count ${gaps ? "conn-count--bad" : ""}`}>
-            {gaps ? `${gaps} unprotected` : "all covered"}
+            {gaps ? `${gaps} undecided` : "nothing outstanding"}
           </span>
         )}
       </button>
@@ -122,8 +133,16 @@ function HostRecovery({ host }) {
               {gaps > 0 && (
                 <p className="recovery-summary">
                   <strong>{formatBytes(data.unprotected_bytes)}</strong> of data
-                  in {gaps} place{gaps > 1 ? "s" : ""} has no backup job. Losing
-                  this machine loses it.
+                  in {gaps} place{gaps > 1 ? "s" : ""} has no backup job and no
+                  decision. Losing this machine loses it.
+                  {data.ignored_count > 0 && (
+                    <em>
+                      {" "}
+                      ({data.ignored_count} stack
+                      {data.ignored_count > 1 ? "s" : ""} deliberately not
+                      backed up, below.)
+                    </em>
+                  )}
                 </p>
               )}
 
@@ -149,6 +168,39 @@ function HostRecovery({ host }) {
                         </label>
                       )}
                       {project.working_dir && <code>{project.working_dir}</code>}
+
+                      {project.ignored ? (
+                        <span className="recovery-ignored">
+                          not backed up on purpose
+                          {project.ignored.reason ? ` — ${project.ignored.reason}` : ""}
+                          <button
+                            type="button"
+                            className="btn btn--sm btn--ghost"
+                            onClick={async () => {
+                              await unignoreProject(host, project.project);
+                              await load();
+                            }}
+                          >
+                            undo
+                          </button>
+                        </span>
+                      ) : !project.protected ? (
+                        <button
+                          type="button"
+                          className="btn btn--sm btn--ghost"
+                          onClick={async () => {
+                            const why = window.prompt(
+                              `Why is ${project.project} not worth backing up?`,
+                              "replaced by this dashboard"
+                            );
+                            if (why === null) return;
+                            await ignoreProjects(host, [project.project], why);
+                            await load();
+                          }}
+                        >
+                          don&apos;t back this up
+                        </button>
+                      ) : null}
                     </div>
 
                     {project.items.length === 0 ? (

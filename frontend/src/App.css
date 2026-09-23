@@ -5561,3 +5561,14 @@ a.check-target:hover {
 .recovery-result p {
   margin: 2px 0;
 }
+
+/* A stack somebody decided against. Visible, not hidden — hiding it would
+   just move the surprise — but visibly out of the running. */
+.recovery-ignored {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+}

@@ -17,6 +17,7 @@ import asyncio
 from fastapi import APIRouter, Header, HTTPException
 
 from backend import auth
+from backend import backup_ignores
 from backend import volume_backups
 from backend.log import system as log
 from backend.registry import registry
@@ -99,6 +100,7 @@ def host_recovery(host: str, x_register_token: str | None = Header(default=None)
                 }
         return None
 
+    ignored = backup_ignores.store.for_host(host)
     projects = []
     unprotected_bytes = 0
 
@@ -113,9 +115,16 @@ def host_recovery(host: str, x_register_token: str | None = Header(default=None)
             items.append({**directory, "kind": "path", "name": directory["path"],
                           "protected_by": protection("path", directory["path"])})
 
-        for item in items:
-            if not item["protected_by"]:
-                unprotected_bytes += item.get("bytes") or 0
+        decision = ignored.get(project["project"])
+
+        # A stack somebody has decided about is not a gap. It stays on the
+        # page — hiding it would just move the surprise — but it stops
+        # counting, so the headline number means "gaps I have not decided
+        # about" rather than "everything I have not configured".
+        if not decision:
+            for item in items:
+                if not item["protected_by"]:
+                    unprotected_bytes += item.get("bytes") or 0
 
         projects.append({
             "project": project["project"],
@@ -123,6 +132,7 @@ def host_recovery(host: str, x_register_token: str | None = Header(default=None)
             "containers": project.get("containers", []),
             "items": items,
             "protected": all(i["protected_by"] for i in items) if items else True,
+            "ignored": decision or None,
         })
 
     return {
@@ -132,8 +142,10 @@ def host_recovery(host: str, x_register_token: str | None = Header(default=None)
         "projects": projects,
         "unprotected_bytes": unprotected_bytes,
         "unprotected_count": sum(
-            1 for p in projects for i in p["items"] if not i["protected_by"]
+            1 for p in projects if not p["ignored"]
+            for i in p["items"] if not i["protected_by"]
         ),
+        "ignored_count": sum(1 for p in projects if p["ignored"]),
     }
 
 
@@ -147,6 +159,41 @@ def _config_backup(nodes: dict, host: str) -> dict:
     except Exception as error:  # noqa: BLE001 - a missing half is not fatal
         log.debug("config backup status for %s: %s", host, error)
         return {"state": "unknown"}
+
+
+@router.put("/api/hosts/{host}/recovery/ignore")
+def ignore_projects(host: str, payload: dict,
+                    x_register_token: str | None = Header(default=None)):
+    """Record that a stack is deliberately not backed up.
+
+    Not a way to hide things — an ignored stack stays on the page with the
+    reason. What changes is that it stops being counted as a gap, so the
+    number at the top keeps meaning something.
+    """
+    auth.check_token(x_register_token)
+
+    projects = payload.get("projects")
+    reason = str(payload.get("reason") or "")
+
+    if not isinstance(projects, list) or not all(isinstance(p, str) for p in projects):
+        raise HTTPException(status_code=400, detail="projects must be a list of names")
+
+    return {
+        "ignored": [
+            backup_ignores.store.add(host, project, reason) for project in projects
+        ]
+    }
+
+
+@router.delete("/api/hosts/{host}/recovery/ignore/{project}")
+def unignore_project(host: str, project: str,
+                     x_register_token: str | None = Header(default=None)):
+    auth.check_token(x_register_token)
+
+    if not backup_ignores.store.remove(host, project):
+        raise HTTPException(status_code=404, detail="that stack was not ignored")
+
+    return {"ok": True}
 
 
 @router.post("/api/backups/from-projects")
