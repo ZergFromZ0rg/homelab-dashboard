@@ -872,3 +872,58 @@ def test_a_plain_archive_needs_no_decrypt_step(jobs):
     steps = restore_steps(job, "home-zerg-x-20260922-010203.tar.gz")
 
     assert not any("gpg" in s["command"] for s in steps)
+
+
+def test_a_busy_host_is_not_a_failed_backup(monkeypatch, jobs):
+    """The agent runs one backup per host and answers 409 when busy.
+    Recording that as a failure raises a bad alert about nothing and buries
+    the real ones."""
+    job = jobs.add(a_job())
+
+    def fake_call(method, url, **kwargs):
+        if "/backup/volumes/run" in url:
+            raise BackupError("a backup is already running on this host",
+                              status_code=409)
+        return {"store": {"receive_url": "http://thinkpad:8123"}}
+
+    monkeypatch.setattr(vb, "_call", fake_call)
+
+    out = vb.run_job(NODES, jobs.all()[0], jobs=jobs, sleep=lambda _: None)
+
+    assert out["ok"] is None and out["busy"] is True
+    stored = jobs.all()[0]
+    assert stored["last_error"] is None, "busy is not an error"
+    assert vb.state(stored) != "failing"
+
+
+def test_a_busy_host_does_not_push_the_schedule_out(monkeypatch, jobs):
+    """A job queued behind a long one would otherwise have its interval
+    reset by an attempt that never ran, and could starve forever."""
+    job = jobs.add(a_job(interval_hours=1))
+    before = jobs.all()[0]["last_run_at"]
+
+    def fake_call(method, url, **kwargs):
+        if "/backup/volumes/run" in url:
+            raise BackupError("busy", status_code=409)
+        return {"store": {"receive_url": "http://thinkpad:8123"}}
+
+    monkeypatch.setattr(vb, "_call", fake_call)
+    vb.run_job(NODES, jobs.all()[0], jobs=jobs, sleep=lambda _: None)
+
+    assert jobs.all()[0]["last_run_at"] == before
+    assert vb.due(jobs.all()[0]) is True, "still due, so the next tick retries"
+
+
+def test_a_real_failure_is_still_a_failure(monkeypatch, jobs):
+    job = jobs.add(a_job())
+
+    def fake_call(method, url, **kwargs):
+        if "/backup/volumes/run" in url:
+            raise BackupError("no volume named 'ghost'", status_code=400)
+        return {"store": {"receive_url": "http://thinkpad:8123"}}
+
+    monkeypatch.setattr(vb, "_call", fake_call)
+    out = vb.run_job(NODES, jobs.all()[0], jobs=jobs, sleep=lambda _: None)
+
+    assert out["ok"] is False
+    assert "ghost" in jobs.all()[0]["last_error"]

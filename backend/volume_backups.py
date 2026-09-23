@@ -612,10 +612,27 @@ def run_job(nodes: dict, job: dict, *, jobs: BackupJobStore | None = None,
     """
     jobs = jobs or store
     jobs.mark_running(job["id"], True)
-    jobs.record(job["id"], last_run_at=now())
+    started_at = now()
+    jobs.record(job["id"], last_run_at=started_at)
 
     try:
-        started = start_backup(nodes, job)
+        try:
+            started = start_backup(nodes, job)
+        except BackupError as error:
+            # The agent runs one backup per host and answers 409 when it is
+            # busy. That is "not now", not "this backup failed" — recording
+            # it as a failure would raise a bad alert about nothing and
+            # bury the real ones. Left untouched so the next tick retries.
+            if error.status_code == 409:
+                # Put the clock back too: a job queued behind a long one
+                # would otherwise have its interval reset by an attempt
+                # that never ran, and could starve indefinitely.
+                jobs.record(job["id"], last_run_at=job.get("last_run_at"))
+                log.info("backup %s: host busy, will retry", job["id"])
+                return {"ok": None, "busy": True}
+
+            raise
+
         finished = wait_for(nodes, job, started["id"], sleep=sleep, now=now)
 
         if finished.get("state") != "succeeded":
