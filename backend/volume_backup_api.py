@@ -158,6 +158,23 @@ def restore_steps(job: dict, archive: str) -> list[dict]:
             "command": f"scp {path} {source_host}:/tmp/",
         })
 
+    encrypted = archive.endswith(".gpg")
+
+    if encrypted:
+        steps.append({
+            "where": source_host,
+            "what": (
+                "Decrypt it. The passphrase is the one set on the agent that "
+                "made this backup — if it is lost, this archive is not "
+                "recoverable by any means."
+            ),
+            "command": (
+                f"gpg --batch --pinentry-mode loopback --passphrase '<passphrase>' "
+                f"-o {staged.removesuffix('.gpg')} -d {staged}"
+            ),
+        })
+        staged = staged.removesuffix(".gpg")
+
     if job.get("volume"):
         steps.append({
             "where": source_host,
@@ -200,7 +217,11 @@ def restore_steps(job: dict, archive: str) -> list[dict]:
     steps.append({
         "where": "anywhere",
         "what": "Check the archive before trusting it — or use Verify above.",
-        "command": f"tar tzf {staged} | head",
+        "command": (
+            f"gpg --batch --pinentry-mode loopback --passphrase '<passphrase>' "
+            f"-d {path} | tar tz | head"
+            if encrypted else f"tar tzf {staged} | head"
+        ),
     })
 
     return steps

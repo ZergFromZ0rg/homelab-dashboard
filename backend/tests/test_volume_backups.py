@@ -815,3 +815,53 @@ def test_a_job_that_just_ran_is_not_verified_in_the_same_pass(monkeypatch, jobs)
 
     assert len(ran) == 1
     assert "verify" not in ran[0]
+
+
+# ---- encrypted archives ---------------------------------------------------
+
+
+def test_retention_matches_encrypted_archives_too():
+    """Turning encryption on must not orphan everything written before it,
+    nor stop pruning what comes after."""
+    volume = "ai-librarian_qdrant"
+
+    assert vb.owns(f"{vb.archive_prefix(volume)}-20260922-010203.tar.gz", volume)
+    assert vb.owns(f"{vb.archive_prefix(volume)}-20260922-010203.tar.gz.gpg", volume)
+
+
+def test_pruning_counts_both_kinds_as_the_same_job(monkeypatch, jobs):
+    job = jobs.add(a_job(keep=1))
+    prefix = vb.archive_prefix(job["volume"])
+    stub_calls(monkeypatch, {
+        "/backup/archives": {"archives": [
+            archive(f"{prefix}-20260303-000000.tar.gz.gpg", 3),
+            archive(f"{prefix}-20260101-000000.tar.gz", 1),
+        ]},
+        "/backup/archives/delete": {"deleted": [f"{prefix}-20260101-000000.tar.gz"]},
+    })
+
+    assert vb.prune(NODES, job) == [f"{prefix}-20260101-000000.tar.gz"]
+
+
+def test_restoring_an_encrypted_archive_decrypts_first(jobs):
+    from backend.volume_backup_api import restore_steps
+
+    job = jobs.add(a_path_job())
+    jobs.record(job["id"], last_stopped=["ai-librarian-qdrant-1"])
+    steps = restore_steps(jobs.all()[0], "home-zerg-x-20260922-010203.tar.gz.gpg")
+    commands = [s["command"] for s in steps]
+
+    assert any("gpg" in c and "-d" in c for c in commands)
+    decrypt = next(i for i, c in enumerate(commands) if "gpg" in c and "-o" in c)
+    extract = next(i for i, c in enumerate(commands) if "tar xzf" in c)
+    assert decrypt < extract, "decrypt before extracting"
+    assert ".gpg" not in commands[extract], "extract the plaintext, not the ciphertext"
+
+
+def test_a_plain_archive_needs_no_decrypt_step(jobs):
+    from backend.volume_backup_api import restore_steps
+
+    job = jobs.add(a_path_job())
+    steps = restore_steps(job, "home-zerg-x-20260922-010203.tar.gz")
+
+    assert not any("gpg" in s["command"] for s in steps)

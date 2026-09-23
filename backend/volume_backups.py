@@ -70,7 +70,10 @@ MAX_JOBS = 50
 MAX_NAME = 80
 MAX_ERROR = 300
 
-ARCHIVE = re.compile(r"^(?P<prefix>.+)-\d{8}-\d{6}\.tar\.gz$")
+# ``.gpg`` when the source host has a backup passphrase set. Retention has
+# to match both, or turning encryption on silently orphans every archive
+# written before it and stops pruning the new ones.
+ARCHIVE = re.compile(r"^(?P<prefix>.+)-\d{8}-\d{6}\.tar\.gz(?:\.gpg)?$")
 
 
 class BackupError(Exception):

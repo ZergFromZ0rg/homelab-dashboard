@@ -720,6 +720,43 @@ nothing. An archive is also an ordinary gzipped tar, so `tar tzf` reads it
 anywhere with or without this dashboard, which is the point of not choosing
 a format with its own reader.
 
+### Encryption, and getting a copy out of the building
+
+Archives are plain gzipped tars by default — readable by anyone who can
+read the disk. That is fine while both copies are in your house and
+unhelpful the moment one isn't.
+
+Set **Encrypt backups with this passphrase** on a host's Settings panel and
+every archive it writes or receives goes through `gpg --symmetric`
+(AES-256), streaming, so a multi-gigabyte volume is still never held
+anywhere in full. Encrypted archives are named `.tar.gz.gpg`.
+
+Set the **same passphrase on every host**: the machine that checks an
+archive is usually not the one that encrypted it, and a host without the
+passphrase reports an encrypted archive as *unknown* rather than corrupt.
+
+**If you lose the passphrase, the archives are gone.** There is no
+recovery and that is the design — a backup system with a way in for you has
+a way in for everyone else. Write it down somewhere that is not one of
+these machines.
+
+The format is deliberately standard. A restore needs `gpg` and the
+passphrase and nothing from this repository:
+
+```bash
+gpg --batch --pinentry-mode loopback --passphrase '<passphrase>' \
+  -d archive.tar.gz.gpg | tar xzf - -C /the/target
+```
+
+A backup whose only reader is the tool that made it is a hostage, not a
+backup.
+
+**Offsite** then needs somewhere to put it. A destination is any directory
+the receiving agent can write, so a remote filesystem mounted on that host
+— an external disk, a NAS, an `rclone mount` of object storage — becomes a
+backup target with no new code: mount it, add it to that agent's
+destinations, and point a job at it. Encrypt first.
+
 ### When a backup stops working
 
 A failing job raises an alert like any other problem: **bad** when a run
