@@ -518,3 +518,172 @@ def test_a_path_job_survives_a_restart(tmp_path):
 
     assert reloaded["path"] == "/home/zerg/ai-librarian/data/qdrant"
     assert reloaded["volume"] is None
+
+
+# ---- health, and the alert it raises --------------------------------------
+
+
+def test_state_covers_each_way_a_job_can_be(jobs):
+    now = 1790000000.0
+    job = jobs.add(a_job(interval_hours=24))
+
+    assert vb.state(job, now) == "pending"
+
+    jobs.record(job["id"], last_run_at=now, last_success_at=now)
+    assert vb.state(jobs.all()[0], now) == "ok"
+
+    jobs.record(job["id"], last_success_at=now - 24 * 3600 * 2)
+    assert vb.state(jobs.all()[0], now) == "stale"
+
+    jobs.record(job["id"], last_run_at=now, last_error="no space left")
+    assert vb.state(jobs.all()[0], now) == "failing"
+
+    jobs.mark_running(job["id"], True)
+    assert vb.state(jobs.all()[0], now) == "running"
+
+
+def test_a_paused_job_is_not_stale(jobs):
+    """Pausing is a decision, not a fault, and it must not page anyone."""
+    now = 1790000000.0
+    job = jobs.add(a_job(enabled=False))
+    jobs.record(job["id"], last_success_at=now - 99999999)
+
+    assert vb.state(jobs.all()[0], now) == "paused"
+
+
+def test_a_failing_backup_raises_a_bad_alert(jobs):
+    from backend import alerts
+
+    now = 1790000000.0
+    job = jobs.add(a_job())
+    jobs.record(job["id"], last_run_at=now, last_error="couldn't reach the agent")
+
+    raised = alerts.evaluate({}, [], backups=jobs.all(), now=now)
+
+    (key, alert), = raised.items()
+    assert key == f"backup:{job['id']}"
+    assert alerts.severity_of(key, alert) == "bad"
+    assert "never succeeded" in alert["message"]
+    assert "couldn't reach the agent" in alert["message"]
+    assert alert["host"] == "bigboy"
+
+
+def test_a_stale_backup_is_a_warning_not_a_failure(jobs):
+    """Nothing broke; it just hasn't run. Worth a nudge, not a 2 a.m. page."""
+    from backend import alerts
+
+    now = 1790000000.0
+    job = jobs.add(a_job(interval_hours=24))
+    jobs.record(job["id"], last_run_at=now - 3 * 86400, last_success_at=now - 3 * 86400)
+
+    raised = alerts.evaluate({}, [], backups=jobs.all(), now=now)
+
+    (key, alert), = raised.items()
+    assert alerts.severity_of(key, alert) == "warn"
+    assert "behind" in alert["title"]
+
+
+def test_a_healthy_backup_raises_nothing(jobs):
+    from backend import alerts
+
+    now = 1790000000.0
+    job = jobs.add(a_job())
+    jobs.record(job["id"], last_run_at=now, last_success_at=now)
+
+    assert alerts.evaluate({}, [], backups=jobs.all(), now=now) == {}
+
+
+def test_a_paused_or_pending_backup_raises_nothing(jobs):
+    from backend import alerts
+
+    now = 1790000000.0
+    jobs.add(a_job(enabled=False))
+    jobs.add(a_job(volume="other"))
+
+    assert alerts.evaluate({}, [], backups=jobs.all(), now=now) == {}
+
+
+def test_the_alert_names_what_is_unprotected(jobs):
+    """The message has to be readable by someone who did not set the job
+    up, months later."""
+    from backend import alerts
+
+    now = 1790000000.0
+    job = jobs.add(a_path_job())
+    jobs.record(job["id"], last_run_at=now, last_error="no space left on device")
+
+    alert = alerts.evaluate({}, [], backups=jobs.all(), now=now)[f"backup:{job['id']}"]
+
+    assert "/home/zerg/ai-librarian/data/qdrant" in alert["message"]
+    assert "thinkpad:/backups/bigboy" in alert["message"]
+    assert "unprotected" in alert["hint"]
+
+
+def test_the_job_list_carries_its_state(backups_client, jobs):
+    jobs.add(a_job())
+
+    body = backups_client.get("/api/backups").json()
+
+    assert body["backups"][0]["state"] == "pending"
+
+
+@pytest.fixture
+def backups_client(jobs, monkeypatch):
+    """The app, with this test's store wired in."""
+    from fastapi.testclient import TestClient
+
+    from backend import main, volume_backup_api
+
+    monkeypatch.setattr(vb, "store", jobs)
+    monkeypatch.setattr(volume_backup_api, "store", jobs)
+    monkeypatch.setattr(volume_backup_api, "default_dest_host", lambda: "thinkpad")
+    return TestClient(main.app)
+
+
+def test_restore_steps_start_by_moving_the_archive_to_the_right_host(jobs):
+    """The archive is on the destination and the data belongs on the
+    source. A hint that skipped that step read fine and didn't work."""
+    from backend.volume_backup_api import restore_steps
+
+    job = jobs.add(a_path_job())
+    steps = restore_steps(job, "home-zerg-x-20260922-010203.tar.gz")
+
+    assert steps[0]["where"] == "thinkpad"
+    assert steps[0]["command"].startswith("scp /backups/bigboy/")
+    assert "bigboy:/tmp/" in steps[0]["command"]
+
+
+def test_restore_steps_for_a_directory_extract_in_place(jobs):
+    from backend.volume_backup_api import restore_steps
+
+    job = jobs.add(a_path_job())
+    jobs.record(job["id"], last_stopped=["ai-librarian-qdrant-1"])
+    commands = " ".join(
+        s["command"] for s in restore_steps(jobs.all()[0], "a-20260922-010203.tar.gz")
+    )
+
+    assert "docker stop ai-librarian-qdrant-1" in commands
+    assert "tar xzf /tmp/a-20260922-010203.tar.gz -C /home/zerg/ai-librarian/data/qdrant" in commands
+    assert "docker start ai-librarian-qdrant-1" in commands
+
+
+def test_restore_steps_for_a_volume_go_through_a_container(jobs):
+    from backend.volume_backup_api import restore_steps
+
+    job = jobs.add(a_job())
+    commands = " ".join(
+        s["command"] for s in restore_steps(job, "a-20260922-010203.tar.gz")
+    )
+
+    assert "-v ai-librarian_qdrant:/dest" in commands
+    assert "rm -rf /dest/*" in commands
+
+
+def test_a_same_host_restore_skips_the_copy(jobs):
+    from backend.volume_backup_api import restore_steps
+
+    job = jobs.add(a_path_job(dest_host="bigboy"))
+    steps = restore_steps(job, "a-20260922-010203.tar.gz")
+
+    assert not any("scp" in s["command"] for s in steps)
+    assert all(s["where"] in ("bigboy", "anywhere") for s in steps)

@@ -677,18 +677,47 @@ if one is skipped, the job says which.
 
 The dashboard does not restore for you. Restoring is a deliberate,
 destructive act with a stopped stack and a decision about what to
-overwrite, and a button for it would be a button for losing data. What the
-Archives panel does is tell you exactly what exists, how big it is, how old
-it is and the command to use:
+overwrite, and a button for it would be a button for losing data.
+
+What the Archives panel does is **spell out the steps with this job's real
+hosts, paths and containers in them**, because a restore happens rarely,
+under pressure, and usually by someone reading it for the first time. For a
+directory backed up from one host to another that is:
 
 ```bash
-docker run --rm -v <volume>:/dest -v /backups/bigboy:/src:ro \
+# on thinkpad — the archive lives where it was sent, not where it came from
+scp /backups/bigboy/<archive> bigboy:/tmp/
+
+# on bigboy
+docker stop ai-librarian-qdrant-1
+sudo rm -rf /home/zerg/ai-librarian/data/qdrant/* \
+  && sudo tar xzf /tmp/<archive> -C /home/zerg/ai-librarian/data/qdrant
+docker start ai-librarian-qdrant-1
+```
+
+The copy between hosts is the step a one-line hint skips and the one that
+makes the rest not work. For a *volume* source the middle step goes through
+a container instead, since a volume has no path to extract into:
+
+```bash
+docker run --rm -v <volume>:/dest -v /tmp:/src:ro \
   alpine sh -c 'rm -rf /dest/* && tar xzf /src/<archive> -C /dest'
 ```
 
-An archive is an ordinary gzipped tar. `tar tzf` reads it anywhere, with
-or without this dashboard — which is the point of not choosing a backup
-format with its own reader.
+**Verify** on any archive reads it back on the host holding it —
+decompresses the whole thing and walks every member — and reports intact or
+the reason it isn't. It is the closest thing to a restore that writes
+nothing. An archive is also an ordinary gzipped tar, so `tar tzf` reads it
+anywhere with or without this dashboard, which is the point of not choosing
+a format with its own reader.
+
+### When a backup stops working
+
+A failing job raises an alert like any other problem: **bad** when a run
+fails, **warn** when the last success is older than one and a half
+intervals. It appears in the Attention panel, in the alert history, and on
+your webhook if one is set. A paused job raises nothing — pausing is a
+decision, not a fault.
 
 ## Alerting
 

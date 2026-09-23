@@ -48,9 +48,18 @@ def default_dest_host() -> str | None:
 
 @router.get("/api/backups")
 def list_backups():
-    """Every configured job. Cheap — no agent is contacted, so this can
-    ride a polling UI."""
-    return {"backups": store.all(), "default_dest_host": default_dest_host()}
+    """Every configured job, each carrying the one word for how it's doing.
+
+    The state is computed here rather than in the browser so the tab, the
+    Overview panel and the alert that pages you cannot disagree about
+    whether a backup is working.
+    """
+    import time
+
+    now = time.time()
+    jobs = [{**job, "state": volume_backups.state(job, now)} for job in store.all()]
+
+    return {"backups": jobs, "default_dest_host": default_dest_host()}
 
 
 @router.get("/api/backups/targets/{host}")
@@ -125,6 +134,78 @@ async def run_backup_now(job_id: str,
     return {"started": True, "id": job_id}
 
 
+def restore_steps(job: dict, archive: str) -> list[dict]:
+    """How to put this archive back, as commands with the real values in.
+
+    Written out rather than summarised because a restore happens rarely,
+    under pressure, and usually by someone reading it for the first time.
+    The archive lives on the *destination* host and the data belongs on the
+    *source* host, so the first step is nearly always a copy between them —
+    which a single-line hint quietly skipped, and which is the step that
+    makes the rest not work.
+    """
+    source_host = job["source_host"]
+    dest_host = job["dest_host"]
+    local = source_host == dest_host
+    path = f"{job['directory'].rstrip('/')}/{archive}"
+    staged = path if local else f"/tmp/{archive}"
+    steps = []
+
+    if not local:
+        steps.append({
+            "where": dest_host,
+            "what": "Copy the archive to the host the data belongs on.",
+            "command": f"scp {path} {source_host}:/tmp/",
+        })
+
+    if job.get("volume"):
+        steps.append({
+            "where": source_host,
+            "what": (
+                f"Stop whatever uses {job['volume']}, then replace its "
+                "contents. Everything in the volume is deleted first, so a "
+                "half-restore can't leave old and new files mixed."
+            ),
+            "command": (
+                f"docker run --rm -v {job['volume']}:/dest "
+                f"-v {staged.rsplit('/', 1)[0]}:/src:ro alpine "
+                f"sh -c 'rm -rf /dest/* && tar xzf /src/{archive} -C /dest'"
+            ),
+        })
+    else:
+        stopped = " ".join(job.get("last_stopped") or []) or "<its containers>"
+        steps.append({
+            "where": source_host,
+            "what": "Stop whatever writes to this directory.",
+            "command": f"docker stop {stopped}",
+        })
+        steps.append({
+            "where": source_host,
+            "what": (
+                f"Replace the contents of {job['path']}. The directory is "
+                "emptied first so a restore can't leave old and new files "
+                "mixed together."
+            ),
+            "command": (
+                f"sudo rm -rf {job['path'].rstrip('/')}/* && "
+                f"sudo tar xzf {staged} -C {job['path']}"
+            ),
+        })
+        steps.append({
+            "where": source_host,
+            "what": "Start it again.",
+            "command": f"docker start {stopped}",
+        })
+
+    steps.append({
+        "where": "anywhere",
+        "what": "Check the archive before trusting it — or use Verify above.",
+        "command": f"tar tzf {staged} | head",
+    })
+
+    return steps
+
+
 @router.get("/api/backups/{job_id}/archives")
 def list_backup_archives(job_id: str,
                          x_register_token: str | None = Header(default=None)):
@@ -148,15 +229,13 @@ def list_backup_archives(job_id: str,
     except BackupError as error:
         raise _fail(error)
 
+    mine = [a for a in archives if volume_backups.owns(a["name"], source_of(job))]
+
     return {
         "host": job["dest_host"],
         "directory": job["directory"],
-        "archives": [a for a in archives
-                     if volume_backups.owns(a["name"], source_of(job))],
-        "restore_hint": (
-            f"docker run --rm -v <volume>:/dest -v {job['directory']}:/src:ro "
-            "alpine sh -c 'rm -rf /dest/* && tar xzf /src/<archive> -C /dest'"
-        ),
+        "archives": mine,
+        "restore": restore_steps(job, mine[0]["name"] if mine else "<archive>"),
     }
 
 

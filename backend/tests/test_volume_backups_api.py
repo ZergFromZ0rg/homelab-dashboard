@@ -116,7 +116,11 @@ def test_listing_archives_shows_only_this_jobs_and_how_to_restore(client, monkey
     assert [a["name"] for a in body["archives"]] == [
         "ai-librarian_qdrant-20260921-010203.tar.gz"
     ]
-    assert "tar xzf" in body["restore_hint"]
+    # The single hint became ordered steps, because a restore crosses two
+    # hosts and the copy between them was the step it skipped.
+    assert body["restore"][0]["where"] == "thinkpad"
+    assert "scp" in body["restore"][0]["command"]
+    assert any("tar xzf" in s["command"] for s in body["restore"])
 
 
 def test_deleting_an_archive_another_job_wrote_is_refused(client, monkeypatch):

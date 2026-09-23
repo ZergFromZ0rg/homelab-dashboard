@@ -24,15 +24,10 @@ function Fact({ label, value, sub, bad }) {
   );
 }
 
-function rank(job, now) {
-  if (job.running) return ORDER.running;
-  if (!job.enabled) return ORDER.paused;
-  if (job.last_error && (job.last_run_at || 0) > (job.last_success_at || 0)) {
-    return ORDER.failing;
-  }
-  if (!job.last_success_at) return ORDER.pending;
-  if (now - job.last_success_at > job.interval_hours * 3600 * 1.5) return ORDER.stale;
-  return ORDER.ok;
+// Worst first. The state itself is the backend's call — see
+// volume_backups.state — so this only decides the order.
+function rank(job) {
+  return ORDER[job.state] ?? ORDER.ok;
 }
 
 function BackupsTab({ machines, connected }) {
@@ -62,10 +57,10 @@ function BackupsTab({ machines, connected }) {
 
   const hosts = Object.keys(machines).sort();
   const jobs = [...(data.backups || [])].sort(
-    (a, b) => rank(a, now) - rank(b, now) || a.name.localeCompare(b.name)
+    (a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name)
   );
 
-  const failing = jobs.filter((j) => rank(j, now) <= ORDER.stale).length;
+  const failing = jobs.filter((j) => rank(j) <= ORDER.stale).length;
   const protectedBytes = jobs.reduce((sum, j) => sum + (j.last_archive?.bytes || 0), 0);
   const unprotected = jobs.filter((j) => j.dest_host === j.source_host).length;
 

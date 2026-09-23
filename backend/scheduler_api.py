@@ -29,6 +29,7 @@ from backend.docker import (
     remove_stack,
 )
 from backend import activity, container_history, live_history
+from backend import volume_backups
 from backend.log import scheduler as sched_log, system as system_log
 from backend.models import (
     DeploymentRecord,
@@ -721,7 +722,8 @@ async def _alert_loop() -> None:
             _, machines, containers, _, _ = await asyncio.to_thread(_build_fleet)
             dumps = [d.model_dump() for d in deployments.all()]
             events = alert_monitor.poll(
-                machines, dumps, containers, checks.service.summaries()
+                machines, dumps, containers, checks.service.summaries(),
+                volume_backups.store.all(),
             )
             cycles += 1
 

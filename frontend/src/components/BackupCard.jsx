@@ -18,30 +18,17 @@ function interval(hours) {
   return `every ${hours} h`;
 }
 
-// A job is behind when its newest archive is older than one and a half
-// intervals — the same slack the config-backup status uses, so "stale"
-// means one thing across the dashboard.
-function state(job, now) {
-  if (job.running) return { key: "running", label: "Running" };
-  if (!job.enabled) return { key: "paused", label: "Paused" };
-  if (!job.last_success_at) {
-    return job.last_error
-      ? { key: "failing", label: "Never succeeded" }
-      : { key: "pending", label: "Not run yet" };
-  }
-
-  const age = now - job.last_success_at;
-
-  if (job.last_error && (job.last_run_at || 0) > job.last_success_at) {
-    return { key: "failing", label: "Last run failed" };
-  }
-
-  if (age > job.interval_hours * 3600 * 1.5) {
-    return { key: "stale", label: "Behind schedule" };
-  }
-
-  return { key: "ok", label: "Up to date" };
-}
+// The backend decides how a job is doing and says so in `state`; this is
+// only the word for it. Deciding it here as well is how the tab and the
+// alert that pages you end up disagreeing.
+const STATE_LABELS = {
+  running: "Running",
+  paused: "Paused",
+  failing: "Last run failed",
+  pending: "Not run yet",
+  stale: "Behind schedule",
+  ok: "Up to date",
+};
 
 // The result of reading an archive back. Deliberately terse: the useful
 // states are "intact, N files" and the reason it isn't.
@@ -152,15 +139,26 @@ function Archives({ job, now, onClose }) {
           </ul>
 
           {/* Restoring is a deliberate, hands-on job and the dashboard
-              does not do it for you. Showing the exact command is the
-              part that is otherwise an ssh session and a guess. */}
+              does not do it for you. What it can do is spell out the
+              steps with this job's real hosts, paths and containers in
+              them — a restore happens rarely, under pressure, and usually
+              by someone reading it for the first time. */}
           <details className="backup-restore">
-            <summary>How to restore one</summary>
+            <summary>How to restore this backup</summary>
+            <ol className="restore-steps">
+              {(data.restore || []).map((step, i) => (
+                <li key={i}>
+                  <span className="restore-where">on {step.where}</span>
+                  <p>{step.what}</p>
+                  <pre>{step.command}</pre>
+                </li>
+              ))}
+            </ol>
             <p className="settings-hint">
-              On <strong>{data.host}</strong>, with the target volume's containers
-              stopped:
+              Replace the archive name if you want an older one. Nothing here
+              runs from the dashboard — restoring overwrites live data, so it
+              is deliberately a thing you do yourself.
             </p>
-            <pre>{data.restore_hint}</pre>
           </details>
         </>
       )}
@@ -174,7 +172,7 @@ function BackupCard({ job, hosts, defaultDestHost, now, onChanged, onDelete }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
-  const status = state(job, now);
+  const status = job.state || "pending";
   const archive = job.last_archive;
 
   const run = async () => {
@@ -208,7 +206,7 @@ function BackupCard({ job, hosts, defaultDestHost, now, onChanged, onDelete }) {
   }
 
   return (
-    <div className={`backup backup--${status.key}`}>
+    <div className={`backup backup--${status}`}>
       <div className="backup-head">
         <div>
           <h3>{job.name}</h3>
@@ -230,7 +228,9 @@ function BackupCard({ job, hosts, defaultDestHost, now, onChanged, onDelete }) {
             <code>{job.directory}</code>
           </p>
         </div>
-        <span className={`backup-state backup-state--${status.key}`}>{status.label}</span>
+        <span className={`backup-state backup-state--${status}`}>
+          {STATE_LABELS[status] || status}
+        </span>
       </div>
 
       <div className="backup-facts">

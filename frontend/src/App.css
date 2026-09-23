@@ -5272,3 +5272,30 @@ a.check-target:hover {
 
 .archive-ok { color: var(--online); }
 .archive-bad { color: var(--offline); font-weight: 600; }
+
+/* Restore steps. Numbered and per-host because a restore crosses two
+   machines and the "which box am I on" mistake is the expensive one. */
+.restore-steps {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.restore-steps li {
+  font-size: 12px;
+}
+
+.restore-steps p {
+  margin: 2px 0 4px;
+  color: var(--text-muted);
+}
+
+.restore-where {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}

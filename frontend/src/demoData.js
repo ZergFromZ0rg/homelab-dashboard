@@ -518,6 +518,7 @@ export function demoBackups() {
     backups: [
       {
         id: "b1",
+        state: "ok",
         name: "qdrant",
         source_host: "bigboy",
         volume: null,
@@ -544,6 +545,7 @@ export function demoBackups() {
       },
       {
         id: "b2",
+        state: "pending",
         name: "jellyfin config",
         source_host: "bigboy",
         volume: "jellyfin_config",
@@ -563,6 +565,7 @@ export function demoBackups() {
       },
       {
         id: "b3",
+        state: "failing",
         name: "uptime-kuma",
         source_host: "nuc-media",
         volume: "uptime-kuma_data",
@@ -648,8 +651,27 @@ export function demoBackupArchives(id) {
       bytes: 412_836_000 - i * 1_200_000,
       modified_at: t - i * 86400,
     })),
-    restore_hint:
-      `docker run --rm -v <volume>:/dest -v ${job?.directory || "/backups"}:/src:ro ` +
-      "alpine sh -c 'rm -rf /dest/* && tar xzf /src/<archive> -C /dest'",
+    restore: [
+      {
+        where: job?.dest_host || "thinkpad",
+        what: "Copy the archive to the host the data belongs on.",
+        command: `scp ${job?.directory || "/backups"}/${prefix}-20260918-030000.tar.gz ${job?.source_host || "bigboy"}:/tmp/`,
+      },
+      {
+        where: job?.source_host || "bigboy",
+        what: "Stop whatever writes to this directory.",
+        command: "docker stop ai-librarian-qdrant-1",
+      },
+      {
+        where: job?.source_host || "bigboy",
+        what: "Replace the contents. The directory is emptied first so a restore can't leave old and new files mixed together.",
+        command: `sudo rm -rf ${job?.path || "/data"}/* && sudo tar xzf /tmp/${prefix}-20260918-030000.tar.gz -C ${job?.path || "/data"}`,
+      },
+      {
+        where: job?.source_host || "bigboy",
+        what: "Start it again.",
+        command: "docker start ai-librarian-qdrant-1",
+      },
+    ],
   };
 }

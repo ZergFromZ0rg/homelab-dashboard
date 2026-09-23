@@ -133,6 +133,7 @@ def _clean_job(raw: dict, *, default_dest: str | None = None) -> dict:
                        if raw.get("last_error") else None),
         "last_archive": raw.get("last_archive") or None,
         "last_pruned": list(raw.get("last_pruned") or []),
+        "last_stopped": list(raw.get("last_stopped") or []),
         "running": False,
     }
 
@@ -211,7 +212,7 @@ class BackupJobStore:
                 self._jobs[index] = _clean_job(merged)
                 # Run history belongs to the job, not to the edit.
                 for field in ("last_run_at", "last_success_at", "last_error",
-                              "last_archive", "last_pruned"):
+                              "last_archive", "last_pruned", "last_stopped"):
                     self._jobs[index][field] = job[field]
 
                 self._save_locked()
@@ -247,6 +248,49 @@ class BackupJobStore:
 
 
 store = BackupJobStore()
+
+
+# A job is behind once its newest archive is older than this many
+# intervals. The same slack the config-backup status uses, so "stale"
+# means one thing across the dashboard.
+STALE_FACTOR = env_float("VOLUME_BACKUP_STALE_FACTOR", 1.5)
+
+
+def state(job: dict, now: float | None = None) -> str:
+    """One word for how a job is doing, and the only place that decides it.
+
+    The Backups tab, the Overview panel and the alert loop all used to want
+    this, and three copies of "is it stale" is three chances to disagree
+    about whether your backups are working.
+
+        running  copying right now
+        paused   disabled by hand
+        failing  the last attempt failed
+        pending  configured, never run
+        stale    last success is older than the schedule allows
+        ok       current
+    """
+    if job.get("running"):
+        return "running"
+
+    if not job.get("enabled"):
+        return "paused"
+
+    success = job.get("last_success_at")
+    run = job.get("last_run_at")
+
+    # Measured against the last *attempt*: a job that failed after its last
+    # success is failing, whatever that success said.
+    if job.get("last_error") and (not success or (run or 0) > success):
+        return "failing"
+
+    if not success:
+        return "pending"
+
+    if (now or time.time()) - success > job["interval_hours"] * 3600 * STALE_FACTOR:
+        return "stale"
+
+    return "ok"
 
 
 def due(job: dict, now: float | None = None) -> bool:
@@ -466,6 +510,7 @@ def run_job(nodes: dict, job: dict, *, jobs: BackupJobStore | None = None,
             job["id"],
             last_success_at=now(),
             last_error=None,
+            last_stopped=list(finished.get("stopped") or []),
             last_archive={
                 "name": archive.get("name"),
                 "bytes": archive.get("bytes"),

@@ -39,6 +39,7 @@ from datetime import datetime, timezone
 
 import requests
 
+from backend import volume_backups
 from backend.env import env_float, env_str
 from backend.log import system
 
@@ -83,11 +84,12 @@ class AlertMonitor:
         deployments: list[dict],
         containers: dict[str, list] | None = None,
         checks: list[dict] | None = None,
+        backups: list[dict] | None = None,
         *,
         now: float | None = None,
     ) -> list[dict]:
         now = now or time.time()
-        raw = evaluate(machines, deployments, containers, checks, now=now)
+        raw = evaluate(machines, deployments, containers, checks, backups, now=now)
 
         # Debounce resource alerts: they only count as "breaching" once
         # they've been seen ``breach_cycles`` checks running.
@@ -370,11 +372,48 @@ def _container_alerts(
     return out
 
 
+def _backup_alert(job: dict, state: str, now: float) -> dict:
+    """A backup that has stopped working, in the words you would want at
+    2 a.m.: what it protects, where it was going, and how long it has been
+    since that last worked."""
+    source = job.get("volume") or job.get("path") or job.get("name")
+    where = f"{job.get('dest_host')}:{job.get('directory')}"
+    success = job.get("last_success_at")
+    age = f"last good copy {_ago(now - success)}" if success else "it has never succeeded"
+
+    if state == "failing":
+        return {
+            "title": f"backup failing: {job.get('name')}",
+            "message": (
+                f"{source} is not being backed up to {where} — {age}"
+                + (f". {job['last_error']}" if job.get("last_error") else "")
+            ),
+            "host": job.get("source_host"),
+            "severity": "bad",
+            "hint": (
+                f"Check the Backups tab: {job.get('name')} has failed since its "
+                f"last success. Until it runs, {source} is unprotected."
+            ),
+        }
+
+    return {
+        "title": f"backup behind: {job.get('name')}",
+        "message": (
+            f"{source} should copy to {where} every "
+            f"{round(job.get('interval_hours', 0))}h, but {age}"
+        ),
+        "host": job.get("source_host"),
+        "severity": "warn",
+        "hint": f"Run {job.get('name')} from the Backups tab, or check its host is up.",
+    }
+
+
 def evaluate(
     machines: dict[str, dict],
     deployments: list[dict],
     containers: dict[str, list] | None = None,
     checks: list[dict] | None = None,
+    backups: list[dict] | None = None,
     *,
     now: float | None = None,
 ) -> dict[str, dict]:
@@ -395,6 +434,14 @@ def evaluate(
     for check in checks or []:
         if check.get("status") == "down":
             out[f"check:{check['id']}"] = _check_alert(check, now)
+
+    # A backup that quietly stops working is the failure you find out about
+    # when you need the backup, which is the worst possible moment.
+    for job in backups or []:
+        state = volume_backups.state(job, now)
+
+        if state in ("failing", "stale"):
+            out[f"backup:{job['id']}"] = _backup_alert(job, state, now)
 
     for record in deployments:
         status = record.get("status")

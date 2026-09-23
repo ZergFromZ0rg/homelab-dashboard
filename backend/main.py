@@ -30,6 +30,7 @@ from backend import service_activity
 from backend import auth
 from backend import scheduler_api
 from backend import volume_backup_api
+from backend import volume_backups
 from backend.registry import registry
 from backend.scheduler_api import deployments, merge_agent_snapshot
 
@@ -141,7 +142,8 @@ def _overview(
     recs: list[str] = []
 
     for key, alert in alerts.evaluate(
-        machines, deployment_dumps, containers, check_summaries
+        machines, deployment_dumps, containers, check_summaries,
+        volume_backups.store.all(),
     ).items():
         severity = alerts.severity_of(key, alert)
         issues.append(
