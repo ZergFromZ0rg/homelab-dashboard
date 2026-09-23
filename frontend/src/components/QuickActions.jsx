@@ -3,9 +3,11 @@ import { containerUrl } from "./containerLink";
 import { formatBytes } from "./format";
 import { useSettings } from "./settings";
 import { hostColor } from "./hostColor";
+import AppIcon from "./AppIcon";
 
-// One compact row per pinned container — status dot, name, CPU / RAM, and
-// start-or-stop + restart. Plus jumps to the tabs where the rest lives.
+// One tile per pinned container — its web UI's icon, name and host, status,
+// CPU / RAM, and start-or-stop + restart. Same-size tiles in a grid, so the
+// pinned set reads like an app launcher rather than a list.
 
 function QaRow({ t, busy, onControl, showLink, showLiveActivity, staleAge }) {
   const running = t.status === "running";
@@ -34,13 +36,10 @@ function QaRow({ t, busy, onControl, showLink, showLiveActivity, staleAge }) {
     : undefined;
 
   return (
-    <div className="qa-row">
-      <span
-        className={`status-dot status-dot--${dotState}`}
-        title={dotTitle}
-      />
-      <div className="qa-name-wrap">
-        <div className="qa-name-line">
+    <div className={`qa-tile ${running ? "" : "qa-tile--stopped"}`}>
+      <div className="qa-tile-head">
+        <AppIcon url={url} label={t.name} className="app-tile-icon qa-tile-icon" />
+        <div className="qa-name-wrap">
           {url ? (
             <a
               className="qa-name qa-name-link"
@@ -60,16 +59,28 @@ function QaRow({ t, busy, onControl, showLink, showLiveActivity, staleAge }) {
             {t.host}
           </span>
         </div>
-        {live && (
-          <span className="qa-live" title={`${live.app}: ${live.detail}`}>
-            {live.detail}
-          </span>
-        )}
+        <span
+          className={`status-dot status-dot--${dotState}`}
+          title={dotTitle ?? (running ? "running" : t.status)}
+        />
       </div>
+
+      <span
+        className={`qa-live ${live ? "qa-live--on" : ""}`}
+        title={live ? `${live.app}: ${live.detail}` : undefined}
+      >
+        {live ? live.detail : running ? "running" : t.status}
+      </span>
+
       <div className="qa-stats">
-        <span className="qa-stat">{cpu != null ? `${cpu}%` : "—"}</span>
-        <span className="qa-stat">{ram != null ? formatBytes(ram) : "—"}</span>
+        <span className="qa-stat">
+          CPU <strong>{cpu != null ? `${cpu}%` : "—"}</strong>
+        </span>
+        <span className="qa-stat">
+          RAM <strong>{ram != null ? formatBytes(ram) : "—"}</strong>
+        </span>
       </div>
+
       <div className="qa-row-btns">
         <button
           type="button"
@@ -92,7 +103,7 @@ function QaRow({ t, busy, onControl, showLink, showLiveActivity, staleAge }) {
   );
 }
 
-function QuickActions({ pins, containers, machines, onControl, onNavigate }) {
+function QuickActions({ pins, containers, machines, onControl }) {
   const {
     settings: { pinGroups, quickActionLinks, showLiveActivity },
   } = useSettings();
@@ -150,19 +161,6 @@ function QuickActions({ pins, containers, machines, onControl, onNavigate }) {
           </div>
         ))
       )}
-
-      <div className="qa-group qa-group--nav">
-        <button type="button" className="qa-btn" onClick={() => onNavigate("deploy")}>
-          Deploy →
-        </button>
-        <button
-          type="button"
-          className="qa-btn"
-          onClick={() => onNavigate("containers")}
-        >
-          Containers →
-        </button>
-      </div>
     </div>
   );
 }

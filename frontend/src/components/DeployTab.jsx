@@ -161,6 +161,8 @@ function DeployTab({ machines, deployments, connected }) {
 
   return (
     <section className="deploy-tab">
+      <FleetCapacity machines={machines} deployments={deployments} />
+
       <div className="deploy-columns">
         <div className="deploy-pane">
           <div className="section-header">
@@ -184,8 +186,6 @@ function DeployTab({ machines, deployments, connected }) {
               Compose stack
             </button>
           </div>
-
-          <FleetCapacity machines={machines} deployments={deployments} />
 
           {isStack ? (
             <StackForm value={stackForm} onChange={editStack} nodeNames={nodeNames} />

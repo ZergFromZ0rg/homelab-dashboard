@@ -386,7 +386,7 @@ function SiteSettings({ pins, containers }) {
         </div>
       </SettingsCard>
 
-      <SettingsCard title="Quick actions">
+      <SettingsCard title="Pinned containers">
         <label className="settings-check">
           <input
             type="checkbox"

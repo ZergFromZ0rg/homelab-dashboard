@@ -27,6 +27,11 @@ function ServicesTab({ checks, connected }) {
   const up = checks.filter((c) => c.status === "up").length;
   const latencies = checks.filter((c) => c.latency_ms != null).map((c) => c.latency_ms);
   const avg = latencies.length ? latencies.reduce((a, b) => a + b, 0) / latencies.length : null;
+  // "Down" used to be its own tile, repeating the Up tile's own sub-line;
+  // the slowest responder is the thing worth a tile of its own.
+  const slowest = checks
+    .filter((c) => c.status === "up" && c.latency_ms != null)
+    .sort((a, b) => b.latency_ms - a.latency_ms)[0];
   const uptimes = checks.map((c) => c.uptime_24h).filter((v) => v != null);
   const uptime = uptimes.length ? uptimes.reduce((a, b) => a + b, 0) / uptimes.length : null;
 
@@ -38,10 +43,19 @@ function ServicesTab({ checks, connected }) {
     <section className="services-tab">
       {checks.length > 0 && (
         <div className="facts-row">
-          <Fact label="Up" value={`${up} / ${checks.length}`} bad={down > 0} sub={down ? `${down} down` : "all answering"} />
-          <Fact label="Down" value={down} bad={down > 0} />
-          <Fact label="Avg latency" value={formatLatency(avg)} sub="across services" />
-          <Fact label="Uptime · 24 h" value={uptime == null ? "—" : `${uptime.toFixed(2)}%`} />
+          <Fact
+            label="Answering"
+            value={`${up} / ${checks.length}`}
+            bad={down > 0}
+            sub={down ? `${down} down` : "all up"}
+          />
+          <Fact label="Avg latency" value={formatLatency(avg)} sub="right now" />
+          <Fact
+            label="Slowest"
+            value={slowest ? formatLatency(slowest.latency_ms) : "—"}
+            sub={slowest?.name}
+          />
+          <Fact label="Uptime · 24 h" value={uptime == null ? "—" : `${uptime.toFixed(2)}%`} sub="average" />
         </div>
       )}
 

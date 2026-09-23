@@ -1,22 +1,11 @@
-import { useState } from "react";
-import { avatarColor } from "./containerLink";
+import AppIcon from "./AppIcon";
 
 // A link rendered as an app tile: the service's own favicon, its name, and
 // a status dot when one of the Services checks is already watching that
 // host.
 //
-// The icon is the service's /favicon.ico — no icon pack, no per-link setup,
-// and nothing to keep in sync. It's also the part most likely to fail (a
-// service without one, or an http:// link on an https:// dashboard, which
-// the browser blocks as mixed content), so a failed load falls back to the
-// same lettered avatar the list used to show rather than a broken image.
-function faviconUrl(href) {
-  try {
-    return new URL("/favicon.ico", href).href;
-  } catch {
-    return null;
-  }
-}
+// The icon is the service's /favicon.ico (see AppIcon), falling back to a
+// lettered avatar.
 
 // Links are stored in localStorage, so a blob written by an older build
 // (or hand-edited) can hold something `new URL` won't parse. Showing the
@@ -30,10 +19,6 @@ function hostLabel(href) {
 }
 
 function AppTile({ link, status, onRemove }) {
-  const [broken, setBroken] = useState(false);
-  const icon = broken ? null : faviconUrl(link.url);
-  const letter = link.label.charAt(0).toUpperCase();
-
   return (
     <div className={`app-tile ${status ? `app-tile--${status}` : ""}`}>
       <a
@@ -45,24 +30,7 @@ function AppTile({ link, status, onRemove }) {
           status ? ` (${status})` : ""
         }`}
       >
-        <span className="app-tile-icon">
-          {icon ? (
-            <img
-              src={icon}
-              alt=""
-              loading="lazy"
-              onError={() => setBroken(true)}
-            />
-          ) : (
-            <span
-              className="app-tile-letter"
-              style={{ background: avatarColor(link.label) }}
-              aria-hidden="true"
-            >
-              {letter}
-            </span>
-          )}
-        </span>
+        <AppIcon url={link.url} label={link.label} />
         <span className="app-tile-label">{link.label}</span>
       </a>
 

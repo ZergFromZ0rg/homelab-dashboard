@@ -27,10 +27,10 @@ export const HEARTBEAT_WINDOW_OPTIONS = [
 
 export const HOME_CARD_OPTIONS = [
   { key: "summary", label: "Summary stats" },
-  { key: "attention", label: "Attention" },
-  { key: "hosts", label: "Hosts (compact)" },
+  { key: "attention", label: "Issues banner" },
+  { key: "hosts", label: "Servers" },
   { key: "services", label: "Services" },
-  { key: "quickActions", label: "Quick actions" },
+  { key: "quickActions", label: "Pinned containers" },
   { key: "alerts", label: "Alert history" },
   { key: "activity", label: "Recent activity" },
 ];

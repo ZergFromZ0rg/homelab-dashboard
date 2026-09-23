@@ -96,10 +96,13 @@ body {
 .check,
 .backup,
 .host-tile,
+.service-tile,
+.qa-tile,
+.issues-banner,
 .empty-state,
-.fleet-capacity,
-.host-group > .container-list,
-.pinned-strip .container-list {
+.fleet-tile,
+.host-group,
+.pinned-strip {
   background: var(--glass);
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-highlight), var(--shadow-sm);
@@ -275,8 +278,7 @@ body {
   border-radius: var(--radius);
 }
 
-/* A glow in the tile's color from the top-left corner and a thin bar
-   along the top edge. */
+/* A soft wash of the tile's color from the top-left corner. */
 .summary-card::before,
 .fact::before {
   content: "";
@@ -285,22 +287,9 @@ body {
   pointer-events: none;
   background: radial-gradient(
     130% 110% at 0% 0%,
-    color-mix(in srgb, var(--tone) 30%, transparent),
-    transparent 65%
+    color-mix(in srgb, var(--tone) 16%, transparent),
+    transparent 70%
   );
-}
-
-.summary-card::after,
-.fact::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 20px;
-  right: 20px;
-  height: 2px;
-  border-radius: 0 0 2px 2px;
-  background: linear-gradient(to right, var(--tone), transparent);
-  opacity: 0.9;
 }
 
 .summary-card > *,
@@ -373,24 +362,6 @@ body {
   );
 }
 
-.machine-card::after,
-.host-tile::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  pointer-events: none;
-  background: linear-gradient(
-    to right,
-    transparent,
-    var(--host-color, var(--page-accent)),
-    transparent
-  );
-  opacity: 0.8;
-}
-
 .machine-card > *,
 .host-tile > * {
   position: relative;
@@ -422,12 +393,42 @@ body {
   border-radius: var(--radius);
 }
 
-/* ----- Containers: each host group framed in its host color ----- */
+/* ----- Containers: each host group is one card, headed in its host color ----- */
 
-.host-group > .container-list,
+.host-group,
+.pinned-strip {
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.host-group .host-header,
+.pinned-strip .pinned-strip-title {
+  padding: 12px 16px;
+  background: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--host-color, var(--accent)) 16%, transparent),
+    transparent 55%
+  );
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+}
+
+.host-group .host-header:not(.expanded),
+.pinned-strip .pinned-strip-title:not(.expanded) {
+  border-bottom-color: transparent;
+}
+
+.host-group .container-list,
 .pinned-strip .container-list {
-  border-left: 3px solid var(--host-color, var(--accent));
-  border-top: 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+}
+
+.host-group .host-name {
+  font-size: 16px;
+  font-weight: 700;
 }
 
 /* ----- Attention panel ----- */
@@ -704,4 +705,26 @@ body {
   .fact-value {
     font-size: 24px;
   }
+}
+
+/* Issues banner: tinted by the worst severity in it. */
+.issues-banner--bad {
+  border-color: color-mix(in srgb, var(--offline) 38%, transparent);
+  background:
+    linear-gradient(to right, color-mix(in srgb, var(--offline) 16%, transparent), transparent 70%),
+    var(--glass);
+}
+
+.issues-banner--warn {
+  border-color: color-mix(in srgb, var(--warning) 38%, transparent);
+  background:
+    linear-gradient(to right, color-mix(in srgb, var(--warning) 14%, transparent), transparent 70%),
+    var(--glass);
+}
+
+.issues-banner--ok {
+  border-color: color-mix(in srgb, var(--online) 30%, transparent);
+  background:
+    linear-gradient(to right, color-mix(in srgb, var(--online) 12%, transparent), transparent 70%),
+    var(--glass);
 }

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import ConnectionsPanel from "./ConnectionsPanel";
 import HostRecovery from "./HostRecovery";
 import HostSettings from "./HostSettings";
@@ -126,16 +127,83 @@ function GpuDevice({ gpu, index, total, stale, history, windowMinutes }) {
   );
 }
 
+function Ring({ label, value, text }) {
+  return (
+    <div className="vitals-ring">
+      <Gauge value={value} label={text} size={62} strokeWidth={5} />
+      <span title={label}>{label}</span>
+    </div>
+  );
+}
+
+// A labelled sparkline: what it is and its current value on one line, the
+// last N minutes underneath.
+function Trend({ label, value, children }) {
+  return (
+    <div className="vitals-trend">
+      <div className="vitals-trend-head">
+        <span>{label}</span>
+        <strong>{value}</strong>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// A server card: the four numbers that matter as rings (always visible),
+// then one section at a time behind small tabs, so every card is the same
+// short height instead of a tall stack of everything.
 function MachineVitals({ host, machine, history }) {
   const {
     settings: { graphWindowMinutes: windowMinutes },
   } = useSettings();
+  const [view, setView] = useState("overview");
 
   const netMax = Math.max(
     1,
     ...windowPoints(history?.network_rx, windowMinutes).map((p) => p.v ?? 0),
     ...windowPoints(history?.network_tx, windowMinutes).map((p) => p.v ?? 0)
   ) * 1.15;
+
+  const gpus = gpuDevices(machine);
+  const filesystems = machine.filesystems || [];
+  const fullest = [...filesystems].sort(
+    (a, b) => (b.used_percent ?? 0) - (a.used_percent ?? 0)
+  )[0];
+
+  const cores =
+    machine.cpu_physical_cores != null &&
+    machine.cpu_cores != null &&
+    machine.cpu_physical_cores !== machine.cpu_cores
+      ? `${machine.cpu_physical_cores}c/${machine.cpu_cores}t`
+      : machine.cpu_cores != null
+        ? `${machine.cpu_cores}t`
+        : null;
+
+  // A dot on a tab whose contents need a look, so tucking a section away
+  // never hides a problem in it.
+  const views = [
+    { value: "overview", label: "Overview" },
+    { value: "network", label: "Network" },
+    ...(gpus.length || machine.gpu?.hint
+      ? [{ value: "gpu", label: "GPU", alert: Boolean(machine.gpu?.hint) }]
+      : []),
+    ...(filesystems.length || machine.disk_io?.length
+      ? [
+          {
+            value: "storage",
+            label: "Storage",
+            alert: filesystems.some(
+              (f) =>
+                f.used_percent >= 90 ||
+                (f.days_until_full != null && f.days_until_full <= 7)
+            ),
+          },
+        ]
+      : []),
+    ...(host ? [{ value: "manage", label: "Manage" }] : []),
+  ];
+  const current = views.some((v) => v.value === view) ? view : "overview";
 
   return (
     <>
@@ -145,224 +213,242 @@ function MachineVitals({ host, machine, history }) {
         </div>
       )}
 
-      <div className="gauge-row">
-        <div className="gauge-stat">
-          <Gauge value={machine.cpu} size={48} strokeWidth={5} />
-          <div className="gauge-stat-info">
-            <span>
-              CPU
-              {machine.cpu_physical_cores != null &&
-              machine.cpu_cores != null &&
-              machine.cpu_physical_cores !== machine.cpu_cores
-                ? ` · ${machine.cpu_physical_cores}c/${machine.cpu_cores}t`
-                : machine.cpu_cores != null
-                ? ` · ${machine.cpu_cores}t`
-                : ""}
-            </span>
-            <Sparkline
-              points={history?.cpu}
-              max={100}
-              variant="cpu"
-              height={30}
-              showAxis
-              windowMinutes={windowMinutes}
-            />
-          </div>
-        </div>
-
-        <div className="gauge-stat">
-          <Gauge
-            value={
-              machine.temperature != null
-                ? (machine.temperature / CPU_TEMP_GAUGE_MAX) * 100
-                : null
-            }
-            label={machine.temperature != null ? `${machine.temperature}°` : "—"}
-            size={48}
-            strokeWidth={5}
-          />
-          <div className="gauge-stat-info">
-            <span>CPU TEMP</span>
-            <Sparkline
-              points={history?.temperature}
-              variant="cpu"
-              height={30}
-              showAxis
-              windowMinutes={windowMinutes}
-            />
-          </div>
-        </div>
-
-        <div className="gauge-stat">
-          <Gauge value={machine.ram} size={48} strokeWidth={5} />
-          <div className="gauge-stat-info">
-            <span>
-              RAM
-              {machine.ram_total_bytes != null
-                ? ` · ${formatBytes(machine.ram_total_bytes)}`
-                : ""}
-            </span>
-            <Sparkline
-              points={history?.ram}
-              max={100}
-              variant="ram"
-              height={30}
-              showAxis
-              windowMinutes={windowMinutes}
-            />
-          </div>
-        </div>
-
-        <div className="compact-stats">
-          <span>
-            LOAD <strong>{machine.load1 ?? "—"}</strong>
-          </span>
-          <span
-            className={
-              machine.uptime != null && machine.uptime < RECENT_BOOT_SECONDS
-                ? "compact-stat--fresh"
-                : undefined
-            }
-            title={
-              machine.uptime != null && machine.uptime < RECENT_BOOT_SECONDS
-                ? "This host rebooted recently"
-                : undefined
-            }
-          >
-            UPTIME <strong>{formatUptime(machine.uptime)}</strong>
-          </span>
-        </div>
-      </div>
-
-      <div className="network-stats">
-        <Stat label="DOWNLOAD" value={`↓ ${formatSpeed(machine.network_rx)}`}>
-          <Sparkline
-            points={history?.network_rx}
-            max={netMax}
-            variant="rx"
-            windowMinutes={windowMinutes}
-          />
-        </Stat>
-
-        <Stat label="UPLOAD" value={`↑ ${formatSpeed(machine.network_tx)}`}>
-          <Sparkline
-            points={history?.network_tx}
-            max={netMax}
-            variant="tx"
-            windowMinutes={windowMinutes}
-          />
-        </Stat>
-      </div>
-
-      {machine.interfaces?.length > 0 && (
-        <div className="io-list">
-          {machine.interfaces.map((iface) => (
-            <div className="io-row" key={iface.device}>
-              <strong>{iface.name}</strong>
-              <span>↓ {formatSpeed(iface.rx_bps)}</span>
-              <span>↑ {formatSpeed(iface.tx_bps)}</span>
-              {iface.in_total === false && (
-                <span
-                  className="io-row-aside"
-                  title="An overlay link — its traffic isn't counted in the download/upload figures above, which cover physical interfaces only."
-                >
-                  not in total
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {gpuDevices(machine).map((gpu, index, devices) => (
-        <GpuDevice
-          key={gpu.device_id ?? index}
-          gpu={gpu}
-          index={index}
-          total={devices.length}
-          stale={machine.agent_stale_age != null}
-          history={history}
-          windowMinutes={windowMinutes}
+      <div className="vitals-rings">
+        <Ring label={cores ? `CPU · ${cores}` : "CPU"} value={machine.cpu} />
+        <Ring
+          label="Temp"
+          value={
+            machine.temperature != null
+              ? (machine.temperature / CPU_TEMP_GAUGE_MAX) * 100
+              : null
+          }
+          text={machine.temperature != null ? `${machine.temperature}°` : "—"}
         />
-      ))}
+        <Ring
+          label={
+            machine.ram_total_bytes != null
+              ? `RAM · ${formatBytes(machine.ram_total_bytes)}`
+              : "RAM"
+          }
+          value={machine.ram}
+        />
+        {fullest && <Ring label={diskLabel(fullest)} value={fullest.used_percent} />}
+      </div>
 
-      {/* The agent found a card it can't read properly. Without this the
-          only symptom is a GPU block with every number missing, which
-          reads like an idle card rather than a misconfigured one. */}
-      {machine.gpu?.hint && (
-        <p className="gpu-hint">{machine.gpu.hint}</p>
-      )}
+      <div className="vitals-tabs" role="tablist">
+        {views.map((v) => (
+          <button
+            key={v.value}
+            type="button"
+            role="tab"
+            aria-selected={current === v.value}
+            className={`vitals-tab ${current === v.value ? "active" : ""}`}
+            onClick={() => setView(v.value)}
+          >
+            {v.label}
+            {v.alert && <span className="vitals-tab-alert" aria-label="needs a look" />}
+          </button>
+        ))}
+      </div>
 
-      {machine.disk_io?.length > 0 && (
-        <div className="io-list">
-          {machine.disk_io.map((disk) => (
-            <div className="io-row" key={disk.device}>
-              <strong>{disk.name}</strong>
-              <span>↓ {formatSpeed(disk.read_bps)}</span>
-              <span>↑ {formatSpeed(disk.write_bps)}</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {machine.filesystems?.length > 0 && (
-        <div className="storage-section">
-          <span className="storage-title">STORAGE</span>
-
-          {machine.filesystems.map((filesystem) => (
-            <div
-              className="disk"
-              key={`${filesystem.device}-${filesystem.mountpoint}`}
+      <div className="vitals-panel">
+        {current === "overview" && (
+          <div className="vitals-trends">
+            <Trend label="CPU" value={machine.cpu != null ? `${Math.round(machine.cpu)}%` : "—"}>
+              <Sparkline
+                points={history?.cpu}
+                max={100}
+                variant="cpu"
+                height={30}
+                windowMinutes={windowMinutes}
+              />
+            </Trend>
+            <Trend
+              label="CPU temp"
+              value={machine.temperature != null ? `${machine.temperature}°C` : "—"}
             >
-              <div className="disk-header">
-                <div>
-                  <strong>{diskLabel(filesystem)}</strong>
-                  <span>{filesystem.mountpoint}</span>
-                </div>
+              <Sparkline
+                points={history?.temperature}
+                variant="cpu"
+                height={30}
+                windowMinutes={windowMinutes}
+              />
+            </Trend>
+            <Trend label="RAM" value={machine.ram != null ? `${Math.round(machine.ram)}%` : "—"}>
+              <Sparkline
+                points={history?.ram}
+                max={100}
+                variant="ram"
+                height={30}
+                windowMinutes={windowMinutes}
+              />
+            </Trend>
 
-                <strong>
-                  {filesystem.used_percent}%
-                  {filesystem.free_bytes != null && (
-                    <small> · {formatBytes(filesystem.free_bytes)} free</small>
-                  )}
-                  {filesystem.days_until_full != null &&
-                    filesystem.days_until_full <= FORECAST_SHOW_DAYS && (
-                      <small
-                        className={`disk-forecast disk-forecast--${forecastTone(
-                          filesystem.days_until_full
-                        )}`}
-                        title="At the rate it has been filling recently"
-                      >
-                        {" "}
-                        · {formatDaysUntilFull(filesystem.days_until_full)}
-                      </small>
-                    )}
-                </strong>
-              </div>
-
-              <div className="disk-bar">
-                <div
-                  className={`disk-bar-fill disk-bar-fill--${diskTone(
-                    filesystem.used_percent
-                  )}`}
-                  style={{
-                    width: `${Math.min(filesystem.used_percent, 100)}%`,
-                  }}
-                />
-              </div>
-
-              <div className="disk-details">
-                <span>{formatBytes(filesystem.used_bytes)} used</span>
-                <span>{formatBytes(filesystem.total_bytes)} total</span>
-              </div>
+            <div className="compact-stats">
+              <span>
+                LOAD <strong>{machine.load1 ?? "—"}</strong>
+              </span>
+              <span
+                className={
+                  machine.uptime != null && machine.uptime < RECENT_BOOT_SECONDS
+                    ? "compact-stat--fresh"
+                    : undefined
+                }
+                title={
+                  machine.uptime != null && machine.uptime < RECENT_BOOT_SECONDS
+                    ? "This host rebooted recently"
+                    : undefined
+                }
+              >
+                UPTIME <strong>{formatUptime(machine.uptime)}</strong>
+              </span>
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        )}
 
-      {host && <ConnectionsPanel host={host} />}
-      {host && <HostSettings host={host} />}
-      {host && <HostRecovery host={host} />}
+        {current === "network" && (
+          <>
+            <div className="network-stats">
+              <Stat label="DOWNLOAD" value={`↓ ${formatSpeed(machine.network_rx)}`}>
+                <Sparkline
+                  points={history?.network_rx}
+                  max={netMax}
+                  variant="rx"
+                  windowMinutes={windowMinutes}
+                />
+              </Stat>
+
+              <Stat label="UPLOAD" value={`↑ ${formatSpeed(machine.network_tx)}`}>
+                <Sparkline
+                  points={history?.network_tx}
+                  max={netMax}
+                  variant="tx"
+                  windowMinutes={windowMinutes}
+                />
+              </Stat>
+            </div>
+
+            {machine.interfaces?.length > 0 && (
+              <div className="io-list">
+                {machine.interfaces.map((iface) => (
+                  <div className="io-row" key={iface.device}>
+                    <strong>{iface.name}</strong>
+                    <span>↓ {formatSpeed(iface.rx_bps)}</span>
+                    <span>↑ {formatSpeed(iface.tx_bps)}</span>
+                    {iface.in_total === false && (
+                      <span
+                        className="io-row-aside"
+                        title="An overlay link — its traffic isn't counted in the download/upload figures above, which cover physical interfaces only."
+                      >
+                        not in total
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {current === "gpu" && (
+          <>
+            {gpus.map((gpu, index, devices) => (
+              <GpuDevice
+                key={gpu.device_id ?? index}
+                gpu={gpu}
+                index={index}
+                total={devices.length}
+                stale={machine.agent_stale_age != null}
+                history={history}
+                windowMinutes={windowMinutes}
+              />
+            ))}
+
+            {/* The agent found a card it can't read properly. Without this
+                the only symptom is a GPU block with every number missing,
+                which reads like an idle card rather than a misconfigured
+                one. */}
+            {machine.gpu?.hint && <p className="gpu-hint">{machine.gpu.hint}</p>}
+          </>
+        )}
+
+        {current === "storage" && (
+          <>
+            {filesystems.length > 0 && (
+              <div className="storage-section">
+                {filesystems.map((filesystem) => (
+                  <div
+                    className="disk"
+                    key={`${filesystem.device}-${filesystem.mountpoint}`}
+                  >
+                    <div className="disk-header">
+                      <div>
+                        <strong>{diskLabel(filesystem)}</strong>
+                        <span>{filesystem.mountpoint}</span>
+                      </div>
+
+                      <strong>
+                        {filesystem.used_percent}%
+                        {filesystem.free_bytes != null && (
+                          <small> · {formatBytes(filesystem.free_bytes)} free</small>
+                        )}
+                        {filesystem.days_until_full != null &&
+                          filesystem.days_until_full <= FORECAST_SHOW_DAYS && (
+                            <small
+                              className={`disk-forecast disk-forecast--${forecastTone(
+                                filesystem.days_until_full
+                              )}`}
+                              title="At the rate it has been filling recently"
+                            >
+                              {" "}
+                              · {formatDaysUntilFull(filesystem.days_until_full)}
+                            </small>
+                          )}
+                      </strong>
+                    </div>
+
+                    <div className="disk-bar">
+                      <div
+                        className={`disk-bar-fill disk-bar-fill--${diskTone(
+                          filesystem.used_percent
+                        )}`}
+                        style={{
+                          width: `${Math.min(filesystem.used_percent, 100)}%`,
+                        }}
+                      />
+                    </div>
+
+                    <div className="disk-details">
+                      <span>{formatBytes(filesystem.used_bytes)} used</span>
+                      <span>{formatBytes(filesystem.total_bytes)} total</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {machine.disk_io?.length > 0 && (
+              <div className="io-list">
+                {machine.disk_io.map((disk) => (
+                  <div className="io-row" key={disk.device}>
+                    <strong>{disk.name}</strong>
+                    <span>↓ {formatSpeed(disk.read_bps)}</span>
+                    <span>↑ {formatSpeed(disk.write_bps)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {current === "manage" && host && (
+          <div className="vitals-manage">
+            <ConnectionsPanel host={host} />
+            <HostSettings host={host} />
+            <HostRecovery host={host} />
+          </div>
+        )}
+      </div>
     </>
   );
 }

@@ -2,10 +2,15 @@ import { useState } from "react";
 import CheckForm from "./CheckForm";
 import CheckHistory from "./CheckHistory";
 import Sparkline from "./Sparkline";
+import AppIcon from "./AppIcon";
+import { IconButton } from "./Icon";
 import { deleteCheck, runCheck, updateCheck } from "./checksApi";
 import { formatAge, formatDuration, formatLatency } from "./format";
 
-const TYPE_LABEL = { http: "HTTP", keyword: "KEYWORD", ping: "PING", tcp: "TCP", dns: "DNS" };
+const TYPE_LABEL = { http: "HTTP", keyword: "Keyword", ping: "Ping", tcp: "TCP", dns: "DNS" };
+
+const STATUS_LABEL = { up: "Up", down: "Down", paused: "Paused", pending: "Checking" };
+const STATUS_TONE = { up: "ok", down: "bad", paused: "none", pending: "none" };
 
 // Second-level precision: on a monitoring page "just now" hides whether the
 // last probe was 3s or 55s ago.
@@ -89,29 +94,34 @@ function CheckCard({ check, now }) {
   return (
     <article className={`check check--${status} ${open ? "check--open" : ""}`}>
       <div className="check-head">
-        <span className={`status-dot status-dot--${status === "up" ? "ok" : status === "down" ? "bad" : "none"}`} />
-        <div className="check-title">
-          <strong>{check.name}</strong>
-          <span className="chip">{TYPE_LABEL[check.type]}</span>
-          {status === "up" && check.failing > 0 && (
-            <span className="chip chip--warn" title={check.detail ?? undefined}>
-              {check.failing} failed
-            </span>
+        <AppIcon url={check.target} label={check.name} className="app-tile-icon check-icon" />
+        <div className="check-title-block">
+          <div className="check-title">
+            <strong>{check.name}</strong>
+            <span className="chip">{TYPE_LABEL[check.type]}</span>
+            {status === "up" && check.failing > 0 && (
+              <span className="chip chip--warn" title={check.detail ?? undefined}>
+                {check.failing} failed
+              </span>
+            )}
+          </div>
+          {check.type === "http" || check.type === "keyword" ? (
+            <a
+              className="check-target"
+              href={check.target}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Open"
+            >
+              {check.target}
+            </a>
+          ) : (
+            <span className="check-target">{check.target}</span>
           )}
         </div>
-        {check.type === "http" || check.type === "keyword" ? (
-          <a
-            className="check-target"
-            href={check.target}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Open"
-          >
-            {check.target}
-          </a>
-        ) : (
-          <span className="check-target">{check.target}</span>
-        )}
+        <span className={`status-pill status-pill--${STATUS_TONE[status] || "none"}`}>
+          {STATUS_LABEL[status] || status}
+        </span>
       </div>
 
       {check.type === "keyword" && (
@@ -157,38 +167,38 @@ function CheckCard({ check, now }) {
         >
           Check now
         </button>
-        <button
-          type="button"
-          className="btn btn--sm"
-          disabled={busy}
-          onClick={() => act(() => updateCheck(check.id, { paused: !check.paused }))}
-        >
-          {check.paused ? "Resume" : "Pause"}
-        </button>
-        <button type="button" className="btn btn--sm btn--ghost" disabled={busy} onClick={() => setEditing(true)}>
-          Edit
-        </button>
-        <button
-          type="button"
-          className="btn btn--sm btn--ghost"
-          disabled={busy}
-          onClick={() => {
-            if (window.confirm(`Delete the check "${check.name}" and its history?`)) {
-              act(() => deleteCheck(check.id));
-            }
-          }}
-        >
-          Delete
-        </button>
-        <button
-          type="button"
-          className="btn btn--sm btn--ghost check-toggle"
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={open}
-          title={open ? "Hide history" : "Show history"}
-        >
-          History <span className="crow-chevron">▾</span>
-        </button>
+        <span className="check-actions-icons">
+          <IconButton
+            icon="chart"
+            label={open ? "Hide history" : "Show history"}
+            active={open}
+            aria-expanded={open}
+            onClick={() => setOpen((v) => !v)}
+          />
+          <IconButton
+            icon={check.paused ? "play" : "pause"}
+            label={check.paused ? "Resume" : "Pause"}
+            disabled={busy}
+            onClick={() => act(() => updateCheck(check.id, { paused: !check.paused }))}
+          />
+          <IconButton
+            icon="edit"
+            label="Edit"
+            disabled={busy}
+            onClick={() => setEditing(true)}
+          />
+          <IconButton
+            icon="trash"
+            label="Delete"
+            danger
+            disabled={busy}
+            onClick={() => {
+              if (window.confirm(`Delete the check "${check.name}" and its history?`)) {
+                act(() => deleteCheck(check.id));
+              }
+            }}
+          />
+        </span>
       </div>
 
       {open && <CheckHistory check={check} />}

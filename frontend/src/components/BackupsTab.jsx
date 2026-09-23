@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import BackupCard from "./BackupCard";
 import BackupForm from "./BackupForm";
 import { createBackup, deleteBackup, fetchBackups, updateBackup } from "./backupsApi";
-import { formatBytes } from "./format";
+import { formatAge, formatBytes } from "./format";
 import { useNow } from "./useNow";
 
 // Scheduled volume backups.
@@ -63,6 +63,13 @@ function BackupsTab({ machines, connected }) {
   const failing = jobs.filter((j) => rank(j) <= ORDER.stale).length;
   const protectedBytes = jobs.reduce((sum, j) => sum + (j.last_archive?.bytes || 0), 0);
   const unprotected = jobs.filter((j) => j.dest_host === j.source_host).length;
+  // "Needs attention" used to be its own tile, repeating the Jobs tile's
+  // sub-line. How old the worst job's newest archive is says more: it's how
+  // much you'd lose if that one mattered today.
+  const ages = jobs
+    .filter((j) => j.last_success_at)
+    .map((j) => now - j.last_success_at);
+  const stalest = ages.length ? Math.max(...ages) : null;
 
   return (
     <section className="backups-tab">
@@ -74,7 +81,11 @@ function BackupsTab({ machines, connected }) {
             sub={failing ? `${failing} need attention` : "all current"}
             bad={failing > 0}
           />
-          <Fact label="Needs attention" value={failing} bad={failing > 0} />
+          <Fact
+            label="Furthest behind"
+            value={stalest == null ? "—" : formatAge(stalest)}
+            sub="age of its newest archive"
+          />
           <Fact
             label="Newest archives"
             value={formatBytes(protectedBytes)}

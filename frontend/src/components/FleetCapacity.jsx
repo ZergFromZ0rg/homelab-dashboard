@@ -1,4 +1,4 @@
-// Per-node headroom, shown above the deploy form so the placement the
+// Per-node headroom, shown across the top of the Deploy tab so the placement the
 // scheduler will pick is predictable at a glance. Same inputs the
 // scheduler scores on (free RAM / free vCPU / GPU / online).
 //
@@ -74,46 +74,61 @@ function FleetCapacity({ machines, deployments }) {
 
   const { capRam, capVcpu, comRam, comVcpu } = commitment(machines, deployments);
 
+  // One tile per node, across the top of the Deploy tab: the free RAM and
+  // vCPU the scheduler will score on, and a bar for how busy it is.
   return (
-    <div className="fleet-capacity">
-      <span className="deploy-label">Fleet capacity</span>
-      {rows.map((r) => (
-        <div
-          key={r.name}
-          className={`fleet-row ${r.online ? "" : "fleet-row--off"}`}
-        >
-          <span className="fleet-node">
-            <span style={{ color: hostColor(r.name) }}>{r.name}</span>
-            {cpuTag(r) && <span className="fleet-cpu-tag">{cpuTag(r)}</span>}
+    <section className="overview-section fleet-section">
+      <div className="overview-section-head">
+        <h2>Fleet capacity</h2>
+        {comRam + comVcpu > 0 && (
+          <span className="fleet-committed">
+            scheduler committed {comRam.toFixed(1)} GB · {comVcpu.toFixed(1)} vCPU
+            {" of "}
+            {capRam.toFixed(0)} GB · {capVcpu.toFixed(0)} vCPU online
           </span>
+        )}
+      </div>
 
-          <div className="fleet-bar" title={`${r.load.toFixed(0)}% used`}>
-            <div
-              className={`fleet-bar-fill ${r.load >= 85 ? "fleet-bar-fill--hot" : ""}`}
-              style={{ width: `${Math.min(100, Math.max(2, r.load))}%` }}
-            />
+      <div className="fleet-tiles">
+        {rows.map((r) => (
+          <div
+            key={r.name}
+            className={`fleet-tile ${r.online ? "" : "fleet-tile--off"}`}
+            style={{ "--host-color": hostColor(r.name) }}
+          >
+            <div className="fleet-tile-head">
+              <span className="fleet-tile-name" style={{ color: hostColor(r.name) }}>
+                {r.name}
+              </span>
+              {cpuTag(r) && <span className="fleet-cpu-tag">{cpuTag(r)}</span>}
+              {r.hasGpu && <span className="chip">GPU</span>}
+            </div>
+
+            {r.online ? (
+              <div className="fleet-tile-free">
+                <div>
+                  <strong>{r.freeRamGb != null ? r.freeRamGb.toFixed(1) : "—"}</strong>
+                  <span>GB free</span>
+                </div>
+                <div>
+                  <strong>{r.freeVcpu != null ? r.freeVcpu.toFixed(1) : "—"}</strong>
+                  <span>vCPU free</span>
+                </div>
+              </div>
+            ) : (
+              <div className="fleet-tile-free fleet-tile-free--off">offline</div>
+            )}
+
+            <div className="fleet-bar" title={`${r.load.toFixed(0)}% used`}>
+              <div
+                className={`fleet-bar-fill ${r.load >= 85 ? "fleet-bar-fill--hot" : ""}`}
+                style={{ width: `${Math.min(100, Math.max(2, r.load))}%` }}
+              />
+            </div>
           </div>
-
-          <span className="fleet-free">
-            {r.online
-              ? `${r.freeRamGb != null ? `${r.freeRamGb.toFixed(1)} GB` : "—"} · ${
-                  r.freeVcpu != null ? `${r.freeVcpu.toFixed(1)} vCPU` : "—"
-                }`
-              : "offline"}
-          </span>
-
-          <span className="fleet-gpu">{r.hasGpu ? "GPU" : ""}</span>
-        </div>
-      ))}
-
-      {comRam + comVcpu > 0 && (
-        <div className="fleet-committed">
-          scheduler committed {comRam.toFixed(1)} GB · {comVcpu.toFixed(1)} vCPU
-          {" of "}
-          {capRam.toFixed(0)} GB · {capVcpu.toFixed(0)} vCPU online
-        </div>
-      )}
-    </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

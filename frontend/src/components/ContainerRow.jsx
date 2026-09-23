@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { avatarColor, containerUrl } from "./containerLink";
+import { containerUrl } from "./containerLink";
+import AppIcon from "./AppIcon";
+import Icon, { IconButton } from "./Icon";
 import { needsAttention } from "./containerSort";
 import { formatBytes, formatBytesPerSec } from "./format";
 import ContainerCharts from "./ContainerCharts";
@@ -26,18 +28,6 @@ function formatStartedAt(value) {
   if (hours > 0) return `${hours}h ${minutes}m`;
 
   return `${minutes}m`;
-}
-
-function ContainerAvatar({ name }) {
-  return (
-    <div
-      className="container-avatar"
-      style={{ background: avatarColor(name) }}
-      aria-hidden="true"
-    >
-      {name.charAt(0).toUpperCase()}
-    </div>
-  );
 }
 
 function Detail({ label, value, sub }) {
@@ -137,7 +127,8 @@ function ContainerRow({
         </button>
 
         <div className="c-name">
-          <ContainerAvatar name={container.name} />
+          {/* The web UI's own icon when it has one, else a lettered avatar. */}
+          <AppIcon url={url} label={container.name} className="app-tile-icon c-icon" />
           <div className="c-name-block">
             <div className="c-name-line">
               {url ? (
@@ -180,7 +171,7 @@ function ContainerRow({
 
         <div className="c-state">
           <div className="c-state-line">
-            <span className={`container-status ${container.status}`}>
+            <span className={`status-pill status-pill--${running ? "ok" : container.status === "exited" || container.status === "dead" ? "bad" : "none"}`}>
               {action ? `${action}…` : container.status}
             </span>
             {container.health && (
@@ -266,48 +257,46 @@ function ContainerRow({
           )}
 
           {protectedContainer ? (
-            <span className="protected-label">Protected</span>
+            <span
+              className="protected-label"
+              title="Protected — the agent can't be stopped or restarted from here"
+              aria-label="Protected"
+            >
+              <Icon name="lock" size={15} />
+            </span>
           ) : (
             <>
-              {!running && (
-                <button
-                  type="button"
-                  className="btn btn--sm"
-                  disabled={busy}
-                  onClick={() => onControl(host, container.id, "start")}
-                >
-                  Start
-                </button>
-              )}
-              {running && (
-                <button
-                  type="button"
-                  className="btn btn--sm"
+              {running ? (
+                <IconButton
+                  icon="stop"
+                  label="Stop"
                   disabled={busy}
                   onClick={() => confirmControl("Stop")}
-                >
-                  Stop
-                </button>
+                />
+              ) : (
+                <IconButton
+                  icon="play"
+                  label="Start"
+                  disabled={busy}
+                  onClick={() => onControl(host, container.id, "start")}
+                />
               )}
-              <button
-                type="button"
-                className="btn btn--sm"
+              <IconButton
+                icon="refresh"
+                label="Restart"
                 disabled={busy}
                 onClick={() => confirmControl("Restart")}
-              >
-                Restart
-              </button>
+              />
             </>
           )}
-          <button
-            type="button"
-            className="btn btn--sm btn--ghost crow-toggle"
-            onClick={() => setOpen((v) => !v)}
+          <IconButton
+            icon="chevron"
+            label={open ? "Hide details" : "Show details"}
+            className="crow-toggle"
+            active={open}
             aria-expanded={open}
-            title={open ? "Hide details" : "Show details"}
-          >
-            <span className="crow-chevron">▾</span>
-          </button>
+            onClick={() => setOpen((v) => !v)}
+          />
         </div>
       </div>
 

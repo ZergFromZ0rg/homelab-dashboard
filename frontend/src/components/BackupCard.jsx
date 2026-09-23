@@ -3,6 +3,7 @@ import BackupForm from "./BackupForm";
 import { deleteArchives, fetchBackupArchives, runBackup, verifyArchive } from "./backupsApi";
 import { formatAge, formatBytes } from "./format";
 import { hostColor } from "./hostColor";
+import { IconButton } from "./Icon";
 
 // One backup job: what it copies, where to, when it last worked, and what
 // it has actually written.
@@ -29,6 +30,16 @@ const STATE_LABELS = {
   stale: "Behind schedule",
   corrupt: "Archive unreadable",
   ok: "Up to date",
+};
+
+const STATE_TONE = {
+  running: "info",
+  paused: "none",
+  failing: "bad",
+  pending: "none",
+  stale: "warn",
+  corrupt: "bad",
+  ok: "ok",
 };
 
 // The result of reading an archive back. Deliberately terse: the useful
@@ -206,73 +217,76 @@ function BackupCard({ job, hosts, defaultDestHost, now, onChanged, onDelete }) {
     );
   }
 
+  const verified =
+    job.last_verify_ok === true
+      ? formatAge(now - job.last_verify_at)
+      : job.last_verify_ok === false
+        ? "failed"
+        : job.last_verify_at
+          ? "couldn't check"
+          : job.verify_interval_hours
+            ? "not yet"
+            : "off";
+
+  // A tile: the state, the route, one big "how old is the newest copy",
+  // three small facts, then actions. The archive list opens across the
+  // whole row (see .backup--wide) since it's a table.
   return (
-    <div className={`backup backup--${status}`}>
+    <div className={`backup backup--${status} ${showArchives ? "backup--wide" : ""}`}>
       <div className="backup-head">
-        <div>
-          <h3>{job.name}</h3>
-          <p className="backup-route">
-            <code>{job.volume || job.path}</code> on{" "}
-            <span
-              className="chip chip--host"
-              style={{ color: hostColor(job.source_host), borderColor: hostColor(job.source_host) }}
-            >
-              {job.source_host}
-            </span>{" "}
-            →{" "}
-            <span
-              className="chip chip--host"
-              style={{ color: hostColor(job.dest_host), borderColor: hostColor(job.dest_host) }}
-            >
-              {job.dest_host}
-            </span>
-            <code>{job.directory}</code>
-          </p>
-        </div>
-        <span className={`backup-state backup-state--${status}`}>
+        <h3 title={job.name}>{job.name}</h3>
+        <span className={`status-pill status-pill--${STATE_TONE[status] || "none"}`}>
           {STATE_LABELS[status] || status}
+        </span>
+      </div>
+
+      <div className="backup-route">
+        <span
+          className="chip chip--host"
+          style={{ color: hostColor(job.source_host), borderColor: hostColor(job.source_host) }}
+        >
+          {job.source_host}
+        </span>
+        <span className="backup-arrow" aria-hidden="true">→</span>
+        <span
+          className="chip chip--host"
+          style={{ color: hostColor(job.dest_host), borderColor: hostColor(job.dest_host) }}
+        >
+          {job.dest_host}
+        </span>
+      </div>
+      <code className="backup-what" title={`${job.volume || job.path} → ${job.directory}`}>
+        {job.volume || job.path}
+      </code>
+
+      <div className="backup-hero">
+        <strong>{job.last_success_at ? formatAge(now - job.last_success_at) : "—"}</strong>
+        <span>
+          newest archive
+          {archive?.bytes != null && ` · ${formatBytes(archive.bytes)}`}
         </span>
       </div>
 
       <div className="backup-facts">
         <div>
-          <span className="fact-label">Newest archive</span>
-          <strong>{job.last_success_at ? formatAge(now - job.last_success_at) : "—"}</strong>
-          {archive?.bytes != null && <em>{formatBytes(archive.bytes)}</em>}
-        </div>
-        <div>
           <span className="fact-label">Schedule</span>
-          <strong>{interval(job.interval_hours)}</strong>
-          {job.enabled === false && <em>paused</em>}
+          <strong>{job.enabled === false ? "paused" : interval(job.interval_hours)}</strong>
         </div>
-        <div>
+        <div title={job.last_verified?.files != null ? `${job.last_verified.files} files read back` : undefined}>
           <span className="fact-label">Verified</span>
-          <strong>
-            {job.last_verify_ok === true
-              ? formatAge(now - job.last_verify_at)
-              : job.last_verify_ok === false
-                ? "failed"
-                : job.last_verify_at
-                  ? "couldn't check"
-                  : "—"}
+          <strong className={job.last_verify_ok === false ? "text-bad" : undefined}>
+            {verified}
           </strong>
-          {job.last_verified?.files != null && job.last_verify_ok && (
-            <em>{job.last_verified.files} files read back</em>
-          )}
-          {!job.verify_interval_hours && <em>checking off</em>}
         </div>
-        <div>
+        <div title={job.last_pruned?.length ? `pruned ${job.last_pruned.length} last run` : undefined}>
           <span className="fact-label">Keeping</span>
           <strong>{job.keep}</strong>
-          {job.last_pruned?.length > 0 && <em>pruned {job.last_pruned.length} last run</em>}
         </div>
-        {job.stop_containers && (
-          <div>
-            <span className="fact-label">While copying</span>
-            <strong>containers stopped</strong>
-          </div>
-        )}
       </div>
+
+      {job.stop_containers && (
+        <p className="backup-note">Stops its containers while copying</p>
+      )}
 
       {job.last_error && (
         <p className="backup-error" title={job.last_error}>
@@ -291,34 +305,34 @@ function BackupCard({ job, hosts, defaultDestHost, now, onChanged, onDelete }) {
         <button type="button" className="btn btn--sm" disabled={busy || job.running} onClick={run}>
           {job.running ? "Running…" : "Back up now"}
         </button>
-        <button type="button" className="btn btn--sm" onClick={() => setShowArchives((v) => !v)}>
-          {showArchives ? "Hide archives" : "Archives"}
-        </button>
-        <button type="button" className="btn btn--sm" onClick={() => setEditing(true)}>
-          Edit
-        </button>
-        <button
-          type="button"
-          className="btn btn--sm"
-          onClick={() => onChanged({ enabled: !job.enabled })}
-        >
-          {job.enabled ? "Pause" : "Resume"}
-        </button>
-        <button
-          type="button"
-          className="btn btn--sm btn--ghost"
-          onClick={() => {
-            if (
-              window.confirm(
-                `Stop backing up "${job.name}"? Archives already written are kept.`
-              )
-            ) {
-              onDelete();
-            }
-          }}
-        >
-          Remove
-        </button>
+        <span className="check-actions-icons">
+          <IconButton
+            icon="archive"
+            label={showArchives ? "Hide archives" : "Archives"}
+            active={showArchives}
+            onClick={() => setShowArchives((v) => !v)}
+          />
+          <IconButton
+            icon={job.enabled ? "pause" : "play"}
+            label={job.enabled ? "Pause" : "Resume"}
+            onClick={() => onChanged({ enabled: !job.enabled })}
+          />
+          <IconButton icon="edit" label="Edit" onClick={() => setEditing(true)} />
+          <IconButton
+            icon="trash"
+            label="Remove"
+            danger
+            onClick={() => {
+              if (
+                window.confirm(
+                  `Stop backing up "${job.name}"? Archives already written are kept.`
+                )
+              ) {
+                onDelete();
+              }
+            }}
+          />
+        </span>
       </div>
 
       {showArchives && (

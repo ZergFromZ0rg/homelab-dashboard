@@ -1,3 +1,5 @@
+import NodePicker from "./NodePicker";
+
 // Compose-stack form: a project name, the compose YAML, optional .env
 // pairs, and the shared scheduler constraints.
 
@@ -93,41 +95,19 @@ function StackForm({ value, onChange, nodeNames }) {
         <div className="deploy-grid">
           <div className="deploy-field">
             <span className="deploy-label">Only these nodes</span>
-            <select
-              className="deploy-input"
-              multiple
+            <NodePicker
+              nodes={nodeNames}
               value={value.constraints.node_in ?? []}
-              onChange={(e) =>
-                setConstraint({
-                  node_in: [...e.target.selectedOptions].map((o) => o.value),
-                })
-              }
-            >
-              {nodeNames.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
+              onChange={(next) => setConstraint({ node_in: next })}
+            />
           </div>
           <div className="deploy-field">
             <span className="deploy-label">Never these nodes</span>
-            <select
-              className="deploy-input"
-              multiple
+            <NodePicker
+              nodes={nodeNames}
               value={value.constraints.node_not_in ?? []}
-              onChange={(e) =>
-                setConstraint({
-                  node_not_in: [...e.target.selectedOptions].map((o) => o.value),
-                })
-              }
-            >
-              {nodeNames.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
+              onChange={(next) => setConstraint({ node_not_in: next })}
+            />
           </div>
         </div>
       )}

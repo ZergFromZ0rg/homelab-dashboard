@@ -1,25 +1,20 @@
-// Compact per-host health for the Overview: a tile per machine with its
-// headline bars. Each tile jumps to the Servers tab for the full card.
+// The Overview's per-host tile: ring gauges for the numbers that decide
+// whether a machine is healthy (CPU, RAM, fullest disk, GPU if it has one)
+// and how many of its containers are up. Every tile is the same shape, so
+// the servers read as one even row. A click opens the Servers tab.
 
+import Gauge from "./Gauge";
 import { diskLabel } from "./diskLabel";
 import { hostColor } from "./hostColor";
 
-function Bar({ label, pct }) {
-  const known = typeof pct === "number";
-  const hot = known && pct >= 85;
+function Ring({ label, value }) {
   return (
-    <div className="host-bar">
-      <span className="host-bar-label" title={label}>
+    <span className="host-ring">
+      <Gauge value={value} size={58} strokeWidth={5} />
+      <span className="host-ring-label" title={label}>
         {label}
       </span>
-      <div className="mini-bar">
-        <div
-          className={`mini-bar-fill ${hot ? "mini-bar-fill--hot" : "mini-bar-fill--cpu"}`}
-          style={{ width: `${known ? Math.min(100, Math.max(0, pct)) : 0}%` }}
-        />
-      </div>
-      <span className="host-bar-pct">{known ? `${Math.round(pct)}%` : "—"}</span>
-    </div>
+    </span>
   );
 }
 
@@ -52,23 +47,31 @@ function HostSummary({ machines, containers, onOpen }) {
             style={{ "--host-color": hostColor(name) }}
           >
             <span className="host-tile-head">
-              <span className={`status-dot status-dot--${offline ? "bad" : "ok"}`} />
               <span className="host-tile-name" style={{ color: hostColor(name) }}>
                 {name}
               </span>
-              <span className="host-tile-count">
-                {offline ? "offline" : `${running}/${conts.length} running`}
+              <span className={`host-tile-state host-tile-state--${offline ? "bad" : "ok"}`}>
+                <span className={`status-dot status-dot--${offline ? "bad" : "ok"}`} />
+                {offline ? "offline" : "online"}
               </span>
             </span>
 
-            {!offline && (
-              <span className="host-tile-bars">
-                <Bar label="CPU" pct={m.cpu} />
-                <Bar label="RAM" pct={m.ram} />
-                {fullest && <Bar label={diskLabel(fullest)} pct={fullest.used_percent} />}
-                {gpu != null && <Bar label="GPU" pct={gpu} />}
+            <span className="host-tile-rings">
+              <Ring label="CPU" value={offline ? null : m.cpu} />
+              <Ring label="RAM" value={offline ? null : m.ram} />
+              <Ring
+                label={fullest ? diskLabel(fullest) : "Disk"}
+                value={offline ? null : fullest?.used_percent}
+              />
+              {gpu != null && <Ring label="GPU" value={offline ? null : gpu} />}
+            </span>
+
+            <span className="host-tile-foot">
+              <span>
+                <strong>{running}</strong> / {conts.length} containers running
               </span>
-            )}
+              <span className="host-tile-go" aria-hidden="true">→</span>
+            </span>
           </button>
         );
       })}
