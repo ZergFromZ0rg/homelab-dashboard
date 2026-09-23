@@ -253,7 +253,8 @@ def test_an_ignored_stack_stops_counting_as_a_gap(client, ignores):
     after = client.get("/api/hosts/bigboy/recovery").json()
 
     assert after["unprotected_count"] == 2, "only ai-librarian's two remain"
-    assert after["ignored_count"] == 1
+    # Counted per piece of data, not per stack: jellyfin owns three.
+    assert after["ignored_count"] == 3
 
 
 def test_an_ignored_stack_is_still_shown_with_its_reason(client, ignores):
@@ -313,7 +314,7 @@ def test_decisions_survive_a_restart(tmp_path):
 
     (row,) = backup_ignores.IgnoreStore(path).all()
 
-    assert row["project"] == "grafana"
+    assert row["name"] == "grafana"
     assert row["reason"] == "replaced by this"
 
 
@@ -325,3 +326,53 @@ def test_ignoring_is_token_gated(client, ignores, monkeypatch):
     assert client.delete(
         "/api/hosts/bigboy/recovery/ignore/x"
     ).status_code == 401
+
+
+def test_one_piece_can_be_decided_against_while_another_is_kept(client, ignores):
+    """jellyfin's config is worth backing up and its media is not. A model
+    with one flag per stack cannot say that, which is why decisions name a
+    piece."""
+    jobs_before = client.get("/api/hosts/bigboy/recovery").json()
+    assert jobs_before["unprotected_count"] == 5
+
+    client.put("/api/hosts/bigboy/recovery/ignore", json={
+        "names": ["/home/zerg/homelab/jellyfin/cache"],
+        "reason": "regenerates",
+    })
+
+    body = client.get("/api/hosts/bigboy/recovery").json()
+    jellyfin = next(p for p in body["projects"] if p["project"] == "jellyfin")
+    items = {i["name"]: i for i in jellyfin["items"]}
+
+    assert items["/home/zerg/homelab/jellyfin/cache"]["ignored"]["reason"] == "regenerates"
+    assert items["jellyfin_config"]["ignored"] is None, "the rest is untouched"
+    assert body["unprotected_count"] == 4
+
+
+def test_a_stack_is_settled_when_every_piece_is_covered_or_decided(client, ignores, jobs):
+    """"Nothing left to decide here" is what the reader wants to know, and
+    it is not the same as "all backed up"."""
+    jobs.add(a_job(volume="jellyfin_config", source_host="bigboy"))
+    client.put("/api/hosts/bigboy/recovery/ignore", json={"names": [
+        "/home/zerg/homelab/jellyfin/cache",
+        "/home/zerg/homelab/jellyfin/empty",
+    ]})
+
+    body = client.get("/api/hosts/bigboy/recovery").json()
+    jellyfin = next(p for p in body["projects"] if p["project"] == "jellyfin")
+
+    assert jellyfin["settled"] is True
+    assert jellyfin["protected"] is False, "not everything is backed up, and that's fine"
+
+
+def test_a_decision_naming_a_directory_can_be_undone(client, ignores):
+    """The path has slashes in it, which the route has to survive."""
+    client.put("/api/hosts/bigboy/recovery/ignore",
+               json={"names": ["/home/zerg/homelab/jellyfin/cache"]})
+
+    resp = client.delete(
+        "/api/hosts/bigboy/recovery/ignore//home/zerg/homelab/jellyfin/cache"
+    )
+
+    assert resp.status_code == 200
+    assert client.get("/api/hosts/bigboy/recovery").json()["unprotected_count"] == 5

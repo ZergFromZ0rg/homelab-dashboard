@@ -60,13 +60,15 @@ export const backupProjects = (body) =>
 
 // Recording that a stack is deliberately not backed up. Not hiding it —
 // it stays on the page; it stops counting as a gap.
-export const ignoreProjects = (host, projects, reason) =>
+// A decision names a stack or one piece of data — coverage is per piece,
+// so decisions are too.
+export const ignoreNames = (host, names, reason) =>
   send("PUT", `/api/hosts/${encodeURIComponent(host)}/recovery/ignore`,
-       { projects, reason });
+       { names, reason });
 
-export const unignoreProject = (host, project) =>
+export const unignore = (host, name) =>
   send("DELETE",
-       `/api/hosts/${encodeURIComponent(host)}/recovery/ignore/${encodeURIComponent(project)}`);
+       `/api/hosts/${encodeURIComponent(host)}/recovery/ignore/${name}`);
 
 export const createBackup = (spec) => send("POST", "/api/backups", spec);
 export const updateBackup = (id, patch) => send("PUT", `/api/backups/${id}`, patch);

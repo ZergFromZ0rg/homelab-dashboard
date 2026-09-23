@@ -12,6 +12,13 @@ can be un-ignored. What changes is the headline number, which then means
 "gaps I have not decided about" rather than "everything I have not
 configured" — and those are very different questions.
 
+A decision names either a **stack** or a single **piece of data**, because
+coverage is per piece and decisions have to be too: jellyfin's config is
+worth backing up and its 900 GB of media is not, and a model that can only
+say "jellyfin" cannot express that. Ignoring a stack is the convenient
+gesture; it means every piece of it, and an individually-named piece wins
+on its own.
+
 Kept on the dashboard rather than on the agent because it is a judgement
 about whether data matters, not a fact about what a host can do.
 """
@@ -30,8 +37,8 @@ IGNORES_FILE = Path(env_str("BACKUP_IGNORES_FILE", "/data/backup_ignores.json"))
 MAX_REASON = 200
 
 
-def _key(host: str, project: str) -> str:
-    return f"{host}\t{project}"
+def _key(host: str, name: str) -> str:
+    return f"{host}\t{name}"
 
 
 class IgnoreStore:
@@ -52,7 +59,9 @@ class IgnoreStore:
             if isinstance(row, dict) and "\t" in key:
                 out[key] = {
                     "host": row.get("host") or key.split("\t")[0],
-                    "project": row.get("project") or key.split("\t")[1],
+                    # "project" is the older spelling of the same field.
+                    "name": row.get("name") or row.get("project")
+                            or key.split("\t")[1],
                     "reason": str(row.get("reason") or "")[:MAX_REASON],
                     "at": float(row.get("at") or time.time()),
                 }
@@ -66,34 +75,36 @@ class IgnoreStore:
         with self._lock:
             return sorted(
                 (dict(r) for r in self._rows.values()),
-                key=lambda r: (r["host"], r["project"]),
+                key=lambda r: (r["host"], r["name"]),
             )
 
     def for_host(self, host: str) -> dict[str, dict]:
+        """Decisions on this host, keyed by whatever they name — a stack or
+        one piece of data."""
         with self._lock:
             return {
-                r["project"]: dict(r)
+                r["name"]: dict(r)
                 for r in self._rows.values()
                 if r["host"] == host
             }
 
-    def add(self, host: str, project: str, reason: str = "") -> dict:
+    def add(self, host: str, name: str, reason: str = "") -> dict:
         row = {
             "host": host,
-            "project": project,
+            "name": name,
             "reason": str(reason or "")[:MAX_REASON],
             "at": time.time(),
         }
 
         with self._lock:
-            self._rows[_key(host, project)] = row
+            self._rows[_key(host, name)] = row
             self._save_locked()
 
         return dict(row)
 
-    def remove(self, host: str, project: str) -> bool:
+    def remove(self, host: str, name: str) -> bool:
         with self._lock:
-            if self._rows.pop(_key(host, project), None) is None:
+            if self._rows.pop(_key(host, name), None) is None:
                 return False
 
             self._save_locked()

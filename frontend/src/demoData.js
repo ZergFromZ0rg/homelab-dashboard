@@ -768,11 +768,13 @@ export function demoHostRecovery(host) {
           working_dir: "/home/zerg/ai-librarian",
           containers: ["ai-librarian-qdrant-1", "ai-librarian-ui-1"],
           protected: true,
+          settled: true,
           items: [
             { kind: "path", name: "/home/zerg/ai-librarian/data/qdrant", bytes: 730_508_267,
-              allowed: true, partial: false, protected_by: covered("qdrant") },
+              allowed: true, partial: false, ignored: null, protected_by: covered("qdrant") },
             { kind: "path", name: "/home/zerg/ai-librarian/data/models", bytes: 1_891_612_940,
-              allowed: true, partial: false, protected_by: covered("ai-librarian models") },
+              allowed: true, partial: false, ignored: null,
+              protected_by: covered("ai-librarian models") },
           ],
         },
         {
@@ -780,9 +782,13 @@ export function demoHostRecovery(host) {
           working_dir: "/home/zerg/homelab/jellyfin",
           containers: ["jellyfin"],
           protected: false,
+          settled: false,
           items: [
             { kind: "volume", name: "jellyfin_config", bytes: 184_320_000,
-              allowed: true, partial: false, protected_by: null },
+              allowed: true, partial: false, protected_by: null, ignored: null },
+            { kind: "path", name: "/mnt/media", bytes: 918_700_000_000,
+              allowed: false, partial: true, protected_by: null,
+              ignored: { name: "/mnt/media", reason: "re-acquirable, and it doesn't fit" } },
           ],
         },
         {
@@ -790,7 +796,8 @@ export function demoHostRecovery(host) {
           working_dir: "/home/zerg/docker/stacks/portainer",
           containers: ["portainer"],
           protected: false,
-          ignored: { host: "bigboy", project: "portainer",
+          settled: true,
+          ignored: { host: "bigboy", name: "portainer",
                      reason: "replaced by this dashboard", at: 0 },
           items: [
             { kind: "volume", name: "portainer_data", bytes: 9_400_000,

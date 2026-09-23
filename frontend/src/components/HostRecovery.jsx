@@ -4,8 +4,8 @@ import { authHeaders, jsonOrThrow } from "./apiAuth";
 import {
   backupProjects,
   fetchBackupDestinations,
-  ignoreProjects,
-  unignoreProject,
+  ignoreNames,
+  unignore,
 } from "./backupsApi";
 import { formatAge, formatBytes } from "./format";
 
@@ -79,7 +79,7 @@ function HostRecovery({ host }) {
       setChosen(
         new Set(
           body.projects
-            .filter((p) => !p.protected && !p.ignored)
+            .filter((p) => !p.settled && !p.ignored)
             .map((p) => p.project)
         )
       );
@@ -150,7 +150,7 @@ function HostRecovery({ host }) {
                 {data.projects.map((project) => (
                   <li key={project.project}>
                     <div className="recovery-project">
-                      {project.protected ? (
+                      {project.settled ? (
                         <strong>{project.project}</strong>
                       ) : (
                         <label className="recovery-pick">
@@ -177,14 +177,14 @@ function HostRecovery({ host }) {
                             type="button"
                             className="btn btn--sm btn--ghost"
                             onClick={async () => {
-                              await unignoreProject(host, project.project);
+                              await unignore(host, project.project);
                               await load();
                             }}
                           >
                             undo
                           </button>
                         </span>
-                      ) : !project.protected ? (
+                      ) : !project.settled ? (
                         <button
                           type="button"
                           className="btn btn--sm btn--ghost"
@@ -194,7 +194,7 @@ function HostRecovery({ host }) {
                               "replaced by this dashboard"
                             );
                             if (why === null) return;
-                            await ignoreProjects(host, [project.project], why);
+                            await ignoreNames(host, [project.project], why);
                             await load();
                           }}
                         >
@@ -224,7 +224,24 @@ function HostRecovery({ host }) {
                               {item.partial ? "+" : ""}
                             </span>
                             <span className="recovery-cover">
-                              {item.protected_by ? (
+                              {item.ignored ? (
+                                <>
+                                  not backed up on purpose
+                                  {item.ignored.reason ? ` — ${item.ignored.reason}` : ""}
+                                  {!project.ignored && (
+                                    <button
+                                      type="button"
+                                      className="btn btn--sm btn--ghost"
+                                      onClick={async () => {
+                                        await unignore(host, item.name);
+                                        await load();
+                                      }}
+                                    >
+                                      undo
+                                    </button>
+                                  )}
+                                </>
+                              ) : item.protected_by ? (
                                 <>
                                   {item.protected_by.job} →{" "}
                                   {item.protected_by.dest}
@@ -232,10 +249,27 @@ function HostRecovery({ host }) {
                                     <strong> ({item.protected_by.state})</strong>
                                   )}
                                 </>
-                              ) : item.allowed === false ? (
-                                "not backed up — this host doesn't allow that directory yet"
                               ) : (
-                                "not backed up"
+                                <>
+                                  {item.allowed === false
+                                    ? "not backed up — this host doesn't allow that directory yet"
+                                    : "not backed up"}
+                                  <button
+                                    type="button"
+                                    className="btn btn--sm btn--ghost"
+                                    onClick={async () => {
+                                      const why = window.prompt(
+                                        `Why is ${item.name} not worth backing up?`,
+                                        "regenerates / re-acquirable"
+                                      );
+                                      if (why === null) return;
+                                      await ignoreNames(host, [item.name], why);
+                                      await load();
+                                    }}
+                                  >
+                                    don&apos;t back this up
+                                  </button>
+                                </>
                               )}
                             </span>
                           </li>

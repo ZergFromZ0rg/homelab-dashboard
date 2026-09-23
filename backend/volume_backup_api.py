@@ -115,16 +115,18 @@ def host_recovery(host: str, x_register_token: str | None = Header(default=None)
             items.append({**directory, "kind": "path", "name": directory["path"],
                           "protected_by": protection("path", directory["path"])})
 
-        decision = ignored.get(project["project"])
+        # Ignoring the stack means every piece of it; a piece named on its
+        # own stands by itself. Coverage is per piece, so decisions are too
+        # — jellyfin's config is worth keeping and its 900 GB of media is
+        # not, and one flag per stack cannot say that.
+        whole = ignored.get(project["project"])
 
-        # A stack somebody has decided about is not a gap. It stays on the
-        # page — hiding it would just move the surprise — but it stops
-        # counting, so the headline number means "gaps I have not decided
-        # about" rather than "everything I have not configured".
-        if not decision:
-            for item in items:
-                if not item["protected_by"]:
-                    unprotected_bytes += item.get("bytes") or 0
+        for item in items:
+            item["ignored"] = whole or ignored.get(item["name"]) or None
+
+            # Decided or covered, either way it is not an open question.
+            if not item["protected_by"] and not item["ignored"]:
+                unprotected_bytes += item.get("bytes") or 0
 
         projects.append({
             "project": project["project"],
@@ -132,7 +134,12 @@ def host_recovery(host: str, x_register_token: str | None = Header(default=None)
             "containers": project.get("containers", []),
             "items": items,
             "protected": all(i["protected_by"] for i in items) if items else True,
-            "ignored": decision or None,
+            # "Nothing left to decide here", which is what the reader
+            # actually wants to know.
+            "settled": all(
+                i["protected_by"] or i["ignored"] for i in items
+            ) if items else True,
+            "ignored": whole or None,
         })
 
     return {
@@ -142,10 +149,13 @@ def host_recovery(host: str, x_register_token: str | None = Header(default=None)
         "projects": projects,
         "unprotected_bytes": unprotected_bytes,
         "unprotected_count": sum(
-            1 for p in projects if not p["ignored"]
-            for i in p["items"] if not i["protected_by"]
+            1 for p in projects for i in p["items"]
+            if not i["protected_by"] and not i["ignored"]
         ),
-        "ignored_count": sum(1 for p in projects if p["ignored"]),
+        "ignored_count": sum(
+            1 for p in projects for i in p["items"]
+            if i["ignored"] and not i["protected_by"]
+        ),
     }
 
 
@@ -172,26 +182,27 @@ def ignore_projects(host: str, payload: dict,
     """
     auth.check_token(x_register_token)
 
-    projects = payload.get("projects")
+    # "projects" is the older spelling; either names stacks or pieces.
+    names = payload.get("names") or payload.get("projects")
     reason = str(payload.get("reason") or "")
 
-    if not isinstance(projects, list) or not all(isinstance(p, str) for p in projects):
-        raise HTTPException(status_code=400, detail="projects must be a list of names")
+    if not isinstance(names, list) or not all(isinstance(n, str) for n in names):
+        raise HTTPException(status_code=400, detail="names must be a list of strings")
 
     return {
-        "ignored": [
-            backup_ignores.store.add(host, project, reason) for project in projects
-        ]
+        "ignored": [backup_ignores.store.add(host, name, reason) for name in names]
     }
 
 
-@router.delete("/api/hosts/{host}/recovery/ignore/{project}")
-def unignore_project(host: str, project: str,
-                     x_register_token: str | None = Header(default=None)):
+@router.delete("/api/hosts/{host}/recovery/ignore/{name:path}")
+def unignore(host: str, name: str,
+             x_register_token: str | None = Header(default=None)):
+    """``:path`` because a decision can name a directory, and a directory
+    has slashes in it."""
     auth.check_token(x_register_token)
 
-    if not backup_ignores.store.remove(host, project):
-        raise HTTPException(status_code=404, detail="that stack was not ignored")
+    if not backup_ignores.store.remove(host, name):
+        raise HTTPException(status_code=404, detail="that was not ignored")
 
     return {"ok": True}
 
