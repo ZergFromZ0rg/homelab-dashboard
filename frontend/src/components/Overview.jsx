@@ -20,7 +20,7 @@ function issueTab(key) {
 }
 
 function AttentionPanel({ overview, deployments, onNavigate }) {
-  const { ok, issues, recommendations } = overview;
+  const { ok, issues, recommendations, security } = overview;
 
   return (
     <section className="overview-card attention">
@@ -63,6 +63,22 @@ function AttentionPanel({ overview, deployments, onNavigate }) {
               </ul>
             )}
           </>
+        )}
+
+        {/* The auth mark. A footnote rather than an issue: being
+            unauthenticated is a posture somebody chose, not an incident,
+            and an issue that can never be cleared would mean this panel is
+            never clean. It stays visible so the choice stays visible. */}
+        {security && security.authenticated === false && (
+          <details className="attention-posture">
+            <summary>
+              <span className="status-dot status-dot--warn" />
+              Unauthenticated — anyone who can reach this dashboard can change
+              your hosts
+            </summary>
+            <p>{security.message}</p>
+            <p className="settings-hint">{security.hint}</p>
+          </details>
         )}
 
         <RebalancePanel deployments={deployments} />

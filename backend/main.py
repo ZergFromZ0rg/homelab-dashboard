@@ -187,7 +187,40 @@ def _overview(
     # Worst first; the sort is stable so equal severities keep their order.
     issues.sort(key=lambda issue: issue["severity"] != "bad")
 
-    return {"ok": not issues, "issues": issues, "recommendations": recs}
+    return {
+        "ok": not issues,
+        "issues": issues,
+        "recommendations": recs,
+        # AUTH: the standing mark. Every route that can touch a host is
+        # gated, but a gate with no token is a gate standing open, and that
+        # is invisible unless something says so.
+        #
+        # Its own field rather than an issue, deliberately: an issue that
+        # can never be cleared would mean the Attention panel is never
+        # clean, and "no issues detected" is a signal worth keeping honest.
+        # This is a posture, not an incident.
+        "security": _security_posture(),
+    }
+
+
+def _security_posture() -> dict:
+    if auth.API_TOKEN:
+        return {"authenticated": True, "message": None, "hint": None}
+
+    return {
+        "authenticated": False,
+        "message": (
+            "This dashboard is unauthenticated. Anyone who can reach it can "
+            "stop containers, rebuild hosts, change agent settings and store "
+            "service credentials."
+        ),
+        "hint": (
+            "Fine behind Tailscale on a network you trust. To require a "
+            "token, set API_TOKEN here and the same value as REGISTER_TOKEN "
+            "on each agent — every route that touches a host already checks "
+            "it."
+        ),
+    }
 
 
 app.add_middleware(
@@ -250,7 +283,18 @@ async def container_action(
     host: str,
     container_id: str,
     action: str,
+    x_register_token: str | None = Header(default=None),
 ):
+    """Start / stop / restart a container on a host.
+
+    AUTH: gated. A no-op while ``API_TOKEN`` is unset, which is the current
+    posture — but stopping someone's database is a host mutation, and it
+    was the one such route that checked nothing. Marking the boundary now
+    means turning auth on later is a single environment variable rather
+    than an audit.
+    """
+    auth.check_token(x_register_token)
+
     try:
         result = await asyncio.to_thread(
             control_container,
@@ -275,6 +319,11 @@ async def container_action(
         }
 
 
+# AUTH: the routes below (pins, notes, to-dos) are deliberately *not*
+# gated. They are this browser's view state and personal scratch space —
+# nothing they change reaches a host. Everything that does touch a host is
+# gated, so turning auth on is one environment variable rather than an
+# audit. See "Authentication" in the README.
 @app.get("/api/pins")
 def list_pins():
     """Containers the user pinned to the top of the Containers tab. Pure UI
@@ -300,10 +349,17 @@ def get_service_activity_credentials():
 
 
 @app.put("/api/service-activity-credentials")
-def set_service_activity_credentials(payload: dict):
-    """Body: {"app": "qbittorrent", "credentials": {"username": ..., "password": ...}}
+def set_service_activity_credentials(
+    payload: dict,
+    x_register_token: str | None = Header(default=None),
+):
+    """AUTH: gated — this stores service passwords and API keys.
+
+    Body: {"app": "qbittorrent", "credentials": {"username": ..., "password": ...}}
     (or {"app": "jellyfin", "credentials": {"api_key": ...}}). Merges into
     that app's stored fields — a blank value clears just that field."""
+    auth.check_token(x_register_token)
+
     app_name = payload.get("app")
     fields = payload.get("credentials")
 
@@ -319,7 +375,12 @@ def set_service_activity_credentials(payload: dict):
 
 
 @app.delete("/api/service-activity-credentials/{app_name}")
-def clear_service_activity_credentials(app_name: str):
+def clear_service_activity_credentials(
+    app_name: str,
+    x_register_token: str | None = Header(default=None),
+):
+    """AUTH: gated — see the PUT above."""
+    auth.check_token(x_register_token)
     service_activity_credentials.clear(app_name)
     return {"configured": service_activity_credentials.configured()}
 

@@ -434,6 +434,19 @@ export function demoSnapshot() {
     // Mirrors what backend/alerts.py + main._overview would produce for the
     // fleet above (worst first, same keys and wording).
     overview: {
+      // The demo fleet is "unauthenticated" too, so the posture footnote
+      // shows up in the preview the way it does in a real install.
+      security: {
+        authenticated: false,
+        message:
+          "This dashboard is unauthenticated. Anyone who can reach it can "
+          + "stop containers, rebuild hosts, change agent settings and store "
+          + "service credentials.",
+        hint:
+          "Fine behind Tailscale on a network you trust. To require a token, "
+          + "set API_TOKEN here and the same value as REGISTER_TOKEN on each "
+          + "agent — every route that touches a host already checks it.",
+      },
       ok: false,
       issues: [
         { key: "container:nuc-media:nextcloud:unhealthy", severity: "bad", title: "nextcloud is unhealthy", message: "nextcloud on nuc-media is failing its healthcheck" },

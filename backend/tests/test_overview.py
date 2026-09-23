@@ -9,7 +9,23 @@ def _m(**kw):
 
 def test_all_clear():
     ov = _overview({"nuc-1": _m()}, [], set())
-    assert ov == {"ok": True, "issues": [], "recommendations": []}
+    assert ov["ok"] is True
+    assert ov["issues"] == []
+    assert ov["recommendations"] == []
+
+
+def test_the_open_dashboard_is_marked_without_counting_as_an_issue():
+    """An issue that can never be cleared would mean the Attention panel is
+    never clean, and "no issues detected" is a signal worth keeping. Being
+    unauthenticated is a posture, not an incident."""
+    from backend import auth
+
+    ov = _overview({"nuc-1": _m()}, [], set())
+
+    assert ov["ok"] is True, "it must not break the all-clear"
+    assert ov["security"]["authenticated"] is (bool(auth.API_TOKEN))
+    assert "unauthenticated" in ov["security"]["message"]
+    assert "API_TOKEN" in ov["security"]["hint"]
 
 
 def test_offline_host_is_a_bad_issue_with_a_recommendation():

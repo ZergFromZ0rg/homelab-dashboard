@@ -772,6 +772,37 @@ blank. **Note what this grants**: anyone who can reach the dashboard can
 then change these settings, including `REBUILD_ENABLED`. Set `API_TOKEN` on
 the dashboard before enabling it on a host you care about.
 
+## Authentication
+
+There is none by default, and that is a choice the dashboard now states
+out loud rather than leaving you to discover.
+
+`API_TOKEN` is unset out of the box, so every route is open to anyone who
+can reach the dashboard. Behind Tailscale on a network you trust that is a
+reasonable posture — it is the one this fleet runs. Exposed to anything
+wider it is not, because "reach the dashboard" means stop containers,
+rebuild hosts, change agent settings and store service credentials.
+
+**The boundary is already drawn in the code.** Every route that can affect
+a host calls `auth.check_token`, which is a no-op while `API_TOKEN` is
+unset. Turning authentication on is therefore one environment variable, not
+an audit:
+
+```
+API_TOKEN=<something long>        # on the dashboard
+REGISTER_TOKEN=<the same value>   # on each agent
+```
+
+Deliberately **not** gated: pins, notes and the to-do list. They are this
+browser's view state and personal scratch space, and nothing they change
+reaches a host.
+
+The Attention panel carries a standing footnote while the dashboard is
+unauthenticated. It is a footnote rather than an issue on purpose: an issue
+that can never be cleared would mean the panel is never clean, and "no
+issues detected" is a signal worth keeping honest. This is a posture, not
+an incident.
+
 ## Alerting
 
 `backend/alerts.py` runs a loop every `ALERT_INTERVAL` seconds (default

@@ -5395,3 +5395,25 @@ a.check-target:hover {
   font-size: 12px;
   color: var(--online);
 }
+
+/* The auth footnote. Quiet by design — it marks a standing choice, so it
+   must stay visible without competing with actual incidents. */
+.attention-posture {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.attention-posture summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.attention-posture p {
+  margin: 6px 0 0 20px;
+  color: var(--text-muted);
+}
