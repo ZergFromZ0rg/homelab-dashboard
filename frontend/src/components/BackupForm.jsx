@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchBackupTargets } from "./backupsApi";
+import { formatBytes } from "./format";
 import { hostColor } from "./hostColor";
 
 // Add or edit one backup job.
@@ -28,6 +29,14 @@ function splitInterval(hours) {
   return { every: hours, unit: "hours" };
 }
 
+// "4.2 GB", or "4.2 GB+" when the walk gave up before the end of a big
+// tree. A missing size is left blank rather than shown as zero.
+function size(entry) {
+  if (entry?.bytes == null) return "";
+  return `— ${formatBytes(entry.bytes)}${entry.partial ? "+" : ""}`;
+}
+
+
 function HostOption({ name }) {
   return (
     <span
@@ -43,13 +52,16 @@ function BackupForm({ hosts, defaultDestHost, job, onSubmit, onCancel }) {
   const editing = Boolean(job);
   const initialInterval = splitInterval(job?.interval_hours ?? 24);
 
-  // A volume is picked from a list; a directory is typed, because the
-  // agent won't enumerate the host filesystem and shouldn't.
-  const [kind, setKind] = useState(job?.path ? "path" : "volume");
-  const [path, setPath] = useState(job?.path || "");
+  // One picker for both kinds of source, keyed "volume:<name>" or
+  // "path:<dir>". Sizes come with the options, because "should I back this
+  // up" and "what will it cost" are the same question and answering it
+  // after the fact means noticing when the disk fills.
+  const [sourceKey, setSourceKey] = useState(
+    job?.volume ? `volume:${job.volume}` : job?.path ? `path:${job.path}` : ""
+  );
+  const [customPath, setCustomPath] = useState(job?.path || "");
   const [name, setName] = useState(job?.name || "");
   const [sourceHost, setSourceHost] = useState(job?.source_host || hosts[0] || "");
-  const [volume, setVolume] = useState(job?.volume || "");
   const [destHost, setDestHost] = useState(
     job?.dest_host || defaultDestHost || hosts[0] || ""
   );
@@ -103,9 +115,19 @@ function BackupForm({ hosts, defaultDestHost, job, onSubmit, onCancel }) {
 
   const volumes = (sourceReady && source.data?.volumes) || [];
   const sourceDirs = (sourceReady && source.data?.sources?.dirs) || [];
-  const chosen = volumes.find((v) => v.name === volume);
+  const candidates = (sourceReady && source.data?.sources?.candidates) || [];
+
+  const custom = sourceKey === "custom";
+  const kind = custom || sourceKey.startsWith("path:") ? "path" : "volume";
+  const picked = custom
+    ? customPath.trim()
+    : sourceKey.slice(sourceKey.indexOf(":") + 1);
+
+  const chosen =
+    kind === "volume"
+      ? volumes.find((v) => v.name === picked)
+      : candidates.find((c) => c.path === picked);
   const inUse = chosen?.in_use_by || [];
-  const picked = kind === "volume" ? volume : path.trim();
   const destRoots = (destReady && dest.data?.store?.roots) || [];
   const usableRoots = destRoots.filter((r) => r.usable);
 
@@ -121,6 +143,10 @@ function BackupForm({ hosts, defaultDestHost, job, onSubmit, onCancel }) {
       ? `${sourceHost} backs up named volumes only: set BACKUP_SOURCE_DIRS `
         + "on its agent to allow backing up a directory"
       : null;
+
+  // What a week of this job will hold at the destination. The number that
+  // actually decides whether a job is a good idea.
+  const perRun = chosen?.bytes ?? null;
   const directoryValue = directory ?? suggested;
 
   const destProblem = (destReady && !dest.data?.store?.enabled)
@@ -137,9 +163,11 @@ function BackupForm({ hosts, defaultDestHost, job, onSubmit, onCancel }) {
 
     try {
       await onSubmit({
-        name: name.trim() || (kind === "volume" ? volume : path.split("/").filter(Boolean).pop()),
+        // An unnamed job is named after what it copies: the volume, or a
+        // directory's last component.
+        name: name.trim() || picked.split("/").filter(Boolean).pop() || picked,
         source_host: sourceHost,
-        ...(kind === "volume" ? { volume } : { path: path.trim() }),
+        ...(kind === "volume" ? { volume: picked } : { path: picked }),
         dest_host: destHost,
         directory: directoryValue.trim(),
         interval_hours: hours,
@@ -155,64 +183,80 @@ function BackupForm({ hosts, defaultDestHost, job, onSubmit, onCancel }) {
   return (
     <form className="backup-form" onSubmit={submit}>
       <div className="backup-form-grid">
-        <label>
+        <label className="backup-form-wide">
           <span>Back up</span>
-          <div className="segmented segmented--inline">
-            <button
-              type="button"
-              className={kind === "volume" ? "active" : ""}
-              onClick={() => setKind("volume")}
-            >
-              Volume
-            </button>
-            <button
-              type="button"
-              className={kind === "path" ? "active" : ""}
-              onClick={() => setKind("path")}
-            >
-              Directory
-            </button>
-          </div>
+          <select
+            value={sourceKey}
+            onChange={(e) => setSourceKey(e.target.value)}
+            required
+            disabled={loading}
+          >
+            <option value="">
+              {loading ? `Reading ${sourceHost}…` : "Pick what to back up"}
+            </option>
 
-          {kind === "volume" ? (
-            <>
-              <select
-                value={volume}
-                onChange={(e) => setVolume(e.target.value)}
-                required
-                disabled={loading || !volumes.length}
-              >
-                <option value="">
-                  {loading ? "Reading volumes…" : "Pick a volume"}
-                </option>
+            {volumes.length > 0 && (
+              <optgroup label="Volumes">
                 {volumes.map((v) => (
-                  <option key={v.name} value={v.name}>
+                  <option key={v.name} value={`volume:${v.name}`}>
                     {v.name}
-                    {v.project ? ` · ${v.project}` : ""}
+                    {v.project ? ` · ${v.project}` : ""} {size(v)}
                   </option>
                 ))}
-              </select>
-              {!loading && !volumes.length && (
-                <em className="field-hint">
-                  {sourceHost} reported no named volumes. Plenty of stacks keep
-                  their data in a bind mount instead — try Directory.
-                </em>
-              )}
-            </>
-          ) : (
-            <>
-              <input
-                value={path}
-                onChange={(e) => setPath(e.target.value)}
-                placeholder="/home/zerg/ai-librarian/data/qdrant"
-                required
-              />
-              {sourceDirs.length > 0 && (
-                <em className="field-hint">
-                  Under {sourceDirs.join(", ")} on <HostOption name={sourceHost} />
-                </em>
-              )}
-            </>
+              </optgroup>
+            )}
+
+            {candidates.length > 0 && (
+              <optgroup label="Directories">
+                {candidates.map((c) => (
+                  <option key={c.path} value={`path:${c.path}`}>
+                    {c.path} {size(c)}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+
+            {/* An edited job whose source is no longer offered — the
+                directory was removed from BACKUP_SOURCE_DIRS, say — must
+                still show what it backs up rather than looking unset. */}
+            {picked && !custom && !chosen && (
+              <option value={sourceKey}>{picked} (not currently offered)</option>
+            )}
+
+            {sourceDirs.length > 0 && (
+              <option value="custom">Another directory…</option>
+            )}
+          </select>
+
+          {custom && (
+            <input
+              value={customPath}
+              onChange={(e) => setCustomPath(e.target.value)}
+              placeholder="/home/zerg/ai-librarian/data/qdrant"
+              required
+            />
+          )}
+
+          {custom && sourceDirs.length > 0 && (
+            <em className="field-hint">
+              Under {sourceDirs.join(", ")} on <HostOption name={sourceHost} />
+            </em>
+          )}
+
+          {!loading && !volumes.length && !candidates.length && (
+            <em className="field-hint">
+              {sourceHost} reported nothing to back up.
+            </em>
+          )}
+
+          {perRun != null && (
+            <em className="field-hint">
+              {formatBytes(perRun)} now{chosen?.partial ? " (still counting)" : ""}
+              {" — before compression, and "}
+              <strong>{formatBytes(perRun * keep)}</strong>
+              {" at "}
+              {keep} kept.
+            </em>
           )}
         </label>
 

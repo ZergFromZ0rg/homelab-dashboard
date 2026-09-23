@@ -5263,16 +5263,3 @@ a.check-target:hover {
 .field-hint--warn {
   color: var(--warning);
 }
-
-/* The source switch sits inside a form field above the control it
-   chooses, so it wants to be smaller and self-contained than the
-   segmented controls that head a whole card. */
-.segmented--inline {
-  align-self: flex-start;
-  margin-bottom: 2px;
-}
-
-.segmented--inline button {
-  font-size: 12px;
-  padding: 3px 10px;
-}

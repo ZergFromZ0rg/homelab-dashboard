@@ -594,10 +594,34 @@ export function demoBackupTargets(host) {
   return {
     host,
     volumes: [
-      { name: "jellyfin_config", project: "jellyfin", in_use_by: ["jellyfin"] },
-      { name: "portainer_data", project: null, in_use_by: ["portainer"] },
+      {
+        name: "jellyfin_config", project: "jellyfin", in_use_by: ["jellyfin"],
+        bytes: 184_320_000, files: 2_411, partial: false,
+      },
+      {
+        name: "portainer_data", project: null, in_use_by: ["portainer"],
+        bytes: 9_400_000, files: 61, partial: false,
+      },
     ],
-    sources: { dirs: host === "bigboy" ? ["/home/zerg/ai-librarian"] : [] },
+    sources: {
+      dirs: host === "bigboy" ? ["/home/zerg/ai-librarian"] : [],
+      candidates: host === "bigboy" ? [
+        {
+          path: "/home/zerg/ai-librarian", in_use_by: [],
+          bytes: 8_100_000_000, files: 12_402, partial: true,
+        },
+        {
+          path: "/home/zerg/ai-librarian/data/qdrant",
+          in_use_by: ["ai-librarian-qdrant-1"],
+          bytes: 730_508_267, files: 145, partial: false,
+        },
+        {
+          path: "/home/zerg/ai-librarian/library",
+          in_use_by: ["ai-librarian-document-service-1"],
+          bytes: 6_900_000_000, files: 8_120, partial: false,
+        },
+      ] : [],
+    },
     store: {
       enabled: host === "thinkpad",
       roots:
