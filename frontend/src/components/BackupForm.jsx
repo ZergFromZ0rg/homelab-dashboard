@@ -72,6 +72,9 @@ function BackupForm({ hosts, defaultDestHost, job, onSubmit, onCancel }) {
   const [every, setEvery] = useState(initialInterval.every);
   const [unit, setUnit] = useState(initialInterval.unit);
   const [keep, setKeep] = useState(job?.keep ?? 7);
+  const [verifyDays, setVerifyDays] = useState(
+    job?.verify_interval_hours != null ? job.verify_interval_hours / 24 : 7
+  );
   const [stopContainers, setStopContainers] = useState(Boolean(job?.stop_containers));
 
   // Each answer is stored with the host it describes rather than being
@@ -172,6 +175,7 @@ function BackupForm({ hosts, defaultDestHost, job, onSubmit, onCancel }) {
         directory: directoryValue.trim(),
         interval_hours: hours,
         keep: Number(keep),
+        verify_interval_hours: Number(verifyDays) * 24,
         stop_containers: stopContainers,
       });
     } catch (err) {
@@ -330,6 +334,25 @@ function BackupForm({ hosts, defaultDestHost, job, onSubmit, onCancel }) {
             />
             <em className="field-hint">newest archives</em>
           </div>
+        </label>
+
+        <label>
+          <span>Check it reads back</span>
+          <div className="field-row">
+            <input
+              type="number"
+              min="0"
+              value={verifyDays}
+              onChange={(e) => setVerifyDays(Number(e.target.value))}
+            />
+            <em className="field-hint">
+              {Number(verifyDays) > 0 ? "days apart" : "off"}
+            </em>
+          </div>
+          <em className="field-hint">
+            Reads the newest archive back on its host. A backup rots quietly,
+            and the only thing that finds out is something that reads it.
+          </em>
         </label>
 
         <label className="backup-form-wide checkbox">

@@ -381,6 +381,23 @@ def _backup_alert(job: dict, state: str, now: float) -> dict:
     success = job.get("last_success_at")
     age = f"last good copy {_ago(now - success)}" if success else "it has never succeeded"
 
+    if state == "corrupt":
+        verified = (job.get("last_verified") or {}).get("name") or "its newest archive"
+        return {
+            "title": f"backup unreadable: {job.get('name')}",
+            "message": (
+                f"{verified} on {where} did not read back"
+                + (f" — {job['last_verify_error']}" if job.get("last_verify_error") else "")
+                + ". The backup exists but cannot be restored from."
+            ),
+            "host": job.get("dest_host"),
+            "severity": "bad",
+            "hint": (
+                f"Verify {job.get('name')}'s other archives from the Backups "
+                "tab. An archive that fails to read back is not a backup."
+            ),
+        }
+
     if state == "failing":
         return {
             "title": f"backup failing: {job.get('name')}",
@@ -440,7 +457,7 @@ def evaluate(
     for job in backups or []:
         state = volume_backups.state(job, now)
 
-        if state in ("failing", "stale"):
+        if state in ("failing", "stale", "corrupt"):
             out[f"backup:{job['id']}"] = _backup_alert(job, state, now)
 
     for record in deployments:

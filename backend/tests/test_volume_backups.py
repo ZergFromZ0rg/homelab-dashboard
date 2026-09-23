@@ -687,3 +687,131 @@ def test_a_same_host_restore_skips_the_copy(jobs):
 
     assert not any("scp" in s["command"] for s in steps)
     assert all(s["where"] in ("bigboy", "anywhere") for s in steps)
+
+
+# ---- scheduled verification -----------------------------------------------
+
+
+def test_a_job_that_has_never_succeeded_is_not_verified(jobs):
+    """There is nothing to read back, and saying so twice helps nobody."""
+    job = jobs.add(a_job())
+
+    assert vb.verify_due(job) is False
+
+
+def test_a_job_with_an_archive_is_verified(jobs):
+    job = jobs.add(a_job())
+    jobs.record(job["id"], last_success_at=time.time())
+
+    assert vb.verify_due(jobs.all()[0]) is True
+
+
+def test_verification_respects_its_own_interval(jobs):
+    now = 1790000000.0
+    job = jobs.add(a_job(verify_interval_hours=168))
+    jobs.record(job["id"], last_success_at=now, last_verify_at=now - 3600)
+
+    assert vb.verify_due(jobs.all()[0], now) is False
+
+    jobs.record(job["id"], last_verify_at=now - 169 * 3600)
+    assert vb.verify_due(jobs.all()[0], now) is True
+
+
+def test_verification_can_be_turned_off(jobs):
+    job = jobs.add(a_job(verify_interval_hours=0))
+    jobs.record(job["id"], last_success_at=time.time())
+
+    assert vb.verify_due(jobs.all()[0]) is False
+
+
+def test_a_good_verification_is_recorded(monkeypatch, jobs):
+    job = jobs.add(a_job())
+    jobs.record(job["id"], last_success_at=time.time())
+    prefix = vb.archive_prefix(job["volume"])
+    stub_calls(monkeypatch, {
+        "/backup/archives/verify": {"ok": True, "files": 145, "bytes": 730508267},
+        "/backup/archives": {"archives": [
+            archive(f"{prefix}-20260101-000000.tar.gz", 1),
+            archive(f"{prefix}-20260303-000000.tar.gz", 3),
+        ]},
+    })
+
+    out = vb.verify_job(NODES, jobs.all()[0], jobs=jobs)
+
+    assert out["ok"] is True
+    assert out["archive"] == f"{prefix}-20260303-000000.tar.gz", "the newest one"
+    stored = jobs.all()[0]
+    assert stored["last_verify_ok"] is True
+    assert stored["last_verified"]["files"] == 145
+    assert vb.state(stored) == "ok"
+
+
+def test_an_archive_that_does_not_read_back_makes_the_job_corrupt(monkeypatch, jobs):
+    """A job can be running perfectly to schedule and still be producing
+    backups nobody can restore from. That is the worse problem."""
+    job = jobs.add(a_job())
+    jobs.record(job["id"], last_success_at=time.time())
+    prefix = vb.archive_prefix(job["volume"])
+    stub_calls(monkeypatch, {
+        "/backup/archives/verify": {"ok": False, "error": "CRC check failed"},
+        "/backup/archives": {"archives": [archive(f"{prefix}-20260303-000000.tar.gz", 3)]},
+    })
+
+    vb.verify_job(NODES, jobs.all()[0], jobs=jobs)
+
+    stored = jobs.all()[0]
+    assert stored["last_verify_ok"] is False
+    assert vb.state(stored) == "corrupt"
+
+
+def test_a_corrupt_archive_raises_a_bad_alert(monkeypatch, jobs):
+    from backend import alerts
+
+    now = 1790000000.0
+    job = jobs.add(a_job())
+    jobs.record(job["id"], last_success_at=now, last_verify_ok=False,
+                last_verify_error="CRC check failed",
+                last_verified={"name": "qdrant-20260303-000000.tar.gz"})
+
+    (key, alert), = alerts.evaluate({}, [], backups=jobs.all(), now=now).items()
+
+    assert key == f"backup:{job['id']}"
+    assert alerts.severity_of(key, alert) == "bad"
+    assert "did not read back" in alert["message"]
+    assert "cannot be restored from" in alert["message"]
+
+
+def test_not_being_able_to_check_is_not_the_same_as_bad(monkeypatch, jobs):
+    """An unreachable host must not cry corruption — that would make the
+    alert meaningless the first time somebody reboots a machine."""
+    job = jobs.add(a_job())
+    jobs.record(job["id"], last_success_at=time.time())
+
+    def fake_call(method, url, **kwargs):
+        raise BackupError("couldn't reach the agent", status_code=502)
+
+    monkeypatch.setattr(vb, "_call", fake_call)
+
+    out = vb.verify_job(NODES, jobs.all()[0], jobs=jobs)
+
+    assert out["ok"] is None
+    stored = jobs.all()[0]
+    assert stored["last_verify_ok"] is None, "unknown, not false"
+    assert vb.state(stored) != "corrupt"
+
+
+def test_a_job_that_just_ran_is_not_verified_in_the_same_pass(monkeypatch, jobs):
+    """A fresh archive was checksummed end to end on the way in. Reading it
+    straight back would mostly prove the disk can still read."""
+    job = jobs.add(a_job(interval_hours=1))
+    stub_calls(monkeypatch, {
+        "/backup/volumes/run": {"id": "abc"},
+        "/backup/volumes/jobs/": {"state": "succeeded", "result": {"bytes": 1}},
+        "/backup/volumes": {"store": {"receive_url": "http://thinkpad:8123"}},
+        "/backup/archives": {"archives": []},
+    })
+
+    ran = vb.run_due(NODES, jobs=jobs, sleep=lambda _: None)
+
+    assert len(ran) == 1
+    assert "verify" not in ran[0]

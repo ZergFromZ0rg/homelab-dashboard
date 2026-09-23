@@ -704,6 +704,15 @@ docker run --rm -v <volume>:/dest -v /tmp:/src:ro \
   alpine sh -c 'rm -rf /dest/* && tar xzf /src/<archive> -C /dest'
 ```
 
+Each job also **re-reads its newest archive on a schedule** (weekly by
+default, `0` turns it off). A backup rots quietly, and the only thing that
+finds out is something that reads it. An archive that fails to read back
+puts the job in **Archive unreadable** and raises a `bad` alert — a job can
+be running perfectly to schedule and still be producing backups nobody can
+restore from, which is the worse problem. Being *unable* to check, because
+a host is down, is recorded as unknown rather than as failure; otherwise
+the alert would cry corruption every time a machine rebooted.
+
 **Verify** on any archive reads it back on the host holding it —
 decompresses the whole thing and walks every member — and reports intact or
 the reason it isn't. It is the closest thing to a restore that writes

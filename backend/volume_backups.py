@@ -61,6 +61,11 @@ VERIFY_TIMEOUT = env_float("VOLUME_BACKUP_VERIFY_TIMEOUT", 900)
 DEFAULT_INTERVAL_HOURS = env_float("VOLUME_BACKUP_INTERVAL_HOURS", 24)
 DEFAULT_KEEP = env_int("VOLUME_BACKUP_KEEP", 7)
 
+# How often the newest archive is read back. Weekly by default: a backup
+# rots quietly, and the only thing that finds out is something that reads
+# it. 0 turns it off.
+DEFAULT_VERIFY_HOURS = env_float("VOLUME_BACKUP_VERIFY_HOURS", 168)
+
 MAX_JOBS = 50
 MAX_NAME = 80
 MAX_ERROR = 300
@@ -125,6 +130,10 @@ def _clean_job(raw: dict, *, default_dest: str | None = None) -> dict:
         "interval_hours": min(max(interval, 1.0), 24 * 30),
         "keep": min(max(keep, 1), 500),
         "stop_containers": bool(raw.get("stop_containers")),
+        "verify_interval_hours": max(0.0, float(
+            raw["verify_interval_hours"] if raw.get("verify_interval_hours") is not None
+            else DEFAULT_VERIFY_HOURS
+        )),
         "enabled": raw.get("enabled", True) is not False,
         "created_at": float(raw.get("created_at") or time.time()),
         "last_run_at": raw.get("last_run_at"),
@@ -134,6 +143,11 @@ def _clean_job(raw: dict, *, default_dest: str | None = None) -> dict:
         "last_archive": raw.get("last_archive") or None,
         "last_pruned": list(raw.get("last_pruned") or []),
         "last_stopped": list(raw.get("last_stopped") or []),
+        "last_verify_at": raw.get("last_verify_at"),
+        "last_verify_ok": raw.get("last_verify_ok"),
+        "last_verify_error": (str(raw["last_verify_error"])[:MAX_ERROR]
+                              if raw.get("last_verify_error") else None),
+        "last_verified": raw.get("last_verified") or None,
         "running": False,
     }
 
@@ -212,7 +226,9 @@ class BackupJobStore:
                 self._jobs[index] = _clean_job(merged)
                 # Run history belongs to the job, not to the edit.
                 for field in ("last_run_at", "last_success_at", "last_error",
-                              "last_archive", "last_pruned", "last_stopped"):
+                              "last_archive", "last_pruned", "last_stopped",
+                              "last_verify_at", "last_verify_ok",
+                              "last_verify_error", "last_verified"):
                     self._jobs[index][field] = job[field]
 
                 self._save_locked()
@@ -267,6 +283,7 @@ def state(job: dict, now: float | None = None) -> str:
         paused   disabled by hand
         failing  the last attempt failed
         pending  configured, never run
+        corrupt  the newest archive did not read back
         stale    last success is older than the schedule allows
         ok       current
     """
@@ -275,6 +292,12 @@ def state(job: dict, now: float | None = None) -> str:
 
     if not job.get("enabled"):
         return "paused"
+
+    # An archive that fails to read back outranks everything else here. A
+    # job can be running perfectly to schedule and still be producing
+    # backups nobody can restore from, and that is the worse problem.
+    if job.get("last_verify_ok") is False:
+        return "corrupt"
 
     success = job.get("last_success_at")
     run = job.get("last_run_at")
@@ -291,6 +314,78 @@ def state(job: dict, now: float | None = None) -> str:
         return "stale"
 
     return "ok"
+
+
+def verify_due(job: dict, now: float | None = None) -> bool:
+    """Whether the newest archive should be read back.
+
+    Only for a job that has actually written something — verifying a job
+    that has never succeeded would just restate that it has never
+    succeeded.
+    """
+    if not job.get("enabled") or job.get("running"):
+        return False
+
+    if not job.get("verify_interval_hours") or not job.get("last_success_at"):
+        return False
+
+    last = job.get("last_verify_at")
+
+    if not last:
+        return True
+
+    return (now or time.time()) - float(last) >= job["verify_interval_hours"] * 3600
+
+
+def verify_job(nodes: dict, job: dict, *, jobs: BackupJobStore | None = None,
+               now=time.time) -> dict:
+    """Read this job's newest archive back on the host holding it.
+
+    The closest thing to a restore that writes nothing: the whole archive is
+    decompressed and every member walked, so a truncated upload or a flipped
+    byte shows up. What it cannot tell you is whether the contents are a
+    working database — only starting one does that.
+    """
+    jobs = jobs or store
+
+    try:
+        archives = archives_in(nodes, job["dest_host"], job["directory"])
+        mine = [a for a in archives if owns(a["name"], source_of(job))]
+
+        if not mine:
+            raise BackupError("there is no archive to verify")
+
+        newest = max(mine, key=lambda a: a["modified_at"])
+        result = _call(
+            "POST",
+            f"{_base_url(nodes, job['dest_host'])}/backup/archives/verify",
+            json={"directory": job["directory"], "name": newest["name"]},
+            timeout=VERIFY_TIMEOUT,
+        )
+
+        ok = bool(result.get("ok"))
+        jobs.record(
+            job["id"],
+            last_verify_at=now(),
+            last_verify_ok=ok,
+            last_verify_error=None if ok else (result.get("error") or "unreadable"),
+            last_verified={"name": newest["name"], "files": result.get("files"),
+                           "bytes": result.get("bytes")},
+        )
+
+        level = log.info if ok else log.warning
+        level("backup %s: verify %s (%s)", job["id"],
+              "ok" if ok else "FAILED", newest["name"])
+
+        return {"ok": ok, "archive": newest["name"], "result": result}
+
+    except BackupError as error:
+        # Couldn't check is not the same as checked and bad. Recording it as
+        # a failure would cry corruption every time a host was rebooting.
+        jobs.record(job["id"], last_verify_at=now(),
+                    last_verify_error=f"could not verify: {error}"[:MAX_ERROR])
+        log.warning("backup %s: could not verify: %s", job["id"], error)
+        return {"ok": None, "error": str(error)}
 
 
 def due(job: dict, now: float | None = None) -> bool:
@@ -556,5 +651,17 @@ def run_due(nodes: dict, *, jobs: BackupJobStore | None = None,
 
         ran.append({"id": job["id"], **run_job(nodes, job, jobs=jobs,
                                                sleep=sleep, now=now)})
+
+    # Verifications after backups, and only for jobs that didn't just run:
+    # a fresh archive was checksummed end to end on the way in, so reading
+    # it straight back would mostly prove the disk can still read.
+    just_ran = {r["id"] for r in ran}
+
+    for job in jobs.all():
+        if job["id"] in just_ran or not verify_due(job, now()):
+            continue
+
+        ran.append({"id": job["id"], "verify": verify_job(nodes, job, jobs=jobs,
+                                                          now=now)})
 
     return ran

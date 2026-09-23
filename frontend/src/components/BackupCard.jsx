@@ -27,6 +27,7 @@ const STATE_LABELS = {
   failing: "Last run failed",
   pending: "Not run yet",
   stale: "Behind schedule",
+  corrupt: "Archive unreadable",
   ok: "Up to date",
 };
 
@@ -245,6 +246,22 @@ function BackupCard({ job, hosts, defaultDestHost, now, onChanged, onDelete }) {
           {job.enabled === false && <em>paused</em>}
         </div>
         <div>
+          <span className="fact-label">Verified</span>
+          <strong>
+            {job.last_verify_ok === true
+              ? formatAge(now - job.last_verify_at)
+              : job.last_verify_ok === false
+                ? "failed"
+                : job.last_verify_at
+                  ? "couldn't check"
+                  : "—"}
+          </strong>
+          {job.last_verified?.files != null && job.last_verify_ok && (
+            <em>{job.last_verified.files} files read back</em>
+          )}
+          {!job.verify_interval_hours && <em>checking off</em>}
+        </div>
+        <div>
           <span className="fact-label">Keeping</span>
           <strong>{job.keep}</strong>
           {job.last_pruned?.length > 0 && <em>pruned {job.last_pruned.length} last run</em>}
@@ -260,6 +277,12 @@ function BackupCard({ job, hosts, defaultDestHost, now, onChanged, onDelete }) {
       {job.last_error && (
         <p className="backup-error" title={job.last_error}>
           {job.last_error}
+        </p>
+      )}
+      {job.last_verify_ok === false && (
+        <p className="backup-error" title={job.last_verify_error || undefined}>
+          Newest archive did not read back — this backup cannot be restored
+          from. {job.last_verify_error}
         </p>
       )}
       {error && <p className="form-error">{error}</p>}
