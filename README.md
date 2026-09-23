@@ -719,6 +719,59 @@ intervals. It appears in the Attention panel, in the alert history, and on
 your webhook if one is set. A paused job raises nothing — pausing is a
 decision, not a fault.
 
+## Settings from the dashboard
+
+Every switch on an agent used to live in a `.env` file on its host, so
+turning a feature on meant an ssh session, an editor and a
+`docker compose up -d`. Worse, getting it wrong failed *silently*: the
+agent came up healthy and quietly didn't do the thing.
+
+Each host card now has a **Settings** panel. It reads that agent's own list
+of settings — what they mean, what they're set to, and where the value came
+from — and writes the ones that can be written.
+
+### What it does not do
+
+It does not edit `.env`, touch compose, or restart anything. An agent that
+could rewrite its own environment and restart itself would be remote code
+execution on the host by another name: `AGENT_RUNTIME`, `REBUILD_ENABLED`
+and the deploy allowlists all become arbitrary code the moment they can be
+set remotely.
+
+Instead a setting goes to a JSON file on the agent's own volume and is read
+back at call time, layered over the environment. The blast radius is that
+one process, and the worst a bad request can do is misconfigure the agent.
+Changes apply to the next request — nothing restarts.
+
+### Host-scoped settings
+
+Anything the container fixed before the agent existed — a bind mount, the
+runtime, the bind address — cannot work that way, because compose read it
+first. Those are shown greyed, with where the current value came from and
+what to do about it, rather than pretended at. The set is deliberately
+small:
+
+| Setting | Why it's fixed |
+|---|---|
+| `BACKUP_HOST_DIR` | it is a bind mount |
+| `AGENT_RUNTIME` | the container's runtime |
+| `HOST_NAME` | changing it orphans every metric under the old name |
+| `AGENT_TOKEN`, `LOG_LEVEL` | read once at startup |
+
+### Turning it on
+
+Writing is opt-in per host, the same shape as `REBUILD_ENABLED`:
+
+```
+CONFIG_WRITABLE=1
+```
+
+Without it the panel is read-only and says so — reading always works, so
+the page can show what is configured and explain the rest instead of being
+blank. **Note what this grants**: anyone who can reach the dashboard can
+then change these settings, including `REBUILD_ENABLED`. Set `API_TOKEN` on
+the dashboard before enabling it on a host you care about.
+
 ## Alerting
 
 `backend/alerts.py` runs a loop every `ALERT_INTERVAL` seconds (default

@@ -1,4 +1,5 @@
 import ConnectionsPanel from "./ConnectionsPanel";
+import HostSettings from "./HostSettings";
 import Sparkline from "./Sparkline";
 import Gauge from "./Gauge";
 import Stat from "./Stat";
@@ -359,6 +360,7 @@ function MachineVitals({ host, machine, history }) {
       )}
 
       {host && <ConnectionsPanel host={host} />}
+      {host && <HostSettings host={host} />}
     </>
   );
 }

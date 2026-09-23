@@ -5299,3 +5299,99 @@ a.check-target:hover {
   letter-spacing: 0.04em;
   color: var(--accent);
 }
+
+/* ----- Host settings ----- */
+
+.host-settings {
+  padding: 10px 2px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.hs-group h4 {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.hs-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 10px;
+  font-size: 12px;
+}
+
+.hs-field strong {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.hs-field em {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.hs-field input[type="text"],
+.hs-field input[type="password"],
+.hs-field input[type="number"] {
+  width: 100%;
+}
+
+.hs-field--check {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.hs-field--check input {
+  margin-top: 3px;
+}
+
+.hs-field--check span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* A switch that hands over the host earns a mark, not a hidden warning. */
+.hs-danger strong::after {
+  content: " · powerful";
+  font-weight: 600;
+  color: var(--warning);
+}
+
+.hs-host-scope {
+  margin: -6px 0 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: 0.85;
+}
+
+.hs-locked {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--warning);
+  background: var(--bg-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.hs-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
+.hs-saved {
+  font-size: 12px;
+  color: var(--online);
+}

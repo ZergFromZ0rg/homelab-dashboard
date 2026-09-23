@@ -675,3 +675,60 @@ export function demoBackupArchives(id) {
     ],
   };
 }
+
+// One host's agent settings. bigboy accepts them; thinkpad shows the
+// read-only case, which is the one that needs explaining.
+export function demoHostConfig(host) {
+  const writable = host === "bigboy";
+
+  const s = (key, kind, scope, group, label, help, value = "", extra = {}) => ({
+    key, kind, scope, group, label, help, value,
+    set: Boolean(value),
+    source: value ? "environment" : "unset",
+    editable: scope === "live" && writable,
+    ...extra,
+  });
+
+  return {
+    host,
+    writable,
+    why_not: writable
+      ? null
+      : "This host does not accept settings from the dashboard. Add "
+        + "CONFIG_WRITABLE=1 to its agent's .env and restart it, or set it "
+        + "at join time with install.sh.",
+    settings: [
+      s("BACKUP_SOURCE_DIRS", "paths", "live", "Backups",
+        "Directories this host may back up",
+        "Adds host directories to the named volumes already offered.",
+        host === "bigboy" ? "/home/zerg/ai-librarian" : ""),
+      s("BACKUP_DIRS", "paths", "live", "Backups", "Extra destinations",
+        "Only needed for a second backup disk."),
+      s("BACKUP_PUBLIC_URL", "url", "live", "Backups",
+        "Address other hosts reach this agent at",
+        "Needed when this agent registers under a container name."),
+      s("BACKUP_HOST_DIR", "path", "host", "Backups",
+        "Backup directory on this machine",
+        "Which disk backups live on. Fixed when the container started, "
+        + "because it is a bind mount.",
+        host === "thinkpad" ? "/home/zerg/backups" : ""),
+      s("BACKUP_REPO", "text", "live", "Config backup", "Repository",
+        "owner/name of a private repo for this host's compose files.",
+        "ZergFromZ0rg/homelab-backups"),
+      s("GITHUB_TOKEN", "secret", "live", "Config backup", "GitHub token",
+        "Fine-grained PAT with Contents: read and write.", "", { set: true }),
+      s("REBUILD_ENABLED", "bool", "live", "Updates",
+        "Allow rebuilds from the dashboard",
+        "Runs whatever the repo and its Dockerfile say, as root on this host.",
+        "1", { danger: true }),
+      s("CONNECTIONS_ENABLED", "bool", "live", "Monitoring",
+        "Report network conversations",
+        "Powers the Connections panel on this host's card.", "1"),
+      s("HOST_NAME", "text", "host", "Identity", "Host name",
+        "Must match this host's Prometheus job name.", host),
+      s("AGENT_RUNTIME", "text", "host", "Identity", "Container runtime",
+        "nvidia on a host with an NVIDIA card and the container toolkit.",
+        host === "bigboy" ? "nvidia" : ""),
+    ],
+  };
+}

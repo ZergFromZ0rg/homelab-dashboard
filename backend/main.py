@@ -16,6 +16,7 @@ from backend.notes import Conflict, NoteStore
 from backend.service_activity_credentials import ServiceActivityCredentialStore
 from backend.log import system as system_log
 from backend import activity
+from backend import agent_config
 from backend import alert_history
 from backend import alerts
 from backend import checks
@@ -390,6 +391,46 @@ def rebuild_job(host: str, job_id: str):
     try:
         return rebuilds.job(_agent_for(host), job_id)
     except rebuilds.RebuildError as error:
+        raise HTTPException(status_code=error.status_code, detail=str(error))
+
+
+@app.get("/api/hosts/{host}/config")
+def host_config(host: str, x_register_token: str | None = Header(default=None)):
+    """What this host's agent can be told, and what it already is.
+
+    Readable on a host that doesn't accept settings too — the answer
+    carries the reason and the one line that changes it, which is more use
+    than an empty page.
+    """
+    auth.check_token(x_register_token)
+
+    try:
+        return agent_config.read(_agent_for(host))
+    except agent_config.ConfigError as error:
+        raise HTTPException(status_code=error.status_code, detail=str(error))
+
+
+@app.put("/api/hosts/{host}/config")
+def set_host_config(
+    host: str,
+    payload: dict,
+    x_register_token: str | None = Header(default=None),
+):
+    """Change settings on one host's agent.
+
+    Token-gated like the rebuild route: turning on rebuilds, or widening
+    which directories may leave a host, is the same class of decision.
+    """
+    auth.check_token(x_register_token)
+
+    settings = payload.get("settings")
+
+    if not isinstance(settings, dict):
+        raise HTTPException(status_code=400, detail="settings must be an object")
+
+    try:
+        return agent_config.write(_agent_for(host), settings)
+    except agent_config.ConfigError as error:
         raise HTTPException(status_code=error.status_code, detail=str(error))
 
 
