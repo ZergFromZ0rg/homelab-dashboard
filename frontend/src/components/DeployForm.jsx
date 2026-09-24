@@ -21,7 +21,12 @@ function Rows({ label, rows, columns, onChange, addLabel }) {
 
   return (
     <div className="deploy-field">
-      <span className="deploy-label">{label}</span>
+      <div className="deploy-rows-head">
+        <span className="deploy-label">{label}</span>
+        <button type="button" className="deploy-add" onClick={add}>
+          + {addLabel}
+        </button>
+      </div>
       {rows.map((row, index) => (
         <div key={index} className="deploy-row">
           {columns.map((col) => (
@@ -40,9 +45,6 @@ function Rows({ label, rows, columns, onChange, addLabel }) {
           </button>
         </div>
       ))}
-      <button type="button" className="deploy-add" onClick={add}>
-        + {addLabel}
-      </button>
     </div>
   );
 }
@@ -56,24 +58,26 @@ function DeployForm({ spec, onChange, nodeNames }) {
 
   return (
     <div className="deploy-form">
-      <div className="deploy-field">
-        <span className="deploy-label">Image *</span>
-        <input
-          className="deploy-input"
-          placeholder="lscr.io/linuxserver/jellyfin:latest"
-          value={spec.image}
-          onChange={(e) => set({ image: e.target.value })}
-        />
-      </div>
+      <div className="deploy-grid deploy-grid--2">
+        <div className="deploy-field">
+          <span className="deploy-label">Image *</span>
+          <input
+            className="deploy-input"
+            placeholder="lscr.io/linuxserver/jellyfin:latest"
+            value={spec.image}
+            onChange={(e) => set({ image: e.target.value })}
+          />
+        </div>
 
-      <div className="deploy-field">
-        <span className="deploy-label">Container name</span>
-        <input
-          className="deploy-input"
-          placeholder="(agent generates one if blank)"
-          value={spec.name ?? ""}
-          onChange={(e) => set({ name: e.target.value || null })}
-        />
+        <div className="deploy-field">
+          <span className="deploy-label">Container name</span>
+          <input
+            className="deploy-input"
+            placeholder="(agent generates one if blank)"
+            value={spec.name ?? ""}
+            onChange={(e) => set({ name: e.target.value || null })}
+          />
+        </div>
       </div>
 
       <Rows

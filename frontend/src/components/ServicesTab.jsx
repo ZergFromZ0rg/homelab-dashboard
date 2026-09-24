@@ -93,7 +93,17 @@ function ServicesTab({ checks, connected }) {
             : "No checks yet. Add one to see whether Jellyfin, your router, DNS or the internet are actually answering."}
         </div>
       ) : (
-        <div className="checks-grid">
+        <div className="checks-table">
+          <div className="check-head-row" role="presentation">
+            <span />
+            <span>Service</span>
+            <span>Now</span>
+            <span>Recent</span>
+            <span>24 h</span>
+            <span>7 d</span>
+            <span>30 d</span>
+            <span />
+          </div>
           {sorted.map((check) => (
             <CheckCard key={check.id} check={check} now={now} />
           ))}

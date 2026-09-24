@@ -9,7 +9,6 @@ import { formatAge, formatDuration, formatLatency } from "./format";
 
 const TYPE_LABEL = { http: "HTTP", keyword: "Keyword", ping: "Ping", tcp: "TCP", dns: "DNS" };
 
-const STATUS_LABEL = { up: "Up", down: "Down", paused: "Paused", pending: "Checking" };
 const STATUS_TONE = { up: "ok", down: "bad", paused: "none", pending: "none" };
 
 // Second-level precision: on a monitoring page "just now" hides whether the
@@ -26,19 +25,18 @@ function uptimeTone(value) {
   return "bad";
 }
 
-function Uptime({ label, value }) {
+function Uptime({ value }) {
   return (
-    <div className="check-uptime">
-      <span>{label}</span>
-      <strong className={`check-uptime--${uptimeTone(value)}`}>
-        {value == null ? "—" : `${value}%`}
-      </strong>
-    </div>
+    <span className={`check-cell-num check-uptime--${uptimeTone(value)}`}>
+      {value == null ? "—" : `${value}%`}
+    </span>
   );
 }
 
-// One service check: its state and latency now, a sparkline, uptime over
-// 24h / 7d / 30d, and (behind the chevron) charts for longer ranges.
+// One service check as one table row (columns line up with CheckTableHead
+// in ServicesTab): what it is, how it's answering now, the recent trend,
+// uptime over 24h / 7d / 30d, and icon actions. Longer-range charts open
+// underneath.
 function CheckCard({ check, now }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -59,7 +57,7 @@ function CheckCard({ check, now }) {
 
   if (editing) {
     return (
-      <article className="check check--editing">
+      <div className="check check--editing">
         <CheckForm
           check={check}
           onCancel={() => setEditing(false)}
@@ -68,7 +66,7 @@ function CheckCard({ check, now }) {
             setEditing(false);
           }}
         />
-      </article>
+      </div>
     );
   }
 
@@ -79,24 +77,33 @@ function CheckCard({ check, now }) {
   let sub;
   if (status === "down") {
     headline = "Down";
-    sub = `${check.down_since ? `for ${formatDuration(now - check.down_since)} · ` : ""}${check.detail ?? ""}`;
+    sub = `${check.down_since ? `${formatDuration(now - check.down_since)} · ` : ""}${check.detail ?? ""}`;
   } else if (status === "paused") {
     headline = "Paused";
-    sub = "Not being checked";
+    sub = "";
   } else if (status === "pending") {
     headline = "Checking…";
-    sub = "Waiting for the first result";
+    sub = "";
   } else {
     headline = formatLatency(check.latency_ms);
-    sub = check.detail ?? "";
+    sub = check.checked_at != null ? checkedAgo(now - check.checked_at) : "";
   }
 
+  const target =
+    check.type === "keyword"
+      ? `${check.target} · ${check.keyword_mode === "absent" ? "must not contain" : "must contain"} "${check.keyword}"`
+      : check.target;
+
   return (
-    <article className={`check check--${status} ${open ? "check--open" : ""}`}>
-      <div className="check-head">
-        <AppIcon url={check.target} label={check.name} className="app-tile-icon check-icon" />
-        <div className="check-title-block">
-          <div className="check-title">
+    <div className={`check-row check-row--${status} ${open ? "check-row--open" : ""}`}>
+      <div className="check-line">
+        <span className="check-cell-icon">
+          <span className={`status-dot status-dot--${STATUS_TONE[status] || "none"}`} />
+          <AppIcon url={check.target} label={check.name} className="app-tile-icon ov-icon" />
+        </span>
+
+        <span className="check-cell-name">
+          <span className="check-title">
             <strong>{check.name}</strong>
             <span className="chip">{TYPE_LABEL[check.type]}</span>
             {status === "up" && check.failing > 0 && (
@@ -104,70 +111,42 @@ function CheckCard({ check, now }) {
                 {check.failing} failed
               </span>
             )}
-          </div>
+          </span>
           {check.type === "http" || check.type === "keyword" ? (
             <a
               className="check-target"
               href={check.target}
               target="_blank"
               rel="noopener noreferrer"
-              title="Open"
+              title={target}
             >
-              {check.target}
+              {target}
             </a>
           ) : (
-            <span className="check-target">{check.target}</span>
+            <span className="check-target" title={target}>{target}</span>
           )}
-        </div>
-        <span className={`status-pill status-pill--${STATUS_TONE[status] || "none"}`}>
-          {STATUS_LABEL[status] || status}
         </span>
-      </div>
 
-      {check.type === "keyword" && (
-        <div className="check-keyword-line">
-          {check.keyword_mode === "absent" ? "Fails if the page contains" : "Page must contain"}{" "}
-          <q>{check.keyword}</q>
-        </div>
-      )}
+        <span className="check-cell-now" title={check.detail ?? undefined}>
+          <strong className={`check-now check-now--${status}`}>{headline}</strong>
+          {sub && <small>{sub}</small>}
+        </span>
 
-      <div className="check-main">
-        <div>
-          <div className={`check-headline check-headline--${status}`}>{headline}</div>
-          <div className="check-sub" title={sub}>
-            {sub}
-            {check.checked_at != null && status !== "paused" && (
-              <span> · {checkedAgo(now - check.checked_at)}</span>
-            )}
-          </div>
-        </div>
-        <div className="check-spark">
-          <Sparkline points={points} variant="rx" height={34} />
-        </div>
-      </div>
+        <span className="check-cell-spark">
+          <Sparkline points={points} variant="rx" height={26} />
+        </span>
 
-      <div className="check-uptimes">
-        <Uptime label="24 h" value={check.uptime_24h} />
-        <Uptime label="7 d" value={check.uptime_7d} />
-        <Uptime label="30 d" value={check.uptime_30d} />
-        <div className="check-uptime">
-          <span>Avg</span>
-          <strong>{formatLatency(check.avg_ms_24h)}</strong>
-        </div>
-      </div>
+        <Uptime value={check.uptime_24h} />
+        <Uptime value={check.uptime_7d} />
+        <Uptime value={check.uptime_30d} />
 
-      {error && <p className="cred-error">{error}</p>}
-
-      <div className="check-actions">
-        <button
-          type="button"
-          className="btn btn--sm"
-          disabled={busy || check.paused}
-          onClick={() => act(() => runCheck(check.id))}
-        >
-          Check now
-        </button>
-        <span className="check-actions-icons">
+        <span className="check-cell-actions">
+          <IconButton
+            icon="refresh"
+            label="Check now"
+            disabled={busy || check.paused}
+            onClick={() => act(() => runCheck(check.id))}
+          />
           <IconButton
             icon="chart"
             label={open ? "Hide history" : "Show history"}
@@ -181,12 +160,7 @@ function CheckCard({ check, now }) {
             disabled={busy}
             onClick={() => act(() => updateCheck(check.id, { paused: !check.paused }))}
           />
-          <IconButton
-            icon="edit"
-            label="Edit"
-            disabled={busy}
-            onClick={() => setEditing(true)}
-          />
+          <IconButton icon="edit" label="Edit" disabled={busy} onClick={() => setEditing(true)} />
           <IconButton
             icon="trash"
             label="Delete"
@@ -201,8 +175,13 @@ function CheckCard({ check, now }) {
         </span>
       </div>
 
-      {open && <CheckHistory check={check} />}
-    </article>
+      {error && <p className="cred-error check-row-error">{error}</p>}
+      {open && (
+        <div className="check-row-detail">
+          <CheckHistory check={check} />
+        </div>
+      )}
+    </div>
   );
 }
 

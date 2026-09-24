@@ -1,19 +1,28 @@
-// The Overview's per-host tile: ring gauges for the numbers that decide
-// whether a machine is healthy (CPU, RAM, fullest disk, GPU if it has one)
-// and how many of its containers are up. Every tile is the same shape, so
-// the servers read as one even row. A click opens the Servers tab.
+// The Overview's servers panel: one line per host — name, status, a short
+// bar each for CPU, RAM and the fullest disk, and containers running. Bars
+// turn amber at 70% and red at 90% (the same levels the gauges use), so a
+// busy machine stands out and a healthy one stays quiet. A click opens the
+// Servers tab.
 
-import Gauge from "./Gauge";
 import { diskLabel } from "./diskLabel";
 import { hostColor } from "./hostColor";
 
-function Ring({ label, value }) {
+function level(pct) {
+  if (pct == null) return "none";
+  if (pct >= 90) return "crit";
+  if (pct >= 70) return "warn";
+  return "ok";
+}
+
+function Meter({ label, pct }) {
+  const known = typeof pct === "number";
   return (
-    <span className="host-ring">
-      <Gauge value={value} size={58} strokeWidth={5} />
-      <span className="host-ring-label" title={label}>
-        {label}
+    <span className={`ov-meter ov-meter--${level(pct)}`} title={label}>
+      <span className="ov-meter-label">{label}</span>
+      <span className="ov-meter-bar">
+        <span style={{ width: `${known ? Math.min(100, Math.max(0, pct)) : 0}%` }} />
       </span>
+      <span className="ov-meter-pct">{known ? `${Math.round(pct)}%` : "—"}</span>
     </span>
   );
 }
@@ -25,12 +34,11 @@ function HostSummary({ machines, containers, onOpen }) {
   }
 
   return (
-    <div className="host-summary">
+    <div className="ov-hosts">
       {names.map((name) => {
         const m = machines[name];
         const conts = containers[name] || [];
         const running = conts.filter((c) => c.status === "running").length;
-        const gpu = m.gpu?.devices?.[0]?.utilization_percent;
         const offline = !m.online;
         // The fullest disk is the one that will bite first.
         const fullest = [...(m.filesystems || [])].sort(
@@ -41,36 +49,30 @@ function HostSummary({ machines, containers, onOpen }) {
           <button
             type="button"
             key={name}
-            className={`host-tile ${offline ? "host-tile--off" : ""}`}
+            className={`ov-host ${offline ? "ov-host--off" : ""}`}
             onClick={() => onOpen?.(name)}
             title={`Open ${name} in Servers`}
-            style={{ "--host-color": hostColor(name) }}
           >
-            <span className="host-tile-head">
-              <span className="host-tile-name" style={{ color: hostColor(name) }}>
-                {name}
-              </span>
-              <span className={`host-tile-state host-tile-state--${offline ? "bad" : "ok"}`}>
-                <span className={`status-dot status-dot--${offline ? "bad" : "ok"}`} />
-                {offline ? "offline" : "online"}
-              </span>
+            <span className="ov-host-name">
+              <span className={`status-dot status-dot--${offline ? "bad" : "ok"}`} />
+              <span style={{ color: hostColor(name) }}>{name}</span>
             </span>
 
-            <span className="host-tile-rings">
-              <Ring label="CPU" value={offline ? null : m.cpu} />
-              <Ring label="RAM" value={offline ? null : m.ram} />
-              <Ring
-                label={fullest ? diskLabel(fullest) : "Disk"}
-                value={offline ? null : fullest?.used_percent}
-              />
-              {gpu != null && <Ring label="GPU" value={offline ? null : gpu} />}
-            </span>
+            {offline ? (
+              <span className="ov-host-offline">offline</span>
+            ) : (
+              <>
+                <Meter label="CPU" pct={m.cpu} />
+                <Meter label="RAM" pct={m.ram} />
+                <Meter
+                  label={fullest ? diskLabel(fullest) : "Disk"}
+                  pct={fullest?.used_percent}
+                />
+              </>
+            )}
 
-            <span className="host-tile-foot">
-              <span>
-                <strong>{running}</strong> / {conts.length} containers running
-              </span>
-              <span className="host-tile-go" aria-hidden="true">→</span>
+            <span className="ov-host-count">
+              {running}/{conts.length}
             </span>
           </button>
         );

@@ -1,14 +1,12 @@
 import RebalancePanel from "./RebalancePanel";
 import SummaryRow from "./SummaryRow";
 import HostSummary from "./HostSummary";
-import Card from "./Card";
 import { formatLatency } from "./format";
 import ActivityFeed from "./ActivityFeed";
 import AlertHistory from "./AlertHistory";
 import QuickActions from "./QuickActions";
 import { useSettings } from "./settings";
 import AppIcon from "./AppIcon";
-import { useState } from "react";
 
 // issue key -> which tab to open for the details: host-level problems
 // (offline, disk, temperature, backup...) live on Servers, container ones
@@ -21,85 +19,56 @@ function issueTab(key) {
   return "containers";
 }
 
-// Issues as one banner across the top: the count and the first few titles
-// while collapsed, the full list (with the suggested fixes) when opened.
-// Collapsed by default so the front page is the board, not a wall of text;
-// when nothing is wrong it's a single quiet "all clear" line.
-function IssuesBanner({ overview, deployments, onNavigate }) {
+// What's wrong, always visible: one compact line per issue, worst first,
+// each with a jump to where it lives. The longer "how to fix" notes sit
+// behind a toggle so the list itself stays short. When nothing is wrong
+// it's one quiet line.
+function IssuesPanel({ overview, deployments, onNavigate }) {
   const { ok, issues, recommendations, security } = overview;
-  const [open, setOpen] = useState(false);
-  const worst = issues.some((i) => i.severity === "bad") ? "bad" : "warn";
   const unauthenticated = security && security.authenticated === false;
+  const worst = issues.some((i) => i.severity === "bad") ? "bad" : "warn";
 
   return (
-    <section
-      className={`issues-banner ${ok ? "issues-banner--ok" : `issues-banner--${worst}`} ${
-        open ? "issues-banner--open" : ""
-      }`}
+    <Panel
+      title="Needs attention"
+      count={ok ? null : issues.length}
+      tone={ok ? "ok" : worst}
+      className="ov-issues"
     >
       {ok ? (
-        <div className="issues-banner-bar">
+        <p className="ov-clear">
           <span className="status-dot status-dot--ok" />
-          <strong>All clear</strong>
-          <span className="issues-banner-sub">no issues detected</span>
-        </div>
+          All clear — nothing needs you
+        </p>
       ) : (
-        <button
-          type="button"
-          className="issues-banner-bar"
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={open}
-        >
-          <span className={`status-dot status-dot--${worst}`} />
-          <strong>
-            {issues.length} issue{issues.length === 1 ? "" : "s"} need
-            {issues.length === 1 ? "s" : ""} attention
-          </strong>
-          {!open && (
-            <span className="issues-banner-peek">
-              {issues.slice(0, 3).map((i) => (
-                <span key={i.key} className={`issue-pill issue-pill--${i.severity}`}>
-                  {i.title}
-                </span>
-              ))}
-              {issues.length > 3 && (
-                <span className="issues-banner-more">+{issues.length - 3} more</span>
-              )}
-            </span>
-          )}
-          <span className="issues-banner-toggle">{open ? "Hide" : "Show all"}</span>
-        </button>
+        <ul className="ov-issue-list">
+          {issues.map((issue) => (
+            <li key={issue.key}>
+              <button
+                type="button"
+                className={`ov-issue ov-issue--${issue.severity}`}
+                onClick={() => onNavigate(issueTab(issue.key))}
+                title={issue.message}
+              >
+                <span className={`status-dot status-dot--${issue.severity}`} />
+                <strong>{issue.title}</strong>
+                <span className="ov-issue-msg">{issue.message}</span>
+                <span className="ov-go" aria-hidden="true">→</span>
+              </button>
+            </li>
+          ))}
+        </ul>
       )}
 
-      {open && !ok && (
-        <div className="issues-banner-body">
-          <ul className="attention-issues">
-            {issues.map((issue) => (
-              <li key={issue.key} className="attention-issue">
-                <span className={`status-dot status-dot--${issue.severity}`} />
-                <span className="attention-issue-text">
-                  <strong>{issue.title}</strong>
-                  <span>{issue.message}</span>
-                </span>
-                <button
-                  type="button"
-                  className="attention-view"
-                  onClick={() => onNavigate(issueTab(issue.key))}
-                >
-                  View
-                </button>
-              </li>
+      {!ok && recommendations.length > 0 && (
+        <details className="ov-fixes">
+          <summary>How to fix ({recommendations.length})</summary>
+          <ul className="recommendation-list">
+            {recommendations.map((rec) => (
+              <li key={rec}>{rec}</li>
             ))}
           </ul>
-
-          {recommendations.length > 0 && (
-            <ul className="recommendation-list">
-              {recommendations.map((rec) => (
-                <li key={rec}>{rec}</li>
-              ))}
-            </ul>
-          )}
-        </div>
+        </details>
       )}
 
       {/* The auth mark. A footnote rather than an issue: being
@@ -119,36 +88,36 @@ function IssuesBanner({ overview, deployments, onNavigate }) {
       )}
 
       <RebalancePanel deployments={deployments} />
-    </section>
+    </Panel>
   );
 }
 
-// A tile per Services check: the service's icon, name, and latency (or
-// "down"). Anything down sorts first; a click opens the Services tab.
-function ServiceTiles({ checks, onOpen }) {
+// Service health as a dense two-column list: dot, icon, name, latency.
+// Down sorts first and is the only thing in color.
+function ServiceList({ checks, onOpen }) {
   const order = { down: 0, pending: 1, up: 2, paused: 3 };
   const sorted = [...checks].sort(
     (a, b) => order[a.status] - order[b.status] || a.name.localeCompare(b.name)
   );
 
   return (
-    <div className="service-tiles">
+    <div className="ov-services">
       {sorted.map((c) => (
         <button
           type="button"
           key={c.id}
-          className={`service-tile service-tile--${c.status}`}
+          className={`ov-service ov-service--${c.status}`}
           onClick={onOpen}
           title={c.status === "down" ? `${c.name} is down — ${c.detail ?? ""}` : c.target}
         >
-          <AppIcon url={c.target} label={c.name} />
-          <span className="service-tile-name">{c.name}</span>
-          <span className="service-tile-state">
-            <span
-              className={`status-dot status-dot--${
-                c.status === "up" ? "ok" : c.status === "down" ? "bad" : "none"
-              }`}
-            />
+          <span
+            className={`status-dot status-dot--${
+              c.status === "up" ? "ok" : c.status === "down" ? "bad" : "none"
+            }`}
+          />
+          <AppIcon url={c.target} label={c.name} className="app-tile-icon ov-icon" />
+          <span className="ov-service-name">{c.name}</span>
+          <span className="ov-service-ms">
             {c.status === "down"
               ? "down"
               : c.status === "up"
@@ -161,23 +130,21 @@ function ServiceTiles({ checks, onOpen }) {
   );
 }
 
-function Section({ title, count, linkLabel, onLink, children }) {
+// A titled panel with an optional "go to tab" link in its header. `tone`
+// tints the header when the panel is reporting a problem.
+function Panel({ title, count, tone, linkLabel, onLink, className = "", children }) {
   return (
-    <section className="overview-section">
-      <div className="overview-section-head">
+    <section className={`overview-card ov-panel ${tone ? `ov-panel--${tone}` : ""} ${className}`}>
+      <div className="overview-card-head">
         <h2>{title}</h2>
         {count != null && <span className="overview-card-count">{count}</span>}
         {onLink && (
-          <button
-            type="button"
-            className="btn btn--sm btn--ghost overview-section-link"
-            onClick={onLink}
-          >
+          <button type="button" className="ov-panel-link" onClick={onLink}>
             {linkLabel} →
           </button>
         )}
       </div>
-      {children}
+      <div className="overview-card-body">{children}</div>
     </section>
   );
 }
@@ -200,21 +167,13 @@ function Overview({
   } = useSettings();
 
   const hostCount = Object.keys(machines).length;
-  const showTimeline = homeCards.alerts || homeCards.activity;
+  const down = checks.filter((c) => c.status === "down").length;
+  const firing = alerts.filter((a) => a.resolved_at == null).length;
 
-  // One column of full-width sections, each an even grid of same-size
-  // tiles: issues, headline numbers, servers, services, pinned containers,
-  // then alert history and activity side by side.
+  // Headline numbers, then a two-column grid of compact panels. Panels
+  // sit in rows, so the two columns always line up.
   return (
-    <div className="overview overview--board">
-      {homeCards.attention && (
-        <IssuesBanner
-          overview={overview}
-          deployments={deployments}
-          onNavigate={onNavigate}
-        />
-      )}
-
+    <div className="overview overview--dense">
       {homeCards.summary && (
         <SummaryRow
           overview={overview}
@@ -224,66 +183,70 @@ function Overview({
         />
       )}
 
-      {homeCards.hosts && (
-        <Section
-          title="Servers"
-          count={hostCount}
-          linkLabel="All details"
-          onLink={() => onNavigate("servers")}
-        >
-          <HostSummary
-            machines={machines}
-            containers={containers}
-            onOpen={() => onNavigate("servers")}
+      <div className="ov-grid">
+        {homeCards.attention && (
+          <IssuesPanel
+            overview={overview}
+            deployments={deployments}
+            onNavigate={onNavigate}
           />
-        </Section>
-      )}
+        )}
 
-      {homeCards.services && checks.length > 0 && (
-        <Section
-          title="Services"
-          count={checks.length}
-          linkLabel="All checks"
-          onLink={() => onNavigate("services")}
-        >
-          <ServiceTiles checks={checks} onOpen={() => onNavigate("services")} />
-        </Section>
-      )}
+        {homeCards.hosts && (
+          <Panel
+            title="Servers"
+            count={hostCount}
+            linkLabel="Details"
+            onLink={() => onNavigate("servers")}
+          >
+            <HostSummary
+              machines={machines}
+              containers={containers}
+              onOpen={() => onNavigate("servers")}
+            />
+          </Panel>
+        )}
 
-      {homeCards.quickActions && (
-        <Section
-          title="Pinned"
-          count={pins.length || null}
-          linkLabel="Containers"
-          onLink={() => onNavigate("containers")}
-        >
-          <QuickActions
-            pins={pins}
-            containers={containers}
-            machines={machines}
-            onControl={onControl}
-          />
-        </Section>
-      )}
+        {homeCards.services && checks.length > 0 && (
+          <Panel
+            title="Services"
+            count={down ? `${down} down` : checks.length}
+            tone={down ? "bad" : undefined}
+            linkLabel="All checks"
+            onLink={() => onNavigate("services")}
+          >
+            <ServiceList checks={checks} onOpen={() => onNavigate("services")} />
+          </Panel>
+        )}
 
-      {showTimeline && (
-        <div className={`overview-timeline ${homeCards.alerts && homeCards.activity ? "" : "overview-timeline--single"}`}>
-          {homeCards.alerts && (
-            <Card
-              title="Alert history"
-              count={alerts.filter((a) => a.resolved_at == null).length || null}
-            >
-              <AlertHistory alerts={alerts} />
-            </Card>
-          )}
+        {homeCards.quickActions && (
+          <Panel
+            title="Pinned"
+            count={pins.length || null}
+            linkLabel="Containers"
+            onLink={() => onNavigate("containers")}
+          >
+            <QuickActions
+              pins={pins}
+              containers={containers}
+              machines={machines}
+              onControl={onControl}
+            />
+          </Panel>
+        )}
 
-          {homeCards.activity && (
-            <Card title="Recent activity">
-              <ActivityFeed activity={activity} />
-            </Card>
-          )}
-        </div>
-      )}
+        {homeCards.alerts && (
+          <Panel title="Alert history" count={firing || null} className="ov-scroll">
+            <AlertHistory alerts={alerts} />
+          </Panel>
+        )}
+
+        {homeCards.activity && (
+          <Panel title="Recent activity" className="ov-scroll">
+            <ActivityFeed activity={activity} />
+          </Panel>
+        )}
+      </div>
     </div>
   );
 }

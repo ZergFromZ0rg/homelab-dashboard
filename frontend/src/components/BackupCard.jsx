@@ -228,84 +228,65 @@ function BackupCard({ job, hosts, defaultDestHost, now, onChanged, onDelete }) {
             ? "not yet"
             : "off";
 
-  // A tile: the state, the route, one big "how old is the newest copy",
-  // three small facts, then actions. The archive list opens across the
-  // whole row (see .backup--wide) since it's a table.
+  // One table row (columns line up with the header in BackupsTab). Errors
+  // and the archive list open underneath, across the full width.
   return (
-    <div className={`backup backup--${status} ${showArchives ? "backup--wide" : ""}`}>
-      <div className="backup-head">
-        <h3 title={job.name}>{job.name}</h3>
+    <div className={`backup-row backup-row--${status}`}>
+      <div className="backup-line">
+        <span className="backup-cell-job">
+          <strong title={job.name}>{job.name}</strong>
+          <code title={`${job.volume || job.path} → ${job.directory}`}>
+            {job.volume || job.path}
+          </code>
+        </span>
+
+        <span className="backup-cell-route">
+          <span className="backup-host" style={{ color: hostColor(job.source_host) }}>
+            {job.source_host}
+          </span>
+          <span className="backup-arrow" aria-hidden="true">→</span>
+          <span className="backup-host" style={{ color: hostColor(job.dest_host) }}>
+            {job.dest_host}
+          </span>
+        </span>
+
+        <span className="backup-cell-newest">
+          <strong>{job.last_success_at ? formatAge(now - job.last_success_at) : "—"}</strong>
+          {archive?.bytes != null && <small>{formatBytes(archive.bytes)}</small>}
+        </span>
+
+        <span className="backup-cell">
+          {job.enabled === false ? "paused" : interval(job.interval_hours)}
+          {job.stop_containers && (
+            <small title="Stops its containers while copying">stops containers</small>
+          )}
+        </span>
+
+        <span
+          className={`backup-cell ${job.last_verify_ok === false ? "text-bad" : ""}`}
+          title={job.last_verified?.files != null ? `${job.last_verified.files} files read back` : undefined}
+        >
+          {verified}
+        </span>
+
+        <span
+          className="backup-cell backup-cell-num"
+          title={job.last_pruned?.length ? `pruned ${job.last_pruned.length} last run` : undefined}
+        >
+          {job.keep}
+        </span>
+
         <span className={`status-pill status-pill--${STATE_TONE[status] || "none"}`}>
           {STATE_LABELS[status] || status}
         </span>
-      </div>
 
-      <div className="backup-route">
-        <span
-          className="chip chip--host"
-          style={{ color: hostColor(job.source_host), borderColor: hostColor(job.source_host) }}
-        >
-          {job.source_host}
-        </span>
-        <span className="backup-arrow" aria-hidden="true">→</span>
-        <span
-          className="chip chip--host"
-          style={{ color: hostColor(job.dest_host), borderColor: hostColor(job.dest_host) }}
-        >
-          {job.dest_host}
-        </span>
-      </div>
-      <code className="backup-what" title={`${job.volume || job.path} → ${job.directory}`}>
-        {job.volume || job.path}
-      </code>
-
-      <div className="backup-hero">
-        <strong>{job.last_success_at ? formatAge(now - job.last_success_at) : "—"}</strong>
-        <span>
-          newest archive
-          {archive?.bytes != null && ` · ${formatBytes(archive.bytes)}`}
-        </span>
-      </div>
-
-      <div className="backup-facts">
-        <div>
-          <span className="fact-label">Schedule</span>
-          <strong>{job.enabled === false ? "paused" : interval(job.interval_hours)}</strong>
-        </div>
-        <div title={job.last_verified?.files != null ? `${job.last_verified.files} files read back` : undefined}>
-          <span className="fact-label">Verified</span>
-          <strong className={job.last_verify_ok === false ? "text-bad" : undefined}>
-            {verified}
-          </strong>
-        </div>
-        <div title={job.last_pruned?.length ? `pruned ${job.last_pruned.length} last run` : undefined}>
-          <span className="fact-label">Keeping</span>
-          <strong>{job.keep}</strong>
-        </div>
-      </div>
-
-      {job.stop_containers && (
-        <p className="backup-note">Stops its containers while copying</p>
-      )}
-
-      {job.last_error && (
-        <p className="backup-error" title={job.last_error}>
-          {job.last_error}
-        </p>
-      )}
-      {job.last_verify_ok === false && (
-        <p className="backup-error" title={job.last_verify_error || undefined}>
-          Newest archive did not read back — this backup cannot be restored
-          from. {job.last_verify_error}
-        </p>
-      )}
-      {error && <p className="form-error">{error}</p>}
-
-      <div className="backup-actions">
-        <button type="button" className="btn btn--sm" disabled={busy || job.running} onClick={run}>
-          {job.running ? "Running…" : "Back up now"}
-        </button>
-        <span className="check-actions-icons">
+        <span className="check-cell-actions">
+          <IconButton
+            icon="refresh"
+            label={job.running ? "Running…" : "Back up now"}
+            disabled={busy || job.running}
+            onClick={run}
+          />
           <IconButton
             icon="archive"
             label={showArchives ? "Hide archives" : "Archives"}
@@ -335,8 +316,27 @@ function BackupCard({ job, hosts, defaultDestHost, now, onChanged, onDelete }) {
         </span>
       </div>
 
+      {(job.last_error || job.last_verify_ok === false || error) && (
+        <div className="backup-row-notes">
+          {job.last_error && (
+            <p className="backup-error" title={job.last_error}>
+              {job.last_error}
+            </p>
+          )}
+          {job.last_verify_ok === false && (
+            <p className="backup-error" title={job.last_verify_error || undefined}>
+              Newest archive did not read back — this backup cannot be restored
+              from. {job.last_verify_error}
+            </p>
+          )}
+          {error && <p className="form-error">{error}</p>}
+        </div>
+      )}
+
       {showArchives && (
-        <Archives job={job} now={now} onClose={() => setShowArchives(false)} />
+        <div className="backup-row-notes">
+          <Archives job={job} now={now} onClose={() => setShowArchives(false)} />
+        </div>
       )}
     </div>
   );

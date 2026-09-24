@@ -142,7 +142,17 @@ function BackupsTab({ machines, connected }) {
               + "can't be rebuilt from — a database, a library, a config store."}
         </div>
       ) : (
-        <div className="backups-list">
+        <div className="backups-table">
+          <div className="backup-head-row" role="presentation">
+            <span>Job</span>
+            <span>From → to</span>
+            <span>Newest copy</span>
+            <span>Schedule</span>
+            <span>Verified</span>
+            <span>Keep</span>
+            <span>Status</span>
+            <span />
+          </div>
           {jobs.map((job) => (
             <BackupCard
               key={job.id}
