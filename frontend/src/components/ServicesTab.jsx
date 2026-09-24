@@ -47,26 +47,21 @@ function ServicesTab({ checks, connected }) {
             label="Answering"
             value={`${up} / ${checks.length}`}
             bad={down > 0}
-            sub={down ? `${down} down` : "all up"}
           />
-          <Fact label="Avg latency" value={formatLatency(avg)} sub="right now" />
+          <Fact label="Avg latency" value={formatLatency(avg)} />
           <Fact
             label="Slowest"
             value={slowest ? formatLatency(slowest.latency_ms) : "—"}
             sub={slowest?.name}
           />
-          <Fact label="Uptime · 24 h" value={uptime == null ? "—" : `${uptime.toFixed(2)}%`} sub="average" />
+          <Fact label="Uptime · 24 h" value={uptime == null ? "—" : `${uptime.toFixed(2)}%`} />
         </div>
       )}
 
       <div className="services-head">
-        <div>
-          <h2>Service checks</h2>
-          <p className="settings-hint">
-            Probes run from the dashboard every minute (by default) and turn
-            red after two failures in a row.
-          </p>
-        </div>
+        <h2 title="Probes run from the dashboard every minute (by default) and turn red after two failures in a row.">
+          Service checks
+        </h2>
         {!adding && (
           <button type="button" className="btn" onClick={() => setAdding(true)}>
             + Add check

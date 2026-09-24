@@ -38,7 +38,7 @@ function IssuesPanel({ overview, deployments, onNavigate }) {
       {ok ? (
         <p className="ov-clear">
           <span className="status-dot status-dot--ok" />
-          All clear — nothing needs you
+          All clear
         </p>
       ) : (
         <ul className="ov-issue-list">
@@ -52,7 +52,6 @@ function IssuesPanel({ overview, deployments, onNavigate }) {
               >
                 <span className={`status-dot status-dot--${issue.severity}`} />
                 <strong>{issue.title}</strong>
-                <span className="ov-issue-msg">{issue.message}</span>
                 <span className="ov-go" aria-hidden="true">→</span>
               </button>
             </li>
@@ -79,8 +78,7 @@ function IssuesPanel({ overview, deployments, onNavigate }) {
         <details className="attention-posture">
           <summary>
             <span className="status-dot status-dot--warn" />
-            Unauthenticated — anyone who can reach this dashboard can change
-            your hosts
+            No login — anyone on the network can control your hosts
           </summary>
           <p>{security.message}</p>
           <p className="settings-hint">{security.hint}</p>

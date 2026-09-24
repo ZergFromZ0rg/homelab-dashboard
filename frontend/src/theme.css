@@ -2,16 +2,14 @@
    Visual layer — loaded after App.css, so it wins on equal specificity.
 
    App.css owns layout and per-component structure; this file owns how
-   surfaces look: the colored backdrop, glass panels, the top bar and
-   tabs, stat tiles, buttons. Three ideas carry it:
+   surfaces look. Flat and solid: opaque cards on a plain dark page, one
+   thin border, no blur, no glows. Color is kept for meaning — the active
+   tab's color (--page-accent, set on .app from tabColors.js), host colors,
+   and red/amber/green for status.
 
-   1. The page has a backdrop, not a flat fill. Soft glows in the active
-      tab's color (--page-accent, set on .app from tabColors.js) sit
-      behind everything, so switching tabs visibly changes the room.
-   2. Panels are frosted glass over that backdrop — translucent, blurred,
-      with a faint top highlight — instead of opaque grey boxes.
-   3. Numbers get color. Every stat tile carries a --tone: the section it
-      belongs to, or the page accent, or red/amber when something's wrong.
+   (A frosted-glass version with colored backdrop glows was tried on
+   2026-09-23 and dropped the next day as hard to read; the --glass names
+   below survive as the card tokens and are now solid colors.)
    ===================================================================== */
 
 @property --page-accent {
@@ -21,15 +19,14 @@
 }
 
 :root {
-  --bg: #080b12;
+  --bg: #0b0e14;
 
-  --glass: rgba(20, 26, 38, 0.58);
-  --glass-strong: rgba(24, 31, 45, 0.82);
-  --glass-hover: rgba(30, 38, 55, 0.66);
-  --glass-border: rgba(255, 255, 255, 0.075);
-  --glass-border-strong: rgba(255, 255, 255, 0.13);
-  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  --glass-blur: blur(18px) saturate(150%);
+  --glass: #121620;
+  --glass-strong: #151a25;
+  --glass-hover: #181e2a;
+  --glass-border: #222a38;
+  --glass-border-strong: #2e384a;
+  --glass-highlight: 0 0 0 transparent;
 
   --border: rgba(255, 255, 255, 0.08);
   --border-strong: rgba(255, 255, 255, 0.14);
@@ -102,8 +99,6 @@ body {
   background: var(--glass);
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-highlight), var(--shadow-sm);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
 }
 
 .overview-card,
@@ -466,8 +461,6 @@ body {
     var(--glass);
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-highlight), var(--shadow-sm);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
 }
 
 .todo-add input {
@@ -749,4 +742,87 @@ body {
 
 .deploy-pane {
   padding: 14px 16px;
+}
+
+/* ----- Flat: no see-through surfaces, no glows ----- */
+
+.app::before,
+.app::after,
+.summary-card::before,
+.fact::before,
+.machine-card::before {
+  content: none;
+}
+
+.topbar {
+  background: var(--bg);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-bottom: 1px solid var(--glass-border);
+  border-image: none;
+}
+
+.brand-mark {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+
+.tabs {
+  background: var(--glass);
+}
+
+.tab.active {
+  color: var(--tab-color);
+  background: color-mix(in srgb, var(--tab-color) 14%, var(--glass));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tab-color) 40%, transparent);
+}
+
+.tab.active .tab-dot {
+  box-shadow: none;
+}
+
+.overview-section-head h2::before,
+.services-head h2::before {
+  background: var(--page-accent);
+  box-shadow: none;
+}
+
+.machine-card:hover {
+  box-shadow: none;
+}
+
+.host-group .host-header,
+.pinned-strip .pinned-strip-title {
+  background: none;
+}
+
+.greeting {
+  background: var(--glass);
+}
+
+.deploy-primary--go:not(:disabled) {
+  background: color-mix(in srgb, var(--page-accent) 30%, var(--glass));
+  border-color: color-mix(in srgb, var(--page-accent) 55%, transparent);
+  box-shadow: none;
+}
+
+.drawer {
+  background: var(--glass-strong);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Status tints stay, as a flat wash rather than a fade. */
+.ov-panel--bad .overview-card-head,
+.ov-panel--warn .overview-card-head {
+  background: none;
+}
+
+.check-row--down,
+.backup-row--failing,
+.backup-row--corrupt {
+  background: color-mix(in srgb, var(--offline) 8%, transparent);
+}
+
+.backup-row--stale {
+  background: color-mix(in srgb, var(--warning) 7%, transparent);
 }

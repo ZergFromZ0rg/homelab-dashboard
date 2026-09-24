@@ -129,7 +129,7 @@ function ContainerRow({
         <div className="c-name">
           {/* The web UI's own icon when it has one, else a lettered avatar. */}
           <AppIcon url={url} label={container.name} className="app-tile-icon c-icon" />
-          <div className="c-name-block">
+          <div className="c-name-block" title={container.image}>
             <div className="c-name-line">
               {url ? (
                 <a
@@ -163,9 +163,6 @@ function ContainerRow({
                 </span>
               )}
             </div>
-            <span className="c-image" title={container.image}>
-              {container.image}
-            </span>
           </div>
         </div>
 

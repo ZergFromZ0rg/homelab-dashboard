@@ -46,9 +46,8 @@ function AlertHistory({ alerts }) {
                 firing ? a.severity || "bad" : "ok"
               }`}
             />
-            <div className="alert-entry-text">
+            <div className="alert-entry-text" title={a.message}>
               <strong>{a.title}</strong>
-              <span className="alert-entry-message">{a.message}</span>
             </div>
             <div
               className="alert-entry-when"

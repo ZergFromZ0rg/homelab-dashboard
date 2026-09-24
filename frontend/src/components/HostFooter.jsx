@@ -78,8 +78,9 @@ function versionChip(version) {
   }
 }
 
-// Server-level facts that aren't host metrics: what runs on it and whether
-// its agent is talking to us. Sits under a host's vitals.
+// Server-level facts that aren't host metrics: what runs on it, plus a chip
+// for anything about its agent, backup or version that isn't fine. Healthy
+// states say nothing — the chip row is for things worth reading.
 function HostFooter({ machine, containers }) {
   const list = containers || [];
   const backup = backupChip(machine.backup);
@@ -99,16 +100,18 @@ function HostFooter({ machine, containers }) {
   return (
     <div className="host-foot">
       <span className="chip">
-        {running}/{list.length} containers running
+        {running}/{list.length} running
       </span>
       {unhealthy > 0 && <span className="chip chip--bad">{unhealthy} unhealthy</span>}
-      <span className={`chip chip--${agent.tone}`}>{agent.label}</span>
-      {backup && (
+      {agent.tone !== "ok" && (
+        <span className={`chip chip--${agent.tone}`}>{agent.label}</span>
+      )}
+      {backup && backup.tone !== "ok" && (
         <span className={`chip chip--${backup.tone}`} title={backup.title || undefined}>
           {backup.label}
         </span>
       )}
-      {version && (
+      {version && version.tone !== "ok" && (
         <span className={`chip chip--${version.tone}`} title={version.title}>
           {version.label}
         </span>

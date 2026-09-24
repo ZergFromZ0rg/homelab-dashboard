@@ -127,9 +127,9 @@ function GpuDevice({ gpu, index, total, stale, history, windowMinutes }) {
   );
 }
 
-function Ring({ label, value, text }) {
+function Ring({ label, value, text, title }) {
   return (
-    <div className="vitals-ring">
+    <div className="vitals-ring" title={title}>
       <Gauge value={value} label={text} size={62} strokeWidth={5} />
       <span title={label}>{label}</span>
     </div>
@@ -207,14 +207,12 @@ function MachineVitals({ host, machine, history }) {
 
   return (
     <>
-      {machine.cpu_model && (
-        <div className="cpu-model" title={machine.cpu_model}>
-          {machine.cpu_model}
-        </div>
-      )}
-
       <div className="vitals-rings">
-        <Ring label={cores ? `CPU · ${cores}` : "CPU"} value={machine.cpu} />
+        <Ring
+          label={cores ? `CPU · ${cores}` : "CPU"}
+          value={machine.cpu}
+          title={machine.cpu_model || undefined}
+        />
         <Ring
           label="Temp"
           value={

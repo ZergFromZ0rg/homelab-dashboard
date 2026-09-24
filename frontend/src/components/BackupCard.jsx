@@ -233,11 +233,11 @@ function BackupCard({ job, hosts, defaultDestHost, now, onChanged, onDelete }) {
   return (
     <div className={`backup-row backup-row--${status}`}>
       <div className="backup-line">
-        <span className="backup-cell-job">
-          <strong title={job.name}>{job.name}</strong>
-          <code title={`${job.volume || job.path} → ${job.directory}`}>
-            {job.volume || job.path}
-          </code>
+        <span
+          className="backup-cell-job"
+          title={`${job.volume || job.path} → ${job.dest_host}:${job.directory}`}
+        >
+          <strong>{job.name}</strong>
         </span>
 
         <span className="backup-cell-route">
@@ -255,11 +255,11 @@ function BackupCard({ job, hosts, defaultDestHost, now, onChanged, onDelete }) {
           {archive?.bytes != null && <small>{formatBytes(archive.bytes)}</small>}
         </span>
 
-        <span className="backup-cell">
+        <span
+          className="backup-cell"
+          title={job.stop_containers ? "Stops its containers while copying" : undefined}
+        >
           {job.enabled === false ? "paused" : interval(job.interval_hours)}
-          {job.stop_containers && (
-            <small title="Stops its containers while copying">stops containers</small>
-          )}
         </span>
 
         <span

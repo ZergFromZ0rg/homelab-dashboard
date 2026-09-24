@@ -78,38 +78,28 @@ function BackupsTab({ machines, connected }) {
           <Fact
             label="Jobs"
             value={jobs.length}
-            sub={failing ? `${failing} need attention` : "all current"}
             bad={failing > 0}
           />
           <Fact
             label="Furthest behind"
             value={stalest == null ? "—" : formatAge(stalest)}
-            sub="age of its newest archive"
           />
           <Fact
             label="Newest archives"
             value={formatBytes(protectedBytes)}
-            sub="one per job"
           />
           <Fact
             label="Same-host copies"
             value={unprotected}
-            sub={unprotected ? "dies with the machine" : "all off-host"}
             bad={unprotected > 0}
           />
         </div>
       )}
 
       <div className="services-head">
-        <div>
-          <h2>Volume backups</h2>
-          <p className="settings-hint">
-            A throwaway container tars the volume on its own host and writes
-            the archive where you point it — by default onto the box running
-            this dashboard. Config backups are separate, and already run on
-            every agent.
-          </p>
-        </div>
+        <h2 title="A throwaway container tars the volume on its own host and writes the archive where you point it — by default onto the box running this dashboard. Config backups are separate, and already run on every agent.">
+          Volume backups
+        </h2>
         {!adding && hosts.length > 0 && (
           <button type="button" className="btn" onClick={() => setAdding(true)}>
             + Add backup

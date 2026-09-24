@@ -47,13 +47,13 @@ function ServersTab({ machines, containers, history, mainHost, connected }) {
           value={`${online} / ${names.length}`}
           bad={online < names.length}
         />
-        <Fact label="Containers" value={`${running} / ${total}`} sub="running" />
-        <Fact label="CPU threads" value={cores || "—"} sub="across the fleet" />
+        <Fact label="Containers up" value={`${running} / ${total}`} />
+        <Fact label="CPU threads" value={cores || "—"} />
         <FleetUpdate machines={machines} />
         <Fact
-          label="Backups"
+          label="Backups OK"
           value={backupStates.length ? `${backupsOk} / ${backupStates.length}` : "—"}
-          sub={backupStates.length ? "healthy" : "none configured"}
+          sub={backupStates.length ? null : "none configured"}
           bad={backupsBad > 0}
         />
       </div>

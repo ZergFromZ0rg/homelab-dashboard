@@ -1,4 +1,3 @@
-import { formatAge } from "./format";
 import { tabColor } from "./tabColors";
 
 // The four-across headline: is anything broken, are the machines up, are
@@ -29,25 +28,18 @@ function Card({ label, value, sub, bad, tone }) {
 function BackupCard({ backups }) {
   if (!backups || !backups.total) {
     return (
-      <Card label="Backups" value="None" sub="nothing is backed up" bad tone={tabColor("backups")} />
+      <Card label="Backups" value="None" bad tone={tabColor("backups")} />
     );
   }
 
-  const { total, ok, attention, newest_success_age: age } = backups;
+  const { total, ok, attention } = backups;
 
-  // "5 / 7 healthy" is the honest headline; the age answers the question
-  // people actually ask next, which is how old the newest copy is.
+  // "5 / 7 OK" is the honest headline; how old each copy is lives on the
+  // Backups tab.
   return (
     <Card
-      label="Backups"
+      label="Backups OK"
       value={`${ok} / ${total}`}
-      sub={
-        attention
-          ? `${attention} need${attention === 1 ? "s" : ""} attention`
-          : age == null
-            ? "not run yet"
-            : `newest ${formatAge(age)}`
-      }
       bad={attention > 0}
       tone={tabColor("backups")}
     />
@@ -73,22 +65,19 @@ function SummaryRow({ overview, machines, containers, backups }) {
   return (
     <div className="summary-row">
       <Card
-        label="System health"
-        value={overview.ok ? "Operational" : `${issueCount} issue${issueCount === 1 ? "" : "s"}`}
-        sub={overview.ok ? "all clear" : "needs attention"}
+        label="Health"
+        value={overview.ok ? "All clear" : `${issueCount} issue${issueCount === 1 ? "" : "s"}`}
         bad={!overview.ok}
         tone={overview.ok ? "var(--online)" : undefined}
       />
       <Card
-        label="Hosts"
+        label="Hosts online"
         value={`${onlineHosts} / ${hosts.length || "—"}`}
-        sub="online"
         tone={tabColor("servers")}
       />
       <Card
-        label="Containers"
+        label="Containers up"
         value={`${runningContainers} / ${totalContainers || "—"}`}
-        sub="running"
         tone={tabColor("containers")}
       />
       <BackupCard backups={backups} />

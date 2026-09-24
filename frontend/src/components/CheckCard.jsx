@@ -86,7 +86,7 @@ function CheckCard({ check, now }) {
     sub = "";
   } else {
     headline = formatLatency(check.latency_ms);
-    sub = check.checked_at != null ? checkedAgo(now - check.checked_at) : "";
+    sub = "";
   }
 
   const target =
@@ -102,7 +102,7 @@ function CheckCard({ check, now }) {
           <AppIcon url={check.target} label={check.name} className="app-tile-icon ov-icon" />
         </span>
 
-        <span className="check-cell-name">
+        <span className="check-cell-name" title={target}>
           <span className="check-title">
             <strong>{check.name}</strong>
             <span className="chip">{TYPE_LABEL[check.type]}</span>
@@ -112,22 +112,17 @@ function CheckCard({ check, now }) {
               </span>
             )}
           </span>
-          {check.type === "http" || check.type === "keyword" ? (
-            <a
-              className="check-target"
-              href={check.target}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={target}
-            >
-              {target}
-            </a>
-          ) : (
-            <span className="check-target" title={target}>{target}</span>
-          )}
         </span>
 
-        <span className="check-cell-now" title={check.detail ?? undefined}>
+        <span
+          className="check-cell-now"
+          title={[
+            check.detail,
+            check.checked_at != null ? `checked ${checkedAgo(now - check.checked_at)}` : null,
+          ]
+            .filter(Boolean)
+            .join(" · ") || undefined}
+        >
           <strong className={`check-now check-now--${status}`}>{headline}</strong>
           {sub && <small>{sub}</small>}
         </span>
