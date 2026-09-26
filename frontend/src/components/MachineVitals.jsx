@@ -1,3 +1,5 @@
+import { useState } from "react";
+import DiskExplorer from "./DiskExplorer";
 import HostRecovery from "./HostRecovery";
 import HostSettings from "./HostSettings";
 import Sparkline from "./Sparkline";
@@ -240,6 +242,8 @@ function MachineVitals({ host, machine, history }) {
   } = useSettings();
 
   const d = machine.details || {};
+  // The folder the disk explorer is open at, or null when it's closed.
+  const [explore, setExplore] = useState(null);
   const netMax = Math.max(
     1,
     ...windowPoints(history?.network_rx, windowMinutes).map((p) => p.v ?? 0),
@@ -339,9 +343,15 @@ function MachineVitals({ host, machine, history }) {
             return (
               <div className="sv-disk" key={`${fs.device}-${fs.mountpoint}`}>
                 <div className="sv-row-head">
-                  <span title={fs.device}>
+                  <button
+                    type="button"
+                    className="sv-disk-open"
+                    title={`${fs.device} — see what's taking the space`}
+                    onClick={() => host && setExplore(fs.mountpoint)}
+                  >
                     <strong>{diskLabel(fs)}</strong> <span className="sv-dim">{fs.mountpoint}</span>
-                  </span>
+                    <span className="sv-disk-go">explore →</span>
+                  </button>
                   <span className={`sv-tone--${diskTone(fs.used_percent)}`}>{fs.used_percent}%</span>
                 </div>
                 <Bar
@@ -495,6 +505,10 @@ function MachineVitals({ host, machine, history }) {
           {!gpus.length && !machine.gpu?.hint && <p className="sv-dim">No GPU.</p>}
         </Section>
       </div>
+
+      {host && explore && (
+        <DiskExplorer key={explore} host={host} start={explore} onClose={() => setExplore(null)} />
+      )}
 
       {host && (
         <div className="sv-manage">

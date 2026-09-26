@@ -336,6 +336,59 @@ export function demoNetworkAction(host, action, { network, name, subnet, interna
   return { success: true };
 }
 
+// Mirrors GET /api/disk/{host}: a made-up but stable tree, so the demo's
+// disk explorer can be clicked through. Sizes come from a hash of the path.
+const DEMO_TREE = {
+  "/": ["home", "var", "usr", "opt", "srv", "mnt", "boot", "etc", "tmp", "vmlinuz"],
+  "/home": ["zerg"],
+  "/home/zerg": ["media", "backups", "docker", "ai-librarian", "Downloads", ".cache", "notes.md"],
+  "/var": ["lib", "log", "cache"],
+  "/var/lib": ["docker", "apt", "prometheus"],
+  "/mnt": ["media"],
+};
+
+function demoHash(text) {
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i += 1) h = Math.imul(h ^ text.charCodeAt(i), 16777619);
+  return Math.abs(h);
+}
+
+export function demoDiskUsage(host, path) {
+  const names = DEMO_TREE[path] || ["cache", "data", "logs", "config", "readme.txt", "archive.tar.gz"];
+  const entries = names.map((name) => {
+    const full = path === "/" ? `/${name}` : `${path}/${name}`;
+    const h = demoHash(`${host}${full}`);
+    const isFile = name.includes(".") && !name.startsWith(".");
+    const mount = path === "/" && name === "mnt";
+    const depth = full.split("/").length;
+    const bytes = mount ? null : Math.round((h % 1000) * 1.3 ** (12 - depth) * (isFile ? 2e4 : 4e6));
+    return {
+      name,
+      path: full,
+      kind: mount ? "mount" : name === "vmlinuz" ? "link" : isFile ? "file" : "dir",
+      bytes: name === "vmlinuz" ? 0 : bytes,
+      files: isFile || mount || name === "vmlinuz" ? null : h % 5000,
+      modified: Date.now() / 1000 - (h % 90) * 86400,
+      pending: false,
+      target: name === "vmlinuz" ? "boot/vmlinuz-6.12.96" : undefined,
+    };
+  });
+  entries.sort((a, b) => (b.bytes ?? 0) - (a.bytes ?? 0));
+  return {
+    host,
+    path,
+    parent: path === "/" ? null : path.slice(0, path.lastIndexOf("/")) || "/",
+    state: "done",
+    error: null,
+    total_bytes: entries.reduce((n, e) => n + (e.bytes ?? 0), 0),
+    items_scanned: 48213,
+    started_at: Date.now() / 1000 - 4,
+    finished_at: Date.now() / 1000,
+    entries,
+    more: null,
+  };
+}
+
 export function demoContainerHistory(name, range) {
   const spans = { "6h": 6 * 3600, "24h": 86400, "7d": 7 * 86400 };
   const span = spans[range] ?? 86400;

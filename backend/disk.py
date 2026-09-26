@@ -1,0 +1,50 @@
+"""Per-folder disk usage, proxied to each homelab-agent's ``/disk/usage``.
+
+The agent walks its host's disk in the background and answers straight
+away — ``state: scanning`` with partial numbers, then ``done`` — so the
+explorer polls this while a scan runs. See homelab-agent's disk_usage.py for
+how space is counted (allocated blocks, one filesystem, hard links once).
+"""
+
+from __future__ import annotations
+
+import requests
+
+from backend.docker import agent_headers
+
+TIMEOUT_SECONDS = 10
+
+
+def usage(base_url: str, path: str, refresh: bool = False) -> dict:
+    try:
+        response = requests.get(
+            f"{base_url}/disk/usage",
+            params={"path": path, "refresh": "true" if refresh else "false"},
+            headers=agent_headers(),
+            timeout=TIMEOUT_SECONDS,
+        )
+    except requests.RequestException as error:
+        return {"state": "error", "error": f"couldn't reach this agent: {error}", "entries": []}
+
+    if response.status_code == 404:
+        return {
+            "state": "error",
+            "error": "this agent predates the disk explorer — rebuild it from the "
+            "current homelab-agent image",
+            "entries": [],
+        }
+    if response.status_code == 401:
+        return {
+            "state": "error",
+            "error": "the agent rejected the dashboard's token — AGENT_TOKEN must match on both",
+            "entries": [],
+        }
+
+    try:
+        body = response.json()
+    except ValueError:
+        body = {}
+
+    if not response.ok:
+        return {"state": "error", "error": body.get("error") or f"agent answered {response.status_code}", "entries": []}
+    return body

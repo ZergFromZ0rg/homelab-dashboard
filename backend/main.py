@@ -21,6 +21,7 @@ from backend import alert_history
 from backend import alerts
 from backend import checks
 from backend import connections
+from backend import disk
 from backend import networks
 from backend import container_history
 from backend import checks_api
@@ -520,6 +521,13 @@ def host_connections(host: str, refresh: bool = False):
     """
     base_url = _agent_for(host)
     return {"host": host, **connections.for_host(host, base_url, refresh=refresh)}
+
+
+@app.get("/api/disk/{host}")
+def host_disk_usage(host: str, path: str = "/", refresh: bool = False):
+    """What's taking the space under ``path`` on one host. Read-only; polled
+    by the disk explorer while the agent's scan runs."""
+    return {"host": host, **disk.usage(_agent_for(host), path, refresh)}
 
 
 @app.get("/api/networks/{host}")
