@@ -353,8 +353,19 @@ function demoHash(text) {
   return Math.abs(h);
 }
 
+const demoDeleted = new Set();
+
+export function demoDiskDelete(host, path) {
+  if (path.split("/").length < 3) {
+    return { success: false, error: `${path} is a top-level directory — delete what's inside it instead` };
+  }
+  demoDeleted.add(`${host}:${path}`);
+  return { success: true, path, freed_bytes: null };
+}
+
 export function demoDiskUsage(host, path) {
-  const names = DEMO_TREE[path] || ["cache", "data", "logs", "config", "readme.txt", "archive.tar.gz"];
+  const names = (DEMO_TREE[path] || ["cache", "data", "logs", "config", "readme.txt", "archive.tar.gz"])
+    .filter((name) => !demoDeleted.has(`${host}:${path === "/" ? "" : path}/${name}`));
   const entries = names.map((name) => {
     const full = path === "/" ? `/${name}` : `${path}/${name}`;
     const h = demoHash(`${host}${full}`);

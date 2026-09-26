@@ -47,3 +47,21 @@ def test_unreachable(monkeypatch):
 
     monkeypatch.setattr(disk.requests, "get", boom)
     assert disk.usage("http://agent", "/")["state"] == "error"
+
+
+def test_delete_forwards_and_surfaces_refusals(monkeypatch):
+    calls = []
+
+    def fake_post(url, json=None, **kwargs):
+        calls.append((url, json))
+        return FakeResponse(400, {"success": False, "error": "jellyfin is using /srv/media"})
+
+    monkeypatch.setattr(disk.requests, "post", fake_post)
+    assert disk.delete("http://agent", "/srv/media") == {
+        "success": False,
+        "error": "jellyfin is using /srv/media",
+    }
+    assert calls == [("http://agent/disk/delete", {"path": "/srv/media"})]
+
+    monkeypatch.setattr(disk.requests, "post", lambda *a, **k: FakeResponse(404))
+    assert "rebuild" in disk.delete("http://agent", "/x/y")["error"]

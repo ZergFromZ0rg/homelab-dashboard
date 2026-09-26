@@ -535,6 +535,15 @@ def host_disk_usage(host: str, path: str = "/", refresh: bool = False):
     return {"host": host, **disk.usage(_agent_for(host), path, refresh)}
 
 
+@app.post("/api/disk/{host}/delete")
+def host_disk_delete(
+    host: str, body: dict, x_register_token: str | None = Header(default=None)
+):
+    """Delete a file or folder on a host. AUTH: gated — this destroys data."""
+    auth.check_token(x_register_token)
+    return {"host": host, **disk.delete(_agent_for(host), str(body.get("path", "")))}
+
+
 @app.get("/api/networks/{host}")
 def host_networks(host: str):
     """Docker networks on one host and the containers on each."""

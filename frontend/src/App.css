@@ -7214,3 +7214,52 @@ a.check-target:hover {
     max-width: 150px;
   }
 }
+
+.dx-actions {
+  width: 40px;
+  padding-block: 1px !important;
+  text-align: right;
+}
+
+.dx-actions .icon-action {
+  opacity: 0;
+}
+
+.dx-row:hover .dx-actions .icon-action,
+.dx-actions .icon-action:focus-visible {
+  opacity: 1;
+}
+
+.dx-row--deleting {
+  opacity: 0.4;
+}
+
+.dx-notice {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 8px 12px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dx-notice > span {
+  flex: 1;
+}
+
+.dx-notice--ok {
+  color: var(--online);
+  background: var(--online-bg);
+}
+
+.dx-notice--bad {
+  color: var(--offline);
+  background: var(--offline-bg);
+}
+
+@media (hover: none) {
+  .dx-actions .icon-action {
+    opacity: 1;
+  }
+}

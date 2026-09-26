@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { IconButton } from "./Icon";
-import { fetchDiskUsage } from "./diskApi";
+import TokenBox from "./TokenBox";
+import { deleteDiskPath, fetchDiskUsage } from "./diskApi";
 import { formatAge, formatBytes } from "./format";
 import { useNow } from "./useNow";
 
 // What's taking the space: a folder's contents, biggest first, each with
 // its share of the folder. Click a folder to go into it; the path at the top
-// goes back up. The agent scans in the background, so a big folder shows
+// goes back up. The bin on a row deletes it, after a confirmation (typing
+// the name, for a folder); the agent refuses system paths, top-level
+// folders, mount points and anything a running container has mounted. The agent scans in the background, so a big folder shows
 // "scanning" and fills in as each subfolder finishes.
 
 const POLL_MS = 1200;
@@ -38,6 +41,8 @@ function DiskExplorer({ host, start = "/", onClose }) {
   // for the folder on screen, so changing folder needs no reset.
   const [answer, setAnswer] = useState(null);
   const now = useNow(10000).getTime() / 1000;
+  const [deleting, setDeleting] = useState(null);
+  const [notice, setNotice] = useState(null);
 
   const load = useCallback(
     (refresh = false) =>
@@ -82,6 +87,44 @@ function DiskExplorer({ host, start = "/", onClose }) {
     });
   };
 
+  const remove = async (entry) => {
+    const size = entry.bytes == null ? "unknown size" : formatBytes(entry.bytes);
+    if (entry.kind === "dir") {
+      const typed = window.prompt(
+        `Delete the folder ${entry.path} and everything in it?\n` +
+          `${size}${entry.files != null ? `, ${entry.files.toLocaleString()} files` : ""}. ` +
+          "This can't be undone.\n\nType the folder name to confirm:"
+      );
+      if (typed == null) return;
+      if (typed.trim() !== entry.name) {
+        setNotice({ tone: "bad", text: "The name didn't match — nothing was deleted." });
+        return;
+      }
+    } else if (!window.confirm(`Delete ${entry.path} (${size})? This can't be undone.`)) {
+      return;
+    }
+
+    setDeleting(entry.path);
+    setNotice(null);
+    try {
+      const result = await deleteDiskPath(host, entry.path);
+      if (result.success === false) {
+        setNotice({ tone: "bad", text: result.error });
+      } else {
+        const freed = result.freed_bytes ?? entry.bytes;
+        setNotice({
+          tone: "ok",
+          text: `Deleted ${entry.path}${freed != null ? ` — freed ${formatBytes(freed)}` : ""}.`,
+        });
+      }
+    } catch (e) {
+      setNotice({ tone: "bad", text: e.message });
+    } finally {
+      setDeleting(null);
+      load(false);
+    }
+  };
+
   const data = answer?.path === path ? answer.body : null;
   const error = data?.state === "error" ? data.error : "";
   const entries = data?.entries || [];
@@ -109,6 +152,15 @@ function DiskExplorer({ host, start = "/", onClose }) {
       </div>
 
       {error && <p className="dx-error">{error}</p>}
+      {notice && (
+        <div className={`dx-notice dx-notice--${notice.tone}`}>
+          <span>{notice.text}</span>
+          {notice.tone === "bad" && /token/i.test(notice.text) && <TokenBox />}
+          <button type="button" className="dx-close" onClick={() => setNotice(null)} aria-label="Dismiss">
+            ×
+          </button>
+        </div>
+      )}
 
       <table className="dx-table">
         <thead>
@@ -119,12 +171,13 @@ function DiskExplorer({ host, start = "/", onClose }) {
             <th>Share</th>
             <th>Files</th>
             <th>Modified</th>
+            <th />
           </tr>
         </thead>
         <tbody>
           {data?.parent != null && (
             <tr className="dx-row dx-row--up" onClick={() => setPath(data.parent)}>
-              <td colSpan={6}>↑ ..</td>
+              <td colSpan={7}>↑ ..</td>
             </tr>
           )}
           {entries.map((e) => {
@@ -133,7 +186,9 @@ function DiskExplorer({ host, start = "/", onClose }) {
             return (
               <tr
                 key={e.path}
-                className={`dx-row dx-row--${e.kind} ${openable ? "dx-row--open" : ""}`}
+                className={`dx-row dx-row--${e.kind} ${openable ? "dx-row--open" : ""} ${
+                  deleting === e.path ? "dx-row--deleting" : ""
+                }`}
                 onClick={openable ? () => setPath(e.path) : undefined}
                 title={
                   e.kind === "mount"
@@ -170,19 +225,30 @@ function DiskExplorer({ host, start = "/", onClose }) {
                 <td className="dx-dim">
                   {e.modified ? new Date(e.modified * 1000).toLocaleDateString() : ""}
                 </td>
+                <td className="dx-actions" onClick={(event) => event.stopPropagation()}>
+                  {e.kind !== "mount" && (
+                    <IconButton
+                      icon="trash"
+                      label={deleting === e.path ? "Deleting…" : `Delete ${e.name}`}
+                      danger
+                      disabled={Boolean(deleting) || e.pending}
+                      onClick={() => remove(e)}
+                    />
+                  )}
+                </td>
               </tr>
             );
           })}
           {data?.more && (
             <tr className="dx-row">
-              <td colSpan={6} className="dx-dim">
+              <td colSpan={7} className="dx-dim">
                 + {data.more.count} smaller items ({formatBytes(data.more.bytes)})
               </td>
             </tr>
           )}
           {data?.state === "done" && entries.length === 0 && (
             <tr>
-              <td colSpan={6} className="dx-dim">Empty.</td>
+              <td colSpan={7} className="dx-dim">Empty.</td>
             </tr>
           )}
         </tbody>
