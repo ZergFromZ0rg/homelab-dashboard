@@ -62,8 +62,72 @@ function container(id, name, image, host, o = {}) {
   };
 }
 
+// Mirrors backend/node_details.py: the node_exporter long tail the
+// Servers tab lays out. Scaled off the machine's headline numbers so the
+// demo hosts read as different machines.
+function demoDetails(o) {
+  const ram = o.ramGb * 1024 ** 3;
+  const used = (ram * o.ram) / 100;
+  const threads = o.threads ?? 4;
+  return {
+    os: "Debian GNU/Linux 13 (trixie)",
+    kernel: "6.12.96+deb13-amd64",
+    arch: "x86_64",
+    load5: +(o.load * 0.9).toFixed(2),
+    load15: +(o.load * 0.8).toFixed(2),
+    cpu_modes: {
+      user: +(o.cpu * 0.62).toFixed(1),
+      system: +(o.cpu * 0.24).toFixed(1),
+      iowait: +(o.cpu * 0.08).toFixed(1),
+      softirq: +(o.cpu * 0.04).toFixed(1),
+      steal: 0,
+      irq: 0,
+      nice: 0,
+    },
+    per_core: Array.from({ length: threads }, (_, i) =>
+      Math.max(0, Math.min(100, +(o.cpu + Math.sin(i * 1.7) * 18).toFixed(1)))
+    ),
+    cpu_mhz: 2100 + o.cpu * 12,
+    cpu_mhz_max: 4200,
+    pressure_cpu: +(o.cpu / 40).toFixed(1),
+    pressure_memory: +(o.ram > 85 ? 3.2 : 0.1).toFixed(1),
+    pressure_io: 0.4,
+    mem_total: ram,
+    mem_available: ram - used,
+    mem_free: (ram - used) * 0.3,
+    mem_cached: (ram - used) * 0.6,
+    mem_buffers: ram * 0.02,
+    mem_dirty: 1_400_000,
+    swap_total: ram,
+    swap_free: ram * (o.ram > 85 ? 0.6 : 0.98),
+    procs_running: Math.max(1, Math.round(o.load)),
+    procs_blocked: 0,
+    forks_per_s: 4.4,
+    ctx_switches_per_s: 9000 + o.cpu * 300,
+    interrupts_per_s: 3100,
+    fds_open: 2848,
+    fds_max: 9.2e18,
+    entropy_bits: 256,
+    tcp_established: 18,
+    tcp_time_wait: 3,
+    sockets_used: 329,
+    net_rx_errs_per_s: 0,
+    net_tx_errs_per_s: 0,
+    net_rx_drop_per_s: 0.02,
+    net_tx_drop_per_s: 0,
+    disk_busy: { nvme0n1: +(o.cpu / 6).toFixed(1) },
+    inodes_used: Object.fromEntries((o.fs || []).map((f) => [f.mountpoint, +(f.used_percent / 9).toFixed(1)])),
+    sensors: [
+      { chip: "k10temp", sensor: "Tctl", celsius: o.temp },
+      { chip: "nvme", sensor: "Composite", celsius: 41.9 },
+      { chip: "acpitz", sensor: "temp1", celsius: 27.8 },
+    ],
+  };
+}
+
 function machine(o) {
   return {
+    details: demoDetails(o),
     online: true,
     cpu_model: o.model,
     cpu_cores: o.threads,
@@ -180,6 +244,98 @@ export function demoConnections(host) {
 
 // Mirrors GET /api/containers/{host}/{name}/history. A daily rhythm so
 // the 7d view looks like something rather than noise.
+// Mirrors GET /api/networks/{host}: Docker's own three, plus the compose
+// networks the demo containers would sit on. Kept in memory so the demo's
+// create / connect / remove buttons visibly do something.
+const DEMO_NETWORK_MEMBERS = {
+  bigboy: {
+    media_default: { subnet: "172.20.0.0/16", project: "media", members: ["jellyfin", "qbittorrent", "sonarr", "radarr"] },
+    db_default: { subnet: "172.21.0.0/16", project: "db", members: ["postgres", "sonarr"] },
+  },
+  thinkpad: {
+    "homelab-dashboard_dashboard": { subnet: "172.19.0.0/16", project: "homelab-dashboard", members: ["homelab-dashboard", "homelab-agent", "prometheus", "grafana"] },
+  },
+  "nuc-media": {
+    nextcloud_default: { subnet: "172.22.0.0/16", project: "nextcloud", members: ["nextcloud"] },
+  },
+};
+
+const demoNetworkState = {};
+
+function demoNetworkRows(host) {
+  if (!demoNetworkState[host]) {
+    const rows = Object.entries(DEMO_NETWORK_MEMBERS[host] || {}).map(([name, n], i) => ({
+      id: `${name.slice(0, 6)}${i}a1b2c3`.slice(0, 12),
+      name,
+      driver: "bridge",
+      scope: "local",
+      internal: false,
+      attachable: true,
+      ipv6: false,
+      subnets: [n.subnet],
+      gateways: [n.subnet.replace("0.0/16", "0.1")],
+      created: "2026-09-01T10:00:00Z",
+      builtin: false,
+      compose_project: n.project,
+      containers: n.members.map((m, j) => ({
+        id: `${m.slice(0, 4)}${j}0000000`.slice(0, 12),
+        name: m,
+        ipv4: n.subnet.replace("0.0/16", `0.${j + 2}`),
+        ipv6: null,
+        mac: `02:42:ac:14:00:0${j + 2}`,
+      })),
+    }));
+    const builtin = [
+      ["bridge", "bridge", ["172.17.0.0/16"], ["172.17.0.1"]],
+      ["host", "host", [], []],
+      ["none", "null", [], []],
+    ].map(([name, driver, subnets, gateways]) => ({
+      id: `${name}000000000`.slice(0, 12), name, driver, scope: "local", internal: false,
+      attachable: false, ipv6: false, subnets, gateways, created: "2026-08-01T10:00:00Z",
+      builtin: true, compose_project: null, containers: [],
+    }));
+    demoNetworkState[host] = [...rows, ...builtin];
+  }
+  return demoNetworkState[host];
+}
+
+export function demoNetworks(host) {
+  return { host, available: true, networks: demoNetworkRows(host) };
+}
+
+// The demo's stand-in for the agent's create / remove / connect / disconnect,
+// with the same refusals.
+export function demoNetworkAction(host, action, { network, name, subnet, internal, container } = {}) {
+  const rows = demoNetworkRows(host);
+  const net = rows.find((n) => n.id === network || n.name === network);
+  if (action === "create") {
+    if (rows.some((n) => n.name === name)) return { success: false, error: `network with name ${name} already exists` };
+    rows.unshift({
+      id: `${name}xxxxxxxxxxxx`.slice(0, 12), name, driver: "bridge", scope: "local", internal: Boolean(internal),
+      attachable: true, ipv6: false, subnets: subnet ? [subnet] : ["172.30.0.0/16"], gateways: [],
+      created: new Date().toISOString(), builtin: false, compose_project: null, containers: [],
+    });
+    return { success: true };
+  }
+  if (!net) return { success: false, error: "no such network" };
+  if (container === "homelab-agent") {
+    return { success: false, error: "homelab-agent is protected — changing its networks could take this host off the dashboard" };
+  }
+  if (action === "remove") {
+    if (net.builtin) return { success: false, error: `'${net.name}' is one of Docker's own networks` };
+    if (net.containers.length) return { success: false, error: `still in use by ${net.containers.map((c) => c.name).join(", ")} — disconnect them first` };
+    rows.splice(rows.indexOf(net), 1);
+    return { success: true };
+  }
+  if (action === "connect") {
+    if (net.containers.some((c) => c.name === container)) return { success: false, error: `${container} is already on ${net.name}` };
+    net.containers.push({ id: container.slice(0, 12), name: container, ipv4: "172.30.0.9", ipv6: null, mac: null });
+    return { success: true };
+  }
+  net.containers = net.containers.filter((c) => c.name !== container);
+  return { success: true };
+}
+
 export function demoContainerHistory(name, range) {
   const spans = { "6h": 6 * 3600, "24h": 86400, "7d": 7 * 86400 };
   const span = spans[range] ?? 86400;
@@ -738,9 +894,16 @@ export function demoHostConfig(host) {
         "Allow rebuilds from the dashboard",
         "Runs whatever the repo and its Dockerfile say, as root on this host.",
         "1", { danger: true }),
+      s("AI_REBUILD_ANY", "bool", "live", "Updates",
+        "Let the AI rebuild any container",
+        "Permission for the dashboard's AI integration to rebuild containers that "
+          + "aren't a git-tracked compose project — it works out how from the running "
+          + "container. Recorded now; takes effect once AI rebuilds are built, and only "
+          + "on a host that also allows rebuilds.",
+        "", { danger: true }),
       s("CONNECTIONS_ENABLED", "bool", "live", "Monitoring",
         "Report network conversations",
-        "Powers the Connections panel on this host's card.", "1"),
+        "Powers the Connections panel on the Network tab.", "1"),
       s("HOST_NAME", "text", "host", "Identity", "Host name",
         "Must match this host's Prometheus job name.", host),
       s("AGENT_RUNTIME", "text", "host", "Identity", "Container runtime",

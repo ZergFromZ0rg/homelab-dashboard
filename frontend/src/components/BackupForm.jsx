@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchBackupDestinations, fetchBackupTargets } from "./backupsApi";
 import { formatBytes } from "./format";
-import { hostColor } from "./hostColor";
 
 // Add or edit one backup job.
 //
@@ -34,18 +33,6 @@ function splitInterval(hours) {
 function size(entry) {
   if (entry?.bytes == null) return "";
   return `— ${formatBytes(entry.bytes)}${entry.partial ? "+" : ""}`;
-}
-
-
-function HostOption({ name }) {
-  return (
-    <span
-      className="chip chip--host"
-      style={{ color: hostColor(name), borderColor: hostColor(name) }}
-    >
-      {name}
-    </span>
-  );
 }
 
 function BackupForm({ hosts, defaultDestHost, job, onSubmit, onCancel }) {
@@ -208,230 +195,234 @@ function BackupForm({ hosts, defaultDestHost, job, onSubmit, onCancel }) {
     }
   };
 
+  // Three sections in reading order — what to copy, where it goes, how
+  // often — so the form reads left to right like the job it creates.
   return (
     <form className="backup-form" onSubmit={submit}>
-      <div className="backup-form-grid">
-        <label className="backup-form-wide">
-          <span>Back up</span>
-          <select
-            value={sourceKey}
-            onChange={(e) => setSourceKey(e.target.value)}
-            required
-            disabled={loading}
-          >
-            <option value="">
-              {loading ? `Reading ${sourceHost}…` : "Pick what to back up"}
-            </option>
+      <div className="bf-head">
+        <h3>{editing ? `Edit ${job.name}` : "New backup"}</h3>
+        {perRun != null && (
+          <span className="bf-size" title="Before compression">
+            {formatBytes(perRun)} per copy{chosen?.partial ? " (still counting)" : ""} ·{" "}
+            <strong>{formatBytes(perRun * keep)}</strong> for {keep} kept
+          </span>
+        )}
+      </div>
 
-            {volumes.length > 0 && (
-              <optgroup label="Volumes">
-                {volumes.map((v) => (
-                  <option key={v.name} value={`volume:${v.name}`}>
-                    {v.name}
-                    {v.project ? ` · ${v.project}` : ""} {size(v)}
-                  </option>
-                ))}
-              </optgroup>
-            )}
+      <div className="bf-grid">
+        <fieldset className="bf-section">
+          <legend>What</legend>
 
-            {candidates.length > 0 && (
-              <optgroup label="Directories">
-                {candidates.map((c) => (
-                  <option key={c.path} value={`path:${c.path}`}>
-                    {c.path} {size(c)}
-                  </option>
-                ))}
-              </optgroup>
-            )}
+          <label className="bf-field">
+            <span>Host</span>
+            <select value={sourceHost} onChange={(e) => setSourceHost(e.target.value)}>
+              {hosts.map((h) => (
+                <option key={h} value={h}>{h}</option>
+              ))}
+            </select>
+          </label>
 
-            {/* An edited job whose source is no longer offered — the
-                directory was removed from BACKUP_SOURCE_DIRS, say — must
-                still show what it backs up rather than looking unset. */}
-            {picked && !custom && !chosen && (
-              <option value={sourceKey}>{picked} (not currently offered)</option>
-            )}
+          <label className="bf-field">
+            <span>Volume or directory</span>
+            <select
+              value={sourceKey}
+              onChange={(e) => setSourceKey(e.target.value)}
+              required
+              disabled={loading}
+            >
+              <option value="">
+                {loading ? `Reading ${sourceHost}…` : "Pick what to back up"}
+              </option>
 
-            {sourceDirs.length > 0 && (
-              <option value="custom">Another directory…</option>
-            )}
-          </select>
+              {volumes.length > 0 && (
+                <optgroup label="Volumes">
+                  {volumes.map((v) => (
+                    <option key={v.name} value={`volume:${v.name}`}>
+                      {v.name}
+                      {v.project ? ` · ${v.project}` : ""} {size(v)}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+
+              {candidates.length > 0 && (
+                <optgroup label="Directories">
+                  {candidates.map((c) => (
+                    <option key={c.path} value={`path:${c.path}`}>
+                      {c.path} {size(c)}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+
+              {/* An edited job whose source is no longer offered — the
+                  directory was removed from BACKUP_SOURCE_DIRS, say — must
+                  still show what it backs up rather than looking unset. */}
+              {picked && !custom && !chosen && (
+                <option value={sourceKey}>{picked} (not currently offered)</option>
+              )}
+
+              {sourceDirs.length > 0 && (
+                <option value="custom">Another directory…</option>
+              )}
+            </select>
+          </label>
 
           {custom && (
-            <input
-              value={customPath}
-              onChange={(e) => setCustomPath(e.target.value)}
-              placeholder="/home/zerg/ai-librarian/data/qdrant"
-              required
-            />
-          )}
-
-          {custom && sourceDirs.length > 0 && (
-            <em className="field-hint">
-              Under {sourceDirs.join(", ")} on <HostOption name={sourceHost} />
-            </em>
+            <label className="bf-field">
+              <span>Path</span>
+              <input
+                value={customPath}
+                onChange={(e) => setCustomPath(e.target.value)}
+                placeholder="/home/zerg/ai-librarian/data/qdrant"
+                required
+              />
+              {sourceDirs.length > 0 && (
+                <em className="bf-hint">Under {sourceDirs.join(", ")}</em>
+              )}
+            </label>
           )}
 
           {!loading && !volumes.length && !candidates.length && (
-            <em className="field-hint">
-              {sourceHost} reported nothing to back up.
-            </em>
+            <em className="bf-hint">{sourceHost} reported nothing to back up.</em>
           )}
 
-          {perRun != null && (
-            <em className="field-hint">
-              {formatBytes(perRun)} now{chosen?.partial ? " (still counting)" : ""}
-              {" — before compression, and "}
-              <strong>{formatBytes(perRun * keep)}</strong>
-              {" at "}
-              {keep} kept.
-            </em>
-          )}
-        </label>
+          <label
+            className="bf-check"
+            title={
+              kind === "path"
+                ? "Anything bind-mounting this directory is stopped for the copy. A database copied while it's writing can restore to a torn file."
+                : "A database copied while it's writing can restore to a torn file."
+            }
+          >
+            <input
+              type="checkbox"
+              checked={stopContainers}
+              onChange={(e) => setStopContainers(e.target.checked)}
+            />
+            <span>
+              Stop its containers while copying
+              {kind === "volume" && inUse.length > 0 && (
+                <em className="bf-hint"> — used by {inUse.join(", ")}</em>
+              )}
+            </span>
+          </label>
+        </fieldset>
 
-        <label>
-          <span>On</span>
-          <select value={sourceHost} onChange={(e) => setSourceHost(e.target.value)}>
-            {hosts.map((h) => (
-              <option key={h} value={h}>{h}</option>
-            ))}
-          </select>
-        </label>
+        <fieldset className="bf-section">
+          <legend>Where to</legend>
 
-        <label>
-          <span>To</span>
-          <select value={destHost} onChange={(e) => setDestHost(e.target.value)}>
-            {hosts.map((h) => {
-              const known = destinations?.find((d) => d.host === h);
-              const label =
-                known && !known.can_store
-                  ? `${h} — can't store backups`
-                  : h === sourceHost
-                    ? `${h} — same machine`
-                    : h;
-              return (
-                <option key={h} value={h}>{label}</option>
-              );
-            })}
-          </select>
+          <label className="bf-field">
+            <span>Host</span>
+            <select value={destHost} onChange={(e) => setDestHost(e.target.value)}>
+              {hosts.map((h) => {
+                const known = destinations?.find((d) => d.host === h);
+                const label =
+                  known && !known.can_store
+                    ? `${h} — can't store backups`
+                    : h === sourceHost
+                      ? `${h} — same machine`
+                      : h;
+                return (
+                  <option key={h} value={h}>{label}</option>
+                );
+              })}
+            </select>
+          </label>
+
+          <label className="bf-field">
+            <span>Directory</span>
+            <input
+              value={directoryValue}
+              onChange={(e) => setDirectory(e.target.value)}
+              placeholder="/backups/bigboy"
+              required
+            />
+            {usableRoots.length > 0 && (
+              <em className="bf-hint">Under {usableRoots.map((r) => r.path).join(", ")}</em>
+            )}
+          </label>
+
           {destHost === sourceHost && (
-            <em className="field-hint field-hint--warn">
-              Same host — a backup that dies with the machine it's on.
+            <em className="bf-hint bf-hint--warn">
+              Same machine — this copy dies with it.
             </em>
           )}
           {destinations?.find((d) => d.host === destHost)?.encrypted && (
-            <em className="field-hint">Archives stored here are encrypted.</em>
+            <em className="bf-hint">Stored encrypted.</em>
           )}
-        </label>
+        </fieldset>
 
-        <label className="backup-form-wide">
-          <span>Directory</span>
-          <input
-            value={directoryValue}
-            onChange={(e) => setDirectory(e.target.value)}
-            placeholder="/backups/bigboy"
-            required
-          />
-          {usableRoots.length > 0 && (
-            <em className="field-hint">
-              Under {usableRoots.map((r) => r.path).join(", ")} on{" "}
-              <HostOption name={destHost} />
-            </em>
-          )}
-        </label>
+        <fieldset className="bf-section">
+          <legend>Schedule</legend>
 
-        <label>
-          <span>Every</span>
-          <div className="field-row">
-            <input
-              type="number"
-              min="1"
-              value={every}
-              onChange={(e) => setEvery(Number(e.target.value))}
-              required
-            />
-            <select value={unit} onChange={(e) => setUnit(e.target.value)}>
-              {HOUR_UNITS.map((u) => (
-                <option key={u.label} value={u.label}>{u.label}</option>
-              ))}
-            </select>
+          <div className="bf-row">
+            <label className="bf-field">
+              <span>Every</span>
+              <span className="bf-inline">
+                <input
+                  type="number"
+                  min="1"
+                  value={every}
+                  onChange={(e) => setEvery(Number(e.target.value))}
+                  required
+                />
+                <select value={unit} onChange={(e) => setUnit(e.target.value)}>
+                  {HOUR_UNITS.map((u) => (
+                    <option key={u.label} value={u.label}>{u.label}</option>
+                  ))}
+                </select>
+              </span>
+            </label>
+
+            <label className="bf-field">
+              <span>Keep newest</span>
+              <input
+                type="number"
+                min="1"
+                max="500"
+                value={keep}
+                onChange={(e) => setKeep(Number(e.target.value))}
+                required
+              />
+            </label>
           </div>
-        </label>
 
-        <label>
-          <span>Keep</span>
-          <div className="field-row">
-            <input
-              type="number"
-              min="1"
-              max="500"
-              value={keep}
-              onChange={(e) => setKeep(Number(e.target.value))}
-              required
-            />
-            <em className="field-hint">newest archives</em>
-          </div>
-        </label>
-
-        <label>
-          <span>Check it reads back</span>
-          <div className="field-row">
+          <label
+            className="bf-field"
+            title="Reads the newest archive back on its host. A backup rots quietly, and the only thing that finds out is something that reads it."
+          >
+            <span>Verify every (days, 0 = off)</span>
             <input
               type="number"
               min="0"
               value={verifyDays}
               onChange={(e) => setVerifyDays(Number(e.target.value))}
             />
-            <em className="field-hint">
-              {Number(verifyDays) > 0 ? "days apart" : "off"}
-            </em>
-          </div>
-          <em className="field-hint">
-            Reads the newest archive back on its host. A backup rots quietly,
-            and the only thing that finds out is something that reads it.
-          </em>
-        </label>
+          </label>
 
-        <label className="backup-form-wide checkbox">
-          <input
-            type="checkbox"
-            checked={stopContainers}
-            onChange={(e) => setStopContainers(e.target.checked)}
-          />
-          <span>
-            Stop its containers while copying
-            {kind === "volume" && inUse.length > 0 && (
-              <em className="field-hint">
-                {inUse.join(", ")} — a database copied while it's writing can
-                restore to a torn file.
-              </em>
-            )}
-            {kind === "path" && (
-              <em className="field-hint">
-                Anything bind-mounting this directory is stopped for the copy.
-                A database copied while it's writing can restore to a torn file.
-              </em>
-            )}
-          </span>
-        </label>
-
-        <label className="backup-form-wide">
-          <span>Name</span>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder={picked.split("/").filter(Boolean).pop() || "qdrant"}
-          />
-        </label>
+          <label className="bf-field">
+            <span>Name</span>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={picked.split("/").filter(Boolean).pop() || "qdrant"}
+            />
+          </label>
+        </fieldset>
       </div>
 
       {sourceProblem && <p className="form-error">{sourceProblem}</p>}
       {destProblem && <p className="form-error">{destProblem}</p>}
       {error && <p className="form-error">{error}</p>}
 
-      <div className="form-actions">
+      <div className="bf-actions">
+        <button type="button" className="btn btn--ghost" onClick={onCancel}>
+          Cancel
+        </button>
         <button
           type="submit"
-          className="btn"
+          className="btn btn--primary"
           /* A job whose source or destination host isn't set up would be
              accepted here and then fail on every run, so it can't be
              saved — and the message above already names the fix. */
@@ -444,9 +435,6 @@ function BackupForm({ hosts, defaultDestHost, job, onSubmit, onCancel }) {
           }
         >
           {saving ? "Saving…" : editing ? "Save" : "Add backup"}
-        </button>
-        <button type="button" className="btn btn--ghost" onClick={onCancel}>
-          Cancel
         </button>
       </div>
     </form>

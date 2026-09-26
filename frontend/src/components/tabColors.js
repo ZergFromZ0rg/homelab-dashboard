@@ -14,7 +14,7 @@ export const TAB_COLORS = {
   overview: "#2dd4bf",
   servers: "#a5b4fc",
   containers: "#38bdf8",
-  services: "#c4b5fd",
+  network: "#c4b5fd",
   deploy: "#f0abfc",
   backups: "#7dd3fc",
   personal: "#fda4af",

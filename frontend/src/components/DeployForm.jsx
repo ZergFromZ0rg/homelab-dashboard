@@ -56,140 +56,154 @@ function DeployForm({ spec, onChange, nodeNames }) {
   const setResource = (patch) =>
     onChange({ ...spec, resources: { ...spec.resources, ...patch } });
 
+  // Four labelled sections in a 2×2 grid — what runs, what it may use,
+  // where it may go, and what it's given — instead of one long column.
   return (
-    <div className="deploy-form">
-      <div className="deploy-grid deploy-grid--2">
-        <div className="deploy-field">
-          <span className="deploy-label">Image *</span>
-          <input
-            className="deploy-input"
-            placeholder="lscr.io/linuxserver/jellyfin:latest"
-            value={spec.image}
-            onChange={(e) => set({ image: e.target.value })}
-          />
-        </div>
+    <div className="deploy-form deploy-sections">
+      <fieldset className="bf-section">
+        <legend>Container</legend>
+          <div className="deploy-grid deploy-grid--2">
+            <div className="deploy-field">
+              <span className="deploy-label">Image *</span>
+              <input
+                className="deploy-input"
+                placeholder="lscr.io/linuxserver/jellyfin:latest"
+                value={spec.image}
+                onChange={(e) => set({ image: e.target.value })}
+              />
+            </div>
 
-        <div className="deploy-field">
-          <span className="deploy-label">Container name</span>
-          <input
-            className="deploy-input"
-            placeholder="(agent generates one if blank)"
-            value={spec.name ?? ""}
-            onChange={(e) => set({ name: e.target.value || null })}
-          />
-        </div>
-      </div>
+            <div className="deploy-field">
+              <span className="deploy-label">Container name</span>
+              <input
+                className="deploy-input"
+                placeholder="(agent generates one if blank)"
+                value={spec.name ?? ""}
+                onChange={(e) => set({ name: e.target.value || null })}
+              />
+            </div>
+          </div>
+      </fieldset>
 
-      <Rows
-        label="Environment"
-        addLabel="env var"
-        rows={spec.envRows}
-        columns={[
-          { key: "key", placeholder: "PUID", width: 1 },
-          { key: "value", placeholder: "1000", width: 2 },
-        ]}
-        onChange={(envRows) => set({ envRows })}
-      />
+      <fieldset className="bf-section">
+        <legend>Resources</legend>
+          <div className="deploy-grid">
+            <div className="deploy-field">
+              <span className="deploy-label">Restart policy</span>
+              <select
+                className="deploy-input"
+                value={spec.restart_policy}
+                onChange={(e) => set({ restart_policy: e.target.value })}
+              >
+                <option value="unless-stopped">unless-stopped</option>
+                <option value="always">always</option>
+                <option value="on-failure">on-failure</option>
+                <option value="no">no</option>
+              </select>
+            </div>
 
-      <Rows
-        label="Ports (host → container)"
-        addLabel="port"
-        rows={spec.ports}
-        columns={[
-          { key: "host", placeholder: "8096", type: "number", width: 1 },
-          { key: "container", placeholder: "8096", type: "number", width: 1 },
-          { key: "proto", placeholder: "tcp", width: 1 },
-        ]}
-        onChange={(ports) => set({ ports })}
-      />
+            <div className="deploy-field">
+              <span className="deploy-label">CPU limit (vCPU)</span>
+              <input
+                className="deploy-input"
+                type="number"
+                step="0.5"
+                placeholder="none"
+                value={spec.resources.cpus ?? ""}
+                onChange={(e) =>
+                  setResource({ cpus: e.target.value ? Number(e.target.value) : null })
+                }
+              />
+            </div>
 
-      <Rows
-        label="Volumes (source → target)"
-        addLabel="volume"
-        rows={spec.volumes}
-        columns={[
-          { key: "source", placeholder: "jellyfin-config", width: 1 },
-          { key: "target", placeholder: "/config", width: 1 },
-        ]}
-        onChange={(volumes) => set({ volumes })}
-      />
-
-      <div className="deploy-grid">
-        <div className="deploy-field">
-          <span className="deploy-label">Restart policy</span>
-          <select
-            className="deploy-input"
-            value={spec.restart_policy}
-            onChange={(e) => set({ restart_policy: e.target.value })}
-          >
-            <option value="unless-stopped">unless-stopped</option>
-            <option value="always">always</option>
-            <option value="on-failure">on-failure</option>
-            <option value="no">no</option>
-          </select>
-        </div>
-
-        <div className="deploy-field">
-          <span className="deploy-label">CPU limit (vCPU)</span>
-          <input
-            className="deploy-input"
-            type="number"
-            step="0.5"
-            placeholder="none"
-            value={spec.resources.cpus ?? ""}
-            onChange={(e) =>
-              setResource({ cpus: e.target.value ? Number(e.target.value) : null })
-            }
-          />
-        </div>
-
-        <div className="deploy-field">
-          <span className="deploy-label">Memory limit (MB)</span>
-          <input
-            className="deploy-input"
-            type="number"
-            placeholder="none"
-            value={spec.resources.memory_mb ?? ""}
-            onChange={(e) =>
-              setResource({
-                memory_mb: e.target.value ? Number(e.target.value) : null,
-              })
-            }
-          />
-        </div>
-      </div>
-
-      <div className="deploy-field">
-        <label className="deploy-check">
-          <input
-            type="checkbox"
-            checked={spec.constraints.require_gpu}
-            onChange={(e) => setConstraint({ require_gpu: e.target.checked })}
-          />
-          Requires a GPU
-        </label>
-      </div>
-
-      {nodeNames.length > 0 && (
-        <div className="deploy-grid">
-          <div className="deploy-field">
-            <span className="deploy-label">Only these nodes</span>
-            <NodePicker
-              nodes={nodeNames}
-              value={spec.constraints.node_in ?? []}
-              onChange={(next) => setConstraint({ node_in: next })}
-            />
+            <div className="deploy-field">
+              <span className="deploy-label">Memory limit (MB)</span>
+              <input
+                className="deploy-input"
+                type="number"
+                placeholder="none"
+                value={spec.resources.memory_mb ?? ""}
+                onChange={(e) =>
+                  setResource({
+                    memory_mb: e.target.value ? Number(e.target.value) : null,
+                  })
+                }
+              />
+            </div>
           </div>
           <div className="deploy-field">
-            <span className="deploy-label">Never these nodes</span>
-            <NodePicker
-              nodes={nodeNames}
-              value={spec.constraints.node_not_in ?? []}
-              onChange={(next) => setConstraint({ node_not_in: next })}
-            />
+            <label className="deploy-check">
+              <input
+                type="checkbox"
+                checked={spec.constraints.require_gpu}
+                onChange={(e) => setConstraint({ require_gpu: e.target.checked })}
+              />
+              Requires a GPU
+            </label>
           </div>
-        </div>
-      )}
+      </fieldset>
+
+      <fieldset className="bf-section">
+        <legend>Placement</legend>
+          {nodeNames.length > 0 && (
+            <div className="deploy-grid">
+              <div className="deploy-field">
+                <span className="deploy-label">Only these nodes</span>
+                <NodePicker
+                  nodes={nodeNames}
+                  value={spec.constraints.node_in ?? []}
+                  onChange={(next) => setConstraint({ node_in: next })}
+                />
+              </div>
+              <div className="deploy-field">
+                <span className="deploy-label">Never these nodes</span>
+                <NodePicker
+                  nodes={nodeNames}
+                  value={spec.constraints.node_not_in ?? []}
+                  onChange={(next) => setConstraint({ node_not_in: next })}
+                />
+              </div>
+            </div>
+          )}
+        {nodeNames.length === 0 && <em className="bf-hint">No nodes reporting.</em>}
+      </fieldset>
+
+      <fieldset className="bf-section">
+        <legend>Environment, ports &amp; volumes</legend>
+          <Rows
+            label="Environment"
+            addLabel="env var"
+            rows={spec.envRows}
+            columns={[
+              { key: "key", placeholder: "PUID", width: 1 },
+              { key: "value", placeholder: "1000", width: 2 },
+            ]}
+            onChange={(envRows) => set({ envRows })}
+          />
+
+          <Rows
+            label="Ports (host → container)"
+            addLabel="port"
+            rows={spec.ports}
+            columns={[
+              { key: "host", placeholder: "8096", type: "number", width: 1 },
+              { key: "container", placeholder: "8096", type: "number", width: 1 },
+              { key: "proto", placeholder: "tcp", width: 1 },
+            ]}
+            onChange={(ports) => set({ ports })}
+          />
+
+          <Rows
+            label="Volumes (source → target)"
+            addLabel="volume"
+            rows={spec.volumes}
+            columns={[
+              { key: "source", placeholder: "jellyfin-config", width: 1 },
+              { key: "target", placeholder: "/config", width: 1 },
+            ]}
+            onChange={(volumes) => set({ volumes })}
+          />
+      </fieldset>
     </div>
   );
 }

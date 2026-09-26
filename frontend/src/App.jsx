@@ -4,7 +4,7 @@ import DeployTab from "./components/DeployTab";
 import Overview from "./components/Overview";
 import BackupsTab from "./components/BackupsTab";
 import ServersTab from "./components/ServersTab";
-import ServicesTab from "./components/ServicesTab";
+import NetworkTab from "./components/NetworkTab";
 import PersonalTab from "./components/PersonalTab";
 import SiteSettings from "./components/SiteSettings";
 import SettingsDrawer from "./components/SettingsDrawer";
@@ -350,8 +350,8 @@ function App() {
     },
     { value: "containers", label: "Containers", count: totalContainers },
     {
-      value: "services",
-      label: "Services",
+      value: "network",
+      label: "Network",
       count: checks.length || null,
       tone: checks.some((c) => c.status === "down") ? "bad" : undefined,
     },
@@ -419,8 +419,13 @@ function App() {
           />
         )}
 
-        {activeTab === "services" && (
-          <ServicesTab checks={checks} connected={connected} />
+        {activeTab === "network" && (
+          <NetworkTab
+            machines={machines}
+            containers={containers}
+            checks={checks}
+            connected={connected}
+          />
         )}
 
         {activeTab === "deploy" && (

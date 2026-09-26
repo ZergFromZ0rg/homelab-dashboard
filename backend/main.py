@@ -21,6 +21,7 @@ from backend import alert_history
 from backend import alerts
 from backend import checks
 from backend import connections
+from backend import networks
 from backend import container_history
 from backend import checks_api
 from backend import personal
@@ -519,6 +520,48 @@ def host_connections(host: str, refresh: bool = False):
     """
     base_url = _agent_for(host)
     return {"host": host, **connections.for_host(host, base_url, refresh=refresh)}
+
+
+@app.get("/api/networks/{host}")
+def host_networks(host: str):
+    """Docker networks on one host and the containers on each."""
+    return {"host": host, **networks.list_for(_agent_for(host))}
+
+
+@app.post("/api/networks/{host}")
+def create_network(
+    host: str, body: dict, x_register_token: str | None = Header(default=None)
+):
+    """Create a bridge network on a host. AUTH: gated, like container control."""
+    auth.check_token(x_register_token)
+    return networks.create(
+        _agent_for(host), str(body.get("name", "")), body.get("subnet"), bool(body.get("internal"))
+    )
+
+
+@app.delete("/api/networks/{host}/{network_id}")
+def remove_network(
+    host: str, network_id: str, x_register_token: str | None = Header(default=None)
+):
+    auth.check_token(x_register_token)
+    return networks.remove(_agent_for(host), network_id)
+
+
+@app.post("/api/networks/{host}/{network_id}/{action}")
+def network_membership(
+    host: str,
+    network_id: str,
+    action: str,
+    body: dict,
+    x_register_token: str | None = Header(default=None),
+):
+    """Connect or disconnect a container. AUTH: gated."""
+    auth.check_token(x_register_token)
+    if action not in ("connect", "disconnect"):
+        raise HTTPException(status_code=404, detail="unknown action")
+    return networks.attach(
+        _agent_for(host), network_id, str(body.get("container", "")), action == "connect"
+    )
 
 
 @app.get("/api/alerts")

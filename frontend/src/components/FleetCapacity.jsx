@@ -74,60 +74,57 @@ function FleetCapacity({ machines, deployments }) {
 
   const { capRam, capVcpu, comRam, comVcpu } = commitment(machines, deployments);
 
-  // One tile per node, across the top of the Deploy tab: the free RAM and
-  // vCPU the scheduler will score on, and a bar for how busy it is.
+  // One row per node: what the scheduler scores on — free RAM, free vCPU,
+  // how busy it is, whether it has a GPU.
   return (
-    <section className="overview-section fleet-section">
-      <div className="overview-section-head">
+    <section className="overview-card fleet-card">
+      <div className="overview-card-head">
         <h2>Fleet capacity</h2>
         {comRam + comVcpu > 0 && (
           <span className="fleet-committed">
-            scheduler committed {comRam.toFixed(1)} GB · {comVcpu.toFixed(1)} vCPU
-            {" of "}
+            scheduler has committed {comRam.toFixed(1)} GB · {comVcpu.toFixed(1)} vCPU of{" "}
             {capRam.toFixed(0)} GB · {capVcpu.toFixed(0)} vCPU online
           </span>
         )}
       </div>
-
-      <div className="fleet-tiles">
-        {rows.map((r) => (
-          <div
-            key={r.name}
-            className={`fleet-tile ${r.online ? "" : "fleet-tile--off"}`}
-            style={{ "--host-color": hostColor(r.name) }}
-          >
-            <div className="fleet-tile-head">
-              <span className="fleet-tile-name" style={{ color: hostColor(r.name) }}>
-                {r.name}
-              </span>
-              {cpuTag(r) && <span className="fleet-cpu-tag">{cpuTag(r)}</span>}
-              {r.hasGpu && <span className="chip">GPU</span>}
-            </div>
-
-            {r.online ? (
-              <div className="fleet-tile-free">
-                <div>
-                  <strong>{r.freeRamGb != null ? r.freeRamGb.toFixed(1) : "—"}</strong>
-                  <span>GB free</span>
-                </div>
-                <div>
-                  <strong>{r.freeVcpu != null ? r.freeVcpu.toFixed(1) : "—"}</strong>
-                  <span>vCPU free</span>
-                </div>
-              </div>
-            ) : (
-              <div className="fleet-tile-free fleet-tile-free--off">offline</div>
-            )}
-
-            <div className="fleet-bar" title={`${r.load.toFixed(0)}% used`}>
-              <div
-                className={`fleet-bar-fill ${r.load >= 85 ? "fleet-bar-fill--hot" : ""}`}
-                style={{ width: `${Math.min(100, Math.max(2, r.load))}%` }}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
+      <table className="net-table fleet-table">
+        <thead>
+          <tr>
+            <th>Node</th>
+            <th>CPU</th>
+            <th>Free RAM</th>
+            <th>Free vCPU</th>
+            <th>Busy</th>
+            <th>GPU</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.name} className={r.online ? "" : "fleet-row--off"}>
+              <td>
+                <strong style={{ color: hostColor(r.name) }} className="fleet-name">
+                  {r.name}
+                </strong>
+                {!r.online && <span className="net-dim"> offline</span>}
+              </td>
+              <td className="net-mono net-dim">{cpuTag(r) ?? "—"}</td>
+              <td className="net-mono">
+                {r.online && r.freeRamGb != null ? `${r.freeRamGb.toFixed(1)} GB` : "—"}
+              </td>
+              <td className="net-mono">
+                {r.online && r.freeVcpu != null ? r.freeVcpu.toFixed(1) : "—"}
+              </td>
+              <td className="fleet-busy">
+                <span className={`sv-bar sv-bar--${r.load >= 90 ? "crit" : r.load >= 70 ? "warn" : "ok"}`}>
+                  <span style={{ width: `${Math.min(100, Math.max(2, r.load))}%` }} />
+                </span>
+                <span className="net-mono">{Math.round(r.load)}%</span>
+              </td>
+              <td>{r.hasGpu ? <span className="chip">GPU</span> : <span className="net-dim">—</span>}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </section>
   );
 }

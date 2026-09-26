@@ -614,6 +614,11 @@ def get_machine_stats():
     disk_io = get_disk_io()
     interfaces = get_network_interfaces()
 
+    # Imported here: node_details imports this module for its helpers.
+    from backend import node_details
+
+    details = node_details.get()
+
     machines = {}
 
     for host in jobs:
@@ -645,6 +650,8 @@ def get_machine_stats():
             "filesystems": filesystems.get(host, []),
             "disk_io": disk_io.get(host, []),
             "interfaces": interfaces.get(host, []),
+            # The long tail for the Servers tab — see node_details.py.
+            "details": details.get(host, {}),
         }
 
     return machines

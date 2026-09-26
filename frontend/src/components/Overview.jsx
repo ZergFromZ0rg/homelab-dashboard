@@ -2,8 +2,7 @@ import RebalancePanel from "./RebalancePanel";
 import SummaryRow from "./SummaryRow";
 import HostSummary from "./HostSummary";
 import { formatLatency } from "./format";
-import ActivityFeed from "./ActivityFeed";
-import AlertHistory from "./AlertHistory";
+import Timeline from "./Timeline";
 import QuickActions from "./QuickActions";
 import { useSettings } from "./settings";
 import AppIcon from "./AppIcon";
@@ -13,7 +12,7 @@ import AppIcon from "./AppIcon";
 // on Containers.
 function issueTab(key) {
   if (key.startsWith("deploy:")) return "deploy";
-  if (key.startsWith("check:")) return "services";
+  if (key.startsWith("check:")) return "network";
   if (key.startsWith("container:")) return "containers";
   if (key.startsWith("host:")) return "servers";
   return "containers";
@@ -168,25 +167,20 @@ function Overview({
   const down = checks.filter((c) => c.status === "down").length;
   const firing = alerts.filter((a) => a.resolved_at == null).length;
 
-  // Headline numbers, then a two-column grid of compact panels. Panels
-  // sit in rows, so the two columns always line up.
+  // Three columns, two rows: the headline numbers as a 2×2 square, the
+  // servers and the pinned containers across the top; what needs attention,
+  // service health and one merged timeline below. Every panel is a fixed
+  // slot in the grid, so the two rows always line up.
   return (
     <div className="overview overview--dense">
-      {homeCards.summary && (
-        <SummaryRow
-          overview={overview}
-          machines={machines}
-          containers={containers}
-          backups={backups}
-        />
-      )}
-
       <div className="ov-grid">
-        {homeCards.attention && (
-          <IssuesPanel
+        {homeCards.summary && (
+          <SummaryRow
             overview={overview}
-            deployments={deployments}
-            onNavigate={onNavigate}
+            machines={machines}
+            containers={containers}
+            backups={backups}
+            square
           />
         )}
 
@@ -202,18 +196,6 @@ function Overview({
               containers={containers}
               onOpen={() => onNavigate("servers")}
             />
-          </Panel>
-        )}
-
-        {homeCards.services && checks.length > 0 && (
-          <Panel
-            title="Services"
-            count={down ? `${down} down` : checks.length}
-            tone={down ? "bad" : undefined}
-            linkLabel="All checks"
-            onLink={() => onNavigate("services")}
-          >
-            <ServiceList checks={checks} onOpen={() => onNavigate("services")} />
           </Panel>
         )}
 
@@ -233,15 +215,32 @@ function Overview({
           </Panel>
         )}
 
-        {homeCards.alerts && (
-          <Panel title="Alert history" count={firing || null} className="ov-scroll">
-            <AlertHistory alerts={alerts} />
+        {homeCards.attention && (
+          <IssuesPanel
+            overview={overview}
+            deployments={deployments}
+            onNavigate={onNavigate}
+          />
+        )}
+
+        {homeCards.services && checks.length > 0 && (
+          <Panel
+            title="Services"
+            count={down ? `${down} down` : checks.length}
+            tone={down ? "bad" : undefined}
+            linkLabel="Network"
+            onLink={() => onNavigate("network")}
+          >
+            <ServiceList checks={checks} onOpen={() => onNavigate("network")} />
           </Panel>
         )}
 
-        {homeCards.activity && (
-          <Panel title="Recent activity" className="ov-scroll">
-            <ActivityFeed activity={activity} />
+        {(homeCards.alerts || homeCards.activity) && (
+          <Panel title="Timeline" count={firing ? `${firing} firing` : null} tone={firing ? "bad" : undefined} className="ov-scroll">
+            <Timeline
+              alerts={homeCards.alerts ? alerts : []}
+              activity={homeCards.activity ? activity : []}
+            />
           </Panel>
         )}
       </div>

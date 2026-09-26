@@ -46,7 +46,7 @@ function BackupCard({ backups }) {
   );
 }
 
-function SummaryRow({ overview, machines, containers, backups }) {
+function SummaryRow({ overview, machines, containers, backups, square = false }) {
   const hosts = Object.values(machines);
   const onlineHosts = hosts.filter((m) => m.online).length;
 
@@ -63,7 +63,7 @@ function SummaryRow({ overview, machines, containers, backups }) {
   // Hosts / Containers ratios speak for themselves and a deliberately
   // stopped container shouldn't paint the card red.
   return (
-    <div className="summary-row">
+    <div className={`summary-row ${square ? "summary-row--square" : ""}`}>
       <Card
         label="Health"
         value={overview.ok ? "All clear" : `${issueCount} issue${issueCount === 1 ? "" : "s"}`}

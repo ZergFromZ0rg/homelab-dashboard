@@ -1,0 +1,15 @@
+// Activity event kind -> dot tone, shared by ActivityFeed and Timeline.
+export const ACTIVITY_DOT = {
+  container_start: "good",
+  container_healthy: "good",
+  node_up: "good",
+  agent_up: "good",
+  deploy: "good",
+  move: "info",
+  container_stop: "info",
+  container_restart: "warn",
+  container_unhealthy: "bad",
+  node_down: "bad",
+  agent_down: "bad",
+  deploy_failed: "bad",
+};

@@ -19,7 +19,7 @@ const ORDER = { down: 0, up: 1, pending: 2, paused: 3 };
 
 // Is each thing actually answering? HTTP / TCP / DNS probes run from the
 // dashboard backend on a schedule, with latency and uptime history.
-function ServicesTab({ checks, connected }) {
+function ServicesTab({ checks, connected, embedded = false }) {
   const now = useNow(1000).getTime() / 1000;
   const [adding, setAdding] = useState(false);
 
@@ -41,7 +41,7 @@ function ServicesTab({ checks, connected }) {
 
   return (
     <section className="services-tab">
-      {checks.length > 0 && (
+      {checks.length > 0 && !embedded && (
         <div className="facts-row">
           <Fact
             label="Answering"

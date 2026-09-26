@@ -165,12 +165,9 @@ function DeployTab({ machines, deployments, connected }) {
 
       <div className="deploy-columns">
         <div className="deploy-pane">
-          <div className="section-header">
-            <p className="eyebrow">New workload</p>
-            <h2>Deploy {isStack ? "a compose stack" : "a container"}</h2>
-          </div>
-
-          <div className="deploy-mode">
+          <div className="deploy-head">
+            <h2>New deployment</h2>
+            <div className="deploy-mode">
             <button
               type="button"
               className={`deploy-mode-btn ${!isStack ? "active" : ""}`}
@@ -185,6 +182,7 @@ function DeployTab({ machines, deployments, connected }) {
             >
               Compose stack
             </button>
+            </div>
           </div>
 
           {isStack ? (
@@ -197,7 +195,7 @@ function DeployTab({ machines, deployments, connected }) {
           <div className="deploy-buttons">
             <button
               type="button"
-              className="deploy-primary"
+              className="btn"
               disabled={!canSubmit}
               onClick={runPreview}
             >
@@ -205,7 +203,7 @@ function DeployTab({ machines, deployments, connected }) {
             </button>
             <button
               type="button"
-              className="deploy-primary deploy-primary--go"
+              className="btn btn--primary"
               disabled={!canSubmit || !preview?.recommended}
               onClick={() => runDeploy(null)}
             >

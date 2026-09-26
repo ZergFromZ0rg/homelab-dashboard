@@ -1,8 +1,8 @@
 import MainSystem from "./MainSystem";
 import MachineCard from "./MachineCard";
 
-// Every host's full vitals (gauges, network, GPU, storage) as a card grid.
-// Lives on the Overview so nothing about a machine needs a separate tab.
+// Every host's full vitals, one full-width card per server: the Servers
+// tab is the place for detail, so each card has the width to show it all.
 function HostGrid({ machines, containers, history, mainHost }) {
   const hasMainHost = Boolean(mainHost && machines[mainHost]);
   const others = Object.keys(machines)
@@ -14,7 +14,7 @@ function HostGrid({ machines, containers, history, mainHost }) {
   }
 
   return (
-    <div className="machine-grid">
+    <div className="machine-list">
       {hasMainHost && (
         <MainSystem
           host={mainHost}
