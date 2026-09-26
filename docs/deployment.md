@@ -389,6 +389,57 @@ near the top.
 
 ---
 
+## Step 8 — Login with passkeys (recommended)
+
+Login is **off until you add the first passkey**, then required on every
+page, API route and the live socket. You sign in with Face ID, Touch ID,
+Windows Hello or your phone; the server stores only public keys.
+
+Browsers only allow passkeys over **HTTPS**, so give the dashboard an https
+address first. With Tailscale that takes two steps:
+
+1. In the Tailscale admin console → **DNS**, make sure MagicDNS is on and
+   click **Enable HTTPS** (under HTTPS Certificates).
+2. On the dashboard host:
+
+   ```bash
+   sudo tailscale serve --bg 8081
+   ```
+
+   The dashboard is now at `https://<host>.<tailnet>.ts.net` with a real
+   certificate, reachable only on your tailnet. `tailscale serve status`
+   shows the exact URL.
+
+Open that URL → gear → **Passkeys → Add a passkey**. Adding the first one
+signs this browser in and switches login on. Add your phone and other
+computers from the same card while signed in. Synced passkeys (iCloud
+Keychain, Google Password Manager) show up on your other devices on their
+own.
+
+A passkey belongs to the address it was made on. The old
+`http://<host>:8081` address shows a sign-in screen that links to the https
+one.
+
+Scripts and agents are unaffected: agents register through
+`POST /api/nodes`, which still checks its own token. Any other script can
+send `X-Register-Token` when `API_TOKEN` is set.
+
+**Lost every device?** On the dashboard host:
+
+```bash
+docker exec homelab-dashboard-api python -m backend.passkeys reset && docker restart homelab-dashboard-api
+```
+
+That removes all passkeys and sessions, so login is off until you add a new
+passkey.
+
+**Lock the agents too.** Login protects the dashboard, but an agent without
+`AGENT_TOKEN` still takes commands from anything on the tailnet. Set
+`AGENT_TOKEN` on each agent and on the dashboard (see [The two
+tokens](#the-two-tokens)).
+
+---
+
 ## Logs
 
 Both sides log to stdout.

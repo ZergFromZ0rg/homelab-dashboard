@@ -1,0 +1,127 @@
+/* Passkey sign-in screen (AuthGate) and Settings → Passkeys. */
+
+.signin {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: var(--bg);
+}
+
+.signin-card {
+  width: min(320px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 28px 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  text-align: center;
+}
+
+.signin-card h1 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.signin-mark {
+  width: 44px;
+  height: 44px;
+}
+
+.signin-btn {
+  width: 100%;
+  font: inherit;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 9px 12px;
+  color: #06201c;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.signin-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.signin-note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.signin-error {
+  margin: 0;
+  font-size: 12px;
+  color: var(--offline);
+}
+
+.passkeys {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.passkey-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.passkey-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.passkey-row:first-child {
+  border-top: none;
+}
+
+.passkey-name {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--text);
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: text;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.passkey-name-input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg-subtle);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  outline: none;
+}
+
+.passkey-used {
+  font-size: 12px;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.passkey-actions {
+  display: flex;
+  gap: 8px;
+}

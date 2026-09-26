@@ -31,6 +31,8 @@ from backend import rebuilds
 from backend import live_history
 from backend import service_activity
 from backend import auth
+from backend import auth_api
+from backend import passkeys
 from backend import scheduler_api
 from backend import volume_backup_api
 from backend import volume_backups
@@ -53,6 +55,7 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+app.include_router(auth_api.router)
 app.include_router(scheduler_api.router)
 app.include_router(checks_api.router)
 app.include_router(volume_backup_api.router)
@@ -206,7 +209,7 @@ def _overview(
 
 
 def _security_posture() -> dict:
-    if auth.API_TOKEN:
+    if passkeys.store.enabled() or auth.API_TOKEN:
         return {"authenticated": True, "message": None, "hint": None}
 
     return {
@@ -217,14 +220,16 @@ def _security_posture() -> dict:
             "service credentials."
         ),
         "hint": (
-            "Fine behind Tailscale on a network you trust. To require a "
-            "token, set API_TOKEN here and the same value as REGISTER_TOKEN "
-            "on each agent — every route that touches a host already checks "
-            "it."
+            "Add a passkey in Settings → Passkeys to require a Face ID / "
+            "Touch ID sign-in. Passkeys need HTTPS — see docs/deployment.md "
+            "(Login). Scripts can still use API_TOKEN."
         ),
     }
 
 
+# Added before CORS so CORS stays outermost and a 401 still carries its
+# headers.
+app.add_middleware(auth_api.SessionGate)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[

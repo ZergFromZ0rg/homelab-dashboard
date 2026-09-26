@@ -5,6 +5,8 @@ fine behind Tailscale; set ``API_TOKEN`` to require the header.
 
 from __future__ import annotations
 
+import hmac
+
 from fastapi import HTTPException
 
 from backend.env import env_str
@@ -14,6 +16,10 @@ from backend.env import env_str
 API_TOKEN = env_str("API_TOKEN") or env_str("REGISTER_TOKEN")
 
 
+def token_matches(supplied: str | None) -> bool:
+    return hmac.compare_digest((supplied or "").encode(), API_TOKEN.encode())
+
+
 def check_token(supplied: str | None) -> None:
-    if API_TOKEN and supplied != API_TOKEN:
+    if API_TOKEN and not token_matches(supplied):
         raise HTTPException(status_code=401, detail="invalid registration token")

@@ -18,6 +18,7 @@ import "./theme.css";
 import { tabColor } from "./components/tabColors";
 import brandImage from "./assets/brand.webp";
 import { DEMO, demoSnapshot } from "./demoData";
+import { AUTH_REQUIRED_EVENT } from "./components/apiAuth";
 
 const EMPTY_OVERVIEW = { ok: true, issues: [], recommendations: [] };
 
@@ -162,8 +163,10 @@ function useDashboardSocket() {
     function connect() {
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+      let opened = false;
 
       ws.onopen = () => {
+        opened = true;
         setConnected(true);
         retryDelay = 1000;
       };
@@ -193,6 +196,9 @@ function useDashboardSocket() {
       ws.onclose = () => {
         setConnected(false);
         if (closed) return;
+        // Refused before it opened: maybe the session ended. The auth gate
+        // re-checks and shows sign-in if so.
+        if (!opened) window.dispatchEvent(new Event(AUTH_REQUIRED_EVENT));
         reconnectTimer = setTimeout(connect, retryDelay);
         retryDelay = Math.min(retryDelay * 2, 15000);
       };

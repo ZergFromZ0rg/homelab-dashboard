@@ -11,6 +11,7 @@ import {
   putServiceActivityCredentials,
   clearServiceActivityCredentials,
 } from "./serviceActivityCredentialsApi";
+import PasskeySettings from "./PasskeySettings";
 
 function splitPinKey(key) {
   const idx = key.indexOf("/");
@@ -188,6 +189,10 @@ function SiteSettings({ pins, containers }) {
 
   return (
     <div className="settings-tab">
+      <SettingsCard title="Passkeys">
+        <PasskeySettings />
+      </SettingsCard>
+
       <SettingsCard title="Appearance">
         <label className="settings-row settings-row--stack">
           <span>Dashboard title</span>

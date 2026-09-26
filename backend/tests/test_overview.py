@@ -25,7 +25,7 @@ def test_the_open_dashboard_is_marked_without_counting_as_an_issue():
     assert ov["ok"] is True, "it must not break the all-clear"
     assert ov["security"]["authenticated"] is (bool(auth.API_TOKEN))
     assert "unauthenticated" in ov["security"]["message"]
-    assert "API_TOKEN" in ov["security"]["hint"]
+    assert "passkey" in ov["security"]["hint"]
 
 
 def test_offline_host_is_a_bad_issue_with_a_recommendation():
