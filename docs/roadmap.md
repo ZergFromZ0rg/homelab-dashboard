@@ -92,7 +92,7 @@ read-mostly dashboard; it is not fine for a web shell.
       owner** (no root-owned files) and keep the inode (single-file bind
       mounts see edits).
 
-### 1.4 Container settings — edit the compose file, not the container — *built*
+### 1.4 Container settings — edit the compose file, not the container — *done*
 Stacks live in `compose.yml` on each host; editing a running container
 directly gets silently undone by the next `docker compose up`.
 - [x] Container row → sliders icon opens a wide panel with its stack's
