@@ -149,19 +149,18 @@ def container_heartbeat(host: str, container_id: str) -> dict:
             "uptime_percent": None,
         }
 
-    buckets = []
-
-    for i in range(HEARTBEAT_BUCKET_COUNT):
-        bucket_start = now - WINDOW_SECONDS + i * HEARTBEAT_BUCKET_SECONDS
-        bucket_end = bucket_start + HEARTBEAT_BUCKET_SECONDS
-        bucket_samples = [
-            s for s in samples if bucket_start <= s["t"] < bucket_end
-        ]
-
-        if not bucket_samples:
-            buckets.append(None)
-        else:
-            buckets.append("up" if all(_is_up(s) for s in bucket_samples) else "down")
+    # One pass, each sample dropped into its bucket. The first version
+    # scanned every sample once per bucket — 120 × ~1,800 per container,
+    # for every container, every /ws tick — and was two-thirds of the
+    # dashboard's idle CPU.
+    start = now - WINDOW_SECONDS
+    state: list[bool | None] = [None] * HEARTBEAT_BUCKET_COUNT
+    for s in samples:
+        i = int((s["t"] - start) // HEARTBEAT_BUCKET_SECONDS)
+        if 0 <= i < HEARTBEAT_BUCKET_COUNT:
+            up = _is_up(s)
+            state[i] = up if state[i] is None else (state[i] and up)
+    buckets = [None if b is None else ("up" if b else "down") for b in state]
 
     up_count = sum(1 for s in samples if _is_up(s))
     uptime_percent = round(100 * up_count / len(samples), 1)

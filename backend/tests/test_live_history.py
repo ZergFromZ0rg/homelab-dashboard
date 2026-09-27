@@ -76,3 +76,32 @@ def test_persists_across_reload(monkeypatch, tmp_path):
     lh._load()
     assert lh.container_heartbeat("nas", "abc")["uptime_percent"] == 100.0
     assert [p["v"] for p in lh.gpu_temp_history("nas")] == [50]
+
+
+def test_heartbeat_buckets_match_the_slow_version_exactly():
+    """The one-pass bucketing must agree with the original scan-per-bucket
+    rule: a bucket is down if any sample in it is down."""
+    import random
+    import time as _time
+
+    rng = random.Random(7)
+    now = _time.time()
+    samples = [
+        {"t": now - rng.uniform(0, lh.WINDOW_SECONDS + 300),
+         "status": rng.choice(["running", "running", "running", "exited"]),
+         "health": rng.choice([None, None, "healthy", "unhealthy"])}
+        for _ in range(3000)
+    ]
+    lh._container_samples[("x", "y")] = samples
+    got = lh.container_heartbeat("x", "y")
+
+    window = [s for s in samples if s["t"] >= now - lh.WINDOW_SECONDS]
+    expected = []
+    for i in range(lh.HEARTBEAT_BUCKET_COUNT):
+        lo = now - lh.WINDOW_SECONDS + i * lh.HEARTBEAT_BUCKET_SECONDS
+        inside = [s for s in window if lo <= s["t"] < lo + lh.HEARTBEAT_BUCKET_SECONDS]
+        expected.append(None if not inside else ("up" if all(lh._is_up(s) for s in inside) else "down"))
+
+    # `now` inside the call is a hair later; allow the edge bucket to differ.
+    assert got["buckets"][:-1] == expected[:-1]
+    del lh._container_samples[("x", "y")]
