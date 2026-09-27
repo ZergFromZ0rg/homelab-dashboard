@@ -41,7 +41,7 @@ earlier ones — the terminal and the AI are only safe once auth exists.
 
 ## Phase 1 — Impeccable core
 
-### 1.1 Authentication (passkeys) — *built, needs HTTPS turned on*
+### 1.1 Authentication (passkeys) — *done*
 Everything powerful below (terminal, file edits, the AI running commands)
 needs a real login first. Tailscale + a shared token was fine for a
 read-mostly dashboard; it is not fine for a web shell.
@@ -54,11 +54,13 @@ read-mostly dashboard; it is not fine for a web shell.
 - [x] Manage passkeys in the settings drawer: add a device, rename, remove.
 - [x] Recovery when every device is lost: one `docker exec` command.
 - [x] Scripts/agents keep working via `X-Register-Token` (`API_TOKEN`).
-- [~] HTTPS via `tailscale serve` (browsers only allow passkeys over
-      HTTPS) — documented, and the login screen says so when it's plain HTTP.
-- [ ] Lock the agents: set `AGENT_TOKEN` on every node so only the
-      dashboard can drive them — otherwise login protects the front door
-      while the agents' side doors stay open on the tailnet.
+- [x] HTTPS via `tailscale serve` (browsers only allow passkeys over
+      HTTPS) — on, at `https://thinkpad.tail0179f8.ts.net`. Once a passkey
+      exists, a page opened over plain http moves itself there.
+- [x] Lock the agents: one shared `AGENT_TOKEN` on every node and the
+      dashboard (2026-09-27). Direct calls without it get 401; the
+      read-only container list stays open. New nodes get it through the
+      Add-node command (`install.sh --agent-token`).
 - [ ] Later: remove the old `TokenBox` from forms once sessions cover it.
 
 ### 1.2 Web terminal

@@ -65,3 +65,15 @@ def test_delete_forwards_and_surfaces_refusals(monkeypatch):
 
     monkeypatch.setattr(disk.requests, "post", lambda *a, **k: FakeResponse(404))
     assert "rebuild" in disk.delete("http://agent", "/x/y")["error"]
+
+
+def test_join_details_hand_out_the_agent_token(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from backend import docker as docker_mod
+    from backend import main
+
+    monkeypatch.setattr(docker_mod, "AGENT_TOKEN", "s3cret")
+    assert TestClient(main.app).get("/api/nodes/join").json() == {"agent_token": "s3cret"}
+    monkeypatch.setattr(docker_mod, "AGENT_TOKEN", "")
+    assert TestClient(main.app).get("/api/nodes/join").json() == {"agent_token": None}

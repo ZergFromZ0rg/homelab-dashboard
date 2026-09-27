@@ -256,6 +256,17 @@ def list_nodes():
     return registry.listing()
 
 
+@app.get("/api/nodes/join")
+def join_details():
+    """What the Add-node command needs beyond the dashboard's address: the
+    shared AGENT_TOKEN, so a new node joins locked like the rest. Behind
+    the passkey login like every /api route; with login off, anyone who can
+    reach this could already drive the agents through the dashboard."""
+    from backend.docker import AGENT_TOKEN
+
+    return {"agent_token": AGENT_TOKEN or None}
+
+
 @app.post("/api/nodes")
 def register_node(
     payload: dict,

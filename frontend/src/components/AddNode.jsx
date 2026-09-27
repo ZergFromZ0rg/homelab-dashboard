@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { DEMO } from "../demoData";
 
 // The command to paste on a new machine, with this dashboard's address
 // already in it.
@@ -23,10 +24,23 @@ function AddNode() {
   const [copied, setCopied] = useState(false);
   const [rebuild, setRebuild] = useState(true);
 
+  // The shared agent token, fetched when the panel opens, so the new node
+  // joins locked like the others (only the dashboard can drive it).
+  const [agentToken, setAgentToken] = useState(null);
+
+  useEffect(() => {
+    if (!open || DEMO) return;
+    fetch("/api/nodes/join")
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((body) => setAgentToken(body.agent_token || null))
+      .catch(() => setAgentToken(null));
+  }, [open]);
+
   const origin = typeof window === "undefined" ? "" : window.location.origin;
   const command =
     `curl -fsSL ${INSTALL_URL} | sh -s -- \\\n` +
     `  --dashboard ${origin}` +
+    (agentToken ? ` \\\n  --agent-token ${agentToken}` : "") +
     (rebuild ? " \\\n  --rebuild" : "");
 
   async function copy() {
