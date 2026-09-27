@@ -109,7 +109,7 @@ directly gets silently undone by the next `docker compose up`.
 - [x] Containers not from compose: read-only generated compose file, copy
       or save into a stack folder; switching over stays manual.
 
-### 1.5 Updates — *built*
+### 1.5 Updates — *done*
 - [x] Image update checks every 6 h (and after an update): the registry's
       manifest **for this host's platform** vs the one the container runs
       — not the tag's index digest, which moves whenever a registry
