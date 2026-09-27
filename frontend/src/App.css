@@ -7506,3 +7506,266 @@ a.check-target:hover {
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
 }
+
+/* ----- Container settings (compose editor) ----- */
+
+.drawer--wide {
+  width: min(920px, 100vw);
+}
+
+.cs-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cs-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.cs-meta select,
+.cs-field select {
+  padding: 3px 6px;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.cs h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cs-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.cs-tab {
+  padding: 5px 12px;
+  font: 600 12px var(--sans);
+  color: var(--text-muted);
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+
+.cs-tab--on {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.cs-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cs-field {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.cs-field input,
+.cs-row input {
+  min-width: 0;
+  padding: 4px 8px;
+  font: 12.5px var(--mono);
+  color: var(--text);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.cs-field input:focus,
+.cs-row input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.cs-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cs-group-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.cs-add {
+  font: 600 11px var(--sans);
+  color: var(--accent);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.cs-row {
+  display: grid;
+  grid-template-columns: 1fr 24px;
+  gap: 6px;
+  align-items: center;
+}
+
+.cs-row--env {
+  grid-template-columns: minmax(120px, 0.8fr) 10px 1.2fr 24px;
+}
+
+.cs-row--fixed code {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.cs-eq {
+  color: var(--text-faint);
+  text-align: center;
+}
+
+.cs-remove {
+  color: var(--text-faint);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.cs-remove:hover {
+  color: var(--offline);
+}
+
+.cs-dim {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.cs-error {
+  margin: 0;
+  padding: 8px 10px;
+  font: 12px var(--mono);
+  white-space: pre-wrap;
+  color: var(--offline);
+  background: var(--offline-bg);
+  border-radius: var(--radius-sm);
+}
+
+.cs-ok {
+  margin: 0;
+  font-size: 12px;
+  color: var(--online);
+}
+
+.cs-review {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cs-diff {
+  margin: 0;
+  padding: 8px 10px;
+  max-height: 320px;
+  overflow: auto;
+  font: 12px/1.45 var(--mono);
+  background: #0b0e14;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.cs-diff-add {
+  color: var(--online);
+  background: var(--online-bg);
+}
+
+.cs-diff-del {
+  color: var(--offline);
+  background: var(--offline-bg);
+}
+
+.cs-diff-hunk,
+.cs-diff-file {
+  color: var(--text-faint);
+}
+
+.cs-job {
+  padding: 10px 12px;
+  font-size: 12.5px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.cs-job--done {
+  border-color: var(--online);
+}
+
+.cs-job--rolled_back {
+  border-color: var(--warning);
+}
+
+.cs-job--failed {
+  border-color: var(--offline);
+}
+
+.cs-job-error {
+  margin: 4px 0;
+  white-space: pre-wrap;
+  color: var(--text-muted);
+}
+
+.cs-steps {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  color: var(--text-muted);
+}
+
+.cs-job pre,
+.cs-steps pre {
+  max-height: 220px;
+  overflow: auto;
+  font: 11.5px var(--mono);
+  white-space: pre-wrap;
+}
+
+.cs-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.cs-foot .cs-dim {
+  margin-right: auto;
+}
+
+.cs-generated {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cs-actions {
+  display: flex;
+  gap: 8px;
+}

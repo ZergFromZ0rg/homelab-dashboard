@@ -1,0 +1,15 @@
+services:
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3002:3000"
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer 
+    volumes:
+      - grafana-data:/var/lib/grafana
+
+volumes:
+  grafana-data:

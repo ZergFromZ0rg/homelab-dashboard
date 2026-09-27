@@ -1,0 +1,133 @@
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.19.0
+    restart: unless-stopped
+    environment:
+      QDRANT__TELEMETRY_DISABLED: "true"
+    expose:
+      - "6333"
+    volumes:
+      - ./data/qdrant:/qdrant/storage
+    security_opt:
+      - no-new-privileges:true
+
+  qdrant-ready:
+    image: busybox:1.37.0
+    restart: "no"
+    command: ["sh", "-c", "until wget -q -O - http://qdrant:6333/readyz; do sleep 2; done"]
+    depends_on:
+      - qdrant
+
+  document-service:
+    build:
+      # Repo root, not ./document-service: the Dockerfile's first stage also
+      # builds ui/ and copies the static bundle in, so document-service can
+      # serve the UI itself -- no separate nginx/UI container.
+      context: .
+      dockerfile: document-service/Dockerfile
+      args:
+        PREBAKE_MODELS: ${PREBAKE_MODELS:-0}
+    restart: unless-stopped
+    ports:
+      # Same container, same port, published twice: UI_PORT is the browser
+      # entrypoint, API_PORT is for direct API/`/docs` access -- both now hit
+      # the literal same server (it serves the static UI at "/" and its API
+      # routes at their existing paths; see app.py's static mount at the
+      # bottom of the file). Kept as two ports anyway so an existing
+      # bookmark, SSH tunnel, or script pointed at either one still works.
+      - "${BIND_ADDRESS:-127.0.0.1}:${UI_PORT:-3100}:8000"
+      - "${BIND_ADDRESS:-127.0.0.1}:${API_PORT:-8000}:8000"
+    volumes:
+      - ./data/app:/app/data
+      # The single source of truth for your PDFs. Set LIBRARY_PATH in .env to
+      # the host folder that already holds them (any nesting, any size) —
+      # don't move files into ./library first. Keep :ro — imports reference
+      # files in place and never write here. This is what the Library →
+      # Browse tab walks, and what AUTO_INGEST_INTERVAL_SECONDS rescans.
+      - ${LIBRARY_PATH:-./library}:/library:ro
+      - ./data/models:/models
+    environment:
+      PORT: "8000"
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      SEARCH_LOG: ${SEARCH_LOG:-on}
+      OFFLINE: ${OFFLINE:-0}
+      DATA_DIR: /app/data
+      INGEST_ROOT: /library
+      # Informational only (never used for filesystem access) -- lets the UI's
+      # "Library path" box accept a pasted absolute HOST path (e.g. the exact
+      # folder shown in your file manager) by recognizing this prefix, instead
+      # of requiring a path relative to the mount.
+      LIBRARY_HOST_PATH: ${LIBRARY_PATH:-./library}
+      AUTO_INGEST_INTERVAL_SECONDS: ${AUTO_INGEST_INTERVAL_SECONDS:-60}
+      QDRANT_URL: http://qdrant:6333
+      QDRANT_COLLECTION: vault
+      APP_TOKEN: ${APP_TOKEN:-}
+      ALLOW_INDEX_RESET: ${ALLOW_INDEX_RESET:-0}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-100}
+      EMBEDDING_BATCH_SIZE: ${EMBEDDING_BATCH_SIZE:-32}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-base-en-v1.5}
+      EMBEDDING_QUERY_PREFIX: "${EMBEDDING_QUERY_PREFIX-Represent this sentence for searching relevant passages: }"
+      EMBEDDING_PASSAGE_PREFIX: "${EMBEDDING_PASSAGE_PREFIX-}"
+      EMBEDDING_DIMS: ${EMBEDDING_DIMS:-0}
+      LEXICAL_K1: ${LEXICAL_K1:-1.5}
+      LEXICAL_B: ${LEXICAL_B:-0.75}
+      LEXICAL_AVGDL: ${LEXICAL_AVGDL:-180}
+      FUSION_METHOD: ${FUSION_METHOD:-rrf}
+      FUSION_DENSE_WEIGHT: ${FUSION_DENSE_WEIGHT:-0.5}
+      RERANK_MODEL: ${RERANK_MODEL:-cross-encoder/ms-marco-MiniLM-L-6-v2}
+      RERANK_PASSAGE: ${RERANK_PASSAGE:-group}
+      RERANK_TIMEOUT: ${RERANK_TIMEOUT:-15}
+      RERANK_CANDIDATES: ${RERANK_CANDIDATES:-100}
+      RERANK_MIN_SCORE: ${RERANK_MIN_SCORE:--2.0}
+      RERANK_LOWCONF_SCORE: ${RERANK_LOWCONF_SCORE:-0.0}
+      # Ask mode. Local models are discovered from Ollama on the host; each cloud
+      # provider appears only when its key is set. GENERATION_MODEL is an
+      # optional "provider:model" default (empty = first available).
+      OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
+      OLLAMA_NUM_CTX: ${OLLAMA_NUM_CTX:-8192}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GENERATION_MODEL: ${GENERATION_MODEL:-}
+      ANTHROPIC_MODELS: ${ANTHROPIC_MODELS:-}
+      OPENAI_MODELS: ${OPENAI_MODELS:-}
+      GOOGLE_MODELS: ${GOOGLE_MODELS:-}
+      GENERATION_MAX_TOKENS: ${GENERATION_MAX_TOKENS:-2000}
+      GENERATION_TEMPERATURE: ${GENERATION_TEMPERATURE:-0.2}
+      GENERATION_TIMEOUT: ${GENERATION_TIMEOUT:-120}
+      ASK_CONTEXT_PASSAGES: ${ASK_CONTEXT_PASSAGES:-10}
+      ASK_CONTEXT_PASSAGES_CLOUD: ${ASK_CONTEXT_PASSAGES_CLOUD:-30}
+      ASK_MAX_CONTEXT_CHARS: ${ASK_MAX_CONTEXT_CHARS:-10000}
+      ASK_MAX_PER_DOC: ${ASK_MAX_PER_DOC:-3}
+      ASK_DEDUP_JACCARD: ${ASK_DEDUP_JACCARD:-0.6}
+      ASK_THOROUGH_PASSAGES: ${ASK_THOROUGH_PASSAGES:-40}
+      ASK_THOROUGH_MIN_SCORE: ${ASK_THOROUGH_MIN_SCORE:--5.0}
+      ASK_THOROUGH_MAX_PER_DOC: ${ASK_THOROUGH_MAX_PER_DOC:-6}
+      ASK_THOROUGH_MAX_DOCS: ${ASK_THOROUGH_MAX_DOCS:-15}
+      ASK_THOROUGH_MAP_MODEL: ${ASK_THOROUGH_MAP_MODEL:-}
+      CHUNK_TARGET_TOKENS: ${CHUNK_TARGET_TOKENS:-180}
+      CHUNK_SOFT_MAX_TOKENS: ${CHUNK_SOFT_MAX_TOKENS:-220}
+      CHUNK_HARD_MAX_TOKENS: ${CHUNK_HARD_MAX_TOKENS:-240}
+      CHUNK_OVERLAP_TOKENS: ${CHUNK_OVERLAP_TOKENS:-32}
+      HF_HOME: /models/huggingface
+    # Lets the container reach an Ollama running on the Docker host (Linux needs
+    # this mapping; it is built in on Docker Desktop). Ollama must listen on
+    # 0.0.0.0, not just 127.0.0.1 — see the README.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      qdrant-ready:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true

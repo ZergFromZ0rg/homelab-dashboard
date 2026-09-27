@@ -92,15 +92,22 @@ read-mostly dashboard; it is not fine for a web shell.
       owner** (no root-owned files) and keep the inode (single-file bind
       mounts see edits).
 
-### 1.4 Container settings — edit the compose file, not the container
+### 1.4 Container settings — edit the compose file, not the container — *built*
 Stacks live in `compose.yml` on each host; editing a running container
 directly gets silently undone by the next `docker compose up`.
-- [ ] Container row → "Settings" opens its stack's compose file.
-- [ ] Structured view for env / ports / volumes / restart policy; raw YAML
-      tab for everything else.
-- [ ] Diff preview → apply → `docker compose up -d` → health watch →
-      automatic rollback if it doesn't come up.
-- [ ] Containers not from compose: read-only view + "convert to compose".
+- [x] Container row → sliders icon opens a wide panel with its stack's
+      compose file (the file that defines the service, if there are several).
+- [x] Settings tab for image / restart / environment / ports / volumes —
+      each edit rewrites only its own line (comments and quotes stay);
+      YAML tab for everything else.
+- [x] Review = `docker compose config` on a copy + diff → Apply = save (as
+      the file's owner) → `up -d` → watch → automatic rollback if a
+      container exits non-zero, restart-loops or turns unhealthy. Every
+      apply and its outcome go on the activity feed.
+- [x] Needs "Allow rebuilds and compose changes" (`REBUILD_ENABLED`); the
+      agent's own stack is refused (it would stop mid-job).
+- [x] Containers not from compose: read-only generated compose file, copy
+      or save into a stack folder; switching over stays manual.
 
 ### 1.5 Updates
 - [ ] Image update checks: compare the local digest to the registry's,

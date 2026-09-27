@@ -13,4 +13,8 @@ export const ACTIVITY_DOT = {
   agent_down: "bad",
   deploy_failed: "bad",
   terminal: "info",
+  compose: "info",
+  compose_applied: "good",
+  compose_rolled_back: "warn",
+  compose_failed: "bad",
 };

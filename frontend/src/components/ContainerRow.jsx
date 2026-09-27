@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { containerUrl } from "./containerLink";
 import AppIcon from "./AppIcon";
 import Icon, { IconButton } from "./Icon";
@@ -10,6 +10,8 @@ import RebuildButton from "./RebuildButton";
 import { useSettings } from "./settings";
 import { hostColor } from "./hostColor";
 import { useTerminal } from "./terminalContext";
+
+const ContainerSettings = lazy(() => import("./ContainerSettings"));
 
 function formatStartedAt(value) {
   if (!value || value.startsWith("0001-")) return "—";
@@ -62,6 +64,7 @@ function ContainerRow({
   } = useSettings();
   const [open, setOpen] = useState(false);
   const terminal = useTerminal();
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const live = container.live_activity;
   const showLive = showLiveActivity && Boolean(live);
@@ -244,6 +247,12 @@ function ContainerRow({
         <div className="c-uptime">{formatStartedAt(container.started_at)}</div>
 
         <div className="c-actions">
+          <IconButton
+            icon="sliders"
+            label="Settings — edit its compose file"
+            active={settingsOpen}
+            onClick={() => setSettingsOpen(true)}
+          />
           {running && terminal?.available(host) && (
             <IconButton
               icon="terminal"
@@ -322,6 +331,12 @@ function ContainerRow({
         >
           {error}
         </button>
+      )}
+
+      {settingsOpen && (
+        <Suspense fallback={null}>
+          <ContainerSettings host={host} container={container} onClose={() => setSettingsOpen(false)} />
+        </Suspense>
       )}
 
       {open && (
