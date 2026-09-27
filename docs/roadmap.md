@@ -63,13 +63,19 @@ read-mostly dashboard; it is not fine for a web shell.
       Add-node command (`install.sh --agent-token`).
 - [ ] Later: remove the old `TokenBox` from forms once sessions cover it.
 
-### 1.2 Web terminal
-- [ ] xterm.js panel; websocket → dashboard → agent → `docker exec` into a
-      container, or a shell on the host.
-- [ ] Opened from the container row (exec) and the server card (host shell).
-- [ ] Session-gated, every session logged to the activity feed.
-- [ ] Agent side opt-in (`TERMINAL_ENABLED`), like `REBUILD_ENABLED`.
-- [ ] Resize, copy/paste, reconnect; several tabs.
+### 1.2 Web terminal — *built, not yet on the fleet*
+- [x] xterm.js dock along the bottom (lazy-loaded, its own chunk);
+      websocket → dashboard → agent → `docker exec` into a container, or a
+      host shell (throwaway privileged helper, `nsenter` into PID 1, logged
+      in as the owner of the agent's checkout).
+- [x] Opened from the container row (`>_`) and the server card header.
+- [x] Needs a passkey login — refuses while login is off — and every
+      session goes on the activity feed with the passkey's name.
+- [x] Agent side opt-in (`TERMINAL_ENABLED`, or `install.sh --terminal`).
+- [x] Resize (drag the top edge), copy/paste (Ctrl+Shift+C on Linux),
+      Enter to reconnect after an exit or a drop; several tabs; closing a
+      tab hangs the shell up rather than leaving it running.
+- [ ] Turn it on for bigboy and thinkpad and try it for real.
 
 ### 1.3 File browser
 - [ ] Grow the disk explorer into a browser: list, open, view, download,

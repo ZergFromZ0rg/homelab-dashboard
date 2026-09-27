@@ -1,5 +1,6 @@
 import MachineVitals from "./MachineVitals";
 import HostFooter from "./HostFooter";
+import HostShellButton from "./HostShellButton";
 import { hostColor } from "./hostColor";
 
 function MachineCard({ name, machine, history, containers }) {
@@ -11,9 +12,12 @@ function MachineCard({ name, machine, history, containers }) {
       <div className="machine-header">
         <h2 style={{ color: hostColor(name) }}>{name}</h2>
 
-        <span className="status">
-          <span className="status-dot" />
-          {machine.online ? "ONLINE" : "OFFLINE"}
+        <span className="machine-header-end">
+          <HostShellButton host={name} />
+          <span className="status">
+            <span className="status-dot" />
+            {machine.online ? "ONLINE" : "OFFLINE"}
+          </span>
         </span>
       </div>
 

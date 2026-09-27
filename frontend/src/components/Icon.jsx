@@ -50,6 +50,13 @@ const PATHS = {
     </>
   ),
   chevron: <path d="M6 9l6 6 6-6" />,
+  terminal: (
+    <>
+      <rect x="3" y="4.5" width="18" height="15" rx="2" />
+      <path d="M7 9.5l3 2.5-3 2.5" />
+      <path d="M12.5 15h4.5" />
+    </>
+  ),
   lock: (
     <>
       <rect x="5" y="11" width="14" height="9" rx="2" />

@@ -9,6 +9,7 @@ import Heartbeat from "./Heartbeat";
 import RebuildButton from "./RebuildButton";
 import { useSettings } from "./settings";
 import { hostColor } from "./hostColor";
+import { useTerminal } from "./terminalContext";
 
 function formatStartedAt(value) {
   if (!value || value.startsWith("0001-")) return "—";
@@ -60,6 +61,7 @@ function ContainerRow({
     settings: { showLiveActivity, highRestartCount },
   } = useSettings();
   const [open, setOpen] = useState(false);
+  const terminal = useTerminal();
 
   const live = container.live_activity;
   const showLive = showLiveActivity && Boolean(live);
@@ -242,6 +244,20 @@ function ContainerRow({
         <div className="c-uptime">{formatStartedAt(container.started_at)}</div>
 
         <div className="c-actions">
+          {running && terminal?.available(host) && (
+            <IconButton
+              icon="terminal"
+              label="Open a shell in this container"
+              onClick={() =>
+                terminal.open({
+                  host,
+                  target: "container",
+                  container: container.id,
+                  name: container.name,
+                })
+              }
+            />
+          )}
           {/* Outside the protected branch on purpose: "Protected" is about
               not stopping or deleting the agent, but replacing it with a
               newer build is exactly what you want to do from here. */}

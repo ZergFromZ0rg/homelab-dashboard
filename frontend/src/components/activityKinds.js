@@ -12,4 +12,5 @@ export const ACTIVITY_DOT = {
   node_down: "bad",
   agent_down: "bad",
   deploy_failed: "bad",
+  terminal: "info",
 };

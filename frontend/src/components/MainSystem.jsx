@@ -1,5 +1,6 @@
 import MachineVitals from "./MachineVitals";
 import HostFooter from "./HostFooter";
+import HostShellButton from "./HostShellButton";
 import { hostColor } from "./hostColor";
 
 // The machine the dashboard itself runs on — same card size as every
@@ -20,9 +21,12 @@ function MainSystem({ host, machine, history, containers }) {
           <span className="machine-badge">Dashboard host</span>
         </h2>
 
-        <span className="status">
-          <span className="status-dot" />
-          {machine.online ? "ONLINE" : "OFFLINE"}
+        <span className="machine-header-end">
+          <HostShellButton host={host} />
+          <span className="status">
+            <span className="status-dot" />
+            {machine.online ? "ONLINE" : "OFFLINE"}
+          </span>
         </span>
       </div>
 

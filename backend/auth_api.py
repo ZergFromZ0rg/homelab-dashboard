@@ -261,7 +261,7 @@ def _open_path(method: str, path: str) -> bool:
     # X-Register-Token itself.
     if method == "POST" and path == "/api/nodes":
         return True
-    return not (path.startswith("/api/") or path == "/ws")
+    return not (path.startswith("/api/") or path == "/ws" or path.startswith("/ws/"))
 
 
 class SessionGate:

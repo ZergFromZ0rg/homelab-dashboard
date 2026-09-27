@@ -23,6 +23,7 @@ function AddNode() {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [rebuild, setRebuild] = useState(true);
+  const [terminal, setTerminal] = useState(true);
 
   // The shared agent token, fetched when the panel opens, so the new node
   // joins locked like the others (only the dashboard can drive it).
@@ -41,7 +42,8 @@ function AddNode() {
     `curl -fsSL ${INSTALL_URL} | sh -s -- \\\n` +
     `  --dashboard ${origin}` +
     (agentToken ? ` \\\n  --agent-token ${agentToken}` : "") +
-    (rebuild ? " \\\n  --rebuild" : "");
+    (rebuild ? " \\\n  --rebuild" : "") +
+    (terminal ? " \\\n  --terminal" : "");
 
   async function copy() {
     try {
@@ -87,6 +89,18 @@ function AddNode() {
                 onChange={(e) => setRebuild(e.target.checked)}
               />
               Allow rebuilds from here
+            </label>
+
+            <label
+              className="addnode-opt"
+              title="Shells into its containers and on the machine itself, for anyone signed in here"
+            >
+              <input
+                type="checkbox"
+                checked={terminal}
+                onChange={(e) => setTerminal(e.target.checked)}
+              />
+              Allow terminals
             </label>
           </div>
 

@@ -88,6 +88,7 @@ def merge_agent_snapshot(
         machines[host]["gpu"] = data.get("gpu")
         machines[host]["backup"] = data.get("backup")
         machines[host]["agent_version"] = data.get("agent_version")
+        machines[host]["terminal"] = bool(data.get("terminal"))
         machines[host]["agent_reachable"] = reachable
         machines[host]["agent_stale_age"] = data.get("stale_age")
         containers[host] = data.get("containers", [])

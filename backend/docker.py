@@ -59,6 +59,7 @@ def get_host_data(host, base_url):
             "backup": backups.status_for(host, base_url),
             # Also cached, for the same reason.
             "agent_version": versions.for_host(host, base_url),
+            "terminal": bool(data.get("terminal")),
         }
         _LAST_GOOD[host] = {**snapshot, "at": time.time()}
         return host, snapshot
@@ -76,6 +77,7 @@ def get_host_data(host, base_url):
                 "updated_at": cached["updated_at"],
                 "backup": cached.get("backup"),
                 "agent_version": cached.get("agent_version"),
+                "terminal": cached.get("terminal", False),
                 "reachable": True,
                 "stale": True,
                 "stale_age": round(now - cached["at"], 1),

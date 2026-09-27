@@ -246,6 +246,15 @@ class PasskeyStore:
                 self._save_locked()
             return True
 
+    def session_device(self, token: str | None) -> str | None:
+        """The name of the passkey a session signed in with, for logs."""
+        if not token:
+            return None
+        with self._lock:
+            session = self._sessions.get(_hash(token))
+        passkey = session and self.passkey(session.get("passkey", ""))
+        return passkey.get("name") if passkey else None
+
     def close_session(self, token: str | None) -> None:
         if not token:
             return
