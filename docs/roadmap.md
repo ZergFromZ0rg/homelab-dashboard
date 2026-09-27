@@ -77,7 +77,7 @@ read-mostly dashboard; it is not fine for a web shell.
       tab hangs the shell up rather than leaving it running.
 - [x] On for bigboy and thinkpad (2026-09-27); host shells log in as `zerg`.
 
-### 1.3 File browser — *built*
+### 1.3 File browser — *done*
 - [x] The disk explorer grew into it: list (every name, sizes still from
       the background scan), open, view (text, images, video, audio, PDF),
       download (a folder as a streamed .tar.gz), upload (button or drop,
