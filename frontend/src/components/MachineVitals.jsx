@@ -1,4 +1,3 @@
-import { useState } from "react";
 import DiskExplorer from "./DiskExplorer";
 import HostRecovery from "./HostRecovery";
 import HostSettings from "./HostSettings";
@@ -236,14 +235,15 @@ function PerCore({ cores }) {
 // Everything known about one server, laid out as five dense sections:
 // CPU, memory, storage, network & system, thermals & GPU. Every metric the
 // agent and node_exporter report is on screen — this is the tab for detail.
-function MachineVitals({ host, machine, history }) {
+function MachineVitals({ host, machine, history, explore, onExplore }) {
   const {
     settings: { graphWindowMinutes: windowMinutes },
   } = useSettings();
 
   const d = machine.details || {};
-  // The folder the disk explorer is open at, or null when it's closed.
-  const [explore, setExplore] = useState(null);
+  // `explore` is the folder the file browser is open at (null = closed);
+  // the card owns it, so its header's folder button can open it too.
+  const setExplore = onExplore ?? (() => {});
   const netMax = Math.max(
     1,
     ...windowPoints(history?.network_rx, windowMinutes).map((p) => p.v ?? 0),

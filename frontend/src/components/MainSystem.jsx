@@ -1,6 +1,8 @@
 import MachineVitals from "./MachineVitals";
 import HostFooter from "./HostFooter";
 import HostShellButton from "./HostShellButton";
+import { IconButton } from "./Icon";
+import { useState } from "react";
 import { hostColor } from "./hostColor";
 
 // The machine the dashboard itself runs on — same card size as every
@@ -8,6 +10,7 @@ import { hostColor } from "./hostColor";
 // with a light-blue outline and badge instead of a separate full-width
 // section.
 function MainSystem({ host, machine, history, containers }) {
+  const [explore, setExplore] = useState(null);
   return (
     <div
       className={`machine-card machine-card--main ${
@@ -22,6 +25,14 @@ function MainSystem({ host, machine, history, containers }) {
         </h2>
 
         <span className="machine-header-end">
+          {machine.agent_reachable && (
+            <IconButton
+              icon="folder"
+              label={`Browse files on ${host}`}
+              active={Boolean(explore)}
+              onClick={() => setExplore((open) => (open ? null : "~"))}
+            />
+          )}
           <HostShellButton host={host} />
           <span className="status">
             <span className="status-dot" />
@@ -30,7 +41,13 @@ function MainSystem({ host, machine, history, containers }) {
         </span>
       </div>
 
-      <MachineVitals host={host} machine={machine} history={history} />
+      <MachineVitals
+        host={host}
+        machine={machine}
+        history={history}
+        explore={explore}
+        onExplore={setExplore}
+      />
       <HostFooter machine={machine} containers={containers} />
     </div>
   );

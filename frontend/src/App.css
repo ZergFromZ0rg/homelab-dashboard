@@ -7400,3 +7400,109 @@ a.check-target:hover {
   color: var(--text-faint);
   font-size: 12px;
 }
+
+/* ----- File browser (grown from the disk explorer) ----- */
+
+.dx--drop {
+  outline: 2px dashed var(--accent);
+  outline-offset: -2px;
+}
+
+.dx-sort {
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.dx-sort--on {
+  color: var(--text);
+}
+
+.dx-actions a.icon-action {
+  text-decoration: none;
+}
+
+.fx {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fx-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+}
+
+.fx-back {
+  padding: 2px 6px;
+  font: 600 13px var(--mono);
+  color: var(--text);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.fx-back:hover {
+  background: var(--bg-subtle);
+}
+
+.fx-dirty {
+  color: var(--warning);
+  font-size: 11px;
+}
+
+.fx-spacer {
+  flex: 1;
+}
+
+.fx-body {
+  min-height: 120px;
+}
+
+.fx-editor {
+  height: min(62vh, 640px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.fx-media {
+  display: block;
+  max-width: 100%;
+  max-height: 62vh;
+  margin: 0 auto;
+  border-radius: var(--radius-sm);
+}
+
+.fx-frame {
+  width: 100%;
+  height: 62vh;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #fff;
+}
+
+.fx-empty {
+  padding: 16px 4px;
+  color: var(--text-faint);
+  font-size: 13px;
+}
+
+.dx-path-input {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 8px;
+  font: 13px var(--mono);
+  color: var(--text);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}

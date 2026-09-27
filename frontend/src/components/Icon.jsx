@@ -50,6 +50,28 @@ const PATHS = {
     </>
   ),
   chevron: <path d="M6 9l6 6 6-6" />,
+  download: (
+    <>
+      <path d="M12 4v11" />
+      <path d="M7 10.5l5 5 5-5" />
+      <path d="M5 20h14" />
+    </>
+  ),
+  upload: (
+    <>
+      <path d="M12 16V5" />
+      <path d="M7 9.5l5-5 5 5" />
+      <path d="M5 20h14" />
+    </>
+  ),
+  folder: <path d="M3.5 6.5a1.5 1.5 0 0 1 1.5-1.5h4l2 2.5h8a1.5 1.5 0 0 1 1.5 1.5v8.5a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5z" />,
+  folderPlus: (
+    <>
+      <path d="M3.5 6.5a1.5 1.5 0 0 1 1.5-1.5h4l2 2.5h8a1.5 1.5 0 0 1 1.5 1.5v8.5a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5z" />
+      <path d="M12 10.5v5" />
+      <path d="M9.5 13h5" />
+    </>
+  ),
   terminal: (
     <>
       <rect x="3" y="4.5" width="18" height="15" rx="2" />

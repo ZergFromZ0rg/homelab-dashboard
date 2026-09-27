@@ -77,12 +77,20 @@ read-mostly dashboard; it is not fine for a web shell.
       tab hangs the shell up rather than leaving it running.
 - [x] On for bigboy and thinkpad (2026-09-27); host shells log in as `zerg`.
 
-### 1.3 File browser
-- [ ] Grow the disk explorer into a browser: list, open, view, download,
-      upload, rename, delete (delete already exists for the disk view).
-- [ ] Text editor for configs (CodeMirror — small, lazy-loaded).
-- [ ] Scoped to allowed roots per host (reuse the agent's
-      `ALLOWED_HOST_PATHS` idea); never the whole root fs by default.
+### 1.3 File browser — *built*
+- [x] The disk explorer grew into it: list (every name, sizes still from
+      the background scan), open, view (text, images, video, audio, PDF),
+      download (a folder as a streamed .tar.gz), upload (button or drop,
+      with progress), rename, new folder, delete. Folder button in each
+      server card header opens it at home; double-click the path to type one.
+- [x] Config editor: CodeMirror, lazy — core only when a text file opens,
+      each language only for its file type. ⌘S saves; a file changed on
+      disk since it was opened is refused (reload or overwrite).
+- [x] Writes scoped to roots per host: the agent owner's home + every
+      compose stack folder, zero setup; more via `FILES_WRITABLE_PATHS`.
+      Reading stays everywhere. Writes run in a helper **as the file's
+      owner** (no root-owned files) and keep the inode (single-file bind
+      mounts see edits).
 
 ### 1.4 Container settings — edit the compose file, not the container
 Stacks live in `compose.yml` on each host; editing a running container
