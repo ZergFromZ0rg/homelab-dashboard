@@ -93,8 +93,14 @@ FORECAST_REFRESH_SECONDS = 300
 _forecast_cache = {"data": {}, "fetched_at": 0.0}
 
 
+# One keep-alive session for every query: a tick runs a couple of dozen of
+# them, and a fresh connection each (with its own DNS lookup) was the
+# largest remaining slice of the dashboard's idle CPU.
+_session = requests.Session()
+
+
 def query(promql: str):
-    response = requests.get(
+    response = _session.get(
         f"{PROMETHEUS}/api/v1/query",
         params={"query": promql},
         timeout=5,
@@ -435,7 +441,7 @@ def get_cpu_temperatures() -> dict:
 
 
 def query_range(promql: str, start: float, end: float, step: int):
-    response = requests.get(
+    response = _session.get(
         f"{PROMETHEUS}/api/v1/query_range",
         params={"query": promql, "start": start, "end": end, "step": step},
         timeout=10,
