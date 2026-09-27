@@ -7769,3 +7769,39 @@ a.check-target:hover {
   display: flex;
   gap: 8px;
 }
+
+/* ----- Image updates ----- */
+
+.chip--button {
+  font: inherit;
+  cursor: pointer;
+}
+
+.chip--button:disabled {
+  cursor: default;
+  opacity: 0.75;
+}
+
+.update-result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 12px 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  border-radius: var(--radius-sm);
+}
+
+.update-result > span {
+  flex: 1;
+}
+
+.update-result--ok {
+  color: var(--online);
+  background: var(--online-bg);
+}
+
+.update-result--bad {
+  color: var(--warning);
+  background: var(--warning-bg);
+}

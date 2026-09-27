@@ -3,13 +3,14 @@ import { containerUrl } from "./containerLink";
 import AppIcon from "./AppIcon";
 import Icon, { IconButton } from "./Icon";
 import { needsAttention } from "./containerSort";
-import { formatBytes, formatBytesPerSec } from "./format";
+import { formatBytes, formatBytesPerSec, formatWhen } from "./format";
 import ContainerCharts from "./ContainerCharts";
 import Heartbeat from "./Heartbeat";
 import RebuildButton from "./RebuildButton";
 import { useSettings } from "./settings";
 import { hostColor } from "./hostColor";
 import { useTerminal } from "./terminalContext";
+import { useUpdates } from "./updatesContext";
 
 const ContainerSettings = lazy(() => import("./ContainerSettings"));
 
@@ -65,6 +66,12 @@ function ContainerRow({
   const [open, setOpen] = useState(false);
   const terminal = useTerminal();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const updates = useUpdates();
+  const update = container.update;
+  const hostJob = updates?.jobs[host];
+  const updating =
+    (hostJob?.state === "running" || hostJob?.state === "starting") &&
+    (hostJob.projects.length === 0 || hostJob.projects.includes(container.compose_project));
 
   const live = container.live_activity;
   const showLive = showLiveActivity && Boolean(live);
@@ -161,6 +168,28 @@ function ContainerRow({
                 <span className="chip chip--live" title={`${live.app}: ${live.detail}`}>
                   {live.detail}
                 </span>
+              )}
+              {(update?.state === "available" || updating) && (
+                <button
+                  type="button"
+                  className="chip chip--accent chip--button"
+                  disabled={!update?.can_update || Boolean(hostJob && hostJob.state !== "done" && hostJob.state !== "rolled_back" && hostJob.state !== "failed")}
+                  title={
+                    updating
+                      ? "Pulling the new image, recreating, watching it come up"
+                      : `A newer image is on the registry (checked ${formatWhen(update.checked_at)}). ` +
+                        (update.can_update
+                          ? "Click to pull it and recreate — rolled back if it doesn't come up."
+                          : update.why_not)
+                  }
+                  onClick={() => {
+                    if (window.confirm(`Update ${container.name} on ${host}? It will be recreated with the newer image.`)) {
+                      updates.start(host, [container.name]);
+                    }
+                  }}
+                >
+                  {updating ? "updating…" : "update"}
+                </button>
               )}
               {container.deployed_by === "homelab-dashboard" && (
                 <span className="chip chip--accent" title="Placed by the scheduler">

@@ -37,6 +37,7 @@ from backend import scheduler_api
 from backend import terminal
 from backend import files_api
 from backend import compose_api
+from backend import updates_api
 from backend import volume_backup_api
 from backend import volume_backups
 from backend.registry import registry
@@ -65,6 +66,7 @@ app.include_router(volume_backup_api.router)
 app.include_router(terminal.router)
 app.include_router(files_api.router)
 app.include_router(compose_api.router)
+app.include_router(updates_api.router)
 
 pins = PinStore()
 todos = TodoStore()

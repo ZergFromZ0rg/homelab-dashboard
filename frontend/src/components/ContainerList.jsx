@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import ContainerRow from "./ContainerRow";
 import ContainerTableHead from "./ContainerTableHead";
 import SortControl from "./SortControl";
+import { useUpdates } from "./updatesContext";
 import { sortContainers, needsAttention } from "./containerSort";
 import { formatBytes } from "./format";
 import { pinKey, togglePin } from "./containerPins";
@@ -97,6 +98,24 @@ function matchesStatus(container, filter, restartThreshold) {
   }
 }
 
+// How the host's last update went: one line per stack, problems first.
+function UpdateResult({ job, onDismiss }) {
+  const results = Object.entries(job.results || {});
+  const bad = job.state !== "done";
+  return (
+    <div className={`update-result update-result--${bad ? "bad" : "ok"}`}>
+      <span>
+        {job.error ||
+          results
+            .sort(([, a], [, b]) => (a === "done") - (b === "done"))
+            .map(([project, result]) => (result === "done" ? `${project} updated` : `${project} ${result}`))
+            .join(" · ")}
+      </span>
+      <button type="button" className="dx-close" onClick={onDismiss} aria-label="Dismiss">×</button>
+    </div>
+  );
+}
+
 function HostGroup({
   host,
   containers,
@@ -116,6 +135,10 @@ function HostGroup({
   const unhealthyCount = containers.filter((c) => c.health === "unhealthy").length;
   const stoppedCount = containers.length - runningCount;
   const unreachable = agentReachable === false && containers.length === 0;
+  const updates = useUpdates();
+  const job = updates?.jobs[host];
+  const jobBusy = job?.state === "running" || job?.state === "starting";
+  const updatable = containers.filter((c) => c.update?.can_update);
 
   return (
     <div className="host-group" style={{ "--host-color": hostColor(host) }}>
@@ -150,12 +173,33 @@ function HostGroup({
         </button>
 
         <div className="host-controls">
+          {updatable.length > 0 && (
+            <button
+              type="button"
+              className="btn btn--sm"
+              disabled={jobBusy}
+              title={`Newer images for ${updatable.map((c) => c.name).join(", ")} — pull, recreate, roll back any that don't come up`}
+              onClick={() => {
+                if (window.confirm(`Update ${updatable.length} container${updatable.length === 1 ? "" : "s"} on ${host}? Each is recreated with its newer image.`)) {
+                  // Exactly the ones counted — which follow the filter, so
+                  // "all" never reaches containers that aren't on screen.
+                  updates.start(host, updatable.map((c) => c.name));
+                }
+              }}
+            >
+              {jobBusy ? "Updating…" : `Update all (${updatable.length})`}
+            </button>
+          )}
           <SortControl
             value={sortBy}
             onChange={(value) => onHostState({ sortBy: value })}
           />
         </div>
       </div>
+
+      {job && !jobBusy && (
+        <UpdateResult job={job} onDismiss={() => updates.dismiss(host)} />
+      )}
 
       {!collapsed && (
         <div className="container-list">

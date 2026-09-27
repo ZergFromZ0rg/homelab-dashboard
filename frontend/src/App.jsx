@@ -9,6 +9,7 @@ import PersonalTab from "./components/PersonalTab";
 import SiteSettings from "./components/SiteSettings";
 import SettingsDrawer from "./components/SettingsDrawer";
 import TerminalDock from "./components/TerminalDock";
+import UpdatesProvider from "./components/UpdatesProvider";
 import { useSettings } from "./components/settings";
 import { SettingsProvider } from "./components/SettingsContext";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -389,6 +390,7 @@ function App() {
         lastUpdate={lastUpdate}
         onOpenSettings={() => setSettingsOpen(true)}
       >
+        <UpdatesProvider>
         <TerminalDock machines={machines}>
         {activeTab === "overview" && (
           <Overview
@@ -458,6 +460,7 @@ function App() {
           <SiteSettings pins={pins} containers={containers} />
         </SettingsDrawer>
         </TerminalDock>
+        </UpdatesProvider>
       </AppShell>
     </SettingsProvider>
   );

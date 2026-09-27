@@ -17,4 +17,8 @@ export const ACTIVITY_DOT = {
   compose_applied: "good",
   compose_rolled_back: "warn",
   compose_failed: "bad",
+  update: "info",
+  update_done: "good",
+  update_rolled_back: "warn",
+  update_failed: "bad",
 };

@@ -109,13 +109,20 @@ directly gets silently undone by the next `docker compose up`.
 - [x] Containers not from compose: read-only generated compose file, copy
       or save into a stack folder; switching over stays manual.
 
-### 1.5 Updates
-- [ ] Image update checks: compare the local digest to the registry's,
-      badge on the container row ("update available").
-- [ ] One-click update per container / stack (pull + recreate + health
-      watch + rollback), and "update all" per host.
-- [ ] Optional nightly update window, off by default.
-- [ ] Keep the existing agent/dashboard rebuild as is.
+### 1.5 Updates — *built*
+- [x] Image update checks every 6 h (and after an update): the registry's
+      manifest **for this host's platform** vs the one the container runs
+      — not the tag's index digest, which moves whenever a registry
+      re-publishes, and would badge unchanged images. Anonymous registry
+      API, so Docker Hub / ghcr / lscr work with no setup; local builds
+      show nothing. "update" chip on the row, "N updates" on the host card.
+- [x] One-click update per container (the chip) and "Update all (N)" per
+      host (exactly the ones listed): `compose pull` + `up -d` + the 1.4
+      watch; a container that doesn't come up gets its old image back.
+      Compose containers only; needs "Allow rebuilds and compose changes".
+- [x] Optional nightly update at a set time (host settings,
+      `AUTO_UPDATE_AT`, host time zone), off by default.
+- [x] The agent/dashboard rebuild is unchanged.
 
 ### 1.6 Polish and weight
 - [ ] Command palette (⌘K): jump to any host, container, tab, action.
