@@ -63,7 +63,7 @@ read-mostly dashboard; it is not fine for a web shell.
       Add-node command (`install.sh --agent-token`).
 - [ ] Later: remove the old `TokenBox` from forms once sessions cover it.
 
-### 1.2 Web terminal — *built, not yet on the fleet*
+### 1.2 Web terminal — *done*
 - [x] xterm.js dock along the bottom (lazy-loaded, its own chunk);
       websocket → dashboard → agent → `docker exec` into a container, or a
       host shell (throwaway privileged helper, `nsenter` into PID 1, logged
@@ -75,7 +75,7 @@ read-mostly dashboard; it is not fine for a web shell.
 - [x] Resize (drag the top edge), copy/paste (Ctrl+Shift+C on Linux),
       Enter to reconnect after an exit or a drop; several tabs; closing a
       tab hangs the shell up rather than leaving it running.
-- [ ] Turn it on for bigboy and thinkpad and try it for real.
+- [x] On for bigboy and thinkpad (2026-09-27); host shells log in as `zerg`.
 
 ### 1.3 File browser
 - [ ] Grow the disk explorer into a browser: list, open, view, download,
