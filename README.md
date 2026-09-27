@@ -981,17 +981,29 @@ apart; CPU is percent of one core):
 | Container | Idle CPU | RAM | Budget |
 | --- | --- | --- | --- |
 | `homelab-agent` | ~1 % | ~57 MiB | 4 % / 120 MiB |
-| `homelab-dashboard-api` | *measured after the per-tick fix* | ~90 MiB | 10 % / 200 MiB |
+| `homelab-dashboard-api` | ~7.5 % | ~78 MiB | 10 % / 200 MiB |
 | `homelab-dashboard` (nginx) | ~0 % | ~5 MiB | 1 % / 30 MiB |
 
 Run it on a host before and after a change that touches a loop or a
 poll; it exits 1 when anything is over. Raising a budget needs a reason
 in the commit — the point is to notice growth, not to hide it.
 
-It already caught one: the `/ws` payload (Prometheus queries, agent polls,
-a scheduler reconcile) was built **per open browser tab** every 2 s, about
-100 ms of CPU each, so the API idled at 15–25 % of a core with a few tabs
-open. It is now built once per tick and shared.
+Measured 2026-09-27 on thinkpad (2 nodes, ~20 containers, a few tabs
+open). The first run found the API idling at **15–25 %** of a core, and a
+profile (`py-spy` from a sidecar sharing its PID namespace) said why:
+
+- two-thirds was the container heartbeat, which scanned every sample once
+  per bucket — ~200 000 comparisons per container per tick; now one pass;
+- the `/ws` payload was built once **per open tab** rather than per tick;
+- every Prometheus query opened a new connection with a fresh DNS lookup;
+  now one keep-alive session.
+
+To profile it yourself:
+
+```bash
+docker run --rm --pid=container:homelab-dashboard-api --cap-add SYS_PTRACE python:3.13-slim \
+  sh -c "pip install -q py-spy && py-spy top --pid 1"
+```
 
 ## Setup
 

@@ -124,15 +124,17 @@ directly gets silently undone by the next `docker compose up`.
       `AUTO_UPDATE_AT`, host time zone), off by default.
 - [x] The agent/dashboard rebuild is unchanged.
 
-### 1.6 Polish and weight — *built*
+### 1.6 Polish and weight — *done*
 - [x] Command palette (⌘K / Ctrl+K, or the search button): every tab,
       host (show, files, shell, update all) and container (find, open its
       web UI, shell, settings, restart, update).
 - [x] Mobile layout pass at 375 px: nothing scrolls sideways; the Deploy
       tab stacks (a later CSS rule had been undoing its phone layout), the
       capacity table drops CPU model and GPU, LIVE becomes a dot.
-- [x] Resource budget: `scripts/resource-budget.sh` + README table. First
-      catch: the `/ws` payload was built per browser tab — now once per tick.
+- [x] Resource budget: `scripts/resource-budget.sh` + README table. It
+      caught the API idling at 15–25 % of a core; a profile found an
+      O(buckets × samples) heartbeat, a per-tab `/ws` build and a new
+      connection per PromQL query. Now ~7.5 %.
 - [x] Browser first-run: a "Finish setting up" checklist on Overview, read
       from real state (passkey, Prometheus, a second machine, a backup),
       gone once done or hidden.
