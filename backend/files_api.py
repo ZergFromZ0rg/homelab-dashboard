@@ -16,12 +16,12 @@ import asyncio
 import tempfile
 
 import requests
-from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi import APIRouter, Header, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from backend import auth
 from backend.docker import agent_headers
-from backend.registry import registry
+from backend.hosts import agent_for as _agent
 
 router = APIRouter(prefix="/api/files/{host}")
 
@@ -29,13 +29,6 @@ TIMEOUT = 30
 TRANSFER_TIMEOUT = 3600
 CHUNK = 1024 * 1024
 PASSED_HEADERS = ("content-type", "content-length", "content-disposition")
-
-
-def _agent(host: str) -> str:
-    node = registry.all().get(host)
-    if not node:
-        raise HTTPException(status_code=404, detail="Unknown host")
-    return node["url"].rstrip("/")
 
 
 def _relay(response: requests.Response) -> JSONResponse:

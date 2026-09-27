@@ -1,13 +1,13 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from backend import main
+from backend import main, personal_api
 from backend.todos import TodoStore
 
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
-    monkeypatch.setattr(main, "todos", TodoStore(tmp_path / "todos.json"))
+    monkeypatch.setattr(personal_api, "todos", TodoStore(tmp_path / "todos.json"))
     return TestClient(main.app)
 
 

@@ -3,7 +3,7 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
-from backend import main, notes as notes_module
+from backend import main, notes as notes_module, personal_api
 from backend.notes import Conflict, NoteStore
 
 
@@ -125,7 +125,7 @@ def test_a_corrupt_or_odd_file_is_survived(tmp_path):
 
 @pytest.fixture
 def client(store, monkeypatch):
-    monkeypatch.setattr(main, "notes", store)
+    monkeypatch.setattr(personal_api, "notes", store)
     return TestClient(main.app)
 
 

@@ -1,14 +1,14 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from backend import main
+from backend import main, personal_api
 from backend.service_activity_credentials import ServiceActivityCredentialStore
 
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     monkeypatch.setattr(
-        main,
+        personal_api,
         "service_activity_credentials",
         ServiceActivityCredentialStore(tmp_path / "creds.json"),
     )

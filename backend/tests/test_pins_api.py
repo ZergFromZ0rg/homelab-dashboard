@@ -1,13 +1,13 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from backend import main
+from backend import main, personal_api
 from backend.pins import PinStore
 
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
-    monkeypatch.setattr(main, "pins", PinStore(tmp_path / "pins.json"))
+    monkeypatch.setattr(personal_api, "pins", PinStore(tmp_path / "pins.json"))
     return TestClient(main.app)
 
 

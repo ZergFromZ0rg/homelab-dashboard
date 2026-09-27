@@ -2,7 +2,8 @@ import MachineVitals from "./MachineVitals";
 import HostFooter from "./HostFooter";
 import HostShellButton from "./HostShellButton";
 import { IconButton } from "./Icon";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useFocusRequest } from "./focusRequest";
 import { hostColor } from "./hostColor";
 
 // The machine the dashboard itself runs on — same card size as every
@@ -11,8 +12,15 @@ import { hostColor } from "./hostColor";
 // section.
 function MainSystem({ host, machine, history, containers }) {
   const [explore, setExplore] = useState(null);
+  const card = useRef(null);
+  // The command palette: "show host" / "files on host".
+  useFocusRequest(host, (action) => {
+    if (action === "files") setExplore("~");
+    else card.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
   return (
     <div
+      ref={card}
       className={`machine-card machine-card--main ${
         machine.online ? "online" : "offline"
       }`}

@@ -7805,3 +7805,233 @@ a.check-target:hover {
   color: var(--warning);
   background: var(--warning-bg);
 }
+
+/* ----- Command palette ----- */
+
+.palette-root {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 12vh 16px 16px;
+  background: rgba(5, 7, 12, 0.55);
+}
+
+.palette {
+  width: min(640px, 100%);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.palette-input {
+  padding: 14px 16px;
+  font: 15px var(--sans);
+  color: var(--text);
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  outline: none;
+}
+
+.palette-list {
+  max-height: min(420px, 55vh);
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.palette-item {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.palette-item--on {
+  background: var(--bg-raised);
+}
+
+.palette-kind {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.palette-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.palette-sub {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.palette-empty {
+  padding: 12px;
+  font-size: 13px;
+  color: var(--text-faint);
+}
+
+.palette-foot {
+  padding: 6px 12px;
+  font-size: 11px;
+  color: var(--text-faint);
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 600px) {
+  .palette-root {
+    padding-top: 8px;
+  }
+
+  .palette-item {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .palette-kind {
+    display: none;
+  }
+
+  .palette-foot {
+    display: none;
+  }
+}
+
+/* ----- Phone widths ----- */
+
+@media (max-width: 480px) {
+  /* "LIVE" is the normal state: a green dot says it. Anything else
+     (stale, reconnecting) keeps its words. */
+  .connection.connected {
+    font-size: 0;
+    gap: 0;
+    padding: 9px;
+  }
+
+  /* CPU model and GPU are on the server cards; the capacity table keeps
+     what decides placement. */
+  .fleet-table th:nth-child(2),
+  .fleet-table td:nth-child(2),
+  .fleet-table th:nth-child(6),
+  .fleet-table td:nth-child(6) {
+    display: none;
+  }
+
+  .fleet-busy .sv-bar {
+    min-width: 36px;
+  }
+
+  .fleet-table th,
+  .fleet-table td {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  .fleet-card .overview-card-head {
+    flex-wrap: wrap;
+  }
+
+  .fleet-committed {
+    white-space: normal;
+  }
+}
+
+/* The two-column Deploy layout above is declared after the 900px rule
+   that stacks it, and so used to win at every width. */
+@media (max-width: 900px) {
+  .deploy-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .deploy-head {
+    flex-wrap: wrap;
+  }
+
+  .deploy-mode {
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .deploy-buttons {
+    flex-wrap: wrap;
+  }
+}
+
+/* ----- First-run checklist ----- */
+
+.first-run {
+  margin-bottom: 12px;
+}
+
+.first-run .overview-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.first-run-hide {
+  margin-left: auto;
+  font: 12px var(--sans);
+  color: var(--text-faint);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.first-run-list {
+  margin: 0;
+  padding: 4px 14px 10px;
+  list-style: none;
+}
+
+.first-run-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 0;
+  font-size: 13px;
+}
+
+.first-run-dot {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border: 1.5px solid var(--warning);
+  border-radius: 50%;
+}
+
+.first-run-text {
+  flex: 1;
+}
+
+.first-run-go {
+  font: 600 12px var(--sans);
+  color: var(--accent);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  white-space: nowrap;
+}

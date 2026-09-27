@@ -1,4 +1,5 @@
 import RebalancePanel from "./RebalancePanel";
+import FirstRun from "./FirstRun";
 import SummaryRow from "./SummaryRow";
 import HostSummary from "./HostSummary";
 import { formatLatency } from "./format";
@@ -173,6 +174,7 @@ function Overview({
   // slot in the grid, so the two rows always line up.
   return (
     <div className="overview overview--dense">
+      <FirstRun machines={machines} backups={backups} onNavigate={onNavigate} />
       <div className="ov-grid">
         {homeCards.summary && (
           <SummaryRow

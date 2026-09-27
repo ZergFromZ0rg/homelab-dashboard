@@ -144,7 +144,7 @@ function DiskExplorer({ host, start = "~", onClose }) {
 
   // Opened from the card header, it appears at the bottom of a tall card.
   useEffect(() => {
-    root.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    root.current?.scrollIntoView({ block: "start", behavior: "smooth" });
   }, []);
 
   // Sizes: fetch on every change of folder and keep polling while the

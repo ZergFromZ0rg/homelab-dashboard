@@ -972,6 +972,27 @@ lasted. `GET /api/alerts` returns the same list, and it rides the `/ws`
 payload. An episode left open by a dashboard restart is closed on the
 next cycle that doesn't re-fire it.
 
+## Resource budget
+
+What the dashboard and an agent cost at idle, measured on the real fleet
+with `scripts/resource-budget.sh` (6 samples of `docker stats`, 5 s
+apart; CPU is percent of one core):
+
+| Container | Idle CPU | RAM | Budget |
+| --- | --- | --- | --- |
+| `homelab-agent` | ~1 % | ~57 MiB | 4 % / 120 MiB |
+| `homelab-dashboard-api` | *measured after the per-tick fix* | ~90 MiB | 10 % / 200 MiB |
+| `homelab-dashboard` (nginx) | ~0 % | ~5 MiB | 1 % / 30 MiB |
+
+Run it on a host before and after a change that touches a loop or a
+poll; it exits 1 when anything is over. Raising a budget needs a reason
+in the commit — the point is to notice growth, not to hide it.
+
+It already caught one: the `/ws` payload (Prometheus queries, agent polls,
+a scheduler reconcile) was built **per open browser tab** every 2 s, about
+100 ms of CPU each, so the API idled at 15–25 % of a core with a few tabs
+open. It is now built once per tick and shared.
+
 ## Setup
 
 ```bash

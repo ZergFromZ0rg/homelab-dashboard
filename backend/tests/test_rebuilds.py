@@ -2,7 +2,7 @@ import pytest
 import requests
 from fastapi.testclient import TestClient
 
-from backend import auth, main, rebuilds
+from backend import auth, main, rebuilds, fleet_api
 
 
 class FakeResponse:
@@ -269,7 +269,7 @@ def test_one_host_failing_does_not_stop_the_others(monkeypatch):
 def test_fleet_route_requires_the_token(client, monkeypatch):
     monkeypatch.setattr(auth, "API_TOKEN", "sekret")
     respond(monkeypatch, FakeResponse(200, JOB))
-    monkeypatch.setattr(main, "get_all_containers", lambda nodes: {})
+    monkeypatch.setattr(fleet_api, "get_all_containers", lambda nodes: {})
 
     assert client.post("/api/fleet/rebuild", json={}).status_code == 401
     assert client.post(
@@ -278,7 +278,7 @@ def test_fleet_route_requires_the_token(client, monkeypatch):
 
 
 def test_fleet_route_rejects_a_bad_hosts_value(client, monkeypatch):
-    monkeypatch.setattr(main, "get_all_containers", lambda nodes: {})
+    monkeypatch.setattr(fleet_api, "get_all_containers", lambda nodes: {})
     resp = client.post("/api/fleet/rebuild", json={"hosts": "bigboy"})
     assert resp.status_code == 400
 
@@ -287,7 +287,7 @@ def test_fleet_route_passes_an_empty_host_list_through(client, monkeypatch):
     """The route validates that ``hosts`` is a list; an empty one has to
     reach the fleet call still meaning nothing."""
     calls = respond(monkeypatch, FakeResponse(200, JOB))
-    monkeypatch.setattr(main, "get_all_containers", lambda nodes: {})
+    monkeypatch.setattr(fleet_api, "get_all_containers", lambda nodes: {})
 
     resp = client.post("/api/fleet/rebuild", json={"hosts": []})
 

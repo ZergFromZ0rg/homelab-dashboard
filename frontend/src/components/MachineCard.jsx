@@ -2,13 +2,21 @@ import MachineVitals from "./MachineVitals";
 import HostFooter from "./HostFooter";
 import HostShellButton from "./HostShellButton";
 import { IconButton } from "./Icon";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useFocusRequest } from "./focusRequest";
 import { hostColor } from "./hostColor";
 
 function MachineCard({ name, machine, history, containers }) {
   const [explore, setExplore] = useState(null);
+  const card = useRef(null);
+  // The command palette: "show name" / "files on name".
+  useFocusRequest(name, (action) => {
+    if (action === "files") setExplore("~");
+    else card.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
   return (
     <div
+      ref={card}
       className={`machine-card ${machine.online ? "online" : "offline"}`}
       style={{ "--host-color": hostColor(name) }}
     >

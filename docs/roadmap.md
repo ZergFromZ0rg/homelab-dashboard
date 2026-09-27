@@ -124,13 +124,21 @@ directly gets silently undone by the next `docker compose up`.
       `AUTO_UPDATE_AT`, host time zone), off by default.
 - [x] The agent/dashboard rebuild is unchanged.
 
-### 1.6 Polish and weight
-- [ ] Command palette (⌘K): jump to any host, container, tab, action.
-- [ ] Mobile layout pass — this becomes the thing you open on your phone.
-- [ ] Resource budget: measure dashboard + agent RAM/CPU idle, keep it
-      in the README, fail review when it grows without a reason.
-- [ ] Browser first-run wizard (after `setup.sh`).
-- [ ] Split `main.py` routes into routers like `scheduler_api.py`.
+### 1.6 Polish and weight — *built*
+- [x] Command palette (⌘K / Ctrl+K, or the search button): every tab,
+      host (show, files, shell, update all) and container (find, open its
+      web UI, shell, settings, restart, update).
+- [x] Mobile layout pass at 375 px: nothing scrolls sideways; the Deploy
+      tab stacks (a later CSS rule had been undoing its phone layout), the
+      capacity table drops CPU model and GPU, LIVE becomes a dot.
+- [x] Resource budget: `scripts/resource-budget.sh` + README table. First
+      catch: the `/ws` payload was built per browser tab — now once per tick.
+- [x] Browser first-run: a "Finish setting up" checklist on Overview, read
+      from real state (passkey, Prometheus, a second machine, a backup),
+      gone once done or hidden.
+- [x] `main.py` split into routers (`fleet_api`, `host_tools_api`,
+      `personal_api`, shared lookups in `hosts.py`): 830 → 340 lines.
+- [ ] Remove the old `TokenBox` from forms once sessions cover it (1.1).
 
 ## Phase 2 — The AI overseer
 

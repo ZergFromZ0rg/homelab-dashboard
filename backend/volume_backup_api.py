@@ -34,14 +34,14 @@ def default_dest_host() -> str | None:
     """The dashboard's own host, which is where a backup goes unless told
     otherwise: the box you are looking at is the one you will still be
     looking at when the box that died is the other one."""
-    from backend.main import MAIN_HOST_OVERRIDE, _detect_main_host
+    from backend.hosts import MAIN_HOST_OVERRIDE, detect_main_host
     from backend.docker import get_all_containers
 
     if MAIN_HOST_OVERRIDE:
         return MAIN_HOST_OVERRIDE
 
     try:
-        return _detect_main_host(get_all_containers(registry.all()))
+        return detect_main_host(get_all_containers(registry.all()))
     except Exception as error:  # noqa: BLE001 - a default is not worth failing over
         log.debug("could not detect the dashboard's own host: %s", error)
         return None

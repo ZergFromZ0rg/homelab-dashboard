@@ -10,9 +10,10 @@ import SiteSettings from "./components/SiteSettings";
 import SettingsDrawer from "./components/SettingsDrawer";
 import TerminalDock from "./components/TerminalDock";
 import UpdatesProvider from "./components/UpdatesProvider";
+import CommandPalette from "./components/CommandPalette";
 import { useSettings } from "./components/settings";
 import { SettingsProvider } from "./components/SettingsContext";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { loadCachedPins, cachePins, putPins } from "./components/containerPins";
 import { loadCachedTodos, cacheTodos, putTodos } from "./components/todosApi";
 import "./App.css";
@@ -23,6 +24,8 @@ import { DEMO, demoSnapshot } from "./demoData";
 import { AUTH_REQUIRED_EVENT } from "./components/apiAuth";
 
 const EMPTY_OVERVIEW = { ok: true, issues: [], recommendations: [] };
+
+const ContainerSettings = lazy(() => import("./components/ContainerSettings"));
 
 function useContainerControl() {
   const [pending, setPending] = useState({});
@@ -254,7 +257,7 @@ function ConnectionStatus({ connected, lastUpdate }) {
     label = `RECONNECTING · ${age}s`;
   }
 
-  return <div className={className}>{label}</div>;
+  return <div className={className} title={label}>{label}</div>;
 }
 
 // Sticky top bar (brand, sections, connection, settings gear) around the
@@ -284,6 +287,18 @@ function AppShell({ tabs, activeTab, onTab, connected, lastUpdate, onOpenSetting
 
           <div className="topbar-actions">
             <ConnectionStatus connected={connected} lastUpdate={lastUpdate} />
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={() => window.dispatchEvent(new Event("homelab:open-palette"))}
+              aria-label="Search and commands"
+              title="Search and commands (⌘K)"
+            >
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="6.5" />
+                <path d="M16 16l4 4" />
+              </svg>
+            </button>
             <button
               type="button"
               className="icon-btn"
@@ -327,6 +342,11 @@ function App() {
 
   const [activeTab, setActiveTab] = useState("overview");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Container settings opened from the palette (rows open their own).
+  const [settingsFor, setSettingsFor] = useState(null);
+  // Bumped to remount the container list after the palette writes its
+  // search, which the list reads from localStorage when it mounts.
+  const [containersKey, setContainersKey] = useState(0);
   const control = useContainerControl();
 
   const totalContainers = Object.values(containers).reduce(
@@ -375,10 +395,19 @@ function App() {
 
   // Anything that says "go look at X" (Attention → View, Quick actions →
   // Containers) funnels through here.
-  const navigate = (target) => {
-    if (target === "settings") setSettingsOpen(true);
-    else setActiveTab(target);
+  const navigate = (target, { container } = {}) => {
+    if (target === "settings") return setSettingsOpen(true);
+    if (container) {
+      try {
+        localStorage.setItem("homelab.containerSearch", JSON.stringify(container));
+      } catch {
+        // no storage: the tab still opens, just unfiltered
+      }
+      setContainersKey((k) => k + 1);
+    }
+    setActiveTab(target);
   };
+  const openSettingsFor = useCallback((host, container) => setSettingsFor({ host, container }), []);
 
   return (
     <SettingsProvider>
@@ -420,6 +449,7 @@ function App() {
 
         {activeTab === "containers" && (
           <ContainerList
+            key={containersKey}
             containers={containers}
             machines={machines}
             onControl={control}
@@ -454,6 +484,24 @@ function App() {
             openTodos={openTodos}
             checks={checks}
           />
+        )}
+
+        <CommandPalette
+          tabs={tabs}
+          machines={machines}
+          containers={containers}
+          control={control}
+          onNavigate={navigate}
+          onOpenSettings={openSettingsFor}
+        />
+        {settingsFor && (
+          <Suspense fallback={null}>
+            <ContainerSettings
+              host={settingsFor.host}
+              container={settingsFor.container}
+              onClose={() => setSettingsFor(null)}
+            />
+          </Suspense>
         )}
 
         <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)}>
