@@ -20,7 +20,10 @@ const MIN_HEIGHT = 160;
 // switching from Containers to Servers doesn't kill the one you're in.
 // Several at once, one per tab; the top edge drags to resize; the chevron
 // folds it down to just the tab strip.
-function TerminalDock({ machines, children }) {
+//
+// `shells` gates new shells (God mode only); logs open in any mode, and a
+// shell already open survives a mode switch.
+function TerminalDock({ machines, shells = true, children }) {
   const [sessions, setSessions] = useState([]);
   const [activeId, setActiveId] = useState(null);
   const [folded, setFolded] = useState(false);
@@ -49,8 +52,8 @@ function TerminalDock({ machines, children }) {
   };
 
   const available = useCallback(
-    (host) => Boolean(machines?.[host]?.terminal),
-    [machines]
+    (host) => shells && Boolean(machines?.[host]?.terminal),
+    [machines, shells]
   );
   const value = useMemo(() => ({ open, available }), [open, available]);
 

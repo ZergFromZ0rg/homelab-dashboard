@@ -440,7 +440,7 @@ function App() {
         onSetMode={setMode}
       >
         <UpdatesProvider>
-        <TerminalDock machines={machines}>
+        <TerminalDock machines={machines} shells={viewMode === "god"}>
         {viewMode === "simple" && (
           <div className="simple-mode-content">
             <MorningBriefing summary={morning_summary} onNavigate={navigate} />
