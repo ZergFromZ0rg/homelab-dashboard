@@ -1,5 +1,4 @@
 import { useState } from "react";
-import TokenBox from "./TokenBox";
 import DeployForm from "./DeployForm";
 import StackForm from "./StackForm";
 import FleetCapacity from "./FleetCapacity";
@@ -190,8 +189,7 @@ function DeployTab({ machines, deployments, connected }) {
           ) : (
             <DeployForm spec={form} onChange={editForm} nodeNames={nodeNames} />
           )}
-          <TokenBox />
-
+    
           <div className="deploy-buttons">
             <button
               type="button"

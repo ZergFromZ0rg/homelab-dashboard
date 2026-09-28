@@ -1,5 +1,4 @@
 import { useState } from "react";
-import TokenBox from "./TokenBox";
 
 const TYPES = [
   { value: "http", label: "Website / API", hint: "GET a URL and expect a healthy answer." },
@@ -236,7 +235,6 @@ function CheckForm({ check, onSubmit, onCancel }) {
         LAN address, not <code>localhost</code>.
       </p>
 
-      <TokenBox />
 
       {error && <p className="cred-error">{error}</p>}
 

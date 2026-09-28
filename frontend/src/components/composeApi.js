@@ -1,4 +1,4 @@
-import { authHeaders, jsonOrThrow } from "./apiAuth";
+import { jsonOrThrow } from "./apiAuth";
 
 // /api/compose/{host}/... — a container's compose files, a checked diff of
 // an edit, and applying it as a job (save, up -d, watch, roll back if it
@@ -12,7 +12,7 @@ export const fetchComposeSettings = (host, container) =>
 const post = (host, route, body) =>
   fetch(`${base(host)}/${route}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   }).then(jsonOrThrow);
 

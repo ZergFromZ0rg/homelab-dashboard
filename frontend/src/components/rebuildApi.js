@@ -1,5 +1,5 @@
 import { DEMO } from "../demoData";
-import { authHeaders, jsonOrThrow } from "./apiAuth";
+import { jsonOrThrow } from "./apiAuth";
 
 // POST /api/rebuild/{host} starts a job; GET .../{id} polls it. The agent
 // does the pull and the build, which takes minutes — hence the job rather
@@ -11,7 +11,7 @@ export function startRebuild(host, container, { pull = true } = {}) {
 
   return fetch(`/api/rebuild/${encodeURIComponent(host)}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ container, pull }),
   }).then(jsonOrThrow);
 }
@@ -21,7 +21,7 @@ export function fetchRebuildJob(host, jobId) {
 
   return fetch(
     `/api/rebuild/${encodeURIComponent(host)}/${encodeURIComponent(jobId)}`,
-    { headers: authHeaders() }
+    {}
   ).then(jsonOrThrow);
 }
 
@@ -33,7 +33,7 @@ export function rebuildFleet(hosts) {
 
   return fetch("/api/fleet/rebuild", {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(hosts?.length ? { hosts } : {}),
   }).then(jsonOrThrow);
 }

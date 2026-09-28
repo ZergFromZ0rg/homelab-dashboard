@@ -1,5 +1,5 @@
 import { DEMO, demoNetworkAction, demoNetworks } from "../demoData";
-import { authHeaders, jsonOrThrow } from "./apiAuth";
+import { jsonOrThrow } from "./apiAuth";
 
 // Docker networks per host (GET /api/networks/{host}) and the four changes
 // the agent allows. Mutations resolve to `{success, error?}`; the error is
@@ -15,7 +15,7 @@ export function fetchNetworks(host) {
 function send(method, url, body) {
   return fetch(url, {
     method,
-    headers: { "Content-Type": "application/json", ...authHeaders() },
+    headers: { "Content-Type": "application/json" },
     body: body ? JSON.stringify(body) : undefined,
   }).then(jsonOrThrow);
 }

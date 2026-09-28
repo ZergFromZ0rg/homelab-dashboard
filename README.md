@@ -144,7 +144,7 @@ reachability from where the dashboard lives — `localhost` means the
 dashboard container itself, so use the LAN address or hostname of anything
 on the same machine. Creating, editing, running or deleting a check needs
 `API_TOKEN` when one is set (the backend sends requests to whatever address
-it's given; enter the token in the form's token box). Checks
+it's given) — a signed-in passkey session counts. Checks
 (`/data/checks.json`) and their history (`/data/check_history.json`: the
 last 3 h of raw samples plus hourly buckets for 30 days, saved every minute
 and on shutdown) live on the data volume, so a redeploy keeps your uptime
@@ -1046,8 +1046,9 @@ else or runs outside Docker.
 
 ## API
 
-All mutating routes are gated by the `X-Register-Token` header when
-`API_TOKEN` (alias: `REGISTER_TOKEN`) is set.
+All mutating routes are gated when `API_TOKEN` (alias: `REGISTER_TOKEN`)
+is set: a signed-in passkey session passes, and scripts send the token as
+`X-Register-Token`.
 
 - `GET /api/nodes` — registered agents (name, url, last_seen, stale)
 - `POST /api/nodes` — agent self-registration, `{"name", "url"}`

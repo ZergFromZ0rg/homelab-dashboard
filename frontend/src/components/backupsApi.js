@@ -5,7 +5,7 @@ import {
   demoBackupDestinations,
   demoBackupTargets,
 } from "../demoData";
-import { authHeaders, jsonOrThrow } from "./apiAuth";
+import { jsonOrThrow } from "./apiAuth";
 
 // Volume backups. The job list is cheap and contacts no agent, so the tab
 // polls it; everything else is on demand. A backup takes minutes, so
@@ -18,7 +18,7 @@ function send(method, url, body) {
 
   return fetch(url, {
     method,
-    headers: { "Content-Type": "application/json", ...authHeaders() },
+    headers: { "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   }).then(jsonOrThrow);
 }
@@ -35,20 +35,19 @@ export function fetchBackups() {
 // between known options rather than a guess.
 export function fetchBackupDestinations() {
   if (DEMO) return Promise.resolve(demoBackupDestinations());
-  return fetch("/api/backups/destinations", { headers: authHeaders() })
+  return fetch("/api/backups/destinations", {})
     .then(jsonOrThrow);
 }
 
 export function fetchBackupTargets(host) {
   if (DEMO) return Promise.resolve(demoBackupTargets(host));
   return fetch(`/api/backups/targets/${encodeURIComponent(host)}`, {
-    headers: authHeaders(),
   }).then(jsonOrThrow);
 }
 
 export function fetchBackupArchives(id) {
   if (DEMO) return Promise.resolve(demoBackupArchives(id));
-  return fetch(`/api/backups/${id}/archives`, { headers: authHeaders() })
+  return fetch(`/api/backups/${id}/archives`, {})
     .then(jsonOrThrow);
 }
 

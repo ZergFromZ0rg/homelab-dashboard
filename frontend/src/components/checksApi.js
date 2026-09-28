@@ -1,11 +1,11 @@
 import { DEMO, demoCheckHistory } from "../demoData";
-import { authHeaders, jsonOrThrow } from "./apiAuth";
+import { jsonOrThrow } from "./apiAuth";
 
 function send(method, url, body) {
   if (DEMO) return Promise.reject(new Error("Demo mode — changes aren't saved."));
   return fetch(url, {
     method,
-    headers: { "Content-Type": "application/json", ...authHeaders() },
+    headers: { "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   }).then(jsonOrThrow);
 }

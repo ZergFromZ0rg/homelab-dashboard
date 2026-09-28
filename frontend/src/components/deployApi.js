@@ -1,6 +1,6 @@
 // Thin wrappers around the deployment routes (token handling: apiAuth.js).
 import { DEMO, demoRebalance } from "../demoData";
-import { authHeaders, jsonOrThrow } from "./apiAuth";
+import { jsonOrThrow } from "./apiAuth";
 
 // /?demo has no backend behind it. Reads answer from a fixture; anything
 // that would change state says so instead of 404ing.
@@ -14,7 +14,7 @@ export function previewPlacement(spec) {
   if (DEMO) return demoRefusal();
   return fetch("/api/deployments?dry_run=1", {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(spec),
   }).then(jsonOrThrow);
 }
@@ -24,7 +24,7 @@ export function deploy(spec, node) {
   const query = node ? `?node=${encodeURIComponent(node)}` : "";
   return fetch(`/api/deployments${query}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(spec),
   }).then(jsonOrThrow);
 }
@@ -33,7 +33,7 @@ export function previewStack(stack) {
   if (DEMO) return demoRefusal();
   return fetch("/api/stacks?dry_run=1", {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(stack),
   }).then(jsonOrThrow);
 }
@@ -43,7 +43,7 @@ export function deployStack(stack, node) {
   const query = node ? `?node=${encodeURIComponent(node)}` : "";
   return fetch(`/api/stacks${query}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(stack),
   }).then(jsonOrThrow);
 }
@@ -54,13 +54,12 @@ export function redeploy(id, { excludeCurrent = true, node } = {}) {
   if (node) params.set("node", node);
   return fetch(`/api/deployments/${id}/redeploy?${params}`, {
     method: "POST",
-    headers: authHeaders(),
   }).then(jsonOrThrow);
 }
 
 export function fetchRebalance() {
   if (DEMO) return Promise.resolve(demoRebalance());
-  return fetch("/api/rebalance", { headers: authHeaders() }).then(jsonOrThrow);
+  return fetch("/api/rebalance", {}).then(jsonOrThrow);
 }
 
 export function removeDeployment(id, { keepContainer = false } = {}) {
@@ -68,6 +67,5 @@ export function removeDeployment(id, { keepContainer = false } = {}) {
   const params = new URLSearchParams({ keep_container: String(keepContainer) });
   return fetch(`/api/deployments/${id}?${params}`, {
     method: "DELETE",
-    headers: authHeaders(),
   }).then(jsonOrThrow);
 }

@@ -1,4 +1,4 @@
-import { authHeaders, jsonOrThrow } from "./apiAuth";
+import { jsonOrThrow } from "./apiAuth";
 
 // /api/updates/{host} — start an image update (named containers, or all
 // with an update), follow the job, or force a registry check.
@@ -8,7 +8,7 @@ const base = (host) => `/api/updates/${encodeURIComponent(host)}`;
 export const startUpdate = (host, containers) =>
   fetch(base(host), {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(containers ? { containers } : {}),
   }).then(jsonOrThrow);
 

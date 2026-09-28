@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { DEMO, demoHostRecovery } from "../demoData";
-import { authHeaders, jsonOrThrow } from "./apiAuth";
+import { jsonOrThrow } from "./apiAuth";
 import {
   backupProjects,
   fetchBackupDestinations,
@@ -25,7 +25,6 @@ import { formatAge, formatBytes } from "./format";
 function fetchRecovery(host) {
   if (DEMO) return Promise.resolve(demoHostRecovery(host));
   return fetch(`/api/hosts/${encodeURIComponent(host)}/recovery`, {
-    headers: authHeaders(),
   }).then(jsonOrThrow);
 }
 

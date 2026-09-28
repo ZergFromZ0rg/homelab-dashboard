@@ -258,3 +258,20 @@ def test_overview_stops_flagging_no_login_once_a_passkey_exists(client):
     assert main._security_posture()["authenticated"] is bool(auth.API_TOKEN)
     register(client, Authenticator())
     assert main._security_posture()["authenticated"] is True
+
+
+def test_a_session_passes_the_api_token_gate_and_only_for_that_request(client, monkeypatch):
+    """The token box is gone from the UI: a signed-in browser's session has
+    to satisfy API_TOKEN on mutating routes. A request without the cookie on
+    the same client must not inherit that."""
+    register(client, Authenticator())
+    monkeypatch.setattr(auth, "API_TOKEN", "s3cret")
+
+    assert client.put("/api/service-activity-credentials",
+                      json={"app": "jellyfin", "credentials": {"api_key": "k"}}).status_code == 200
+
+    cookie = client.cookies.get(passkeys.SESSION_COOKIE)
+    client.cookies.clear()
+    assert client.put("/api/service-activity-credentials",
+                      json={"app": "jellyfin", "credentials": {"api_key": "k"}}).status_code == 401
+    client.cookies.set(passkeys.SESSION_COOKIE, cookie)

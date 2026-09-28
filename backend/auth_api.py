@@ -277,6 +277,14 @@ class SessionGate:
         if scope["type"] not in ("http", "websocket"):
             return await self.app(scope, receive, send)
         method = scope.get("method", "GET")
+        if self._session(scope):
+            # Reset after: requests on one keep-alive connection can share a
+            # context, and the next one may carry no cookie at all.
+            marker = auth.session_ok.set(True)
+            try:
+                return await self.app(scope, receive, send)
+            finally:
+                auth.session_ok.reset(marker)
         if (
             (scope["type"] == "http" and method == "OPTIONS")
             or _open_path(method, scope["path"])
@@ -293,6 +301,17 @@ class SessionGate:
             return
         response = JSONResponse({"detail": "sign in required"}, status_code=401)
         await response(scope, receive, send)
+
+    @staticmethod
+    def _session(scope) -> bool:
+        """A valid passkey session cookie. It also satisfies the API_TOKEN
+        gate on mutating routes — see auth.session_ok."""
+        headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope["headers"]}
+        for part in headers.get("cookie", "").split(";"):
+            name, _, value = part.strip().partition("=")
+            if name == passkeys.SESSION_COOKIE:
+                return passkeys.store.check_session(value)
+        return False
 
     @staticmethod
     def _allowed(scope) -> bool:

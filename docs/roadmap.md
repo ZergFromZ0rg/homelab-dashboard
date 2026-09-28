@@ -61,7 +61,8 @@ read-mostly dashboard; it is not fine for a web shell.
       dashboard (2026-09-27). Direct calls without it get 401; the
       read-only container list stays open. New nodes get it through the
       Add-node command (`install.sh --agent-token`).
-- [ ] Later: remove the old `TokenBox` from forms once sessions cover it.
+- [x] Removed the old `TokenBox` from forms: a signed-in session satisfies
+      `API_TOKEN`, the token is for scripts and agents.
 
 ### 1.2 Web terminal — *done*
 - [x] xterm.js dock along the bottom (lazy-loaded, its own chunk);
@@ -140,7 +141,6 @@ directly gets silently undone by the next `docker compose up`.
       gone once done or hidden.
 - [x] `main.py` split into routers (`fleet_api`, `host_tools_api`,
       `personal_api`, shared lookups in `hosts.py`): 830 → 340 lines.
-- [ ] Remove the old `TokenBox` from forms once sessions cover it (1.1).
 
 ## Phase 2 — The AI overseer
 

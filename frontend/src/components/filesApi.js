@@ -1,5 +1,5 @@
 import { DEMO, demoDiskUsage } from "../demoData";
-import { AUTH_REQUIRED_EVENT, authHeaders, jsonOrThrow } from "./apiAuth";
+import { AUTH_REQUIRED_EVENT, jsonOrThrow } from "./apiAuth";
 
 // /api/files/{host}/... — the file browser. Reads work anywhere; changes
 // only inside the host's writable roots (its owner's home and the compose
@@ -22,7 +22,7 @@ async function call(url, init) {
 const post = (host, route, body, method = "POST") =>
   call(`${base(host)}/${route}`, {
     method,
-    headers: { "Content-Type": "application/json", ...authHeaders() },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
 
@@ -87,7 +87,6 @@ export function uploadFile(host, path, file, { overwrite = false, onProgress } =
     const xhr = new XMLHttpRequest();
     const query = new URLSearchParams({ path, overwrite: overwrite ? "true" : "false" });
     xhr.open("POST", `${base(host)}/upload?${query}`);
-    Object.entries(authHeaders()).forEach(([k, v]) => xhr.setRequestHeader(k, v));
     xhr.upload.onprogress = (e) => e.lengthComputable && onProgress?.(e.loaded / e.total);
     xhr.onerror = () => reject(new Error("upload failed — connection lost"));
     xhr.onload = () => {

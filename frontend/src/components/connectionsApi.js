@@ -1,5 +1,5 @@
 import { DEMO, demoConnections } from "../demoData";
-import { authHeaders, jsonOrThrow } from "./apiAuth";
+import { jsonOrThrow } from "./apiAuth";
 
 // GET /api/connections/{host} — deliberately not on the /ws payload, so
 // this is the only way the panel gets its data. `refresh` skips the
@@ -10,6 +10,6 @@ export function fetchConnections(host, { refresh = false } = {}) {
   const query = refresh ? "?refresh=true" : "";
   return fetch(
     `/api/connections/${encodeURIComponent(host)}${query}`,
-    { headers: authHeaders() }
+    {}
   ).then(jsonOrThrow);
 }

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Icon, { IconButton } from "./Icon";
-import TokenBox from "./TokenBox";
 import FileViewer from "./FileViewer";
 import { deleteDiskPath, fetchDiskUsage } from "./diskApi";
 import { downloadUrl, listFolder, makeFolder, renameEntry, uploadFile } from "./filesApi";
@@ -360,7 +359,6 @@ function DiskExplorer({ host, start = "~", onClose }) {
       {notice && (
         <div className={`dx-notice dx-notice--${notice.tone}`}>
           <span>{notice.text}</span>
-          {notice.tone === "bad" && /token/i.test(notice.text) && <TokenBox />}
           <button type="button" className="dx-close" onClick={() => setNotice(null)} aria-label="Dismiss">
             ×
           </button>

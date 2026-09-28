@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import ConnectionsPanel from "./ConnectionsPanel";
 import ServicesTab from "./ServicesTab";
-import TokenBox from "./TokenBox";
 import { IconButton } from "./Icon";
 import { formatBytesPerSec } from "./format";
 import { hostColor } from "./hostColor";
@@ -340,7 +339,6 @@ function HostNetwork({ host, machine, containers }) {
           {error && (
             <div className="net-error">
               <p className="form-error">{error}</p>
-              {/token/i.test(error) && <TokenBox />}
             </div>
           )}
 

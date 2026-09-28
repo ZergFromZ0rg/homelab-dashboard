@@ -1,11 +1,6 @@
-// Shared by the API wrappers that hit token-protected routes. The token, when
-// the backend requires one, is read from sessionStorage (entered in a
-// TokenBox) and sent as X-Register-Token.
-
-export function authHeaders() {
-  const token = sessionStorage.getItem("apiToken");
-  return token ? { "X-Register-Token": token } : {};
-}
+// Requests ride the passkey session cookie. The old API-token box (and
+// the X-Register-Token header it fed) is gone: a signed-in session
+// satisfies API_TOKEN on the server, and the token is for scripts.
 
 // Any 401 fires this; the auth gate listens and swaps in the sign-in screen
 // instead of leaving a page of failing cards.
