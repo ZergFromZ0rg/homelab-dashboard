@@ -28,7 +28,7 @@ from backend import updates_api
 from backend import volume_backup_api
 from backend import volume_backups
 from backend.registry import registry
-from backend import audit_log, fleet_api, host_control_api, host_tools_api, personal_api
+from backend import audit_log, fleet_api, host_control_api, host_tools_api, personal_api, morning, rebalance
 from backend.hosts import MAIN_HOST_OVERRIDE, detect_main_host
 from backend.scheduler_api import deployments, merge_agent_snapshot
 
@@ -218,6 +218,12 @@ def root():
     return {"status": "homelab backend online"}
 
 
+@app.get("/api/morning")
+async def get_morning_summary():
+    update = await shared_update()
+    return update.get("morning_summary")
+
+
 # One payload per tick, shared by every open dashboard. Building it costs
 # ~100 ms of CPU (the Prometheus queries dominate) and it used to be built
 # per connection: three open tabs meant three times the queries and three
@@ -286,6 +292,8 @@ async def _build_update() -> dict:
     dumps = [d.model_dump() for d in deployments.all()]
     stale_nodes = {n["name"] for n in registry.listing() if n["stale"]}
     check_summaries = checks.service.summaries()
+    
+    rebalance_suggestions = rebalance.suggest_moves(machines, containers, deployments.all(), stale_hosts=stale_nodes)
 
     return {
         "type": "dashboard_update",
@@ -300,6 +308,16 @@ async def _build_update() -> dict:
         "alerts": alert_history.recent(),
         "checks": check_summaries,
         "backups": volume_backups.summary(),
+        "morning_summary": morning.synthesize(
+            machines=machines,
+            containers=containers,
+            activity_entries=activity.recent(),
+            alert_entries=alert_history.recent(),
+            deployments=dumps,
+            check_summaries=check_summaries,
+            backups_summary=volume_backups.summary(),
+            rebalance_suggestions=rebalance_suggestions
+        ),
         "overview": _overview(
             machines,
             dumps,

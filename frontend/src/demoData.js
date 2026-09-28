@@ -697,6 +697,32 @@ export function demoSnapshot() {
       { id: "t2", text: "Renew wildcard cert", done: false, created_at: t },
       { id: "t3", text: "Set up offsite backups", done: true, created_at: t },
     ],
+    morning_summary: {
+      timestamp: t,
+      overnight: {
+        since_timestamp: t - 14 * 3600,
+        events_count: 5,
+        highlights: [
+          { kind: "backup_done", text: "Volume backup successful for /data", at: t - 3600, host: "nuc-media", tone: "ok" },
+          { kind: "update_done", text: "Nightly updates applied", at: t - 7200, host: "bigboy", tone: "ok" },
+          { kind: "container_restart", text: "jellyfin restarted", at: t - 4000, host: "nuc-media", tone: "warn" }
+        ]
+      },
+      degrading: [
+        { key: "diskfull:bigboy:/data", title: "/data on bigboy filling up", detail: "Full in ~5 days (89% used)", severity: "warn", host: "bigboy" },
+        { key: "os_updates:bigboy", title: "109 pending OS updates on bigboy", detail: "Updates available (12 security)", severity: "warn", host: "bigboy" }
+      ],
+      needs_action: [
+        {
+          id: "os_upgrade:bigboy", type: "os_upgrade", title: "Install 109 OS updates on bigboy", subtitle: "12 security updates", host: "bigboy", button_label: "Install updates",
+          action: { method: "POST", url: "/api/hosts/bigboy/os-updates/upgrade", confirm: "Install 109 updates on bigboy?" }
+        },
+        {
+          id: "container_updates:bigboy", type: "container_updates", title: "Update 3 containers on bigboy", subtitle: "nginx, redis, jellyfin", host: "bigboy", button_label: "Update all",
+          action: { method: "POST", url: "/api/updates/bigboy", body: { containers: ["nginx", "redis", "jellyfin"] }, confirm: "Update 3 containers on bigboy?" }
+        }
+      ]
+    },
   };
 }
 

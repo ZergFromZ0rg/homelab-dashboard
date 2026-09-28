@@ -22,6 +22,8 @@ import { tabColor } from "./components/tabColors";
 import brandImage from "./assets/brand.webp";
 import { DEMO, demoSnapshot } from "./demoData";
 import { AUTH_REQUIRED_EVENT } from "./components/apiAuth";
+import ModeSelector, { useModeSelector } from "./components/ModeSelector";
+import MorningBriefing from "./components/MorningBriefing";
 
 const EMPTY_OVERVIEW = { ok: true, issues: [], recommendations: [] };
 
@@ -139,6 +141,7 @@ function useDashboardSocket() {
       checks: [],
       mainHost: null,
       overview: EMPTY_OVERVIEW,
+      morning_summary: null,
     }
   );
   const [connected, setConnected] = useState(Boolean(demo));
@@ -195,6 +198,7 @@ function useDashboardSocket() {
           checks: data.checks ?? [],
           mainHost: data.main_host ?? null,
           overview: data.overview ?? EMPTY_OVERVIEW,
+          morning_summary: data.morning_summary ?? null,
         });
       };
 
@@ -262,7 +266,7 @@ function ConnectionStatus({ connected, lastUpdate }) {
 
 // Sticky top bar (brand, sections, connection, settings gear) around the
 // page content. Lives inside SettingsProvider so the title can be a setting.
-function AppShell({ tabs, activeTab, onTab, connected, lastUpdate, onOpenSettings, children }) {
+function AppShell({ tabs, activeTab, onTab, connected, lastUpdate, onOpenSettings, viewMode, onSetMode, children }) {
   const {
     settings: { siteTitle, siteSubtitle },
   } = useSettings();
@@ -270,8 +274,8 @@ function AppShell({ tabs, activeTab, onTab, connected, lastUpdate, onOpenSetting
   // The active tab's color tints the page backdrop, so the section you're
   // in is a color before it's a word.
   return (
-    <div className="app" style={{ "--page-accent": tabColor(activeTab) }}>
-      <header className="topbar">
+    <div className={`app mode-${viewMode}`} style={{ "--page-accent": viewMode === "simple" ? "var(--text)" : tabColor(activeTab) }}>
+      <header className={`topbar ${viewMode === "god" ? "topbar--god" : ""}`}>
         <div className="topbar-inner">
           <div className="brand">
             <span className="brand-mark" aria-hidden="true">
@@ -283,9 +287,11 @@ function AppShell({ tabs, activeTab, onTab, connected, lastUpdate, onOpenSetting
             </div>
           </div>
 
-          <Tabs tabs={tabs} active={activeTab} onChange={onTab} />
+          {viewMode !== "simple" && <Tabs tabs={tabs} active={activeTab} onChange={onTab} />}
+          {viewMode === "simple" && <div className="tabs-spacer" style={{ flex: 1 }}></div>}
 
           <div className="topbar-actions">
+            <ModeSelector mode={viewMode} onSetMode={onSetMode} />
             <ConnectionStatus connected={connected} lastUpdate={lastUpdate} />
             <button
               type="button"
@@ -331,6 +337,7 @@ function App() {
     backups,
     checks,
     overview,
+    morning_summary,
     pins,
     todos,
     mainHost,
@@ -339,6 +346,15 @@ function App() {
     setPins,
     setTodos,
   } = useDashboardSocket();
+
+  const { getMode, setMode } = useModeSelector();
+  const [viewMode, setViewMode] = useState(getMode);
+
+  useEffect(() => {
+    const handleModeChange = () => setViewMode(getMode());
+    window.addEventListener("homelab:mode-changed", handleModeChange);
+    return () => window.removeEventListener("homelab:mode-changed", handleModeChange);
+  }, [getMode]);
 
   const [activeTab, setActiveTab] = useState("overview");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -403,8 +419,10 @@ function App() {
       } catch {
         // no storage: the tab still opens, just unfiltered
       }
-      setContainersKey((k) => k + 1);
+      setContainersKey((k) => k + k);
     }
+    // If navigating to a detailed tab, automatically switch out of simple mode
+    if (viewMode === "simple") setMode("advanced");
     setActiveTab(target);
   };
   const openSettingsFor = useCallback((host, container) => setSettingsFor({ host, container }), []);
@@ -418,24 +436,47 @@ function App() {
         connected={connected}
         lastUpdate={lastUpdate}
         onOpenSettings={() => setSettingsOpen(true)}
+        viewMode={viewMode}
+        onSetMode={setMode}
       >
         <UpdatesProvider>
-        <TerminalDock machines={machines}>
-        {activeTab === "overview" && (
-          <Overview
-            overview={overview}
-            backups={backups}
-            machines={machines}
-            containers={containers}
-            checks={checks}
-            deployments={deployments}
-            activity={activity}
-            alerts={alerts}
-            pins={pins}
-            onControl={control}
-            onNavigate={navigate}
-          />
+        <TerminalDock machines={machines} enabled={viewMode === "god"}>
+        {viewMode === "simple" && (
+          <div className="simple-mode-content">
+            <MorningBriefing summary={morning_summary} onNavigate={navigate} />
+            <Overview
+              overview={overview}
+              backups={backups}
+              machines={machines}
+              containers={containers}
+              checks={checks}
+              deployments={deployments}
+              activity={activity}
+              alerts={alerts}
+              pins={pins}
+              onControl={control}
+              onNavigate={navigate}
+            />
+          </div>
         )}
+
+        {viewMode !== "simple" && (
+          <>
+            {activeTab === "overview" && (
+              <Overview
+                overview={overview}
+                backups={backups}
+                machines={machines}
+                containers={containers}
+                checks={checks}
+                deployments={deployments}
+                activity={activity}
+                alerts={alerts}
+                pins={pins}
+                onControl={control}
+                onNavigate={navigate}
+              />
+            )}
 
         {activeTab === "servers" && (
           <ServersTab
@@ -484,6 +525,8 @@ function App() {
             openTodos={openTodos}
             checks={checks}
           />
+        )}
+          </>
         )}
 
         <CommandPalette
