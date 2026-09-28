@@ -8385,7 +8385,7 @@ a.check-target:hover {
 /* Mode Selector */
 .mode-selector {
   display: flex;
-  background: var(--surface);
+  background: var(--bg-card);
   border-radius: 6px;
   border: 1px solid var(--border);
   padding: 2px;
@@ -8412,10 +8412,10 @@ a.check-target:hover {
 }
 .mode-btn.active {
   background: var(--page-accent, var(--text));
-  color: var(--surface);
+  color: var(--bg-card);
 }
 .mode-btn--god.active {
-  background: var(--bad);
+  background: var(--offline);
   color: white;
   animation: god-glow 2s infinite alternate;
 }
@@ -8426,7 +8426,7 @@ a.check-target:hover {
 
 /* Morning Briefing */
 .morning-briefing {
-  background: var(--surface);
+  background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 1.5rem;
@@ -8480,7 +8480,7 @@ a.check-target:hover {
   padding-top: 0.25rem;
 }
 .mb-card {
-  background: var(--app-bg);
+  background: var(--bg-subtle);
   border-left: 3px solid var(--border);
   padding: 0.5rem 0.75rem;
   border-radius: 4px;
@@ -8488,8 +8488,8 @@ a.check-target:hover {
   display: flex;
   flex-direction: column;
 }
-.mb-card--bad { border-left-color: var(--bad); }
-.mb-card--warn { border-left-color: var(--warn); }
+.mb-card--bad { border-left-color: var(--offline); }
+.mb-card--warn { border-left-color: var(--warning); }
 .mb-card--info { border-left-color: var(--accent); }
 .mb-detail {
   color: var(--text-muted);
@@ -8501,7 +8501,7 @@ a.check-target:hover {
   margin-top: 0.5rem;
 }
 .mb-action-card {
-  background: var(--app-bg);
+  background: var(--bg-subtle);
   border: 1px solid var(--border);
   padding: 0.75rem;
   border-radius: 6px;
@@ -8521,3 +8521,27 @@ a.check-target:hover {
   font-size: 0.85rem;
   color: var(--text-muted);
 }
+/* A clicked action's button, replaced by what became of it. */
+.mb-run {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  color: var(--text-muted);
+  cursor: default;
+}
+.mb-run--ok .mb-run-label { color: var(--online); }
+.mb-run--bad .mb-run-label { color: var(--offline); }
+.mb-run-pulse { animation: pulse 1.4s ease-in-out infinite; }
+.mb-run-dismiss {
+  background: none;
+  border: 0;
+  padding: 0 0.15rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+.mb-run-dismiss:hover { color: var(--text); }

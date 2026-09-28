@@ -1,7 +1,4 @@
-import { useState } from "react";
-import { jsonOrThrow } from "./apiAuth";
-import { confirmedFetch } from "./confirmedFetch";
-import { DEMO } from "../demoData";
+import { useActionRuns } from "./actionRuns";
 
 function _ago(seconds) {
   if (seconds < 60) return `${Math.floor(seconds)}s`;
@@ -47,58 +44,83 @@ function DegradingList({ degrading, onNavigate }) {
   );
 }
 
-function ActionQueue({ actions }) {
-  const [working, setWorking] = useState({});
-  const [errors, setErrors] = useState({});
+const RUNNING_LABEL = {
+  os_upgrade: "Installing",
+  container_updates: "Updating",
+  reboot: "Rebooting",
+  rebalance: "Moving",
+};
 
-  if (!actions || actions.length === 0) {
+function clock(ms) {
+  return new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+// Stands in for the button once it's clicked: what's happening now, or how
+// it ended and when. Details (apt output, per-project results) in the tooltip.
+function RunStatus({ run, onDismiss }) {
+  const busy = run.state === "running" || run.state === "starting";
+  const tone = busy ? "warn" : run.state === "done" ? "ok" : "bad";
+  const label = busy
+    ? `${run.state === "starting" ? "Starting" : RUNNING_LABEL[run.type] || "Running"}… ${_ago((Date.now() - run.startedAt) / 1000)}`
+    : `${run.note} · ${clock(run.endedAt)}`;
+  const title = [`Started ${clock(run.startedAt)}`, run.detail].filter(Boolean).join("\n");
+  return (
+    <span className={`mb-run mb-run--${tone}`} title={title} role="status">
+      <span className={`status-dot status-dot--${tone}${busy ? " mb-run-pulse" : ""}`} />
+      <span className="mb-run-label">{label}</span>
+      {!busy && (
+        <button type="button" className="mb-run-dismiss" aria-label="Dismiss" onClick={onDismiss}>
+          ×
+        </button>
+      )}
+    </span>
+  );
+}
+
+function ActionQueue({ actions, machines }) {
+  const { runs, start, dismiss } = useActionRuns(machines);
+
+  // Items you've acted on stay listed (with their status) after the next
+  // tick drops them from "needs a yes".
+  const listed = actions || [];
+  const shown = new Set(listed.map((a) => a.id));
+  const acted = Object.values(runs)
+    .filter((r) => !shown.has(r.id))
+    .sort((a, b) => b.startedAt - a.startedAt)
+    .map((r) => ({ id: r.id, title: r.title }));
+  const items = [...listed, ...acted];
+
+  if (items.length === 0) {
     return <p className="mb-empty">You're all caught up! No approvals needed.</p>;
   }
 
-  const runAction = async (actionItem) => {
-    const act = actionItem.action;
-    if (act.confirm && !window.confirm(act.confirm)) return;
-    
-    setWorking(prev => ({ ...prev, [actionItem.id]: true }));
-    setErrors(prev => ({ ...prev, [actionItem.id]: null }));
-    try {
-      if (DEMO) throw new Error("Demo mode — changes aren't saved.");
-      // The next /ws tick drops the item once it's done.
-      await confirmedFetch(act.url, {
-        method: act.method || "POST",
-        headers: act.body ? { "Content-Type": "application/json" } : undefined,
-        body: act.body ? JSON.stringify(act.body) : undefined,
-      }).then(jsonOrThrow);
-    } catch (e) {
-      setErrors(prev => ({ ...prev, [actionItem.id]: e.message }));
-    } finally {
-      setWorking(prev => ({ ...prev, [actionItem.id]: false }));
-    }
+  const run = (item) => {
+    if (item.action.confirm && !window.confirm(item.action.confirm)) return;
+    start(item);
   };
 
   return (
     <ul className="mb-list mb-list--actions">
-      {actions.map(act => (
-        <li key={act.id} className="mb-action-card">
+      {items.map((item) => (
+        <li key={item.id} className="mb-action-card">
           <div className="mb-action-info">
-            <strong>{act.title}</strong>
-            <span>{act.subtitle}</span>
-            {errors[act.id] && <span className="form-error">{errors[act.id]}</span>}
+            <strong>{item.title}</strong>
+            {item.subtitle && <span>{item.subtitle}</span>}
           </div>
-          <button 
-            className="btn btn--primary" 
-            disabled={working[act.id]}
-            onClick={() => runAction(act)}
-          >
-            {working[act.id] ? "Running..." : act.button_label}
-          </button>
+          {runs[item.id] ? (
+            <RunStatus run={runs[item.id]} onDismiss={() => dismiss(item.id)} />
+          ) : (
+            <button className="btn btn--primary" onClick={() => run(item)}>
+              {item.button_label}
+            </button>
+          )}
         </li>
       ))}
     </ul>
   );
 }
 
-function MorningBriefing({ summary, onNavigate }) {
+function MorningBriefing({ summary, machines, onNavigate }) {
   if (!summary) return null;
 
   return (
@@ -119,7 +141,7 @@ function MorningBriefing({ summary, onNavigate }) {
 
         <section className="mb-column">
           <h3>What needs a yes</h3>
-          <ActionQueue actions={summary.needs_action} />
+          <ActionQueue actions={summary.needs_action} machines={machines} />
         </section>
       </div>
     </div>

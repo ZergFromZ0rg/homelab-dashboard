@@ -443,7 +443,7 @@ function App() {
         <TerminalDock machines={machines} shells={viewMode === "god"}>
         {viewMode === "simple" && (
           <div className="simple-mode-content">
-            <MorningBriefing summary={morning_summary} onNavigate={navigate} />
+            <MorningBriefing summary={morning_summary} machines={machines} onNavigate={navigate} />
             <Overview
               overview={overview}
               backups={backups}
