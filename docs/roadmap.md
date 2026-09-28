@@ -199,7 +199,9 @@ Not enough for overnight coding. Decide:
 - [ ] Job queue (persisted in `/data`), schedule windows, per-job budgets.
 - [ ] Jobs: ingest documents, check updates, investigate restarts,
       summarize the day's alerts, verify backups.
-- [ ] Morning report card on Overview: what happened, what needs a yes.
+- [x] Morning report card on Overview: what happened, what needs a yes.
+      Deterministic for now (Simple mode's Morning briefing); the AI adds
+      its jobs' findings once 2.1 exists.
 - [ ] Push notifications (webhook exists; add ntfy/phone push).
 
 ### 2.4 Proactive insight

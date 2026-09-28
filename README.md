@@ -55,6 +55,23 @@ title/subtitle (both editable in Settings → Appearance). The layout reflows
 down to phone width (the tab bar scrolls sideways there); below ~1040px
 each container becomes a small stacked card.
 
+**View modes** (top bar, ⌥1 / ⌥2 / ⌥3, remembered per browser):
+
+- **Simple** (default) — no tabs: the **Morning briefing** above
+  Overview. Three columns: what happened in the last 14 hours (updates,
+  restarts, unhealthy containers, hosts and agents going down or coming
+  back), what's degrading (failed services, disks filling within a week,
+  pending OS updates, a container stuck restarting, backups needing
+  attention), and what needs a yes — install OS updates, reboot, update
+  containers, accept a rebalance move — each one button with a confirm.
+  Built from the same data as the rest of the page (`backend/morning.py`,
+  on the `/ws` tick and at `/api/morning`), no LLM. Opening any section
+  switches to Advanced.
+- **Advanced** — every section, as below.
+- **God** — Advanced plus shells. Host and container shells (buttons and
+  ⌘K) only exist in this mode; logs open in any mode, and a shell already
+  open survives switching away.
+
 **Overview** (default) is the one-glance page:
 
 - a four-across summary row (health / hosts online / containers running /
