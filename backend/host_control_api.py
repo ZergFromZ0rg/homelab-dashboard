@@ -40,6 +40,15 @@ def service_logs(host: str, unit: str, lines: int = 200):
     return _call("GET", f"{_agent(host)}/host/services/{unit}/logs", params={"lines": lines}, timeout=60)
 
 
+@router.get("/journal")
+def journal(host: str, since: str = "1h", priority: str = "warning", lines: int = 500, grep: str | None = None):
+    """The machine's system journal, filtered — every service and the kernel."""
+    params = {"since": since, "priority": priority, "lines": lines}
+    if grep:
+        params["grep"] = grep
+    return _call("GET", f"{_agent(host)}/host/journal", params=params, timeout=60)
+
+
 @router.get("/os-updates")
 def os_updates(host: str):
     return _call("GET", f"{_agent(host)}/host/os-updates", timeout=660)

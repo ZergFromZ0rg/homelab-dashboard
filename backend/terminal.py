@@ -219,6 +219,9 @@ async def logs_socket(websocket: WebSocket, host: str):
     query = {"tail": _size(websocket.query_params.get("tail"), 500)}
     if websocket.query_params.get("timestamps") in ("1", "true"):
         query["timestamps"] = "1"
+    since = websocket.query_params.get("since", "")
+    if since.isdigit():
+        query["since"] = since
     try:
         agent = await connect(
             agent_socket_url(node["url"], query, f"/containers/{quote(container, safe='')}/logs"),

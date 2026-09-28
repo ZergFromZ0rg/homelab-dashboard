@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
+import { SearchAddon } from "@xterm/addon-search";
 import "@xterm/xterm/css/xterm.css";
 import { AUTH_REQUIRED_EVENT } from "./apiAuth";
 import { ensureConfirmed } from "./confirmedFetch";
@@ -27,6 +28,8 @@ function socketUrl(session, term) {
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   if (session.target === "logs") {
     const query = new URLSearchParams({ container: session.container, tail: "1000" });
+    if (session.since) query.set("since", String(session.since));
+    if (session.timestamps) query.set("timestamps", "1");
     return `${protocol}//${window.location.host}/ws/logs/${encodeURIComponent(session.host)}?${query}`;
   }
   const query = new URLSearchParams({
@@ -41,14 +44,16 @@ function socketUrl(session, term) {
   )}?${query}`;
 }
 
-function TerminalView({ session, visible, onStatus }) {
+function TerminalView({ session, visible, onStatus, onReady, onFind }) {
   const holder = useRef(null);
   const fitRef = useRef(null);
   const statusRef = useRef(onStatus);
+  const hooks = useRef({ onReady, onFind });
 
   useEffect(() => {
     statusRef.current = onStatus;
-  }, [onStatus]);
+    hooks.current = { onReady, onFind };
+  }, [onStatus, onReady, onFind]);
 
   useEffect(() => {
     const styles = getComputedStyle(document.documentElement);
@@ -66,6 +71,18 @@ function TerminalView({ session, visible, onStatus }) {
     const fit = new FitAddon();
     fitRef.current = fit;
     term.loadAddon(fit);
+    const search = new SearchAddon();
+    term.loadAddon(search);
+    const highlight = {
+      matchBackground: "#7c5a0b",
+      activeMatchBackground: "#f59e0b",
+      matchOverviewRuler: "#f59e0b",
+      activeMatchColorOverviewRuler: "#f59e0b",
+    };
+    hooks.current.onReady?.({
+      find: (text, back = false) =>
+        text ? (back ? search.findPrevious(text, { decorations: highlight }) : search.findNext(text, { decorations: highlight })) : search.clearDecorations(),
+    });
     term.open(holder.current);
     fit.fit();
 
@@ -166,6 +183,11 @@ function TerminalView({ session, visible, onStatus }) {
     // (Cmd+C / Cmd+V on a Mac and Ctrl+Shift+V everywhere already work: they
     // arrive as the browser's own copy and paste events.)
     term.attachCustomKeyEventHandler((event) => {
+      if (event.type === "keydown" && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "f" && session.target === "logs") {
+        event.preventDefault();
+        hooks.current.onFind?.();
+        return false;
+      }
       // A logs tab takes no input, so onData never sees its Enter.
       if (session.target === "logs" && state === "ended" && event.type === "keydown" && event.key === "Enter") {
         connect();

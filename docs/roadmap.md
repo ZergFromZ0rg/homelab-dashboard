@@ -152,10 +152,16 @@ forgot who did what within hours, and never told you anything.
       passkey changes. Settings → Notifications, scan the QR code.
 - [x] Container logs: the lines icon on a row (or ⌘K "Logs of …") opens
       them live in the dock; the tab downloads the whole log.
-- [x] Face ID / Touch ID again before root-level actions (host shell,
-      compose apply, delete, rebuild, agent settings, services, OS
-      upgrade, power, passkey removal) — good for 10 minutes. Sessions 7
-      days instead of 30.
+- [x] Face ID / Touch ID again before root-level actions — built, then
+      turned **off by default** on request (`PASSKEY_STEP_UP=1` brings it
+      back). Sessions 7 days instead of 30.
+- [x] History (Settings → History): Actions (who did what — changes,
+      sensitive reads, sign-ins, nightly updates, auto-rebalance) kept a
+      year; Events (the fleet's own changes) kept 30 days; both adjustable.
+- [x] Logs, more of them: a container log tab has a time range (hour /
+      day / week / all), timestamps and find (⌘F); each server's System
+      panel has the machine's journal — every service and the kernel —
+      filtered by severity, time and search.
 - [x] Host control, per server card → System: systemd services (failed
       first; journal, start/stop/restart), OS updates via apt, reboot and
       power off. Upgrades and power run as systemd units on the host, so a

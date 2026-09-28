@@ -189,3 +189,11 @@ def test_logs_relay_one_way(client, agent, monkeypatch):
         assert ws.receive_bytes() == b"welcome\r\n"
     path = agent.requests[-1][0]
     assert path.startswith("/containers/web%2F1/logs?") and "tail=50" in path
+
+
+def test_logs_relay_passes_a_time_range(client, agent, monkeypatch):
+    headers = signed_in(monkeypatch)
+    with client.websocket_connect("/ws/logs/box?container=web&since=3600&timestamps=1", headers=headers) as ws:
+        ws.receive_bytes()
+    path = agent.requests[-1][0]
+    assert "since=3600" in path and "timestamps=1" in path

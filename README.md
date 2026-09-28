@@ -903,7 +903,7 @@ issues detected" is a signal worth keeping honest. This is a posture, not
 an incident.
 
 
-**Confirming before root-level actions.** A session can read everything and
+**Confirming before root-level actions** (off by default — set `PASSKEY_STEP_UP=1`). A session can read everything and
 do everyday things (restart a container, edit a file in a stack folder,
 update an image). The actions that are root on a machine — a host shell,
 applying a compose file, deleting, rebuilding, agent settings, systemd
@@ -912,11 +912,16 @@ passkey confirmation from the last 10 minutes; the browser asks for Face
 ID / Touch ID and carries on. Scripts on `API_TOKEN` skip it. Sessions
 last 7 days, extended on use.
 
-**Audit log** (`/data/audit.jsonl`, rotated, months of history): every
+**Audit log** (`/data/audit.jsonl`, archived by size, kept a year by default — Settings → History): every
 request that changes something, including refused ones, with who (the
 passkey's name, "API token" or "anonymous"), the IP, what it named (a
 path, a container, a host — never contents or credentials) and the
-result. Settings → Audit log, or `GET /api/audit?q=&before=`.
+result, plus the reads that expose something (opening or downloading a
+file, downloading a log, reading a journal, watching a log stream) and what
+nobody clicked (nightly updates, auto-rebalance moves, job outcomes).
+Settings → History → Actions, or `GET /api/audit?q=&before=`. The fleet's
+own events (containers starting and stopping, hosts going away) are kept
+30 days by default — History → Events, `GET /api/activity`.
 
 **Notifications** (Settings → Notifications): alerts and passkey changes to
 your phone through [ntfy](https://ntfy.sh) — no account; turning it on

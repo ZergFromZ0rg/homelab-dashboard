@@ -1,4 +1,12 @@
 import { lazy, Suspense, useCallback, useMemo, useRef, useState } from "react";
+
+const RANGES = [
+  ["", "last 1,000 lines"],
+  ["3600", "last hour"],
+  ["86400", "last 24 hours"],
+  ["604800", "last 7 days"],
+  ["315360000", "everything"],
+];
 import { TerminalContext } from "./terminalContext";
 import { useLocalStorage } from "./useLocalStorage";
 import { hostColor } from "./hostColor";
@@ -19,6 +27,10 @@ function TerminalDock({ machines, children }) {
   const [status, setStatus] = useState({});
   const [height, setHeight] = useLocalStorage("terminalHeight", 340);
   const nextId = useRef(1);
+  // Per log tab: its search hook (from TerminalView) and the query.
+  const searchers = useRef({});
+  const findBox = useRef(null);
+  const [findText, setFindText] = useState("");
 
   const open = useCallback((spec) => {
     const id = nextId.current++;
@@ -26,6 +38,9 @@ function TerminalDock({ machines, children }) {
     setActiveId(id);
     setFolded(false);
   }, []);
+
+  const reconfigure = (id, changes) =>
+    setSessions((current) => current.map((s) => (s.id === id ? { ...s, ...changes } : s)));
 
   const close = (id) => {
     const next = sessions.filter((s) => s.id !== id);
@@ -129,6 +144,38 @@ function TerminalDock({ machines, children }) {
                 <Icon name="chevron" size={15} />
               </button>
             </div>
+            {!folded && sessions.find((s) => s.id === activeId)?.target === "logs" && (() => {
+              const s = sessions.find((x) => x.id === activeId);
+              const find = (back) => searchers.current[s.id]?.find(findText, back);
+              return (
+                <div className="term-logbar">
+                  <select value={s.since || ""} onChange={(e) => reconfigure(s.id, { since: e.target.value })} aria-label="How far back">
+                    {RANGES.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+                  </select>
+                  <label title="Docker's timestamp on every line">
+                    <input type="checkbox" checked={Boolean(s.timestamps)} onChange={(e) => reconfigure(s.id, { timestamps: e.target.checked })} />
+                    timestamps
+                  </label>
+                  <input
+                    ref={findBox}
+                    className="term-find"
+                    type="search"
+                    placeholder="Find in log (⌘F) — Enter next, ⇧Enter previous"
+                    value={findText}
+                    onChange={(e) => {
+                      setFindText(e.target.value);
+                      searchers.current[s.id]?.find(e.target.value);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        find(e.shiftKey);
+                      }
+                    }}
+                  />
+                </div>
+              );
+            })()}
             <div className="term-body" hidden={folded}>
               <Suspense fallback={<div className="term-loading">Loading terminal…</div>}>
                 {sessions.map((s) => (
@@ -136,6 +183,10 @@ function TerminalDock({ machines, children }) {
                     key={s.id}
                     session={s}
                     visible={!folded && s.id === activeId}
+                    onReady={(api) => {
+                      searchers.current[s.id] = api;
+                    }}
+                    onFind={() => findBox.current?.focus()}
                     onStatus={(state) =>
                       setStatus((current) =>
                         current[s.id] === state ? current : { ...current, [s.id]: state }

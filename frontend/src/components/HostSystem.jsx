@@ -110,6 +110,77 @@ function Services({ host }) {
   );
 }
 
+// The whole machine's journal — every service and the kernel — the place
+// to look when something is wrong and it isn't one container.
+function Journal({ host }) {
+  const [priority, setPriority] = useState("warning");
+  const [since, setSince] = useState("24h");
+  const [grep, setGrep] = useState("");
+  const [text, setText] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(
+    (query) => {
+      const params = new URLSearchParams({ priority, since, lines: "1000" });
+      if (query) params.set("grep", query);
+      Promise.resolve()
+        .then(() => {
+          setBusy(true);
+          return get(`${base(host)}/journal?${params}`);
+        })
+        .then((b) => setText(b.log.trim() || "Nothing matches."))
+        .catch((e) => setText(e.message))
+        .finally(() => setBusy(false));
+    },
+    [host, priority, since]
+  );
+
+  useEffect(() => {
+    load(grep);
+    // Reload when the filters change; the search waits for Enter.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [load]);
+
+  const lines = text ? text.split("\n") : [];
+  return (
+    <div className="hsys-block">
+      <div className="hsys-head">
+        <h4>Journal</h4>
+        <select value={priority} onChange={(e) => setPriority(e.target.value)} aria-label="How serious">
+          <option value="err">errors</option>
+          <option value="warning">warnings and errors</option>
+          <option value="info">everything</option>
+        </select>
+        <select value={since} onChange={(e) => setSince(e.target.value)} aria-label="How far back">
+          <option value="15m">last 15 min</option>
+          <option value="1h">last hour</option>
+          <option value="24h">last 24 hours</option>
+          <option value="7d">last 7 days</option>
+        </select>
+        <input
+          className="deploy-input hsys-search"
+          type="search"
+          placeholder="Search — Enter"
+          value={grep}
+          onChange={(e) => setGrep(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && load(grep)}
+        />
+        <span className="settings-hint">{busy ? "Reading…" : text != null ? `${lines.length} lines` : ""}</span>
+      </div>
+      {text != null && (
+        <pre className="hsys-journal hsys-journal--tall">
+          {lines.map((line, i) => (
+            <span key={i} className={/\b(error|fail|failed|critical|panic)\b/i.test(line) ? "hsys-line-bad" : /\bwarn/i.test(line) ? "hsys-line-warn" : undefined}>
+              {line}
+              {"\n"}
+            </span>
+          ))}
+        </pre>
+      )}
+    </div>
+  );
+}
+
 function OsUpdates({ host, facts }) {
   const [list, setList] = useState(null);
   const [checking, setChecking] = useState(false);
@@ -243,6 +314,7 @@ function HostSystem({ host, machine }) {
       {open && (
         <div className="hsys">
           <Services host={host} />
+          <Journal host={host} />
           <OsUpdates host={host} facts={facts} />
           <Power host={host} />
         </div>
