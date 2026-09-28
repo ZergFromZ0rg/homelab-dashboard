@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { formatTime } from "./format"; // Assume formatTime or similar exists, we can use a small local helper
 
 function _ago(seconds) {
   if (seconds < 60) return `${Math.floor(seconds)}s`;
