@@ -33,6 +33,7 @@ from webauthn.helpers.structs import (
 )
 
 from backend import auth
+from backend import notify
 from backend import passkeys
 from backend.log import system as system_log
 
@@ -159,6 +160,7 @@ async def register_verify(request: Request):
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
     system_log.info("passkey added: %s (%s)", entry["name"], rp_id)
+    notify.security("Passkey added", f"“{entry['name']}” can now sign in to the dashboard. If that wasn't you, remove it in Settings → Passkeys.")
 
     response = JSONResponse({"passkey": entry, "enabled": True})
     # The first passkey switches login on — sign this browser in with it,
@@ -276,6 +278,7 @@ def delete_passkey(credential_id: str, request: Request):
     if not passkeys.store.remove(credential_id):
         raise HTTPException(status_code=404, detail="no such passkey")
     system_log.info("passkey removed: %s", credential_id[:12])
+    notify.security("Passkey removed", "A passkey was removed from the dashboard.")
     return {"passkeys": passkeys.store.passkeys(), "enabled": passkeys.store.enabled()}
 
 

@@ -5,10 +5,10 @@ to-dos into every /ws tick."""
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
-from backend import activity, alert_history, audit_log, auth, personal
+from backend import activity, alert_history, audit_log, auth, notify, personal
 from backend.notes import Conflict, NoteStore
 from backend.pins import PinStore
 from backend.service_activity_credentials import ServiceActivityCredentialStore
@@ -199,3 +199,32 @@ def list_audit(limit: int = Query(200, ge=1, le=1000), before: float | None = No
     """Who did what, newest first — see audit_log.py. ``before`` pages back;
     ``q`` filters on any text in an entry."""
     return {"entries": audit_log.read(limit, before, q)}
+
+
+@router.get("/api/notify")
+def notify_settings():
+    """Phone notifications (ntfy): server, topic, how serious an alert must
+    be. The topic is shown so a phone can subscribe to it."""
+    return notify.settings()
+
+
+@router.put("/api/notify")
+def set_notify(payload: dict, request: Request, x_register_token: str | None = Header(default=None)):
+    auth.check_token(x_register_token)
+    origin = request.headers.get("origin")
+    try:
+        return notify.update(payload, dashboard_url=origin)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+
+
+@router.post("/api/notify/test")
+def test_notify(x_register_token: str | None = Header(default=None)):
+    auth.check_token(x_register_token)
+    if not notify.settings()["topic"]:
+        raise HTTPException(status_code=400, detail="turn notifications on first")
+    ok = notify.send("Homelab test", "Notifications from your dashboard reach this phone.",
+                     priority=3, tags=["tada"], force=True)
+    if not ok:
+        raise HTTPException(status_code=502, detail="the ntfy server didn't accept it — check the address")
+    return {"sent": True}

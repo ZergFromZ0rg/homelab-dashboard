@@ -11,6 +11,8 @@ registry and the fleet snapshot helper.
 from __future__ import annotations
 
 import asyncio
+
+from backend import notify
 import time
 
 import requests
@@ -734,6 +736,7 @@ async def _alert_loop() -> None:
                 alert_history.record(event)
                 if alerts.enabled():
                     await asyncio.to_thread(alerts.post, event)
+                await asyncio.to_thread(notify.alert, event)
 
             if cycles >= alerts.BREACH_CYCLES:
                 alert_history.sweep(alert_monitor.firing_keys())
