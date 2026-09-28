@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DEMO, demoHostRecovery } from "../demoData";
 import { jsonOrThrow } from "./apiAuth";
 import {
@@ -54,8 +54,8 @@ function ConfigBackup({ status }) {
   );
 }
 
-function HostRecovery({ host }) {
-  const [open, setOpen] = useState(false);
+function HostRecovery({ host, defaultOpen = false }) {
+  const [open, setOpen] = useState(defaultOpen);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -100,6 +100,14 @@ function HostRecovery({ host }) {
     if (!open && data === null && !busy) load();
     setOpen(!open);
   }
+
+  // Opened from the start (System tab): fetch once on mount.
+  useEffect(() => {
+    if (!defaultOpen) return undefined;
+    const timer = setTimeout(load, 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [host]);
 
   const gaps = data?.unprotected_count ?? 0;
 

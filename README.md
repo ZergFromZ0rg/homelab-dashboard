@@ -72,10 +72,22 @@ modes is fewer tabs:
   tick and at `/api/morning`), no LLM. Opening any section switches to
   Advanced.
 - **Advanced** — three tabs: **Overview** (servers included), **Containers**,
-  **Backups**.
-- **God** — Advanced plus **Network** and shells. Host and container
-  shells (buttons and ⌘K) only exist in this mode; logs open in any mode,
-  and a shell already open survives switching away.
+  **Backups**. Each server card still has System / Settings / If this host
+  died folded under it.
+- **God** — Advanced plus control of the machines themselves:
+  - **Network** — interfaces, Docker networks, published ports,
+    connections, service checks;
+  - **System** — one server at a time with everything open: hardware
+    (OS, kernel, CPU, cores, RAM, GPUs, uptime, agent commit), disks with
+    fill forecasts, systemd services, the journal, OS updates, reboot /
+    power off, the agent's settings and "if this host died";
+  - **Terminal** — a launcher per server (root shell on the machine, a
+    shell or the logs of any running container) over the terminal dock
+    stretched to the page. Sessions are the dock's, so they keep running
+    across tabs.
+
+  Host and container shells (buttons and ⌘K) only exist in this mode;
+  logs open in any mode, and a shell already open survives switching away.
 
 There is no Deploy tab: placement, stacks and moves live on in the API
 (below) for the AI overseer to drive. Rebalance suggestions still reach

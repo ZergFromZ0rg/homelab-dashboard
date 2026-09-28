@@ -1,5 +1,6 @@
 import DiskExplorer from "./DiskExplorer";
 import HostRecovery from "./HostRecovery";
+import { formatUptime, gpuDevices } from "./machineInfo";
 import HostSettings from "./HostSettings";
 import HostSystem from "./HostSystem";
 import Sparkline from "./Sparkline";
@@ -31,20 +32,6 @@ function diskTone(usedPercent) {
   return "ok";
 }
 
-// "6m" / "3h 20m" / "7d 22h". A host that rebooted an hour ago used to
-// read "0d 1h", which buried the one thing worth noticing about it.
-function formatUptime(seconds) {
-  if (seconds == null) return "—";
-
-  const days = Math.floor(seconds / 86400);
-  const hours = Math.floor((seconds % 86400) / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-
-  if (days > 0) return `${days}d ${hours}h`;
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  return `${minutes}m`;
-}
-
 // Under an hour means it rebooted while you weren't looking.
 const RECENT_BOOT_SECONDS = 3600;
 
@@ -53,15 +40,6 @@ const RECENT_BOOT_SECONDS = 3600;
 // wrap mid-name.
 function pciMatch(name) {
   return (name || "").match(/^(.*?)[\s(]*([0-9a-f]{4}:[0-9a-f]{4})\)?$/i);
-}
-
-// A host reports GPUs as {available, count, devices: [...]}; a couple of
-// call sites in older data (or tests) pass the single-device shape
-// directly as `machine.gpu` — normalize both to an array.
-function gpuDevices(machine) {
-  if (machine.gpu?.available === false) return [];
-  if (machine.gpu?.devices?.length) return machine.gpu.devices;
-  return machine.gpu ? [machine.gpu] : [];
 }
 
 function GpuDevice({ gpu, index, total, stale, history, windowMinutes }) {

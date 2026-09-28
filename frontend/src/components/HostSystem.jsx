@@ -298,6 +298,18 @@ function Power({ host }) {
   );
 }
 
+// The blocks on their own — the God-mode System tab shows them open.
+export function HostSystemPanels({ host, machine }) {
+  return (
+    <div className="hsys">
+      <Services host={host} />
+      <Journal host={host} />
+      <OsUpdates host={host} facts={machine.host_facts} />
+      <Power host={host} />
+    </div>
+  );
+}
+
 function HostSystem({ host, machine }) {
   const [open, setOpen] = useState(false);
   if (!machine.terminal) return null;
@@ -311,14 +323,7 @@ function HostSystem({ host, machine }) {
         SYSTEM
         {failed > 0 && <span className="conn-count conn-count--bad">{failed} failed</span>}
       </button>
-      {open && (
-        <div className="hsys">
-          <Services host={host} />
-          <Journal host={host} />
-          <OsUpdates host={host} facts={facts} />
-          <Power host={host} />
-        </div>
-      )}
+      {open && <HostSystemPanels host={host} machine={machine} />}
     </section>
   );
 }

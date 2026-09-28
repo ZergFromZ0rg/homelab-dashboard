@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { fetchHostConfig, saveHostConfig } from "./hostConfigApi";
 
 // One host's agent settings, on that host's card.
@@ -55,8 +55,8 @@ function Field({ setting, value, onChange, disabled }) {
   );
 }
 
-function HostSettings({ host }) {
-  const [open, setOpen] = useState(false);
+function HostSettings({ host, defaultOpen = false }) {
+  const [open, setOpen] = useState(defaultOpen);
   const [data, setData] = useState(null);
   const [edits, setEdits] = useState({});
   const [error, setError] = useState(null);
@@ -83,6 +83,14 @@ function HostSettings({ host }) {
     if (!open && data === null && !busy) load();
     setOpen(!open);
   }
+
+  // Opened from the start (System tab): fetch once on mount.
+  useEffect(() => {
+    if (!defaultOpen) return undefined;
+    const timer = setTimeout(load, 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [host]);
 
   const settings = data?.settings || [];
   const groups = [...new Set(settings.map((s) => s.group))];

@@ -156,6 +156,9 @@ function machine(o) {
     ],
     agent_reachable: true,
     agent_stale_age: null,
+    // Host control on, so God mode's shells and System tab show up.
+    terminal: true,
+    host_facts: o.hostFacts ?? { package_manager: "apt", os_updates: 12, security_updates: 3, reboot_required: false, failed_units: [] },
     gpu: o.gpu ?? { available: false, count: 0, devices: [] },
     backup: o.backup ?? { state: "not_configured" },
     agent_version: o.agentVersion ?? {

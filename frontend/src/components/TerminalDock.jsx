@@ -22,8 +22,10 @@ const MIN_HEIGHT = 160;
 // folds it down to just the tab strip.
 //
 // `shells` gates new shells (God mode only); logs open in any mode, and a
-// shell already open survives a mode switch.
-function TerminalDock({ machines, shells = true, children }) {
+// shell already open survives a mode switch. `full` (the Terminal tab)
+// stretches the dock over the page below the tab's launcher bar — the same
+// sessions, so a shell keeps running when you switch tabs.
+function TerminalDock({ machines, shells = true, full = false, children }) {
   const [sessions, setSessions] = useState([]);
   const [activeId, setActiveId] = useState(null);
   const [folded, setFolded] = useState(false);
@@ -55,7 +57,9 @@ function TerminalDock({ machines, shells = true, children }) {
     (host) => shells && Boolean(machines?.[host]?.terminal),
     [machines, shells]
   );
-  const value = useMemo(() => ({ open, available }), [open, available]);
+  const count = sessions.length;
+  const value = useMemo(() => ({ open, available, count }), [open, available, count]);
+  const isFolded = folded && !full;
 
   const startDrag = (event) => {
     event.preventDefault();
@@ -79,13 +83,13 @@ function TerminalDock({ machines, shells = true, children }) {
       {sessions.length > 0 && (
         <>
           {/* Keeps the end of the page scrollable above the dock. */}
-          <div style={{ height: folded ? 36 : height }} aria-hidden="true" />
+          {!full && <div style={{ height: isFolded ? 36 : height }} aria-hidden="true" />}
           <section
-            className={`term-dock ${folded ? "term-dock--folded" : ""}`}
-            style={{ height: folded ? undefined : height }}
+            className={`term-dock ${isFolded ? "term-dock--folded" : ""} ${full ? "term-dock--full" : ""}`}
+            style={{ height: isFolded || full ? undefined : height }}
             aria-label="Terminals"
           >
-            {!folded && <div className="term-grip" onPointerDown={startDrag} />}
+            {!isFolded && !full && <div className="term-grip" onPointerDown={startDrag} />}
             <div className="term-tabs" role="tablist">
               {sessions.map((s) => (
                 <div
@@ -137,7 +141,7 @@ function TerminalDock({ machines, shells = true, children }) {
                   </button>
                 </div>
               ))}
-              <button
+              {!full && <button
                 type="button"
                 className={`term-fold ${folded ? "term-fold--up" : ""}`}
                 onClick={() => setFolded((f) => !f)}
@@ -145,9 +149,9 @@ function TerminalDock({ machines, shells = true, children }) {
                 title={folded ? "Show" : "Fold"}
               >
                 <Icon name="chevron" size={15} />
-              </button>
+              </button>}
             </div>
-            {!folded && sessions.find((s) => s.id === activeId)?.target === "logs" && (() => {
+            {!isFolded && sessions.find((s) => s.id === activeId)?.target === "logs" && (() => {
               const s = sessions.find((x) => x.id === activeId);
               const find = (back) => searchers.current[s.id]?.find(findText, back);
               return (
@@ -179,13 +183,13 @@ function TerminalDock({ machines, shells = true, children }) {
                 </div>
               );
             })()}
-            <div className="term-body" hidden={folded}>
+            <div className="term-body" hidden={isFolded}>
               <Suspense fallback={<div className="term-loading">Loading terminal…</div>}>
                 {sessions.map((s) => (
                   <TerminalView
                     key={s.id}
                     session={s}
-                    visible={!folded && s.id === activeId}
+                    visible={!isFolded && s.id === activeId}
                     onReady={(api) => {
                       searchers.current[s.id] = api;
                     }}

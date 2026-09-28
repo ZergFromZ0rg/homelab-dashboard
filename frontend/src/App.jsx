@@ -3,6 +3,8 @@ import Tabs from "./components/Tabs";
 import Overview from "./components/Overview";
 import BackupsTab from "./components/BackupsTab";
 import NetworkTab from "./components/NetworkTab";
+import SystemTab from "./components/SystemTab";
+import TerminalTab from "./components/TerminalTab";
 import PersonalTab from "./components/PersonalTab";
 import Greeting from "./components/Greeting";
 import { requestFocus } from "./components/focusRequest";
@@ -379,11 +381,16 @@ function App() {
   );
 
   const openTodos = todos.filter((t) => !t.done).length;
+  const failedUnits = Object.values(machines).reduce(
+    (n, m) => n + (m.host_facts?.failed_units?.length || 0),
+    0
+  );
 
 
   // Simple has no tabs (briefing, overview, personal on one page).
   // Advanced: the fleet (Overview — servers included), Containers, Backups.
-  // God adds Network and shells. Deploy has no tab: placement lives on in
+  // God adds control of the machines themselves: Network, System (services,
+  // updates, power, agent settings, hardware) and Terminal, plus shells. Deploy has no tab: placement lives on in
   // the API for the AI to drive.
   const tabs = [
     {
@@ -407,6 +414,13 @@ function App() {
             count: checks.length || null,
             tone: checks.some((c) => c.status === "down") ? "bad" : undefined,
           },
+          {
+            value: "system",
+            label: "System",
+            count: failedUnits || null,
+            tone: failedUnits ? "bad" : undefined,
+          },
+          { value: "terminal", label: "Terminal" },
         ]
       : []),
   ];
@@ -430,7 +444,7 @@ function App() {
     // Old section names land where their content lives now.
     if (target === "personal") return setMode("simple");
     const tab = target === "servers" || target === "deploy" ? "overview" : target;
-    if (tab === "network" && viewMode !== "god") setMode("god");
+    if (["network", "system", "terminal"].includes(tab) && viewMode !== "god") setMode("god");
     else if (viewMode === "simple") setMode("advanced");
     setActiveTab(tab);
     if (target === "servers" && host) requestFocus(host);
@@ -450,7 +464,11 @@ function App() {
         onSetMode={setMode}
       >
         <UpdatesProvider>
-        <TerminalDock machines={machines} shells={viewMode === "god"}>
+        <TerminalDock
+          machines={machines}
+          shells={viewMode === "god"}
+          full={viewMode === "god" && shownTab === "terminal"}
+        >
         {viewMode === "simple" && (
           <div className="simple-mode-content">
             <SimpleGreeting overview={overview} openTodos={openTodos} />
@@ -514,6 +532,14 @@ function App() {
 
             {shownTab === "backups" && (
               <BackupsTab machines={machines} connected={connected} />
+            )}
+
+            {shownTab === "system" && (
+              <SystemTab machines={machines} connected={connected} />
+            )}
+
+            {shownTab === "terminal" && (
+              <TerminalTab machines={machines} containers={containers} />
             )}
 
             {shownTab === "network" && (
