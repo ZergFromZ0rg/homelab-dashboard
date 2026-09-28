@@ -17,6 +17,10 @@ from fastapi import HTTPException
 
 from backend.env import env_str
 
+# A passkey confirmation (Face ID / Touch ID again) before root-level
+# actions. Built, off by default: turn on with PASSKEY_STEP_UP=1.
+STEP_UP = env_str("PASSKEY_STEP_UP").lower() in ("1", "true", "yes", "on")
+
 # ``API_TOKEN`` is the current name; ``REGISTER_TOKEN`` is kept as an alias
 # so existing deployments don't break.
 API_TOKEN = env_str("API_TOKEN") or env_str("REGISTER_TOKEN")
@@ -49,7 +53,7 @@ def require_elevated() -> None:
     login off there is nothing to confirm with."""
     from backend import passkeys
 
-    if not passkeys.store.enabled() or token_ok.get():
+    if not STEP_UP or not passkeys.store.enabled() or token_ok.get():
         return
     if passkeys.store.elevated_until(session_token.get()):
         return

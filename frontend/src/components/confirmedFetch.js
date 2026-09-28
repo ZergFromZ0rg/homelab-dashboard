@@ -31,7 +31,7 @@ export async function confirmedFetch(url, init) {
 // shell over a websocket): confirm first unless it's still fresh.
 export async function ensureConfirmed() {
   const status = await getAuthStatus().catch(() => null);
-  if (!status?.enabled) return;
+  if (!status?.enabled || !status.step_up) return;
   if (status.elevated_until && status.elevated_until * 1000 > Date.now() + 5000) return;
   await confirmOnce();
 }

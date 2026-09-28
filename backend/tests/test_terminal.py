@@ -129,6 +129,8 @@ def test_relays_both_ways_and_logs_the_session(client, agent, monkeypatch):
 
 
 def test_a_host_shell_needs_a_fresh_confirmation(client, agent, monkeypatch):
+    from backend import auth
+    monkeypatch.setattr(auth, "STEP_UP", True)
     headers = signed_in(monkeypatch)
     monkeypatch.setattr(passkeys.store, "elevated_until", lambda token: None)
     with client.websocket_connect("/ws/terminal/box?target=host", headers=headers) as ws:

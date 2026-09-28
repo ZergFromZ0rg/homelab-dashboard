@@ -75,7 +75,7 @@ async def terminal_socket(websocket: WebSocket, host: str):
     # A shell on the host itself is root on that machine: it wants a
     # passkey confirmation from the last few minutes, like the other
     # root-level actions. The browser confirms first, then connects.
-    if target_param(websocket) == "host" and passkeys.store.enabled() and not (
+    if target_param(websocket) == "host" and auth.STEP_UP and passkeys.store.enabled() and not (
         auth.token_ok.get() or passkeys.store.elevated_until(auth.session_token.get())
     ):
         await _refuse(websocket, "Confirm with your passkey to open a host shell.")

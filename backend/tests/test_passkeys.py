@@ -124,7 +124,7 @@ def confirm(client, device):
 
 def test_open_until_first_passkey(client):
     assert client.get("/api/auth/status").json() == {
-        "enabled": False, "signed_in": False, "rp_ids": [], "elevated_until": None
+        "enabled": False, "signed_in": False, "rp_ids": [], "elevated_until": None, "step_up": False
     }
     assert client.get("/api/todos").status_code == 200
 
@@ -135,7 +135,7 @@ def test_first_passkey_turns_login_on_and_signs_this_browser_in(client):
     assert resp.json()["passkey"]["name"] == "My Mac"
     assert client.get("/api/todos").status_code == 200
     status = client.get("/api/auth/status").json()
-    assert status == {"enabled": True, "signed_in": True, "rp_ids": [RP_ID], "elevated_until": None}
+    assert status == {"enabled": True, "signed_in": True, "rp_ids": [RP_ID], "elevated_until": None, "step_up": False}
 
     stranger = TestClient(main.app, base_url=ORIGIN, headers={"Origin": ORIGIN})
     assert stranger.get("/api/todos").status_code == 401
@@ -197,7 +197,8 @@ def test_second_passkey_needs_a_session(client):
     assert login(client, Authenticator()).status_code == 401
 
 
-def test_add_rename_remove(client):
+def test_add_rename_remove(client, monkeypatch):
+    monkeypatch.setattr(auth, "STEP_UP", True)
     first = Authenticator()
     register(client, first)
     assert register(client, Authenticator(), name="iPhone").status_code == 200
@@ -214,7 +215,8 @@ def test_add_rename_remove(client):
     assert resp["enabled"] is True and len(resp["passkeys"]) == 1
 
 
-def test_removing_the_passkey_you_signed_in_with_ends_that_session(client):
+def test_removing_the_passkey_you_signed_in_with_ends_that_session(client, monkeypatch):
+    monkeypatch.setattr(auth, "STEP_UP", True)
     device = Authenticator()
     register(client, device)
     cid = b64(device.cred_id)
@@ -292,6 +294,7 @@ def test_a_session_passes_the_api_token_gate_and_only_for_that_request(client, m
 
 
 def test_dangerous_actions_need_a_fresh_confirmation(client, monkeypatch):
+    monkeypatch.setattr(auth, "STEP_UP", True)
     device = Authenticator()
     register(client, device)
     delete = lambda: client.post("/api/disk/nowhere/delete", json={"path": "/tmp/x"})
@@ -320,9 +323,18 @@ def test_a_confirmation_needs_a_real_signature(client):
 
 
 def test_scripts_on_the_api_token_skip_the_confirmation(client, monkeypatch):
+    monkeypatch.setattr(auth, "STEP_UP", True)
     register(client, Authenticator())
     monkeypatch.setattr(auth, "API_TOKEN", "s3cret")
     script = TestClient(main.app, base_url=ORIGIN)
     resp = script.post("/api/disk/nowhere/delete", json={"path": "/tmp/x"},
                        headers={"X-Register-Token": "s3cret"})
     assert resp.status_code == 404  # through both gates to the missing host
+
+
+
+def test_with_step_up_off_nothing_asks_again(client):
+    """The default: signing in is the only passkey prompt."""
+    register(client, Authenticator())
+    assert auth.STEP_UP is False
+    assert client.post("/api/disk/nowhere/delete", json={"path": "/tmp/x"}).status_code == 404

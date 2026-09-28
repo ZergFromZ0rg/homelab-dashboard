@@ -43,10 +43,16 @@ test("dismissing the sheet means the action doesn't happen", async () => {
 });
 
 test("a still-fresh confirmation isn't asked for again", async () => {
-  getAuthStatus.mockResolvedValueOnce({ enabled: true, elevated_until: Date.now() / 1000 + 300 });
+  getAuthStatus.mockResolvedValueOnce({ enabled: true, step_up: true, elevated_until: Date.now() / 1000 + 300 });
   await ensureConfirmed();
   expect(confirmWithPasskey).not.toHaveBeenCalled();
-  getAuthStatus.mockResolvedValueOnce({ enabled: true, elevated_until: null });
+  getAuthStatus.mockResolvedValueOnce({ enabled: true, step_up: true, elevated_until: null });
   await ensureConfirmed();
   expect(confirmWithPasskey).toHaveBeenCalledTimes(1);
+});
+
+test("with step-up off, a host shell doesn't ask", async () => {
+  getAuthStatus.mockResolvedValueOnce({ enabled: true, step_up: false, elevated_until: null });
+  await ensureConfirmed();
+  expect(confirmWithPasskey).not.toHaveBeenCalled();
 });

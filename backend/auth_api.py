@@ -95,6 +95,7 @@ def status(request: Request):
         "enabled": enabled,
         "signed_in": enabled and _signed_in(request),
         "elevated_until": passkeys.store.elevated_until(_token(request)) if enabled else None,
+        "step_up": auth.STEP_UP,
         "rp_ids": passkeys.store.rp_ids(),
     }
 

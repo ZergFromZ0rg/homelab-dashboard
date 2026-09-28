@@ -40,6 +40,7 @@ def test_reading_and_changing(monkeypatch):
 
 
 def test_changing_needs_a_confirmation_once_login_is_on(monkeypatch):
+    monkeypatch.setattr(auth, "STEP_UP", True)
     calls = []
     setup(monkeypatch, calls)
     monkeypatch.setattr(passkeys.store, "enabled", lambda: True)
