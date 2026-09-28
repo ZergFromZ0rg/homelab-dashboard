@@ -59,3 +59,23 @@ def test_failed_services_raise_an_alert():
     found = alerts._host_alerts("bigboy", {"online": True, "host_facts": {"failed_units": ["smartd.service"]}})
     assert found["host:bigboy:services"]["title"] == "bigboy: 1 service failed"
     assert "host:bigboy:services" not in alerts._host_alerts("bigboy", {"online": True, "host_facts": {"failed_units": []}})
+
+
+def test_the_agents_host_name_is_not_mistaken_for_facts(monkeypatch):
+    """Regression: the agent's /containers already had "host" (its name);
+    the facts reused that key and a string reached the alert rules."""
+    from backend import docker
+
+    class R:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"host": "bigboy", "containers": [], "host_facts": {"failed_units": ["x.service"]}}
+
+    monkeypatch.setattr(docker.requests, "get", lambda *a, **k: R())
+    monkeypatch.setattr(docker.backups, "status_for", lambda *a: None)
+    monkeypatch.setattr(docker.versions, "for_host", lambda *a: None)
+    _, snap = docker.get_host_data("bigboy", "http://bigboy")
+    assert snap["host_facts"] == {"failed_units": ["x.service"]}
+    assert alerts._host_alerts("bigboy", {"host_facts": "bigboy"}) == {}

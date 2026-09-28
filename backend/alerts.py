@@ -213,7 +213,8 @@ def _host_alerts(name: str, m: dict) -> dict[str, dict]:
         }
 
     # From the agent's host control (systemd), when it's on for this host.
-    failed = (m.get("host_facts") or {}).get("failed_units") or []
+    facts = m.get("host_facts")
+    failed = (facts.get("failed_units") or []) if isinstance(facts, dict) else []
     if failed:
         out[f"host:{name}:services"] = {
             "title": f"{name}: {len(failed)} service{'s' if len(failed) != 1 else ''} failed",

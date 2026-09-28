@@ -142,6 +142,27 @@ directly gets silently undone by the next `docker compose up`.
 - [x] `main.py` split into routers (`fleet_api`, `host_tools_api`,
       `personal_api`, shared lookups in `hosts.py`): 830 → 340 lines.
 
+### 1.7 After the Phase 1 review — *built*
+The review found the dashboard ruled the containers but not the machines,
+forgot who did what within hours, and never told you anything.
+- [x] Audit log: every change (and every refused attempt), who — by
+      passkey name — from which IP, what it named; months, not hours.
+      Settings → Audit log.
+- [x] Phone notifications through ntfy: alerts firing/resolving and
+      passkey changes. Settings → Notifications, scan the QR code.
+- [x] Container logs: the lines icon on a row (or ⌘K "Logs of …") opens
+      them live in the dock; the tab downloads the whole log.
+- [x] Face ID / Touch ID again before root-level actions (host shell,
+      compose apply, delete, rebuild, agent settings, services, OS
+      upgrade, power, passkey removal) — good for 10 minutes. Sessions 7
+      days instead of 30.
+- [x] Host control, per server card → System: systemd services (failed
+      first; journal, start/stop/restart), OS updates via apt, reboot and
+      power off. Upgrades and power run as systemd units on the host, so a
+      Docker restart mid-upgrade can't break dpkg. Failed services alert.
+- [x] Frontend tests (Vitest) for the risky flows.
+- [ ] Try each Phase 1 feature once yourself.
+
 ## Phase 2 — The AI overseer
 
 ### Hardware reality check

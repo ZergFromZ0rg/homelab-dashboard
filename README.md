@@ -902,6 +902,27 @@ that can never be cleared would mean the panel is never clean, and "no
 issues detected" is a signal worth keeping honest. This is a posture, not
 an incident.
 
+
+**Confirming before root-level actions.** A session can read everything and
+do everyday things (restart a container, edit a file in a stack folder,
+update an image). The actions that are root on a machine — a host shell,
+applying a compose file, deleting, rebuilding, agent settings, systemd
+services, OS upgrades, reboot/power off, removing a passkey — also want a
+passkey confirmation from the last 10 minutes; the browser asks for Face
+ID / Touch ID and carries on. Scripts on `API_TOKEN` skip it. Sessions
+last 7 days, extended on use.
+
+**Audit log** (`/data/audit.jsonl`, rotated, months of history): every
+request that changes something, including refused ones, with who (the
+passkey's name, "API token" or "anonymous"), the IP, what it named (a
+path, a container, a host — never contents or credentials) and the
+result. Settings → Audit log, or `GET /api/audit?q=&before=`.
+
+**Notifications** (Settings → Notifications): alerts and passkey changes to
+your phone through [ntfy](https://ntfy.sh) — no account; turning it on
+picks a random topic and shows a QR code to subscribe. Use your own ntfy
+server if you'd rather not use ntfy.sh.
+
 ## Alerting
 
 `backend/alerts.py` runs a loop every `ALERT_INTERVAL` seconds (default

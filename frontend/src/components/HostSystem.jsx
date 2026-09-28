@@ -80,6 +80,7 @@ function Services({ host }) {
       </div>
       {error && <p className="form-error">{error}</p>}
       {!rows && !error && <p className="settings-hint">Reading…</p>}
+      {rows?.length === 0 && <p className="settings-hint">No systemd services found on this machine.</p>}
       <ul className="hsys-list">
         {shown.map((r) => (
           <li key={r.unit} className={r.active === "failed" ? "hsys-failed" : ""} title={r.description}>
