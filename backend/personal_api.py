@@ -8,7 +8,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Header, HTTPException, Query
 from fastapi.responses import JSONResponse
 
-from backend import activity, alert_history, auth, personal
+from backend import activity, alert_history, audit_log, auth, personal
 from backend.notes import Conflict, NoteStore
 from backend.pins import PinStore
 from backend.service_activity_credentials import ServiceActivityCredentialStore
@@ -192,3 +192,10 @@ def set_todos(payload: dict):
     if not isinstance(items, list):
         raise HTTPException(status_code=400, detail="'todos' must be a list")
     return {"todos": todos.replace(items)}
+
+
+@router.get("/api/audit")
+def list_audit(limit: int = Query(200, ge=1, le=1000), before: float | None = None, q: str | None = None):
+    """Who did what, newest first — see audit_log.py. ``before`` pages back;
+    ``q`` filters on any text in an entry."""
+    return {"entries": audit_log.read(limit, before, q)}

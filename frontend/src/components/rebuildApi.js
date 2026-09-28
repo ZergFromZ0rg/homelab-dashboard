@@ -1,5 +1,6 @@
 import { DEMO } from "../demoData";
 import { jsonOrThrow } from "./apiAuth";
+import { confirmedFetch } from "./confirmedFetch";
 
 // POST /api/rebuild/{host} starts a job; GET .../{id} polls it. The agent
 // does the pull and the build, which takes minutes — hence the job rather
@@ -9,7 +10,7 @@ const DEMO_WRITE = "Demo mode — nothing is rebuilt.";
 export function startRebuild(host, container, { pull = true } = {}) {
   if (DEMO) return Promise.reject(new Error(DEMO_WRITE));
 
-  return fetch(`/api/rebuild/${encodeURIComponent(host)}`, {
+  return confirmedFetch(`/api/rebuild/${encodeURIComponent(host)}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ container, pull }),
@@ -31,7 +32,7 @@ export function fetchRebuildJob(host, jobId) {
 export function rebuildFleet(hosts) {
   if (DEMO) return Promise.reject(new Error(DEMO_WRITE));
 
-  return fetch("/api/fleet/rebuild", {
+  return confirmedFetch("/api/fleet/rebuild", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(hosts?.length ? { hosts } : {}),

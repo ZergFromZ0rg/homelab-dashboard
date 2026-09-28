@@ -128,8 +128,16 @@ def test_relays_both_ways_and_logs_the_session(client, agent, monkeypatch):
     assert recorded == [("terminal", "Shell in jellyfin opened by MacBook", "box")]
 
 
+def test_a_host_shell_needs_a_fresh_confirmation(client, agent, monkeypatch):
+    headers = signed_in(monkeypatch)
+    monkeypatch.setattr(passkeys.store, "elevated_until", lambda token: None)
+    with client.websocket_connect("/ws/terminal/box?target=host", headers=headers) as ws:
+        assert "Confirm with your passkey" in first_text(ws)["message"]
+
+
 def test_a_host_shell(client, agent, monkeypatch):
     headers = signed_in(monkeypatch)
+    monkeypatch.setattr(passkeys.store, "elevated_until", lambda token: 9e9)
     with client.websocket_connect("/ws/terminal/box?target=host", headers=headers) as ws:
         assert ws.receive_bytes() == b"welcome\r\n"
     assert "target=host" in agent.requests[-1][0]

@@ -50,6 +50,7 @@ def preview(host: str, body: dict):
 @router.post("/apply")
 def apply(host: str, body: dict, x_register_token: str | None = Header(default=None)):
     auth.check_token(x_register_token)
+    auth.require_elevated()
     response = _call("POST", f"{_agent(host)}/compose/apply", json=body, timeout=APPLY_TIMEOUT)
     if response.status_code == 200:
         job = json.loads(response.body)

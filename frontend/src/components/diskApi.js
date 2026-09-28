@@ -1,5 +1,6 @@
 import { DEMO, demoDiskDelete, demoDiskUsage } from "../demoData";
 import { jsonOrThrow } from "./apiAuth";
+import { confirmedFetch } from "./confirmedFetch";
 
 // GET /api/disk/{host}?path= — what's taking the space under a folder. The
 // agent scans in the background; `state` is "scanning" until it's "done".
@@ -14,7 +15,7 @@ export function fetchDiskUsage(host, path, { refresh = false } = {}) {
 // container, ...).
 export function deleteDiskPath(host, path) {
   if (DEMO) return Promise.resolve(demoDiskDelete(host, path));
-  return fetch(`/api/disk/${encodeURIComponent(host)}/delete`, {
+  return confirmedFetch(`/api/disk/${encodeURIComponent(host)}/delete`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ path }),

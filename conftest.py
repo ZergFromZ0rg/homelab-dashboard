@@ -11,3 +11,11 @@ def _isolated_passkeys(tmp_path, monkeypatch):
     from backend import passkeys
 
     monkeypatch.setattr(passkeys, "store", passkeys.PasskeyStore(tmp_path / "auth.json"))
+
+
+@pytest.fixture(autouse=True)
+def _isolated_audit_log(tmp_path, monkeypatch):
+    """The audit log writes on every mutating request; keep it off /data."""
+    from backend import audit_log
+
+    monkeypatch.setattr(audit_log, "FILE", tmp_path / "audit.jsonl")

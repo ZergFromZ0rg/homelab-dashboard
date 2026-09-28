@@ -26,7 +26,7 @@ from fastapi import APIRouter, WebSocket
 from websockets.asyncio.client import connect
 from websockets.exceptions import ConnectionClosed, InvalidStatus
 
-from backend import activity, passkeys
+from backend import activity, audit_log, auth, passkeys
 from backend.docker import agent_headers
 from backend.log import system as log
 from backend.registry import registry
@@ -50,6 +50,10 @@ async def _refuse(websocket: WebSocket, message: str) -> None:
     await websocket.close()
 
 
+def target_param(websocket: WebSocket) -> str:
+    return "host" if websocket.query_params.get("target") == "host" else "container"
+
+
 def _size(value, default: int) -> int:
     try:
         return max(1, min(int(value), 1000))
@@ -66,6 +70,15 @@ async def terminal_socket(websocket: WebSocket, host: str):
             websocket,
             "The terminal needs sign-in. Add a passkey in Settings → Passkeys first.",
         )
+        return
+
+    # A shell on the host itself is root on that machine: it wants a
+    # passkey confirmation from the last few minutes, like the other
+    # root-level actions. The browser confirms first, then connects.
+    if target_param(websocket) == "host" and passkeys.store.enabled() and not (
+        auth.token_ok.get() or passkeys.store.elevated_until(auth.session_token.get())
+    ):
+        await _refuse(websocket, "Confirm with your passkey to open a host shell.")
         return
 
     node = registry.all().get(host)
@@ -119,8 +132,14 @@ async def terminal_socket(websocket: WebSocket, host: str):
         return
 
     started = time.time()
+    who = device or audit_log.who_from_headers({k.lower(): v for k, v in websocket.headers.items()})
+    ip = audit_log.ip_from_headers({k.lower(): v for k, v in websocket.headers.items()}, websocket.client and (websocket.client.host,))
+    shell_seen = {"yes": False}
 
     def opened():
+        shell_seen["yes"] = True
+        audit_log.record(f"{what} opened", who=who, host=host, ip=ip,
+                         target={"target": target, "container": container} if container else {"target": target})
         activity.record(
             "terminal", f"{what} opened" + (f" by {device}" if device else ""), host
         )
@@ -130,6 +149,9 @@ async def terminal_socket(websocket: WebSocket, host: str):
     finally:
         await agent.close()
         log.info("%s closed after %.0fs", what, time.time() - started)
+        if shell_seen["yes"]:
+            audit_log.record(f"{what} closed", who=who, host=host, ip=ip,
+                             detail=f"{time.time() - started:.0f}s")
 
 
 async def _relay(browser: WebSocket, agent, opened) -> None:

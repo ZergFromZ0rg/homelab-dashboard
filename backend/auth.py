@@ -25,6 +25,9 @@ API_TOKEN = env_str("API_TOKEN") or env_str("REGISTER_TOKEN")
 # Set by the SessionGate for a request carrying a valid session cookie.
 # Contextvars follow the request into sync routes' worker threads.
 session_ok: ContextVar[bool] = ContextVar("session_ok", default=False)
+session_token: ContextVar[str | None] = ContextVar("session_token", default=None)
+# Set when the request authenticated with the API token (a script).
+token_ok: ContextVar[bool] = ContextVar("token_ok", default=False)
 
 
 def token_matches(supplied: str | None) -> bool:
@@ -37,3 +40,20 @@ def check_token(supplied: str | None) -> None:
             status_code=401,
             detail="sign in with a passkey to do this (scripts: send X-Register-Token)",
         )
+
+
+def require_elevated() -> None:
+    """For the actions that are root on a host: a passkey confirmation in
+    the last few minutes, not just a session. Scripts on the API token
+    skip it (they already hold the most powerful credential), and with
+    login off there is nothing to confirm with."""
+    from backend import passkeys
+
+    if not passkeys.store.enabled() or token_ok.get():
+        return
+    if passkeys.store.elevated_until(session_token.get()):
+        return
+    raise HTTPException(
+        status_code=403,
+        detail={"elevate": True, "message": "confirm with your passkey to do this"},
+    )

@@ -114,6 +114,7 @@ def start_rebuild(
     route that makes a host run arbitrary code from a repo.
     """
     auth.check_token(x_register_token)
+    auth.require_elevated()
 
     body = payload or {}
     container = str(body.get("container") or "").strip()
@@ -140,6 +141,7 @@ def rebuild_fleet(
     waiting for builds that take minutes.
     """
     auth.check_token(x_register_token)
+    auth.require_elevated()
 
     body = payload or {}
     hosts = body.get("hosts")
@@ -193,6 +195,7 @@ def set_host_config(
     which directories may leave a host, is the same class of decision.
     """
     auth.check_token(x_register_token)
+    auth.require_elevated()
 
     settings = payload.get("settings")
 

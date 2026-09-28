@@ -1,4 +1,5 @@
 import { jsonOrThrow } from "./apiAuth";
+import { confirmedFetch } from "./confirmedFetch";
 
 // /api/compose/{host}/... — a container's compose files, a checked diff of
 // an edit, and applying it as a job (save, up -d, watch, roll back if it
@@ -17,7 +18,12 @@ const post = (host, route, body) =>
   }).then(jsonOrThrow);
 
 export const previewCompose = (host, body) => post(host, "preview", body);
-export const applyCompose = (host, body) => post(host, "apply", body);
+export const applyCompose = (host, body) =>
+  confirmedFetch(`${base(host)}/apply`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  }).then(jsonOrThrow);
 
 export const fetchComposeJob = (host, id) =>
   fetch(`${base(host)}/jobs/${encodeURIComponent(id)}`).then(jsonOrThrow);

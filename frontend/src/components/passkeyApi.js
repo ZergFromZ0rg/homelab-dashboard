@@ -65,8 +65,10 @@ export async function registerPasskey(name) {
   });
 }
 
-export async function signInWithPasskey() {
-  const { ceremony, options } = await post("/api/auth/login/options");
+// Sign in, or confirm an already signed-in session before something
+// dangerous: the same WebAuthn ceremony against two endpoints.
+async function assertPasskey(kind) {
+  const { ceremony, options } = await post(`/api/auth/${kind}/options`);
   const credential = await navigator.credentials.get({
     publicKey: {
       ...options,
@@ -78,7 +80,7 @@ export async function signInWithPasskey() {
     },
   });
   const r = credential.response;
-  return post("/api/auth/login/verify", {
+  return post(`/api/auth/${kind}/verify`, {
     ceremony,
     credential: {
       id: credential.id,
@@ -94,6 +96,12 @@ export async function signInWithPasskey() {
     },
   });
 }
+
+export const signInWithPasskey = () => assertPasskey("login");
+
+// Face ID / Touch ID again: good for the next few minutes of dangerous
+// actions (host shell, compose apply, delete, power, ...).
+export const confirmWithPasskey = () => assertPasskey("elevate");
 
 export const signOut = () => post("/api/auth/logout");
 
@@ -111,7 +119,8 @@ export async function renamePasskey(id, name) {
 }
 
 export async function removePasskey(id) {
-  const res = await fetch(`/api/auth/passkeys/${encodeURIComponent(id)}`, {
+  const { confirmedFetch } = await import("./confirmedFetch");
+  const res = await confirmedFetch(`/api/auth/passkeys/${encodeURIComponent(id)}`, {
     method: "DELETE",
   });
   return jsonOrThrow(res);

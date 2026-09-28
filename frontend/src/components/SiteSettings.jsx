@@ -12,6 +12,7 @@ import {
   clearServiceActivityCredentials,
 } from "./serviceActivityCredentialsApi";
 import PasskeySettings from "./PasskeySettings";
+import AuditLog from "./AuditLog";
 
 function splitPinKey(key) {
   const idx = key.indexOf("/");
@@ -191,6 +192,10 @@ function SiteSettings({ pins, containers }) {
     <div className="settings-tab">
       <SettingsCard title="Passkeys">
         <PasskeySettings />
+      </SettingsCard>
+
+      <SettingsCard title="Audit log">
+        <AuditLog />
       </SettingsCard>
 
       <SettingsCard title="Appearance">

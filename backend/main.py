@@ -28,7 +28,7 @@ from backend import updates_api
 from backend import volume_backup_api
 from backend import volume_backups
 from backend.registry import registry
-from backend import fleet_api, host_tools_api, personal_api
+from backend import audit_log, fleet_api, host_tools_api, personal_api
 from backend.hosts import MAIN_HOST_OVERRIDE, detect_main_host
 from backend.scheduler_api import deployments, merge_agent_snapshot
 
@@ -193,6 +193,8 @@ def _security_posture() -> dict:
 # Added before CORS so CORS stays outermost and a 401 still carries its
 # headers.
 app.add_middleware(auth_api.SessionGate)
+# Added after the gate, so outside it: refused attempts are recorded too.
+app.add_middleware(audit_log.AuditMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[

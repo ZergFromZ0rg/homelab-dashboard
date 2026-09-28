@@ -93,6 +93,7 @@ def status(request: Request):
     return {
         "enabled": enabled,
         "signed_in": enabled and _signed_in(request),
+        "elevated_until": passkeys.store.elevated_until(_token(request)) if enabled else None,
         "rp_ids": passkeys.store.rp_ids(),
     }
 
@@ -181,11 +182,10 @@ def login_options(request: Request):
     return {"ceremony": ceremony, "options": _options(options)}
 
 
-@router.post("/login/verify")
-async def login_verify(request: Request):
-    body = await request.json()
+def _verify_assertion(request: Request, body: dict, kind: str) -> dict:
+    """Check a signed passkey assertion; returns the stored passkey."""
     origin, rp_id = _origin(request)
-    pending = passkeys.store.take_challenge(body.get("ceremony"), "login")
+    pending = passkeys.store.take_challenge(body.get("ceremony"), kind)
     if not pending or pending["rp_id"] != rp_id:
         raise HTTPException(status_code=400, detail="expired — try again")
     credential = body.get("credential") or {}
@@ -203,13 +203,40 @@ async def login_verify(request: Request):
             require_user_verification=True,
         )
     except (InvalidAuthenticationResponse, ValueError, TypeError, KeyError) as error:
-        system_log.warning("passkey sign-in rejected: %s", error)
+        system_log.warning("passkey %s rejected: %s", kind, error)
         raise HTTPException(status_code=401, detail="passkey rejected")
-
     passkeys.store.record_use(stored["id"], verified.new_sign_count)
+    return stored
+
+
+@router.post("/login/verify")
+async def login_verify(request: Request):
+    stored = _verify_assertion(request, await request.json(), "login")
     response = JSONResponse({"signed_in": True})
     _set_session(response, request, passkeys.store.open_session(stored["id"]))
     return response
+
+
+@router.post("/elevate/options")
+def elevate_options(request: Request):
+    """Confirm with a passkey before something dangerous. Same ceremony as
+    signing in, for an already signed-in session."""
+    _require_session(request)
+    _, rp_id = _origin(request)
+    ceremony, challenge = passkeys.store.new_challenge("elevate", rp_id)
+    options = generate_authentication_options(
+        rp_id=rp_id,
+        challenge=challenge,
+        user_verification=UserVerificationRequirement.REQUIRED,
+    )
+    return {"ceremony": ceremony, "options": _options(options)}
+
+
+@router.post("/elevate/verify")
+async def elevate_verify(request: Request):
+    _require_session(request)
+    _verify_assertion(request, await request.json(), "elevate")
+    return {"elevated_until": passkeys.store.elevate(_token(request))}
 
 
 @router.post("/logout")
@@ -245,6 +272,7 @@ async def rename_passkey(credential_id: str, request: Request):
 @router.delete("/passkeys/{credential_id}")
 def delete_passkey(credential_id: str, request: Request):
     _require_session(request)
+    auth.require_elevated()
     if not passkeys.store.remove(credential_id):
         raise HTTPException(status_code=404, detail="no such passkey")
     system_log.info("passkey removed: %s", credential_id[:12])
@@ -277,14 +305,23 @@ class SessionGate:
         if scope["type"] not in ("http", "websocket"):
             return await self.app(scope, receive, send)
         method = scope.get("method", "GET")
-        if self._session(scope):
+        session = self._session(scope)
+        if session:
             # Reset after: requests on one keep-alive connection can share a
             # context, and the next one may carry no cookie at all.
             marker = auth.session_ok.set(True)
+            which = auth.session_token.set(session)
             try:
                 return await self.app(scope, receive, send)
             finally:
                 auth.session_ok.reset(marker)
+                auth.session_token.reset(which)
+        if self._token(scope):
+            marker = auth.token_ok.set(True)
+            try:
+                return await self.app(scope, receive, send)
+            finally:
+                auth.token_ok.reset(marker)
         if (
             (scope["type"] == "http" and method == "OPTIONS")
             or _open_path(method, scope["path"])
@@ -303,15 +340,22 @@ class SessionGate:
         await response(scope, receive, send)
 
     @staticmethod
-    def _session(scope) -> bool:
-        """A valid passkey session cookie. It also satisfies the API_TOKEN
-        gate on mutating routes — see auth.session_ok."""
+    def _session(scope) -> str | None:
+        """The token of a valid passkey session cookie, if there is one. It
+        also satisfies the API_TOKEN gate on mutating routes — see
+        auth.session_ok."""
         headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope["headers"]}
         for part in headers.get("cookie", "").split(";"):
             name, _, value = part.strip().partition("=")
             if name == passkeys.SESSION_COOKIE:
-                return passkeys.store.check_session(value)
-        return False
+                return value if passkeys.store.check_session(value) else None
+        return None
+
+    @staticmethod
+    def _token(scope) -> bool:
+        headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope["headers"]}
+        token = headers.get("x-register-token")
+        return bool(auth.API_TOKEN and token and auth.token_matches(token))
 
     @staticmethod
     def _allowed(scope) -> bool:

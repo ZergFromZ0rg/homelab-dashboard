@@ -3,6 +3,7 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 import { AUTH_REQUIRED_EVENT } from "./apiAuth";
+import { ensureConfirmed } from "./confirmedFetch";
 
 // One shell: an xterm wired to /ws/terminal/{host}. Binary frames are
 // terminal bytes both ways; text frames are JSON control (resize out;
@@ -76,8 +77,21 @@ function TerminalView({ session, visible, onStatus }) {
       term.write(`\r\n\x1b[${tone}m${text}\x1b[0m\r\n`);
     };
 
-    function connect() {
+    async function connect() {
       setState("connecting");
+      if (session.target === "host") {
+        // Root on the machine: Face ID / Touch ID first, unless it was
+        // confirmed in the last few minutes.
+        try {
+          await ensureConfirmed();
+        } catch {
+          if (disposed) return;
+          note("[not confirmed — Enter to try again]");
+          setState("ended");
+          return;
+        }
+        if (disposed) return;
+      }
       let opened = false;
       let ended = false;
       ws = new WebSocket(socketUrl(session, term));

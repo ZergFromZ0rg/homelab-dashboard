@@ -4,6 +4,7 @@ keys, real CBOR, real signatures — the same bytes a phone would send."""
 import base64
 import hashlib
 import json
+import time
 import os
 
 import cbor2
@@ -112,9 +113,18 @@ def login(client, device):
     )
 
 
+def confirm(client, device):
+    """A passkey confirmation for a signed-in session (step-up)."""
+    start = client.post("/api/auth/elevate/options").json()
+    return client.post(
+        "/api/auth/elevate/verify",
+        json={"ceremony": start["ceremony"], "credential": device.get(start["options"])},
+    )
+
+
 def test_open_until_first_passkey(client):
     assert client.get("/api/auth/status").json() == {
-        "enabled": False, "signed_in": False, "rp_ids": []
+        "enabled": False, "signed_in": False, "rp_ids": [], "elevated_until": None
     }
     assert client.get("/api/todos").status_code == 200
 
@@ -125,7 +135,7 @@ def test_first_passkey_turns_login_on_and_signs_this_browser_in(client):
     assert resp.json()["passkey"]["name"] == "My Mac"
     assert client.get("/api/todos").status_code == 200
     status = client.get("/api/auth/status").json()
-    assert status == {"enabled": True, "signed_in": True, "rp_ids": [RP_ID]}
+    assert status == {"enabled": True, "signed_in": True, "rp_ids": [RP_ID], "elevated_until": None}
 
     stranger = TestClient(main.app, base_url=ORIGIN, headers={"Origin": ORIGIN})
     assert stranger.get("/api/todos").status_code == 401
@@ -198,6 +208,8 @@ def test_add_rename_remove(client):
     renamed = client.patch(f"/api/auth/passkeys/{phone['id']}", json={"name": "Phone"}).json()
     assert {k["name"] for k in renamed["passkeys"]} >= {"Phone"}
 
+    assert client.delete(f"/api/auth/passkeys/{phone['id']}").status_code == 403
+    confirm(client, first)
     resp = client.delete(f"/api/auth/passkeys/{phone['id']}").json()
     assert resp["enabled"] is True and len(resp["passkeys"]) == 1
 
@@ -206,6 +218,7 @@ def test_removing_the_passkey_you_signed_in_with_ends_that_session(client):
     device = Authenticator()
     register(client, device)
     cid = b64(device.cred_id)
+    confirm(client, device)
     assert client.delete(f"/api/auth/passkeys/{cid}").json()["enabled"] is False
     # Login is off again, so the dashboard is open — not locked.
     assert client.get("/api/todos").status_code == 200
@@ -275,3 +288,41 @@ def test_a_session_passes_the_api_token_gate_and_only_for_that_request(client, m
     assert client.put("/api/service-activity-credentials",
                       json={"app": "jellyfin", "credentials": {"api_key": "k"}}).status_code == 401
     client.cookies.set(passkeys.SESSION_COOKIE, cookie)
+
+
+
+def test_dangerous_actions_need_a_fresh_confirmation(client, monkeypatch):
+    device = Authenticator()
+    register(client, device)
+    delete = lambda: client.post("/api/disk/nowhere/delete", json={"path": "/tmp/x"})
+
+    refused = delete()
+    assert refused.status_code == 403
+    assert refused.json()["detail"]["elevate"] is True
+
+    assert confirm(client, device).json()["elevated_until"] > time.time()
+    # Past the gate now (the host doesn't exist, which is the next check).
+    assert delete().status_code == 404
+    assert client.get("/api/auth/status").json()["elevated_until"] is not None
+
+    # It lapses.
+    real = time.time
+    monkeypatch.setattr(passkeys.time, "time", lambda: real() + passkeys.ELEVATION_SECONDS + 5)
+    assert delete().status_code == 403
+
+
+def test_a_confirmation_needs_a_real_signature(client):
+    register(client, Authenticator())
+    start = client.post("/api/auth/elevate/options").json()
+    forged = Authenticator().get(start["options"])
+    assert client.post("/api/auth/elevate/verify",
+                       json={"ceremony": start["ceremony"], "credential": forged}).status_code == 401
+
+
+def test_scripts_on_the_api_token_skip_the_confirmation(client, monkeypatch):
+    register(client, Authenticator())
+    monkeypatch.setattr(auth, "API_TOKEN", "s3cret")
+    script = TestClient(main.app, base_url=ORIGIN)
+    resp = script.post("/api/disk/nowhere/delete", json={"path": "/tmp/x"},
+                       headers={"X-Register-Token": "s3cret"})
+    assert resp.status_code == 404  # through both gates to the missing host

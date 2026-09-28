@@ -30,7 +30,10 @@ from backend.jsonstore import read_json, write_json_atomic
 AUTH_FILE = Path(env_str("AUTH_FILE", "/data/auth.json"))
 
 SESSION_COOKIE = "hl_session"
-SESSION_TTL = 30 * 24 * 3600  # sliding: every use pushes it out again
+SESSION_TTL = 7 * 24 * 3600  # sliding: every use pushes it out again
+# A passkey confirmation in the last ELEVATION_SECONDS lets a session do
+# the dangerous things (host shell, compose apply, delete, power, ...).
+ELEVATION_SECONDS = 10 * 60
 # last_seen is only rewritten to disk this often — a 2 s /ws poll must not
 # turn into a file write every 2 s.
 TOUCH_EVERY = 3600
@@ -254,6 +257,23 @@ class PasskeyStore:
             session = self._sessions.get(_hash(token))
         passkey = session and self.passkey(session.get("passkey", ""))
         return passkey.get("name") if passkey else None
+
+    def elevate(self, token: str | None) -> float | None:
+        """Mark a live session as just confirmed. Returns until when."""
+        if not token or not self.check_session(token):
+            return None
+        until = time.time() + ELEVATION_SECONDS
+        with self._lock:
+            self._sessions[_hash(token)]["elevated_until"] = until
+        return until
+
+    def elevated_until(self, token: str | None) -> float | None:
+        if not token:
+            return None
+        with self._lock:
+            session = self._sessions.get(_hash(token))
+        until = (session or {}).get("elevated_until")
+        return until if until and until > time.time() else None
 
     def close_session(self, token: str | None) -> None:
         if not token:

@@ -34,8 +34,10 @@ def host_disk_usage(host: str, path: str = "/", refresh: bool = False):
 def host_disk_delete(
     host: str, body: dict, x_register_token: str | None = Header(default=None)
 ):
-    """Delete a file or folder on a host. AUTH: gated — this destroys data."""
+    """Delete a file or folder on a host. AUTH: gated — this destroys data,
+    so it also needs a fresh passkey confirmation."""
     auth.check_token(x_register_token)
+    auth.require_elevated()
     return {"host": host, **disk.delete(agent_for(host), str(body.get("path", "")))}
 
 
