@@ -178,7 +178,46 @@ function Archives({ job, now, onClose }) {
   );
 }
 
-function BackupCard({ job, hosts, defaultDestHost, now, onChanged, onDelete }) {
+// God mode: where the archives really are on the destination machine,
+// read from its agent, so you can check the location — and open it in
+// Files. Older agents only report the path inside their container.
+function Location({ job, onOpenFolder }) {
+  const [info, setInfo] = useState(null);
+
+  useEffect(() => {
+    let live = true;
+    fetchBackupArchives(job.id)
+      .then((body) => live && setInfo(body))
+      .catch((e) => live && setInfo({ error: e.message }));
+    return () => {
+      live = false;
+    };
+  }, [job.id, job.last_success_at]);
+
+  if (!info) return <p className="backup-location settings-hint">Reading {job.dest_host}…</p>;
+  if (info.error) return <p className="backup-location form-error">Location unknown: {info.error}</p>;
+
+  const path = info.host_path;
+  const count = info.archives?.length ?? 0;
+  return (
+    <p className="backup-location">
+      <span className="stat-label">Kept in</span>
+      <span className="backup-host" style={{ color: hostColor(job.dest_host) }}>{job.dest_host}</span>
+      {path ? (
+        <button type="button" className="backup-location-path" title="Open in Files" onClick={() => onOpenFolder?.(job.dest_host, path)}>
+          {path}
+        </button>
+      ) : (
+        <code title="The path inside the agent's container — update the agent to see the host folder">{job.directory}</code>
+      )}
+      <span className="settings-hint">
+        {count} archive{count === 1 ? "" : "s"}
+      </span>
+    </p>
+  );
+}
+
+function BackupCard({ job, hosts, defaultDestHost, now, onChanged, onDelete, showLocation = false, onOpenFolder }) {
   const [editing, setEditing] = useState(false);
   const [showArchives, setShowArchives] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -315,6 +354,8 @@ function BackupCard({ job, hosts, defaultDestHost, now, onChanged, onDelete }) {
           />
         </span>
       </div>
+
+      {showLocation && <Location job={job} onOpenFolder={onOpenFolder} />}
 
       {(job.last_error || job.last_verify_ok === false || error) && (
         <div className="backup-row-notes">

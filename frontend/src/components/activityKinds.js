@@ -21,4 +21,11 @@ export const ACTIVITY_DOT = {
   update_done: "good",
   update_rolled_back: "warn",
   update_failed: "bad",
+  container_new: "good",
+  container_removed: "info",
+  container_recreated: "info",
+  os_updated: "good",
+  os_updates_available: "warn",
+  reboot_required: "warn",
+  node_rebooted: "info",
 };

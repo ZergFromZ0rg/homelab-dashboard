@@ -912,6 +912,7 @@ export function demoBackupArchives(id) {
   return {
     host: job?.dest_host || "thinkpad",
     directory: job?.directory || "/backups",
+    host_path: `/mnt/media/backups${(job?.directory || "/backups").replace(/^\/backups/, "")}`,
     archives: Array.from({ length: 4 }, (_, i) => ({
       name: `${prefix}-2026091${8 - i}-030000.tar.gz`,
       bytes: 412_836_000 - i * 1_200_000,

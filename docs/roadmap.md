@@ -167,7 +167,9 @@ forgot who did what within hours, and never told you anything.
       power off. Upgrades and power run as systemd units on the host, so a
       Docker restart mid-upgrade can't break dpkg. Failed services alert.
 - [x] Frontend tests (Vitest) for the risky flows.
-- [ ] Try each Phase 1 feature once yourself.
+- [x] Try each Phase 1 feature once yourself (2026-09-28: briefing actions,
+      System / Terminal tabs, shells gated to God, History; ntfy skipped by
+      choice, reboot-from-dashboard not yet tried).
 
 ## Phase 2 — The AI overseer
 

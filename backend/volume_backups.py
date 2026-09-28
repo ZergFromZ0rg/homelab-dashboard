@@ -486,13 +486,18 @@ def volumes_on(nodes: dict, host: str) -> dict:
     return _call("GET", f"{_base_url(nodes, host)}/backup/volumes")
 
 
-def archives_in(nodes: dict, host: str, directory: str) -> list[dict]:
-    body = _call(
+def archive_listing(nodes: dict, host: str, directory: str) -> dict:
+    """The destination agent's listing: ``archives``, plus ``host_path`` —
+    where they really live on that machine (agents older than that field
+    leave it out)."""
+    return _call(
         "GET", f"{_base_url(nodes, host)}/backup/archives",
         params={"directory": directory},
     )
 
-    return body.get("archives") or []
+
+def archives_in(nodes: dict, host: str, directory: str) -> list[dict]:
+    return archive_listing(nodes, host, directory).get("archives") or []
 
 
 def _receive_url(nodes: dict, host: str) -> str:

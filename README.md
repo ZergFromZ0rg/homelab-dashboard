@@ -71,8 +71,9 @@ modes is fewer tabs:
   same data as the rest of the page (`backend/morning.py`, on the `/ws`
   tick and at `/api/morning`), no LLM. Opening any section switches to
   Advanced.
-- **Advanced** — three tabs: **Overview** (servers included), **Containers**,
-  **Backups**. Each server card still has System / Settings / If this host
+- **Advanced** — four tabs: **Overview** (servers included), **Containers**,
+  **Files** (the file browser as a page: pick a server, jump to home, `/`
+  or a disk), **Backups**. Each server card still has System / Settings / If this host
   died folded under it.
 - **God** — Advanced plus control of the machines themselves:
   - **Network** — interfaces, Docker networks, published ports,
@@ -81,6 +82,9 @@ modes is fewer tabs:
     (OS, kernel, CPU, cores, RAM, GPUs, uptime, agent commit), disks with
     fill forecasts, systemd services, the journal, OS updates, reboot /
     power off, the agent's settings and "if this host died";
+  - **Backups** also shows where each job's archives really are on the
+    destination machine ("Kept in thinkpad /mnt/media/backups/…", read from
+    its agent) — click the path to open it in Files;
   - **Terminal** — a launcher per server (root shell on the machine, a
     shell or the logs of any running container) over the terminal dock
     stretched to the page. Sessions are the dock's, so they keep running

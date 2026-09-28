@@ -11,6 +11,8 @@ def _fresh(monkeypatch, tmp_path):
     activity._entries.clear()
     activity._prev_containers.clear()
     activity._prev_nodes.clear()
+    activity._prev_names.clear()
+    activity._prev_facts.clear()
     activity._seen_event_at.clear()
     monkeypatch.setattr(activity, "_initialized", False)
     yield
@@ -51,10 +53,43 @@ def test_container_start_stop_and_restart():
     assert kinds()[0] == "container_restart"
 
 
-def test_container_vanishing_is_a_stop():
+def test_container_vanishing_is_a_removal():
     activity.observe({"nas": _machine()}, {"nas": [_c("plex")]}, [])
     activity.observe({"nas": _machine()}, {"nas": []}, [])
-    assert kinds() == ["container_stop"]
+    assert kinds() == ["container_removed"]
+    assert activity.recent()[0]["text"] == "plex on nas removed"
+
+
+def test_new_and_recreated_containers_are_told_apart_by_name():
+    activity.observe({"nas": _machine()}, {"nas": [_c("a1", name="plex")]}, [])
+    # An image update: same name, new id — a recreate, not new + removed.
+    activity.observe({"nas": _machine()}, {"nas": [_c("b2", name="plex")]}, [])
+    assert kinds() == ["container_recreated"]
+    activity.observe({"nas": _machine()}, {"nas": [_c("b2", name="plex"), _c("c3", name="immich")]}, [])
+    assert kinds()[0] == "container_new"
+
+
+def test_an_unreachable_agent_is_not_every_container_removed():
+    activity.observe({"nas": _machine()}, {"nas": [_c("plex")]}, [])
+    activity.observe({"nas": _machine(agent=False)}, {"nas": []}, [])
+    activity.observe({"nas": _machine()}, {"nas": [_c("plex")]}, [])
+    assert "container_removed" not in kinds() and "container_new" not in kinds()
+
+
+def _host(os_updates, reboot=False, uptime=10_000):
+    return {"online": True, "agent_reachable": True, "uptime": uptime,
+            "host_facts": {"os_updates": os_updates, "reboot_required": reboot}}
+
+
+def test_os_updates_arriving_installed_and_the_reboot():
+    activity.observe({"nas": _host(0)}, {"nas": []}, [])
+    activity.observe({"nas": _host(12)}, {"nas": []}, [])
+    assert kinds() == ["os_updates_available"]
+    activity.observe({"nas": _host(0, reboot=True)}, {"nas": []}, [])
+    assert kinds()[:2] == ["reboot_required", "os_updated"]
+    assert "12 OS updates installed on nas" in [e["text"] for e in activity.recent()]
+    activity.observe({"nas": _host(0, uptime=30)}, {"nas": []}, [])
+    assert kinds()[0] == "node_rebooted"
 
 
 def test_health_flip():

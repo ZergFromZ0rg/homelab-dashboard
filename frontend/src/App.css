@@ -8783,3 +8783,29 @@ button.mb-item:disabled { cursor: default; }
   box-shadow: none;
   border: 1px solid var(--border);
 }
+
+/* God mode: where a backup's archives really are. */
+.backup-location {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0 12px 6px 28px;
+  font-size: 12px;
+}
+.backup-location-path {
+  font: 12px var(--mono);
+  color: var(--text);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline dotted var(--text-faint);
+  text-underline-offset: 3px;
+}
+.backup-location-path:hover { color: var(--accent); }
+
+/* Files tab */
+.files-tab { display: flex; flex-direction: column; gap: 10px; }
+.files-jumps { display: flex; flex-wrap: wrap; gap: 4px; }

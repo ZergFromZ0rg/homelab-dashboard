@@ -524,17 +524,20 @@ def list_backup_archives(job_id: str,
         raise HTTPException(status_code=404, detail="no such backup job")
 
     try:
-        archives = volume_backups.archives_in(
+        listing = volume_backups.archive_listing(
             registry.all(), job["dest_host"], job["directory"]
         )
     except BackupError as error:
         raise _fail(error)
+
+    archives = listing.get("archives") or []
 
     mine = [a for a in archives if volume_backups.owns(a["name"], source_of(job))]
 
     return {
         "host": job["dest_host"],
         "directory": job["directory"],
+        "host_path": listing.get("host_path"),
         "archives": mine,
         "restore": restore_steps(job, mine[0]["name"] if mine else "<archive>"),
     }

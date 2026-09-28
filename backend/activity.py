@@ -33,7 +33,9 @@ _pruned_at = 0.0
 
 # Runtime diff state, seeded on the first observe() and never persisted.
 _prev_containers: dict[tuple, tuple] = {}
+_prev_names: dict[tuple, str] = {}
 _prev_nodes: dict[str, tuple] = {}
+_prev_facts: dict[str, dict] = {}
 _seen_event_at: dict[str, float] = {}
 _initialized = False
 
@@ -86,14 +88,29 @@ def observe(
 ) -> None:
     global _initialized
 
+    # A host whose agent isn't answering has no trustworthy container list:
+    # keep what we last saw for it, so an outage doesn't read as every
+    # container removed and then new again.
+    blind = {h for h, m in machines.items() if m.get("agent_reachable") is False}
+
     cur_containers: dict[tuple, tuple] = {}
+    cur_names: dict[tuple, str] = {}
     for host, conts in containers.items():
+        if host in blind:
+            continue
         for c in conts:
             cur_containers[(host, c["id"])] = (
                 c.get("status"),
                 c.get("health"),
                 c.get("restart_count") or 0,
             )
+            cur_names[(host, c["id"])] = c.get("name") or c["id"][:12]
+    for key, value in _prev_containers.items():
+        if key[0] in blind:
+            cur_containers[key] = value
+            cur_names[key] = _prev_names.get(key, key[1][:12])
+
+    cur_facts = {host: _facts(m) for host, m in machines.items()}
 
     cur_nodes = {
         host: (bool(m.get("online")), m.get("agent_reachable"))
@@ -102,7 +119,9 @@ def observe(
 
     if not _initialized:
         _prev_containers.update(cur_containers)
+        _prev_names.update(cur_names)
         _prev_nodes.update(cur_nodes)
+        _prev_facts.update(cur_facts)
         for d in deployment_dumps:
             _seen_event_at[d["id"]] = max(
                 (e["at"] for e in d.get("events", [])), default=0.0
@@ -110,29 +129,38 @@ def observe(
         _initialized = True
         return
 
-    _diff_containers(containers, cur_containers)
+    _diff_containers(cur_containers, cur_names)
     _diff_nodes(cur_nodes)
+    _diff_facts(cur_facts)
     _diff_deployments(deployment_dumps)
 
     _prev_containers.clear()
     _prev_containers.update(cur_containers)
+    _prev_names.clear()
+    _prev_names.update(cur_names)
     _prev_nodes.clear()
     _prev_nodes.update(cur_nodes)
+    _prev_facts.clear()
+    _prev_facts.update(cur_facts)
 
 
-def _diff_containers(containers: dict[str, list], cur: dict[tuple, tuple]) -> None:
-    by_key = {
-        (host, c["id"]): c for host, conts in containers.items() for c in conts
-    }
+def _diff_containers(cur: dict[tuple, tuple], names: dict[tuple, str]) -> None:
+    # Recreating a container (an image update, a compose change) gives it a
+    # new id under the same name, so "new" and "removed" are decided by name
+    # per host: a new id whose name was already there is a recreate.
+    before = {(h, n) for (h, _), n in _prev_names.items()}
+    after = {(h, n) for (h, _), n in names.items()}
 
     for key, (status, health, restarts) in cur.items():
         host, _ = key
-        label = _container_label(by_key[key], host)
+        label = f"{names[key]} on {host}"
         prev = _prev_containers.get(key)
 
         if prev is None:
-            if status == "running":
-                record("container_start", f"{label} started", host)
+            if (host, names[key]) in before:
+                record("container_recreated", f"{label} recreated", host)
+            else:
+                record("container_new", f"{label} is new", host)
             continue
 
         was_status, was_health, was_restarts = prev
@@ -149,10 +177,43 @@ def _diff_containers(containers: dict[str, list], cur: dict[tuple, tuple]) -> No
         elif was_health == "unhealthy" and health != "unhealthy":
             record("container_healthy", f"{label} recovered", host)
 
-    for key in _prev_containers:
-        if key not in cur:
-            host, cid = key
-            record("container_stop", f"{cid[:12]} on {host} removed", host)
+    for key, name in _prev_names.items():
+        if key not in cur and (key[0], name) not in after:
+            record("container_removed", f"{name} on {key[0]} removed", key[0])
+
+
+def _facts(machine: dict) -> dict:
+    facts = machine.get("host_facts") if isinstance(machine.get("host_facts"), dict) else {}
+    return {
+        "os_updates": facts.get("os_updates"),
+        "reboot_required": facts.get("reboot_required"),
+        "uptime": machine.get("uptime"),
+    }
+
+
+def _diff_facts(cur: dict[str, dict]) -> None:
+    """The machine under the containers: OS updates arriving and being
+    installed (from the dashboard or by hand), a reboot becoming due, and
+    the host having rebooted."""
+    for host, now in cur.items():
+        was = _prev_facts.get(host)
+        if not was:
+            continue
+
+        old, new = was["os_updates"], now["os_updates"]
+        if isinstance(old, int) and isinstance(new, int) and new != old:
+            if new < old:
+                left = f", {new} left" if new else ""
+                record("os_updated", f"{old - new} OS update{'s' if old - new != 1 else ''} installed on {host}{left}", host)
+            else:
+                record("os_updates_available", f"{new - old} new OS update{'s' if new - old != 1 else ''} for {host}", host)
+
+        if now["reboot_required"] is True and was["reboot_required"] is False:
+            record("reboot_required", f"{host} needs a reboot", host)
+
+        up, was_up = now["uptime"], was["uptime"]
+        if isinstance(up, (int, float)) and isinstance(was_up, (int, float)) and up + 60 < was_up:
+            record("node_rebooted", f"{host} rebooted", host)
 
 
 def _diff_nodes(cur: dict[str, tuple]) -> None:

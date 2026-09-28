@@ -30,7 +30,7 @@ function rank(job) {
   return ORDER[job.state] ?? ORDER.ok;
 }
 
-function BackupsTab({ machines, connected }) {
+function BackupsTab({ machines, connected, showLocation = false, onOpenFolder }) {
   const now = useNow(30000).getTime() / 1000;
   const [data, setData] = useState({ backups: [], default_dest_host: null });
   const [adding, setAdding] = useState(false);
@@ -150,6 +150,8 @@ function BackupsTab({ machines, connected }) {
               hosts={hosts}
               defaultDestHost={data.default_dest_host}
               now={now}
+              showLocation={showLocation}
+              onOpenFolder={onOpenFolder}
               onChanged={async (patch) => {
                 if (patch) await updateBackup(job.id, patch);
                 await load();

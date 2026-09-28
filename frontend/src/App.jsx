@@ -4,6 +4,7 @@ import Overview from "./components/Overview";
 import BackupsTab from "./components/BackupsTab";
 import NetworkTab from "./components/NetworkTab";
 import SystemTab from "./components/SystemTab";
+import FilesTab from "./components/FilesTab";
 import TerminalTab from "./components/TerminalTab";
 import PersonalTab from "./components/PersonalTab";
 import Greeting from "./components/Greeting";
@@ -373,6 +374,8 @@ function App() {
   // Bumped to remount the container list after the palette writes its
   // search, which the list reads from localStorage when it mounts.
   const [containersKey, setContainersKey] = useState(0);
+  // A folder another tab asked the Files tab to open ({host, path, n}).
+  const [filesTarget, setFilesTarget] = useState(null);
   const control = useContainerControl();
 
   const totalContainers = Object.values(containers).reduce(
@@ -400,6 +403,7 @@ function App() {
       tone: "bad",
     },
     { value: "containers", label: "Containers", count: totalContainers },
+    { value: "files", label: "Files" },
     {
       value: "backups",
       label: "Backups",
@@ -431,7 +435,7 @@ function App() {
 
   // Anything that says "go look at X" (Attention → View, Quick actions →
   // Containers) funnels through here.
-  const navigate = (target, { container, host } = {}) => {
+  const navigate = (target, { container, host, path } = {}) => {
     if (target === "settings") return setSettingsOpen(true);
     if (container) {
       try {
@@ -448,6 +452,7 @@ function App() {
     else if (viewMode === "simple") setMode("advanced");
     setActiveTab(tab);
     if (target === "servers" && host) requestFocus(host);
+    if (target === "files" && host) setFilesTarget({ host, path, n: Date.now() });
   };
   const openSettingsFor = useCallback((host, container) => setSettingsFor({ host, container }), []);
 
@@ -530,8 +535,22 @@ function App() {
               />
             )}
 
+            {shownTab === "files" && (
+              <FilesTab
+                machines={machines}
+                connected={connected}
+                target={filesTarget}
+                onTargetUsed={() => setFilesTarget(null)}
+              />
+            )}
+
             {shownTab === "backups" && (
-              <BackupsTab machines={machines} connected={connected} />
+              <BackupsTab
+                machines={machines}
+                connected={connected}
+                showLocation={viewMode === "god"}
+                onOpenFolder={(host, path) => navigate("files", { host, path })}
+              />
             )}
 
             {shownTab === "system" && (
