@@ -9,6 +9,10 @@ const target = process.env.VITE_API_TARGET || 'http://localhost:8000'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  test: {
+    environment: 'jsdom',
+    include: ['src/**/*.test.{js,jsx}'],
+  },
   server: {
     proxy: {
       '/api': { target, changeOrigin: true },

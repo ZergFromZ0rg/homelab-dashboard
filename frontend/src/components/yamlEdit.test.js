@@ -1,15 +1,16 @@
-// node --test: structured compose edits change only the lines they mean to.
+// Structured compose edits change only the lines they mean to.
 // Fixtures are real compose files from the fleet, quirks included (a
 // trailing space, a trailing blank line, long flow sequences).
-import { test } from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   addEnv, addListItem, edit, parse, readService, rebase, removeEnv, removeListItem,
   setEnv, setListItem, setScalar,
 } from "./yamlEdit.js";
 
-const fixture = (name) => readFileSync(new URL(`./__fixtures__/${name}`, import.meta.url), "utf8");
+const fixture = (name) => readFileSync(resolve(process.cwd(), "src/components/__fixtures__", name), "utf8");
 
 function changed(before, after) {
   const a = before.split("\n");
