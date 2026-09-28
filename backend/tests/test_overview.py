@@ -82,7 +82,7 @@ def test_unhealthy_container_reaches_the_overview():
     )
     issue = _issue(ov, "container:nuc:nextcloud:unhealthy")
     assert issue["severity"] == "bad"
-    assert any("docker logs nextcloud" in r for r in ov["recommendations"])
+    assert any("nextcloud" in r and "logs" in r for r in ov["recommendations"])
 
 
 def test_backup_and_temperature_recommendations():

@@ -8140,3 +8140,161 @@ a.check-target:hover {
   margin: 0;
   color: var(--text-faint);
 }
+
+/* ----- Host system panel (services, OS updates, power) ----- */
+
+.hsys {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 8px 0 4px;
+}
+
+.hsys-block h4 {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.hsys-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.hsys-search {
+  flex: 1;
+  min-width: 180px;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.hsys-list,
+.hsys-packages {
+  max-height: 300px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  font-size: 12.5px;
+}
+
+.hsys-list li {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 2px;
+  border-bottom: 1px solid var(--border);
+}
+
+.hsys-failed .hsys-unit {
+  color: var(--offline);
+}
+
+.hsys-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-faint);
+}
+
+.hsys-dot--active {
+  background: var(--online);
+}
+
+.hsys-dot--failed {
+  background: var(--offline);
+}
+
+.hsys-unit {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+}
+
+.hsys-sub {
+  color: var(--text-faint);
+  font-size: 11.5px;
+}
+
+.hsys-actions {
+  display: flex;
+  gap: 2px;
+}
+
+.hsys-actions button {
+  padding: 1px 6px;
+  font: 11.5px var(--sans);
+  color: var(--text-muted);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.hsys-actions button:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--bg-subtle);
+}
+
+.hsys-journal {
+  grid-column: 1 / -1;
+  max-height: 260px;
+  margin: 4px 0;
+  padding: 8px;
+  overflow: auto;
+  font: 11.5px/1.4 var(--mono);
+  white-space: pre-wrap;
+  background: #0b0e14;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.hsys-packages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  max-height: 160px;
+}
+
+.hsys-packages li {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  font-family: var(--mono);
+}
+
+.hsys-power {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.hsys-ok {
+  margin: 0;
+  color: var(--online);
+  font-size: 12.5px;
+}
+
+.conn-count--bad {
+  color: var(--offline);
+}
+
+/* Destructive: power off, overwrite someone else's edit. Used since 1.3,
+   defined only now — until then it rendered as a plain button. */
+.btn.btn--danger {
+  color: var(--offline);
+  border-color: color-mix(in srgb, var(--offline) 55%, transparent);
+}
+
+.btn.btn--danger:hover:not(:disabled) {
+  color: #fff;
+  background: color-mix(in srgb, var(--offline) 35%, var(--bg-card));
+}

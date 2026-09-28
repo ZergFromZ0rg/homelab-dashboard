@@ -1,6 +1,7 @@
 import DiskExplorer from "./DiskExplorer";
 import HostRecovery from "./HostRecovery";
 import HostSettings from "./HostSettings";
+import HostSystem from "./HostSystem";
 import Sparkline from "./Sparkline";
 import Stat from "./Stat";
 import { diskLabel } from "./diskLabel";
@@ -512,6 +513,7 @@ function MachineVitals({ host, machine, history, explore, onExplore }) {
 
       {host && (
         <div className="sv-manage">
+          <HostSystem host={host} machine={machine} />
           <HostSettings host={host} />
           <HostRecovery host={host} />
         </div>

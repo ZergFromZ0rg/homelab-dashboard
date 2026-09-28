@@ -212,6 +212,15 @@ def _host_alerts(name: str, m: dict) -> dict[str, dict]:
             "host": name,
         }
 
+    # From the agent's host control (systemd), when it's on for this host.
+    failed = (m.get("host_facts") or {}).get("failed_units") or []
+    if failed:
+        out[f"host:{name}:services"] = {
+            "title": f"{name}: {len(failed)} service{'s' if len(failed) != 1 else ''} failed",
+            "message": f"failed on {name}: {', '.join(failed[:6])}",
+            "host": name,
+        }
+
     ram = m.get("ram")
     if isinstance(ram, (int, float)) and ram >= RAM_PERCENT:
         out[f"host:{name}:ram"] = {

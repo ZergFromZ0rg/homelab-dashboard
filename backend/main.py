@@ -28,7 +28,7 @@ from backend import updates_api
 from backend import volume_backup_api
 from backend import volume_backups
 from backend.registry import registry
-from backend import audit_log, fleet_api, host_tools_api, personal_api
+from backend import audit_log, fleet_api, host_control_api, host_tools_api, personal_api
 from backend.hosts import MAIN_HOST_OVERRIDE, detect_main_host
 from backend.scheduler_api import deployments, merge_agent_snapshot
 
@@ -58,6 +58,7 @@ app.include_router(compose_api.router)
 app.include_router(updates_api.router)
 app.include_router(fleet_api.router)
 app.include_router(host_tools_api.router)
+app.include_router(host_control_api.router)
 app.include_router(personal_api.router)
 
 # One templated next-step per issue-key family, for the Overview
@@ -69,15 +70,15 @@ def _recommendation(key: str, host: str | None) -> str:
     parts = key.split(":")
 
     if parts[0] == "deploy":
-        return "Redeploy the failed workload, or check its container logs."
+        return "Redeploy the failed workload, or open its logs (the lines icon on its row)."
 
     if parts[0] == "container":
         name = parts[2] if len(parts) > 2 else "the container"
         kind = parts[3] if len(parts) > 3 else ""
         if kind == "unhealthy":
-            return f"Read {name}'s logs on {where} (docker logs {name}) — its healthcheck is failing."
+            return f"Open {name}'s logs on {where} (the lines icon on its row) — its healthcheck is failing."
         if kind == "restarting":
-            return f"{name} is crash-looping on {where} — read its logs (docker logs {name}) to see why it exits."
+            return f"{name} is crash-looping on {where} — open its logs (the lines icon on its row) to see why it exits."
         return ""
 
     kind = parts[2] if len(parts) > 2 else ""
@@ -92,6 +93,7 @@ def _recommendation(key: str, host: str | None) -> str:
         "disk": f"Free space on {where} — clear old logs and images (docker system prune) or extend the volume.",
         "diskfull": f"{where} is filling up — find what's growing (docker system df, du -sh) before it hits 100%.",
         "backup": f"Check homelab-agent's logs on {where} and its BACKUP_REPO / GITHUB_TOKEN settings.",
+        "services": f"Open {where}'s Services panel on the Servers tab — read the failed unit's journal, then restart it.",
     }.get(kind, "")
 
 
