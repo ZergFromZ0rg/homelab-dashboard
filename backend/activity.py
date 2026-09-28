@@ -19,11 +19,17 @@ from pathlib import Path
 from backend.jsonstore import read_json, write_json_atomic
 
 _FILE = Path(os.getenv("ACTIVITY_FILE", "/data/activity.json"))
-MAX_ENTRIES = 120
+# Kept for Settings → History's "activity" period (30 days by default),
+# with a hard cap so a flapping container can't grow it without bound.
+# Only the newest LIVE_ENTRIES go out on every /ws tick.
+MAX_ENTRIES = 20000
+LIVE_ENTRIES = 150
+_PRUNE_EVERY = 3600
 
 _entries: list[dict] = read_json(_FILE, [])
 if not isinstance(_entries, list):
     _entries = []
+_pruned_at = 0.0
 
 # Runtime diff state, seeded on the first observe() and never persisted.
 _prev_containers: dict[tuple, tuple] = {}
@@ -32,13 +38,42 @@ _seen_event_at: dict[str, float] = {}
 _initialized = False
 
 
-def recent() -> list[dict]:
-    return list(_entries)
+def recent(limit: int = LIVE_ENTRIES) -> list[dict]:
+    return list(_entries[:limit])
+
+
+def history(limit: int = 200, before: float | None = None, q: str | None = None) -> list[dict]:
+    """Older entries for the History view: newest first, paged by time."""
+    needle = (q or "").lower().strip()
+    out = []
+    for entry in _entries:
+        if before is not None and entry["at"] >= before:
+            continue
+        if needle and needle not in f"{entry.get('text', '')} {entry.get('host') or ''} {entry.get('kind', '')}".lower():
+            continue
+        out.append(entry)
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _prune(now: float) -> None:
+    global _pruned_at
+    from backend import history_settings
+
+    days = history_settings.get()["activity_days"]
+    cutoff = now - days * 86400
+    while _entries and _entries[-1]["at"] < cutoff:
+        _entries.pop()
+    del _entries[MAX_ENTRIES:]
+    _pruned_at = now
 
 
 def record(kind: str, text: str, host: str | None = None) -> None:
-    _entries.insert(0, {"at": time.time(), "kind": kind, "text": text, "host": host})
-    del _entries[MAX_ENTRIES:]
+    now = time.time()
+    _entries.insert(0, {"at": now, "kind": kind, "text": text, "host": host})
+    if now - _pruned_at > _PRUNE_EVERY or len(_entries) > MAX_ENTRIES:
+        _prune(now)
     write_json_atomic(_FILE, _entries, label="activity", indent=None)
 
 

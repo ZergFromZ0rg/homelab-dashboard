@@ -7,9 +7,16 @@ Every request that changes something is written here by
 to add a line. Things that aren't a single request — a shell session, a
 job's outcome — call ``record`` themselves.
 
-Append-only JSON lines on the data volume, rotated at ``MAX_BYTES`` with
-``KEEP_FILES`` old files kept (~months at homelab rates). Entries carry
-identifiers — the path, container, host, file path — never contents or
+Beyond changes, a few **reads** are recorded too — the ones that expose
+something: opening or downloading a file, downloading a container's log,
+reading a journal or an agent's settings, watching a log stream. Actions
+nobody clicked (a nightly update, an auto-rebalance move) are recorded
+with who = "system".
+
+Append-only JSON lines on the data volume. At ``MAX_BYTES`` the file is
+archived under its start time; archives whose newest entry is older than
+the retention period (Settings → History, a year by default) are deleted.
+Entries carry identifiers — the path, container, host — never contents or
 credentials: the body keys worth keeping are an allowlist.
 """
 
@@ -26,13 +33,24 @@ from backend.env import env_str
 
 FILE = Path(env_str("AUDIT_FILE", "/data/audit.jsonl"))
 MAX_BYTES = 5 * 1024 * 1024
-KEEP_FILES = 6
+MAX_ARCHIVES = 400  # a hard stop (~2 GB) whatever the retention says
 MAX_BODY = 32 * 1024
 
 # Body/query keys that identify what was acted on. Anything else in a body
 # (file contents, passwords, compose text) is never written.
 TARGET_KEYS = ("path", "container", "containers", "name", "host", "hosts", "app",
                "target", "service", "project", "network", "id", "overwrite", "pull")
+
+# Reads worth a line: they hand over file contents, logs or settings.
+READS = [
+    re.compile(p) for p in (
+        r"^/api/files/[^/]+/(text|download)$",
+        r"^/api/containers/[^/]+/[^/]+/logs/download$",
+        r"^/api/hosts/[^/]+/services/[^/]+/logs$",
+        r"^/api/hosts/[^/]+/journal$",
+        r"^/api/hosts/[^/]+/config$",
+    )
+]
 
 # Routes that change nothing that matters to an audit: personal scratch
 # (pins, notes, to-dos, weather), the agents' own registration heartbeat,
@@ -54,17 +72,22 @@ _lock = threading.Lock()
 # --- describing an entry -----------------------------------------------------
 
 _LABELS = [
+    (r"^/api/files/[^/]+/text$", lambda m: "file opened"),  # GET; PUT is matched by method below
+    (r"^/api/files/[^/]+/download$", lambda m: "file downloaded"),
+    (r"^/api/containers/[^/]+/[^/]+/logs/download$", lambda m: "container log downloaded"),
+    (r"^/api/hosts/[^/]+/services/[^/]+/logs$", lambda m: "service journal read"),
+    (r"^/api/hosts/[^/]+/journal$", lambda m: "system journal read"),
+    (r"^/api/hosts/[^/]+/config$", lambda m: "agent settings read"),
+    (r"^/api/history/settings$", lambda m: "history settings changed"),
     (r"^/api/containers/[^/]+/[^/]+/(start|stop|restart)$", lambda m: f"container {m[1]}"),
     (r"^/api/compose/[^/]+/apply$", lambda m: "compose change applied"),
     (r"^/api/updates/[^/]+$", lambda m: "image update"),
     (r"^/api/files/[^/]+/upload$", lambda m: "file uploaded"),
-    (r"^/api/files/[^/]+/text$", lambda m: "file edited"),
     (r"^/api/files/[^/]+/rename$", lambda m: "renamed"),
     (r"^/api/files/[^/]+/mkdir$", lambda m: "folder created"),
     (r"^/api/disk/[^/]+/delete$", lambda m: "deleted"),
     (r"^/api/rebuild/[^/]+$", lambda m: "rebuild"),
     (r"^/api/fleet/rebuild$", lambda m: "fleet rebuild"),
-    (r"^/api/hosts/[^/]+/config$", lambda m: "agent settings changed"),
     (r"^/api/hosts/[^/]+/power$", lambda m: "host power"),
     (r"^/api/hosts/[^/]+/services/", lambda m: "service action"),
     (r"^/api/hosts/[^/]+/os-updates", lambda m: "OS update"),
@@ -87,9 +110,17 @@ _LABELS = [(re.compile(p), f) for p, f in _LABELS]
 _HOST = re.compile(r"^/api/(?:containers|compose|updates|files|disk|rebuild|hosts|networks)/([^/]+)")
 
 
+_WRITES = {  # the same path, changing rather than reading
+    "file opened": "file edited",
+    "agent settings read": "agent settings changed",
+}
+
+
 def describe(method: str, path: str) -> tuple[str, str | None]:
     """``(action, host)`` in words, for the log and its viewer."""
     action = next((f(m) for rx, f in _LABELS if (m := rx.match(path))), f"{method} {path}")
+    if method not in ("GET", "HEAD"):
+        action = _WRITES.get(action, action)
     host = _HOST.match(path)
     return action, host[1] if host else None
 
@@ -118,17 +149,49 @@ def _targets(query: str, body: bytes) -> dict:
 # --- writing and reading -----------------------------------------------------
 
 
+def _archives() -> list[Path]:
+    """Archived files, newest first (named by when they were archived)."""
+    return sorted(FILE.parent.glob(FILE.stem + ".*.jsonl"), reverse=True)
+
+
+def _last_at(path: Path) -> float:
+    try:
+        with open(path, "rb") as f:
+            f.seek(0, 2)
+            f.seek(max(0, f.tell() - 4096))
+            tail = f.read().decode("utf-8", "replace").strip().splitlines()
+        return json.loads(tail[-1]).get("at", 0) if tail else 0
+    except (OSError, ValueError):
+        return 0
+
+
+def prune() -> int:
+    """Delete archives entirely older than the retention period. Returns
+    how many went."""
+    from backend import history_settings
+
+    days = history_settings.get()["audit_days"]
+    cutoff = time.time() - days * 86400 if days else None
+    gone = 0
+    for i, path in enumerate(_archives()):
+        if i >= MAX_ARCHIVES or (cutoff and _last_at(path) < cutoff):
+            try:
+                path.unlink()
+                gone += 1
+            except OSError:
+                pass
+    return gone
+
+
 def _rotate() -> None:
     if not FILE.exists() or FILE.stat().st_size < MAX_BYTES:
         return
-    for i in range(KEEP_FILES - 1, 0, -1):
-        older = FILE.with_suffix(f".jsonl.{i}")
-        if older.exists():
-            if i == KEEP_FILES - 1:
-                older.unlink()
-            else:
-                older.rename(FILE.with_suffix(f".jsonl.{i + 1}"))
-    FILE.rename(FILE.with_suffix(".jsonl.1"))
+    # Named by time (so they sort), never over an existing archive.
+    stamp = int(time.time() * 1000)
+    while (target := FILE.with_name(f"{FILE.stem}.{stamp}.jsonl")).exists():
+        stamp += 1
+    FILE.rename(target)
+    prune()
 
 
 def record(action: str, *, who: str, host: str | None = None, ok: bool = True,
@@ -154,8 +217,7 @@ def read(limit: int = 200, before: float | None = None, q: str | None = None) ->
     """Newest first, across the rotated files."""
     needle = (q or "").lower().strip()
     out: list[dict] = []
-    files = [FILE] + [FILE.with_suffix(f".jsonl.{i}") for i in range(1, KEEP_FILES)]
-    for path in files:
+    for path in [FILE, *_archives()]:
         if not path.exists():
             continue
         try:
@@ -209,11 +271,13 @@ class AuditMiddleware:
         self.app = app
 
     async def __call__(self, scope, receive, send):
+        path = scope.get("path", "")
+        reading = scope.get("method") in ("GET", "HEAD", "OPTIONS")
         if (
             scope["type"] != "http"
-            or scope.get("method") in ("GET", "HEAD", "OPTIONS")
-            or not scope["path"].startswith("/api/")
-            or any(rx.search(scope["path"]) for rx in QUIET)
+            or not path.startswith("/api/")
+            or (reading and not (scope.get("method") == "GET" and any(rx.match(path) for rx in READS)))
+            or (not reading and any(rx.search(path) for rx in QUIET))
         ):
             return await self.app(scope, receive, send)
 

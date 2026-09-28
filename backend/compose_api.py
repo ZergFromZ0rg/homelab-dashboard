@@ -14,7 +14,7 @@ import json
 
 from fastapi import APIRouter, Header
 
-from backend import activity, auth
+from backend import activity, audit_log, auth
 from backend.files_api import _agent, _call
 
 router = APIRouter(prefix="/api/compose/{host}")
@@ -69,4 +69,7 @@ def job(host: str, job_id: str):
             kind, verb = outcome
             reason = f": {body['error'].splitlines()[0]}" if body.get("error") else ""
             activity.record(kind, f"Compose change to {body.get('project')} {verb}{reason}", host)
+            audit_log.record(f"compose change {verb}", who="system", host=host, ok=verb == "applied",
+                             target={"project": body.get("project"), "id": job_id},
+                             detail=(body.get("error") or "")[:300] or None)
     return response

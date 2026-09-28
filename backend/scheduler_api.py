@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 
-from backend import notify
+from backend import audit_log, nightly_updates, notify
 import time
 
 import requests
@@ -684,6 +684,11 @@ async def _auto_rebalance_loop() -> None:
                 await asyncio.to_thread(
                     _move_deployment, record, move["to_node"], move["reason"]
                 )
+                audit_log.record(
+                    "deployment moved", who="auto-rebalance", host=move["to_node"],
+                    target={"id": record.id, "name": f"{move['from_node']} → {move['to_node']}"},
+                    detail=move["reason"],
+                )
 
             # Stranded on a dead node — reschedule the stateless ones.
             for stranded in autorebalance.plan_reschedules(dumps):
@@ -741,6 +746,7 @@ async def _alert_loop() -> None:
 
             if cycles >= alerts.BREACH_CYCLES:
                 alert_history.sweep(alert_monitor.firing_keys())
+            await asyncio.to_thread(nightly_updates.record_new, registry.all())
         except asyncio.CancelledError:
             raise
         except Exception as error:  # noqa: BLE001 - loop must survive

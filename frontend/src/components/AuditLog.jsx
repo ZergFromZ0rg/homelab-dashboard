@@ -2,9 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import { jsonOrThrow } from "./apiAuth";
 import { hostColor } from "./hostColor";
 
-// Settings → Audit log: who did what, newest first, kept for months (the
-// Overview timeline only holds hours). One line each; what it named, from
-// where and how it went are in the row's tooltip.
+// Settings → History. Two records, newest first, each with its own
+// retention: Actions (who did what — the audit log, a year by default) and
+// Events (what happened to the fleet — 30 days by default; the Overview
+// timeline shows the latest). One line each; details in the tooltip.
 
 const PAGE = 100;
 
@@ -24,7 +25,44 @@ function summary(target) {
     .join(" · ");
 }
 
+const DAYS = (d) => (d === 0 ? "forever" : d >= 365 ? `${d / 365} year${d > 365 ? "s" : ""}` : `${d} days`);
+
+function Retention() {
+  const [cfg, setCfg] = useState(null);
+  useEffect(() => {
+    fetch("/api/history/settings").then(jsonOrThrow).then(setCfg).catch(() => {});
+  }, []);
+  if (!cfg) return null;
+  const save = (key, value) =>
+    fetch("/api/history/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [key]: Number(value) }),
+    })
+      .then(jsonOrThrow)
+      .then(setCfg)
+      .catch(() => {});
+  return (
+    <div className="audit-retention">
+      {[
+        ["audit_days", "Keep actions"],
+        ["activity_days", "Keep events"],
+      ].map(([key, label]) => (
+        <label key={key}>
+          {label}
+          <select value={cfg[key]} onChange={(e) => save(key, e.target.value)}>
+            {cfg.choices[key].map((d) => (
+              <option key={d} value={d}>{DAYS(d)}</option>
+            ))}
+          </select>
+        </label>
+      ))}
+    </div>
+  );
+}
+
 function AuditLog() {
+  const [mode, setMode] = useState("actions");
   const [entries, setEntries] = useState(null);
   const [q, setQ] = useState("");
   const [more, setMore] = useState(false);
@@ -34,17 +72,21 @@ function AuditLog() {
     const params = new URLSearchParams({ limit: String(PAGE) });
     if (query) params.set("q", query);
     if (before) params.set("before", String(before));
-    return fetch(`/api/audit?${params}`)
+    const url = mode === "actions" ? `/api/audit?${params}` : `/api/activity?${params}`;
+    return fetch(url)
       .then(jsonOrThrow)
       .then((body) => {
-        setMore(body.entries.length === PAGE);
-        return body.entries;
+        const rows = mode === "actions"
+          ? body.entries
+          : body.activity.map((e) => ({ at: e.at, who: e.kind.replace(/_/g, " "), action: e.text, host: e.host, ok: !/down|fail|unhealthy|rolled/.test(e.kind) }));
+        setMore(rows.length === PAGE);
+        return rows;
       })
       .catch((e) => {
         setError(e.message);
         return [];
       });
-  }, []);
+  }, [mode]);
 
   useEffect(() => {
     const timer = setTimeout(() => load(q).then(setEntries), q ? 250 : 0);
@@ -56,10 +98,33 @@ function AuditLog() {
 
   return (
     <div className="audit">
+      <div className="audit-top">
+        <div className="segmented" role="group" aria-label="Which history">
+          {[
+            ["actions", "Actions"],
+            ["events", "Events"],
+          ].map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              className={mode === value ? "active" : ""}
+              aria-pressed={mode === value}
+              onClick={() => {
+                setMode(value);
+                setEntries(null);
+              }}
+              title={value === "actions" ? "Who did what: changes, sensitive reads, sign-ins, automatic actions" : "What happened to the fleet: containers, hosts, deployments"}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <Retention />
+      </div>
       <input
         className="deploy-input"
         type="search"
-        placeholder="Filter — a host, a person, a path, “shell”…"
+        placeholder={mode === "actions" ? "Filter — a host, a person, a path, “shell”…" : "Filter — a container, a host, “restart”…"}
         value={q}
         onChange={(e) => setQ(e.target.value)}
       />

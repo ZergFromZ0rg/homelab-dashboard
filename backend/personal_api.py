@@ -8,7 +8,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Header, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
-from backend import activity, alert_history, audit_log, auth, notify, personal
+from backend import activity, alert_history, audit_log, auth, history_settings, notify, personal
 from backend.notes import Conflict, NoteStore
 from backend.pins import PinStore
 from backend.service_activity_credentials import ServiceActivityCredentialStore
@@ -96,10 +96,10 @@ def list_alerts():
 
 
 @router.get("/api/activity")
-def list_activity():
-    """Recent fleet events (container/host/deploy transitions) for the
-    Overview feed. Also included in every /ws tick."""
-    return {"activity": activity.recent()}
+def list_activity(limit: int = Query(200, ge=1, le=2000), before: float | None = None, q: str | None = None):
+    """Fleet events (container/host/deploy transitions), newest first. The
+    latest ride every /ws tick; this pages back through the history."""
+    return {"activity": activity.history(limit, before, q)}
 
 
 def _personal(fn, *args):
@@ -228,3 +228,20 @@ def test_notify(x_register_token: str | None = Header(default=None)):
     if not ok:
         raise HTTPException(status_code=502, detail="the ntfy server didn't accept it — check the address")
     return {"sent": True}
+
+
+@router.get("/api/history/settings")
+def get_history_settings():
+    """How long the audit log and the activity history are kept."""
+    return {**history_settings.get(), "choices": history_settings.CHOICES}
+
+
+@router.put("/api/history/settings")
+def set_history_settings(payload: dict, x_register_token: str | None = Header(default=None)):
+    auth.check_token(x_register_token)
+    try:
+        settings = history_settings.update(payload)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+    audit_log.prune()
+    return {**settings, "choices": history_settings.CHOICES}

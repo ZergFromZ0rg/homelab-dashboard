@@ -232,6 +232,12 @@ async def logs_socket(websocket: WebSocket, host: str):
     except (OSError, asyncio.TimeoutError) as error:
         await _refuse(websocket, f"couldn't reach {host}'s agent: {error}")
         return
+    headers = {k.lower(): v for k, v in websocket.headers.items()}
+    audit_log.record(
+        "container logs viewed", host=host, target={"container": websocket.query_params.get("name") or container},
+        who=audit_log.who_from_headers(headers),
+        ip=audit_log.ip_from_headers(headers, websocket.client and (websocket.client.host,)),
+    )
     try:
         await _relay(websocket, agent, lambda: None)
     finally:

@@ -15,7 +15,7 @@ import json
 
 from fastapi import APIRouter, Header
 
-from backend import activity, auth
+from backend import activity, audit_log, auth
 from backend.files_api import _agent, _call
 
 router = APIRouter(prefix="/api/updates/{host}")
@@ -59,4 +59,7 @@ def job(host: str, job_id: str):
                 "rolled_back": ("update_rolled_back", "update rolled back"),
             }.get(state, ("update_failed", "update failed"))
             activity.record(kind, f"{_what(body)} {verb}" + (f": {problems}" if problems else ""), host)
+            audit_log.record(f"image {verb}", who="system", host=host, ok=state == "done",
+                             target={"project": ", ".join(body.get("projects") or []), "id": job_id},
+                             detail=problems[:300] or None)
     return response

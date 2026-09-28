@@ -27,3 +27,10 @@ def _isolated_notify(tmp_path, monkeypatch):
     from backend import notify
 
     monkeypatch.setattr(notify, "FILE", tmp_path / "notify.json")
+
+
+@pytest.fixture(autouse=True)
+def _isolated_history_settings(tmp_path, monkeypatch):
+    from backend import history_settings
+
+    monkeypatch.setattr(history_settings, "FILE", tmp_path / "history.json")

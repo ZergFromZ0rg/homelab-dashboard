@@ -199,7 +199,7 @@ function SiteSettings({ pins, containers }) {
         <NotifySettings />
       </SettingsCard>
 
-      <SettingsCard title="Audit log">
+      <SettingsCard title="History">
         <AuditLog />
       </SettingsCard>
 

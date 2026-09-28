@@ -1,3 +1,4 @@
+import time
 import pytest
 
 from backend import activity
@@ -89,13 +90,34 @@ def test_new_failed_deployment_event():
     assert "pull error" in activity.recent()[0]["text"]
 
 
-def test_cap_and_reload(monkeypatch, tmp_path):
+def test_live_view_is_short_history_is_long_and_it_reloads(monkeypatch, tmp_path):
     path = tmp_path / "a.json"
     monkeypatch.setattr(activity, "_FILE", path)
-    for i in range(150):
+    for i in range(400):
         activity.record("container_start", f"c{i} started")
-    assert len(activity.recent()) == activity.MAX_ENTRIES
+    # Every /ws tick carries only the newest; the history keeps them all.
+    assert len(activity.recent()) == activity.LIVE_ENTRIES
+    assert len(activity.history(1000)) == 400
 
     activity._entries.clear()
     activity._entries.extend(read_json(path, []))
-    assert len(activity.recent()) == activity.MAX_ENTRIES
+    assert len(activity.history(1000)) == 400
+
+
+def test_old_entries_go_after_the_retention_period(monkeypatch):
+    now = time.time()
+    activity._entries[:] = [
+        {"at": now - 40 * 86400, "kind": "x", "text": "ancient", "host": None},
+        {"at": now - 10 * 86400, "kind": "x", "text": "recent", "host": None},
+    ][::-1]
+    monkeypatch.setattr(activity, "_pruned_at", 0.0)
+    activity.record("x", "now")
+    assert [e["text"] for e in activity.history(10)] == ["now", "recent"]
+
+
+def test_history_pages_and_filters():
+    for i in range(5):
+        activity.record("container_start", f"c{i} started", host="bigboy" if i % 2 else "thinkpad")
+    newest = activity.history(1)[0]
+    assert all(e["at"] < newest["at"] for e in activity.history(10, before=newest["at"]))
+    assert {e["host"] for e in activity.history(10, q="bigboy")} == {"bigboy"}
