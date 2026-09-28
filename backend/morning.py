@@ -3,15 +3,22 @@
 from __future__ import annotations
 
 import time
+from urllib.parse import quote
 
-def _ago(seconds: float) -> str:
-    if seconds < 60:
-        return f"{int(seconds)}s"
-    if seconds < 3600:
-        return f"{int(seconds / 60)}m"
-    if seconds < 86400:
-        return f"{int(seconds / 3600)}h"
-    return f"{int(seconds / 86400)}d"
+# Activity kinds worth a line in "overnight", with their tone. Kinds are the
+# ones activity.record() actually writes; routine starts/stops are left out.
+OVERNIGHT_KINDS = {
+    "update_done": "ok",
+    "update_failed": "bad",
+    "update_rolled_back": "warn",
+    "container_restart": "warn",
+    "container_unhealthy": "bad",
+    "container_healthy": "ok",
+    "node_down": "bad",
+    "node_up": "ok",
+    "agent_down": "bad",
+    "agent_up": "ok",
+}
 
 def synthesize(
     machines: dict,
@@ -39,13 +46,13 @@ def synthesize(
         if entry.get("at", 0) >= cutoff:
             # We want to highlight significant overnight events.
             kind = entry.get("kind", "")
-            if kind in ("update", "update_done", "autorebalance", "container_restart", "container_unhealthy", "backup_done"):
+            if kind in OVERNIGHT_KINDS:
                 overnight.append({
                     "kind": kind,
                     "text": entry.get("text", ""),
                     "at": entry.get("at"),
                     "host": entry.get("host"),
-                    "tone": "bad" if kind == "container_unhealthy" else ("warn" if kind == "container_restart" else "ok")
+                    "tone": OVERNIGHT_KINDS[kind],
                 })
 
     # Sort overnight descending by time
@@ -107,7 +114,8 @@ def synthesize(
                 "button_label": "Reboot host",
                 "action": {
                     "method": "POST",
-                    "url": f"/api/hosts/{host}/reboot",
+                    "url": f"/api/hosts/{host}/power",
+                    "body": {"action": "reboot"},
                     "confirm": f"Reboot {host}?"
                 }
             })
@@ -129,7 +137,7 @@ def synthesize(
 
         # Action: Container Updates (if available)
         host_containers = containers.get(host) or []
-        updatable = [c for c in host_containers if c.get("update", {}).get("can_update")]
+        updatable = [c for c in host_containers if (c.get("update") or {}).get("state") == "available"]
         if updatable:
             needs_action.append({
                 "id": f"container_updates:{host}",
@@ -150,8 +158,8 @@ def synthesize(
         for c in host_containers:
             cname = c.get("name") or c.get("id") or "?"
             restarts = c.get("restart_count") or 0
-            # Simple heuristic for flapping
-            if c.get("status") == "restarting" or restarts >= 5:
+            # restart_count is lifetime, so only a live "restarting" counts.
+            if c.get("status") == "restarting":
                 degrading.append({
                     "key": f"container_restarting:{host}:{cname}",
                     "title": f"{cname} keeps restarting",
@@ -174,21 +182,23 @@ def synthesize(
     # Action: Rebalance recommendations
     if rebalance_suggestions:
         for rec in rebalance_suggestions:
-            container_name = rec.get("container_name") or rec.get("container_id", "?")
+            dep_id = rec.get("deployment_id")
+            if not dep_id:
+                continue
+            name = rec.get("name") or rec.get("image") or dep_id
             from_node = rec.get("from_node", "?")
             to_node = rec.get("to_node", "?")
             needs_action.append({
-                "id": f"rebalance:{container_name}",
+                "id": f"rebalance:{dep_id}",
                 "type": "rebalance",
-                "title": f"Move {container_name} from {from_node} to {to_node}",
-                "subtitle": f"Score gain: {rec.get('gain', 0)}",
+                "title": f"Move {name} from {from_node} to {to_node}",
+                "subtitle": rec.get("reason") or f"Score gain: {rec.get('gain', 0)}",
                 "host": from_node,
-                "button_label": "Approve move",
+                "button_label": "Move",
                 "action": {
                     "method": "POST",
-                    "url": "/api/rebalance/apply",
-                    "body": {"container_id": rec.get("container_id"), "target_node": to_node},
-                    "confirm": f"Move {container_name} to {to_node}?"
+                    "url": f"/api/deployments/{dep_id}/redeploy?node={quote(to_node)}",
+                    "confirm": f"Move {name} to {to_node}?"
                 }
             })
 

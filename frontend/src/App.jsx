@@ -419,7 +419,7 @@ function App() {
       } catch {
         // no storage: the tab still opens, just unfiltered
       }
-      setContainersKey((k) => k + k);
+      setContainersKey((k) => k + 1);
     }
     // If navigating to a detailed tab, automatically switch out of simple mode
     if (viewMode === "simple") setMode("advanced");
@@ -440,7 +440,7 @@ function App() {
         onSetMode={setMode}
       >
         <UpdatesProvider>
-        <TerminalDock machines={machines} enabled={viewMode === "god"}>
+        <TerminalDock machines={machines}>
         {viewMode === "simple" && (
           <div className="simple-mode-content">
             <MorningBriefing summary={morning_summary} onNavigate={navigate} />

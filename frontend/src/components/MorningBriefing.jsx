@@ -1,4 +1,7 @@
-import React, { useState } from "react";
+import { useState } from "react";
+import { jsonOrThrow } from "./apiAuth";
+import { confirmedFetch } from "./confirmedFetch";
+import { DEMO } from "../demoData";
 
 function _ago(seconds) {
   if (seconds < 60) return `${Math.floor(seconds)}s`;
@@ -44,7 +47,7 @@ function DegradingList({ degrading, onNavigate }) {
   );
 }
 
-function ActionQueue({ actions, onRefresh }) {
+function ActionQueue({ actions }) {
   const [working, setWorking] = useState({});
   const [errors, setErrors] = useState({});
 
@@ -57,15 +60,15 @@ function ActionQueue({ actions, onRefresh }) {
     if (act.confirm && !window.confirm(act.confirm)) return;
     
     setWorking(prev => ({ ...prev, [actionItem.id]: true }));
+    setErrors(prev => ({ ...prev, [actionItem.id]: null }));
     try {
-      const res = await fetch(act.url, {
+      if (DEMO) throw new Error("Demo mode — changes aren't saved.");
+      // The next /ws tick drops the item once it's done.
+      await confirmedFetch(act.url, {
         method: act.method || "POST",
-        headers: { "Content-Type": "application/json" },
-        body: act.body ? JSON.stringify(act.body) : undefined
-      });
-      if (!res.ok) throw new Error("Request failed");
-      // Optionally wait a bit or trigger refresh
-      if (onRefresh) onRefresh();
+        headers: act.body ? { "Content-Type": "application/json" } : undefined,
+        body: act.body ? JSON.stringify(act.body) : undefined,
+      }).then(jsonOrThrow);
     } catch (e) {
       setErrors(prev => ({ ...prev, [actionItem.id]: e.message }));
     } finally {

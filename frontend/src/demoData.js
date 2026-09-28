@@ -703,7 +703,7 @@ export function demoSnapshot() {
         since_timestamp: t - 14 * 3600,
         events_count: 5,
         highlights: [
-          { kind: "backup_done", text: "Volume backup successful for /data", at: t - 3600, host: "nuc-media", tone: "ok" },
+          { kind: "update_failed", text: "immich update failed: pull timed out", at: t - 3600, host: "nuc-media", tone: "bad" },
           { kind: "update_done", text: "Nightly updates applied", at: t - 7200, host: "bigboy", tone: "ok" },
           { kind: "container_restart", text: "jellyfin restarted", at: t - 4000, host: "nuc-media", tone: "warn" }
         ]
