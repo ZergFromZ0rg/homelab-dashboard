@@ -25,6 +25,10 @@ const THEME = {
 
 function socketUrl(session, term) {
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  if (session.target === "logs") {
+    const query = new URLSearchParams({ container: session.container, tail: "1000" });
+    return `${protocol}//${window.location.host}/ws/logs/${encodeURIComponent(session.host)}?${query}`;
+  }
   const query = new URLSearchParams({
     target: session.target,
     cols: term.cols,
@@ -52,7 +56,10 @@ function TerminalView({ session, visible, onStatus }) {
       cursorBlink: true,
       fontFamily: styles.getPropertyValue("--mono").trim() || "monospace",
       fontSize: 13,
-      scrollback: 5000,
+      scrollback: session.target === "logs" ? 20000 : 5000,
+      // Logs are read-only and arrive with bare \n line ends.
+      disableStdin: session.target === "logs",
+      convertEol: session.target === "logs",
       theme: THEME,
       allowProposedApi: false,
     });
@@ -116,7 +123,9 @@ function TerminalView({ session, visible, onStatus }) {
         if (message.type === "exit") {
           ended = true;
           note(
-            `[exited${message.code != null ? ` with code ${message.code}` : ""} — Enter for a new shell]`
+            session.target === "logs"
+              ? `[${message.reason || "end of the log"} — Enter to follow again]`
+              : `[exited${message.code != null ? ` with code ${message.code}` : ""} — Enter for a new shell]`
           );
         } else if (message.type === "error") {
           ended = true;
@@ -157,6 +166,11 @@ function TerminalView({ session, visible, onStatus }) {
     // (Cmd+C / Cmd+V on a Mac and Ctrl+Shift+V everywhere already work: they
     // arrive as the browser's own copy and paste events.)
     term.attachCustomKeyEventHandler((event) => {
+      // A logs tab takes no input, so onData never sees its Enter.
+      if (session.target === "logs" && state === "ended" && event.type === "keydown" && event.key === "Enter") {
+        connect();
+        return false;
+      }
       if (
         event.type === "keydown" &&
         event.ctrlKey &&

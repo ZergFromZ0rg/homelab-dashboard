@@ -82,16 +82,29 @@ function TerminalDock({ machines, children }) {
                   title={
                     s.target === "host"
                       ? `Shell on ${s.host}`
-                      : `Shell in ${s.name} on ${s.host}`
+                      : s.target === "logs"
+                        ? `Logs of ${s.name} on ${s.host}`
+                        : `Shell in ${s.name} on ${s.host}`
                   }
                 >
                   <span className={`term-dot term-dot--${status[s.id] || "connecting"}`} />
                   <span className="term-tab-name">
-                    {s.target === "host" ? "host" : s.name}
+                    {s.target === "host" ? "host" : s.target === "logs" ? `logs · ${s.name}` : s.name}
                   </span>
                   <span className="term-tab-host" style={{ color: hostColor(s.host) }}>
                     {s.host}
                   </span>
+                  {s.target === "logs" && (
+                    <a
+                      className="term-tab-close"
+                      href={`/api/containers/${encodeURIComponent(s.host)}/${encodeURIComponent(s.container)}/logs/download`}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label="Download the whole log"
+                      title="Download the whole log"
+                    >
+                      ⤓
+                    </a>
+                  )}
                   <button
                     type="button"
                     className="term-tab-close"

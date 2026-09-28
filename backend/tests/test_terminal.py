@@ -179,3 +179,11 @@ def test_host_snapshot_carries_the_terminal_flag(monkeypatch):
     monkeypatch.setattr(docker.versions, "for_host", lambda *a: None)
     _, snap = docker.get_host_data("box", "http://box")
     assert snap["terminal"] is True
+
+
+def test_logs_relay_one_way(client, agent, monkeypatch):
+    headers = signed_in(monkeypatch)
+    with client.websocket_connect("/ws/logs/box?container=web%2F1&tail=50", headers=headers) as ws:
+        assert ws.receive_bytes() == b"welcome\r\n"
+    path = agent.requests[-1][0]
+    assert path.startswith("/containers/web%2F1/logs?") and "tail=50" in path

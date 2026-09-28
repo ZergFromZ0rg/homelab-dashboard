@@ -20,7 +20,7 @@ from __future__ import annotations
 import asyncio
 import json
 import time
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 from fastapi import APIRouter, WebSocket
 from websockets.asyncio.client import connect
@@ -36,13 +36,13 @@ router = APIRouter()
 OPEN_TIMEOUT = 20  # a host shell starts a helper container first
 
 
-def agent_socket_url(base: str, query: dict) -> str:
+def agent_socket_url(base: str, query: dict, path: str = "/terminal") -> str:
     base = base.rstrip("/")
     if base.startswith("https://"):
         base = "wss://" + base[len("https://"):]
     elif base.startswith("http://"):
         base = "ws://" + base[len("http://"):]
-    return f"{base}/terminal?{urlencode(query)}"
+    return f"{base}{path}?{urlencode(query)}"
 
 
 async def _refuse(websocket: WebSocket, message: str) -> None:
@@ -204,3 +204,35 @@ async def _relay(browser: WebSocket, agent, opened) -> None:
             await browser.close()
         except RuntimeError:
             pass  # already closed by the browser
+
+
+@router.websocket("/ws/logs/{host}")
+async def logs_socket(websocket: WebSocket, host: str):
+    """A container's logs, live: the same relay as a shell, one direction.
+    Reading, so no passkey confirmation — the session gate is enough."""
+    await websocket.accept()
+    node = registry.all().get(host)
+    container = (websocket.query_params.get("container") or "").strip()
+    if not node or not container:
+        await _refuse(websocket, "unknown host or no container given")
+        return
+    query = {"tail": _size(websocket.query_params.get("tail"), 500)}
+    if websocket.query_params.get("timestamps") in ("1", "true"):
+        query["timestamps"] = "1"
+    try:
+        agent = await connect(
+            agent_socket_url(node["url"], query, f"/containers/{quote(container, safe='')}/logs"),
+            additional_headers=agent_headers(), open_timeout=OPEN_TIMEOUT, max_size=None,
+        )
+    except InvalidStatus as error:
+        status = error.response.status_code
+        await _refuse(websocket, "this host's agent can't stream logs yet — rebuild it"
+                      if status in (403, 404) else f"{host}'s agent refused ({status})")
+        return
+    except (OSError, asyncio.TimeoutError) as error:
+        await _refuse(websocket, f"couldn't reach {host}'s agent: {error}")
+        return
+    try:
+        await _relay(websocket, agent, lambda: None)
+    finally:
+        await agent.close()

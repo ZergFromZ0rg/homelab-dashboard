@@ -276,6 +276,15 @@ function ContainerRow({
         <div className="c-uptime">{formatStartedAt(container.started_at)}</div>
 
         <div className="c-actions">
+          {terminal && (
+            <IconButton
+              icon="logs"
+              label="Logs"
+              onClick={() =>
+                terminal.open({ host, target: "logs", container: container.id, name: container.name })
+              }
+            />
+          )}
           <IconButton
             icon="sliders"
             label="Settings — edit its compose file"

@@ -72,6 +72,14 @@ const PATHS = {
       <path d="M9.5 13h5" />
     </>
   ),
+  logs: (
+    <>
+      <path d="M5 6h14" />
+      <path d="M5 10h10" />
+      <path d="M5 14h14" />
+      <path d="M5 18h8" />
+    </>
+  ),
   sliders: (
     <>
       <path d="M4 7h9" />

@@ -3,9 +3,12 @@ and delete, and Docker networks."""
 
 from __future__ import annotations
 
+import requests
 from fastapi import APIRouter, Header, HTTPException
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from backend import auth, connections, disk, networks
+from backend.docker import agent_headers
 from backend.hosts import agent_for
 
 router = APIRouter()
@@ -81,3 +84,25 @@ def network_membership(
     return networks.attach(
         agent_for(host), network_id, str(body.get("container", "")), action == "connect"
     )
+
+
+@router.get("/api/containers/{host}/{container}/logs/download")
+def container_logs_download(host: str, container: str):
+    """All of a container's logs as a text file, streamed from its agent."""
+    try:
+        response = requests.get(f"{agent_for(host)}/containers/{container}/logs/download",
+                                headers=agent_headers(), timeout=600, stream=True)
+    except requests.RequestException as error:
+        return JSONResponse(status_code=502, content={"error": f"couldn't reach this agent: {error}"})
+    if not response.ok:
+        return JSONResponse(status_code=response.status_code if response.status_code != 404 else 502,
+                            content={"error": "this agent can't download logs — rebuild it" if response.status_code == 404
+                                     else f"agent answered {response.status_code}"})
+
+    def body():
+        with response:
+            yield from response.iter_content(64 * 1024)
+
+    return StreamingResponse(body(), media_type="text/plain", headers={
+        k: v for k, v in response.headers.items() if k.lower() == "content-disposition"
+    })

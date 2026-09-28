@@ -53,6 +53,9 @@ function buildItems({ tabs, machines, containers, go, openSettings, terminal, up
       if (running && terminal?.available(host)) {
         add("container", `Shell in ${c.name}`, host, () => terminal.open({ host, target: "container", container: c.id, name: c.name }), { ...k, rank: 4, keywords: `${k.keywords} terminal exec console` });
       }
+      if (terminal) {
+        add("container", `Logs of ${c.name}`, host, () => terminal.open({ host, target: "logs", container: c.id, name: c.name }), { ...k, rank: 3, keywords: `${k.keywords} log output errors journal` });
+      }
       add("container", `Settings for ${c.name}`, "Compose file", () => openSettings(host, c), { ...k, rank: 4, keywords: `${k.keywords} compose yaml env ports volumes` });
       if (!c.protected) {
         add("container", `Restart ${c.name}`, host, () => {
