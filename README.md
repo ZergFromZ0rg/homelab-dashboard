@@ -47,35 +47,45 @@ exposes, not a misconfiguration.
 
 ## Layout
 
-Seven sections in a sticky top bar — **Overview**, **Servers**,
-**Containers**, **Services**, **Deploy**, **Backups**, **Personal** — plus a gear button that opens
-**Settings** as a right-hand drawer over whichever section you're on (Esc
-closes it). The bar also carries the connection pill and the dashboard's
-title/subtitle (both editable in Settings → Appearance). The layout reflows
-down to phone width (the tab bar scrolls sideways there); below ~1040px
+A sticky top bar with the view-mode switch, the sections for that mode, the
+connection pill, ⌘K and a gear button that opens **Settings** as a
+right-hand drawer (Esc closes it). The title/subtitle are editable in
+Settings → Appearance. The layout reflows down to phone width (the tab bar
+scrolls sideways there; the title gives way to the logo); below ~1040px
 each container becomes a small stacked card.
 
-**View modes** (top bar, ⌥1 / ⌥2 / ⌥3, remembered per browser):
+**View modes** (⌥1 / ⌥2 / ⌥3, remembered per browser). The point of three
+modes is fewer tabs:
 
-- **Simple** (default) — no tabs: the **Morning briefing** above
-  Overview. Three columns: what happened in the last 14 hours (updates,
-  restarts, unhealthy containers, hosts and agents going down or coming
-  back), what's degrading (failed services, disks filling within a week,
-  pending OS updates, a container stuck restarting, backups needing
-  attention), and what needs a yes — install OS updates, reboot, update
-  containers, accept a rebalance move — each one button with a confirm.
-  Built from the same data as the rest of the page (`backend/morning.py`,
-  on the `/ws` tick and at `/api/morning`), no LLM. Opening any section
-  switches to Advanced.
-- **Advanced** — every section, as below.
-- **God** — Advanced plus shells. Host and container shells (buttons and
-  ⌘K) only exist in this mode; logs open in any mode, and a shell already
-  open survives switching away.
+- **Simple** (default) — no tabs, one page: a greeting line, the
+  **Morning briefing**, the Overview panels (with a one-line-per-host
+  Servers panel), then the personal cards (to-do, notes, weather,
+  calendar, word of the day, quick links). The briefing has three
+  columns: what happened in the last 14 hours (updates, restarts,
+  unhealthy containers, hosts and agents going down or coming back),
+  what's degrading (failed services, disks filling within a week, pending
+  OS updates, a container stuck restarting, backups needing attention),
+  and what needs a yes — install OS updates, reboot, update containers,
+  accept a rebalance move. A clicked button turns into a status line that
+  follows the job to its end and stays until dismissed. Built from the
+  same data as the rest of the page (`backend/morning.py`, on the `/ws`
+  tick and at `/api/morning`), no LLM. Opening any section switches to
+  Advanced.
+- **Advanced** — three tabs: **Overview** (servers included), **Containers**,
+  **Backups**.
+- **God** — Advanced plus **Network** and shells. Host and container
+  shells (buttons and ⌘K) only exist in this mode; logs open in any mode,
+  and a shell already open survives switching away.
 
-**Overview** (default) is the one-glance page:
+There is no Deploy tab: placement, stacks and moves live on in the API
+(below) for the AI overseer to drive. Rebalance suggestions still reach
+you, in the briefing and in Needs attention.
 
-- a four-across summary row (health / hosts online / containers running /
-  **backups healthy**). Backups took the slot that used to hold a second
+**Overview** is the one-page fleet view:
+
+- one thin line of headline numbers (health / hosts online / containers
+  running / CPU threads / **backups healthy** / agents current, with an
+  update button when any are behind). Backups took the slot that used to hold a second
   copy of the issue count, which said the same thing as System health
   right beside it. Before that the front page mentioned backups only when
   one broke, so the commonest question about them — *are they working?* —
@@ -84,19 +94,19 @@ each container becomes a small stacked card.
   is healthy, otherwise a severity-coded list of problems each with a
   *View* jump and a plain next-step. Deterministic: it reuses the same
   checks the alert loop runs (`alerts.evaluate`) plus stale nodes, no LLM;
-  host problems jump to the Servers tab;
+  host problems jump to that server's card;
 - **Services** — a chip per service check with its latency (down ones
   first); click for the Services tab;
-- **Servers** — one small tile per machine with its headline bars (CPU,
-  RAM, fullest disk, GPU); red at 85%+. Click a tile for the full card;
+- in Simple, **Servers** — one line per machine with its headline bars
+  (CPU, RAM, fullest disk); click one for its full card in Advanced;
 - a right-hand rail: **Quick actions** (restart / stop for your pinned
-  containers, jumps to Deploy / Containers) and **Recent activity**
+  containers, jumps to Containers) and **Recent activity**
   (container start/stop/restart, host up/down, agent unreachable and
   scheduler deploy/move/fail events, diffed from the fleet snapshot each
   reconcile tick and kept in `/data/activity.json`).
 
-**Servers** is the full view of every machine: a facts row (servers online,
-containers running, CPU threads, GPUs), then a card per host — CPU /
+Below the panels (Advanced / God) comes the full view of every machine: a
+card per host, each folding to one line of bars (remembered per browser) — CPU /
 temperature / RAM gauges with sparklines, network (with a per-interface
 breakdown — see below), every GPU, disk I/O and
 storage, plus a footer with how many containers run there, whether its
@@ -170,7 +180,8 @@ history. Limits: 100 checks, interval 10 s–1 h, timeout 1–30 s. Endpoints:
 `POST /api/checks/{id}/run`, `GET /api/checks/{id}/history?range=3h|24h|7d|30d`
 (the list also rides every `/ws` tick).
 
-**Personal** is the non-fleet stuff, each card switchable in Settings:
+**Personal cards** (bottom of Simple) are the non-fleet stuff, each
+switchable in Settings:
 
 - a **greeting** with the date, a clock, and a one-line fleet status;
 - the editable **to-do list** — add / rename (click) / toggle / delete /
@@ -392,7 +403,8 @@ bar covers less time, so a brief blip is easier to spot.
 
 ## Deploying containers (scheduler)
 
-The **Deploy** tab submits a container spec (image, env, ports, volumes,
+There's no Deploy tab any more — these routes are kept for the AI
+overseer (and scripts). `POST /api/deployments` submits a container spec (image, env, ports, volumes,
 restart policy, CPU/RAM limits, constraints) and the backend picks a node
 for it:
 
@@ -411,7 +423,7 @@ for it:
    to `node_offline`; a container that comes back to `running` logs
    `recovered`.
 
-**Compose stacks** — the Deploy tab has a "Compose stack" mode: paste a
+**Compose stacks** — `POST /api/stacks`: paste a
 `docker-compose.yml` and a project name. `backend/compose.py` parses it
 (per-service image / published ports / resource limits) and
 `backend/stacks.py` synthesises one placement spec from the *sum* of the
@@ -426,7 +438,7 @@ new node.
 
 **This needs homelab-agent with `POST /containers` / `DELETE
 /containers/{id}`** (the commits that add `deploy.py`; older agents only do
-start/stop/restart and the Deploy tab will get "agent rejected"). Because
+start/stop/restart and a deploy will get "agent rejected"). Because
 these routes pull and run arbitrary images as root:
 
 - Set `API_TOKEN` before exposing the dashboard beyond a trusted network.
@@ -436,7 +448,7 @@ these routes pull and run arbitrary images as root:
   tight — that policy, enforced agent-side, is the real containment
   boundary.
 
-The Deploy tab also shows **rebalancing suggestions** (`GET /api/rebalance`,
+The morning briefing and Needs attention show **rebalancing suggestions** (`GET /api/rebalance`,
 `backend/rebalance.py`): when a node running scheduler-managed containers
 goes over `REBALANCE_CPU_PERCENT` / `REBALANCE_RAM_PERCENT`, it re-scores
 each *stateless* container there against the other nodes and proposes a
@@ -523,7 +535,7 @@ false ones is worse than saying nothing.
 
 ## Adding a node
 
-The Servers tab ends with an **Add a node** panel: a `curl | sh` command
+The Overview (Advanced) ends with an **Add a node** panel: a `curl | sh` command
 with this dashboard's address already in it. Run it on the new machine and
 the node appears here within a minute — Docker is the only prerequisite.
 
@@ -540,7 +552,7 @@ set needs `--token` on that command.
 
 ## Updating the fleet
 
-The Servers tab's **Agents** tile counts how many are current and offers
+The Overview's **Agents** number counts how many are current and offers
 one button when any aren't. It only appears when something is actually
 out of date — a control that does nothing most of the time teaches you to
 ignore it.
@@ -981,7 +993,7 @@ pushes them to you.
 Prometheus: `free_space / -deriv(free_space[DISK_FORECAST_WINDOW])`
 (default window `24h`), only for disks that are actually filling and only
 when it's under a year out. It's re-queried at most every 5 minutes, and
-shows on the Servers tab as "full in ~9 d" beside the disk. The trend is a
+shows on the server card as "full in ~9 d" beside the disk. The trend is a
 regression over the window, so a big download that's later deleted can
 briefly look alarming; a longer window smooths that, a shorter one reacts
 faster to a runaway log.

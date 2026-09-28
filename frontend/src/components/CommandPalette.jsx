@@ -27,7 +27,7 @@ function buildItems({ tabs, machines, containers, go, openSettings, terminal, up
   add("action", "Settings", "Dashboard settings drawer", () => go({ tab: "settings" }), { rank: 1 });
 
   Object.keys(machines).sort().forEach((host) => {
-    add("host", host, "Show on Servers", () => go({ tab: "servers", host }), { host, rank: 1, keywords: "server machine" });
+    add("host", host, "Show on Overview", () => go({ tab: "servers", host }), { host, rank: 1, keywords: "server machine" });
     add("host", `Files on ${host}`, "Browse files", () => go({ tab: "servers", host, action: "files" }), { host, rank: 3, keywords: "browse disk explorer folder" });
     if (terminal?.available(host)) {
       add("host", `Shell on ${host}`, "Host terminal", () => terminal.open({ host, target: "host" }), { host, rank: 3, keywords: "terminal ssh console" });

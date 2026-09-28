@@ -231,8 +231,9 @@ cloned repo) then `docker compose up -d` from the agent's compose dir.
 
 ## Step 4 — Turn on deploys, safely
 
-Everything above is read-only monitoring. The Deploy tab — where the
-scheduler places containers on your hosts — is a remote-code-execution
+Everything above is read-only monitoring. The deploy API — where the
+scheduler places containers on your hosts (no tab in the UI any more; it's
+kept for the AI overseer and scripts) — is a remote-code-execution
 surface, so set it up deliberately.
 
 ### The two tokens
@@ -295,10 +296,16 @@ By default the agent runs containers with **named volumes only** and
 
 ### Try it
 
-Deploy tab → an image like `traefik/whoami:latest`, a host port, **Preview
-placement**, then **Deploy to \<node\>**. It should land, and the card
-shows a `created` → `deployed` event trail. Remove it with the Remove
-button.
+```bash
+SPEC='{"image":"traefik/whoami:latest","ports":[{"host":8088,"container":80}]}'
+curl -X POST "$DASH/api/deployments?dry_run=1" -H "X-Register-Token: $API_TOKEN" \
+  -H 'Content-Type: application/json' -d "$SPEC"   # placement preview
+curl -X POST "$DASH/api/deployments" -H "X-Register-Token: $API_TOKEN" \
+  -H 'Content-Type: application/json' -d "$SPEC"   # deploy
+```
+
+It should land (`GET /api/deployments/{id}` shows the `created` →
+`deployed` trail); `DELETE /api/deployments/{id}` removes it.
 
 ---
 

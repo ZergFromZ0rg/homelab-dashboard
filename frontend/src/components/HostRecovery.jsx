@@ -360,7 +360,7 @@ function HostRecovery({ host }) {
                 <ol>
                   <li>
                     Install the agent on the replacement and join it with the
-                    same host name — the Servers tab's <strong>Add a node</strong>{" "}
+                    same host name — the Overview's <strong>Add a node</strong>{" "}
                     gives the command.
                   </li>
                   <li>

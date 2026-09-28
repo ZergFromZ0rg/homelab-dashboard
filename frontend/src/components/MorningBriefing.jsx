@@ -1,4 +1,15 @@
+import { useEffect, useState } from "react";
 import { useActionRuns } from "./actionRuns";
+
+// Re-render every so often so "3m ago" / "Installing… 4m" keep moving.
+function useNow(ms = 15000) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), ms);
+    return () => clearInterval(timer);
+  }, [ms]);
+  return now;
+}
 
 function _ago(seconds) {
   if (seconds < 60) return `${Math.floor(seconds)}s`;
@@ -7,9 +18,9 @@ function _ago(seconds) {
   return `${Math.floor(seconds / 86400)}d`;
 }
 
-function OvernightList({ overnight }) {
+function OvernightList({ overnight, now }) {
   if (!overnight || overnight.events_count === 0) {
-    return <p className="mb-empty">Quiet night. No significant events.</p>;
+    return <p className="mb-empty">Quiet night.</p>;
   }
   return (
     <ul className="mb-list mb-list--overnight">
@@ -17,7 +28,7 @@ function OvernightList({ overnight }) {
         <li key={i} className={`mb-item mb-item--${ev.tone}`}>
           <span className={`status-dot status-dot--${ev.tone}`} />
           <span className="mb-text">{ev.text}</span>
-          <span className="mb-time">{_ago(Date.now() / 1000 - ev.at)}</span>
+          <span className="mb-time">{_ago(now / 1000 - ev.at)}</span>
         </li>
       ))}
       {overnight.events_count > overnight.highlights.length && (
@@ -29,15 +40,23 @@ function OvernightList({ overnight }) {
 
 function DegradingList({ degrading, onNavigate }) {
   if (!degrading || degrading.length === 0) {
-    return <p className="mb-empty">All systems nominal. No degrading signals.</p>;
+    return <p className="mb-empty">Nothing degrading.</p>;
   }
   return (
     <ul className="mb-list mb-list--degrading">
       {degrading.map(item => (
-        <li key={item.key} className={`mb-card mb-card--${item.severity}`}>
-          <strong>{item.title}</strong>
-          <span className="mb-detail">{item.detail}</span>
-          {item.host && <button className="btn btn--sm mb-jump" onClick={() => onNavigate("servers", { host: item.host })}>View host</button>}
+        <li key={item.key}>
+          <button
+            type="button"
+            className={`mb-item mb-item--${item.severity}`}
+            title={item.detail}
+            disabled={!item.host}
+            onClick={() => onNavigate("servers", { host: item.host })}
+          >
+            <span className={`status-dot status-dot--${item.severity === "info" ? "none" : item.severity}`} />
+            <span className="mb-text">{item.title}</span>
+            {item.host && <span className="ov-go" aria-hidden="true">→</span>}
+          </button>
         </li>
       ))}
     </ul>
@@ -57,11 +76,11 @@ function clock(ms) {
 
 // Stands in for the button once it's clicked: what's happening now, or how
 // it ended and when. Details (apt output, per-project results) in the tooltip.
-function RunStatus({ run, onDismiss }) {
+function RunStatus({ run, now, onDismiss }) {
   const busy = run.state === "running" || run.state === "starting";
   const tone = busy ? "warn" : run.state === "done" ? "ok" : "bad";
   const label = busy
-    ? `${run.state === "starting" ? "Starting" : RUNNING_LABEL[run.type] || "Running"}… ${_ago((Date.now() - run.startedAt) / 1000)}`
+    ? `${run.state === "starting" ? "Starting" : RUNNING_LABEL[run.type] || "Running"}… ${_ago(Math.max(0, now - run.startedAt) / 1000)}`
     : `${run.note} · ${clock(run.endedAt)}`;
   const title = [`Started ${clock(run.startedAt)}`, run.detail].filter(Boolean).join("\n");
   return (
@@ -77,7 +96,7 @@ function RunStatus({ run, onDismiss }) {
   );
 }
 
-function ActionQueue({ actions, machines }) {
+function ActionQueue({ actions, machines, now }) {
   const { runs, start, dismiss } = useActionRuns(machines);
 
   // Items you've acted on stay listed (with their status) after the next
@@ -91,7 +110,7 @@ function ActionQueue({ actions, machines }) {
   const items = [...listed, ...acted];
 
   if (items.length === 0) {
-    return <p className="mb-empty">You're all caught up! No approvals needed.</p>;
+    return <p className="mb-empty">Nothing waiting on you.</p>;
   }
 
   const run = (item) => {
@@ -108,9 +127,9 @@ function ActionQueue({ actions, machines }) {
             {item.subtitle && <span>{item.subtitle}</span>}
           </div>
           {runs[item.id] ? (
-            <RunStatus run={runs[item.id]} onDismiss={() => dismiss(item.id)} />
+            <RunStatus run={runs[item.id]} now={now} onDismiss={() => dismiss(item.id)} />
           ) : (
-            <button className="btn btn--primary" onClick={() => run(item)}>
+            <button type="button" className="btn btn--sm btn--primary" onClick={() => run(item)}>
               {item.button_label}
             </button>
           )}
@@ -121,30 +140,31 @@ function ActionQueue({ actions, machines }) {
 }
 
 function MorningBriefing({ summary, machines, onNavigate }) {
+  const now = useNow();
   if (!summary) return null;
 
   return (
-    <div className="morning-briefing">
-      <div className="mb-header">
-        <h2>Morning Briefing</h2>
+    <section className="overview-card morning-briefing">
+      <div className="overview-card-head">
+        <h2>Morning briefing</h2>
       </div>
       <div className="mb-columns">
         <section className="mb-column">
-          <h3>What happened overnight</h3>
-          <OvernightList overnight={summary.overnight} />
+          <h3>Overnight</h3>
+          <OvernightList overnight={summary.overnight} now={now} />
         </section>
         
         <section className="mb-column">
-          <h3>What's degrading</h3>
+          <h3>Degrading</h3>
           <DegradingList degrading={summary.degrading} onNavigate={onNavigate} />
         </section>
 
         <section className="mb-column">
-          <h3>What needs a yes</h3>
-          <ActionQueue actions={summary.needs_action} machines={machines} />
+          <h3>Needs a yes</h3>
+          <ActionQueue actions={summary.needs_action} machines={machines} now={now} />
         </section>
       </div>
-    </div>
+    </section>
   );
 }
 

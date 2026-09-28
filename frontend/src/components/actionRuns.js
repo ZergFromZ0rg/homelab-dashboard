@@ -83,7 +83,9 @@ export async function advance(run, { machines, now = Date.now() } = {}) {
 export function useActionRuns(machines) {
   const [runs, setRuns] = useLocalStorage("morningRuns", {});
   const machinesRef = useRef(machines);
-  machinesRef.current = machines;
+  useEffect(() => {
+    machinesRef.current = machines;
+  }, [machines]);
 
   // A reload mid-request leaves a run "starting" with no way to know how it
   // went; say so rather than spin forever.

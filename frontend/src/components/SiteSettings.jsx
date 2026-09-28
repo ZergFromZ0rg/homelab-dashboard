@@ -226,7 +226,7 @@ function SiteSettings({ pins, containers }) {
         </label>
       </SettingsCard>
 
-      <SettingsCard title="Personal tab">
+      <SettingsCard title="Personal cards (Simple)">
         <label className="settings-row settings-row--stack">
           <span>Your name (used in the greeting; optional)</span>
           <input
@@ -277,7 +277,7 @@ function SiteSettings({ pins, containers }) {
         </label>
         <p className="settings-hint">
           How much history the CPU / RAM / network / temperature graphs on
-          the host cards on the Servers tab show.
+          the server cards on the Overview show.
         </p>
       </SettingsCard>
 

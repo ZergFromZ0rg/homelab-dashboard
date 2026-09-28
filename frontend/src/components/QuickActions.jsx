@@ -51,7 +51,7 @@ function QaRow({ t, busy, onControl, showLink, showLiveActivity, staleAge }) {
             {t.name}
           </a>
         ) : (
-          <span className="qa-name" title={t.name}>
+          <span className="qa-name" title={`${t.name} on ${t.host}`}>
             {t.name}
           </span>
         )}

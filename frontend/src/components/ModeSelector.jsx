@@ -1,25 +1,5 @@
 import { useEffect } from "react";
 
-export function useModeSelector() {
-  const getMode = () => {
-    try {
-      return localStorage.getItem("homelab.viewMode") || "simple";
-    } catch {
-      return "simple";
-    }
-  };
-
-  const setMode = (m) => {
-    try {
-      localStorage.setItem("homelab.viewMode", m);
-    } catch {}
-    // Trigger storage event so other tabs sync, and custom event for same window
-    window.dispatchEvent(new Event("homelab:mode-changed"));
-  };
-
-  return { getMode, setMode };
-}
-
 function ModeSelector({ mode, onSetMode }) {
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -34,26 +14,29 @@ function ModeSelector({ mode, onSetMode }) {
 
   return (
     <div className={`mode-selector mode-selector--${mode}`}>
-      <button 
+      <button
+        type="button"
         className={`mode-btn ${mode === "simple" ? "active" : ""}`}
         onClick={() => onSetMode("simple")}
-        title="Simple (Morning) [⌥1]"
+        title="Briefing, overview and personal on one page (⌥1)"
       >
-        <span aria-hidden="true">☀️</span> Simple
+        Simple
       </button>
-      <button 
+      <button
+        type="button"
         className={`mode-btn ${mode === "advanced" ? "active" : ""}`}
         onClick={() => onSetMode("advanced")}
-        title="Advanced [⌥2]"
+        title="Overview with every server, Containers, Backups (⌥2)"
       >
-        <span aria-hidden="true">⚙️</span> Advanced
+        Advanced
       </button>
-      <button 
+      <button
+        type="button"
         className={`mode-btn mode-btn--god ${mode === "god" ? "active" : ""}`}
         onClick={() => onSetMode("god")}
-        title="God Mode [⌥3]"
+        title="Advanced plus Network and shells (⌥3)"
       >
-        <span aria-hidden="true">⚡</span> God Mode
+        God
       </button>
     </div>
   );

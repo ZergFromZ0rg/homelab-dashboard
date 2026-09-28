@@ -45,42 +45,26 @@ function FleetUpdate({ machines }) {
     }
   }
 
-  return (
-    <div className={`fact ${stale.length ? "fact--warn" : ""}`}>
-      <span className="fact-label">Agents</span>
-      <strong className="fact-value">
-        {known.length ? `${current} / ${known.length}` : "—"}
-      </strong>
+  const value = known.length ? `${current}/${known.length}` : "—";
+  let note = null;
+  if (error) note = <span className="stat-note stat-note--bad" title={error}>failed</span>;
+  else if (result) note = <span className="stat-note">{result.started} updating{result.failed ? `, ${result.failed} failed` : ""}</span>;
+  else if (stale.length) {
+    note = (
+      <button type="button" className="stat-action" disabled={busy} onClick={run} title={`Behind: ${stale.join(", ")}`}>
+        {busy ? "starting…" : `update ${stale.length}`}
+      </button>
+    );
+  } else if (unverified.length) {
+    note = <span className="stat-note" title={`${unverified.join(", ")}: the remote couldn't be checked`}>{unverified.length} unchecked</span>;
+  }
 
-      {error ? (
-        <span className="fact-sub fact-sub--bad">{error}</span>
-      ) : result ? (
-        <span className="fact-sub">
-          {result.started} updating
-          {result.failed ? `, ${result.failed} failed` : ""}
-        </span>
-      ) : stale.length ? (
-        <button
-          type="button"
-          className="btn btn--sm btn--ghost fact-action"
-          disabled={busy}
-          onClick={run}
-        >
-          {busy ? "Starting…" : `Update ${stale.length}`}
-        </button>
-      ) : unverified.length ? (
-        <span
-          className="fact-sub"
-          title={`${unverified.join(", ")}: the remote couldn't be checked`}
-        >
-          {unverified.length} unchecked
-        </span>
-      ) : (
-        <span className="fact-sub">
-          {known.length ? "up to date" : "version unknown"}
-        </span>
-      )}
-    </div>
+  return (
+    <span className={`stat-item ${stale.length ? "stat-item--warn" : ""}`} title="Agents on the latest commit">
+      <span className="stat-label">Agents</span>
+      <strong>{value}</strong>
+      {note}
+    </span>
   );
 }
 

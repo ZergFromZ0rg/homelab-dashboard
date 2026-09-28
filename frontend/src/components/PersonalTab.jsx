@@ -12,7 +12,7 @@ import { useSettings } from "./settings";
 // three across, every card in a row the same height — rather than two
 // columns of different lengths. Each card can be switched off in Settings;
 // the grid reflows around whatever's left.
-function PersonalTab({ overview, todos, onSetTodos, openTodos, checks = [] }) {
+function PersonalTab({ overview, todos, onSetTodos, openTodos, checks = [], greeting = true }) {
   const {
     settings: { personalCards: show },
   } = useSettings();
@@ -22,7 +22,7 @@ function PersonalTab({ overview, todos, onSetTodos, openTodos, checks = [] }) {
 
   return (
     <section className="personal-tab">
-      {show.greeting && <Greeting overview={overview} openTodos={openTodos} />}
+      {greeting && show.greeting && <Greeting overview={overview} openTodos={openTodos} />}
 
       {anyCard ? (
         <div className="personal-grid">
@@ -39,7 +39,7 @@ function PersonalTab({ overview, todos, onSetTodos, openTodos, checks = [] }) {
         </div>
       ) : (
         <div className="empty-state">
-          Every Personal card is switched off — turn some back on in Settings.
+          Every personal card is switched off — turn some back on in Settings.
         </div>
       )}
     </section>

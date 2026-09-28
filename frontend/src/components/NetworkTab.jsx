@@ -13,10 +13,10 @@ import { createNetwork, fetchNetworks, removeNetwork, setMembership } from "./ne
 
 function Fact({ label, value }) {
   return (
-    <div className="fact">
-      <span className="fact-label">{label}</span>
-      <strong className="fact-value">{value}</strong>
-    </div>
+    <span className="stat-item">
+      <span className="stat-label">{label}</span>
+      <strong>{value}</strong>
+    </span>
   );
 }
 
@@ -220,12 +220,12 @@ function HostNetwork({ host, machine, containers }) {
 
   return (
     <div className="net-host" style={{ "--host-color": hostColor(host) }}>
-      <div className="facts-row">
-        <Fact label="Download" value={`↓ ${formatBytesPerSec(machine?.network_rx)}`} />
-        <Fact label="Upload" value={`↑ ${formatBytesPerSec(machine?.network_tx)}`} />
+      <div className="stat-strip">
+        <Fact label="Down" value={`↓ ${formatBytesPerSec(machine?.network_rx)}`} />
+        <Fact label="Up" value={`↑ ${formatBytesPerSec(machine?.network_tx)}`} />
         <Fact label="Interfaces" value={interfaces.length || "—"} />
-        <Fact label="Docker networks" value={data ? userNets : "…"} />
-        <Fact label="Published ports" value={ports.length} />
+        <Fact label="Networks" value={data ? userNets : "…"} />
+        <Fact label="Ports" value={ports.length} />
       </div>
 
       <div className="net-grid">

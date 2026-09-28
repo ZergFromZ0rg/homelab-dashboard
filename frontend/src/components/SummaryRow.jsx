@@ -1,86 +1,43 @@
-import { tabColor } from "./tabColors";
+import FleetUpdate from "./FleetUpdate";
 
-// The four-across headline: is anything broken, are the machines up, are
-// the containers up, and is your data safe. Numbers only — detail lives in
-// the panels below.
-//
-// Backups replaced a second copy of the issue count, which said the same
-// thing as System health right next to it. Before that the front page
-// mentioned backups only when one broke, so the single most common
-// question about them — "are they working?" — had no answer anywhere you
-// would naturally look.
-
-// `tone` is the color of the section the number belongs to (the tab it
-// would take you to), so each tile reads as a different thing at a glance.
-function Card({ label, value, sub, bad, tone }) {
+// The headline numbers on one thin line: is anything broken, are the
+// machines and containers up, are the agents current, is your data safe.
+// Only the "something is wrong" numbers get color.
+function Item({ label, value, tone, title }) {
   return (
-    <div
-      className={`summary-card ${bad ? "summary-card--bad" : ""}`}
-      style={tone && !bad ? { "--tone": tone } : undefined}
-    >
-      <span className="summary-label">{label}</span>
-      <strong className="summary-value">{value}</strong>
-      {sub && <span className="summary-sub">{sub}</span>}
-    </div>
+    <span className={`stat-item ${tone ? `stat-item--${tone}` : ""}`} title={title}>
+      <span className="stat-label">{label}</span>
+      <strong>{value}</strong>
+    </span>
   );
 }
 
-function BackupCard({ backups }) {
-  if (!backups || !backups.total) {
-    return (
-      <Card label="Backups" value="None" bad tone={tabColor("backups")} />
-    );
-  }
-
-  const { total, ok, attention } = backups;
-
-  // "5 / 7 OK" is the honest headline; how old each copy is lives on the
-  // Backups tab.
-  return (
-    <Card
-      label="Backups OK"
-      value={`${ok} / ${total}`}
-      bad={attention > 0}
-      tone={tabColor("backups")}
-    />
-  );
-}
-
-function SummaryRow({ overview, machines, containers, backups, square = false }) {
+function SummaryRow({ overview, machines, containers, backups, agents = false }) {
   const hosts = Object.values(machines);
   const onlineHosts = hosts.filter((m) => m.online).length;
-
   const lists = Object.values(containers);
-  const totalContainers = lists.reduce((n, l) => n + l.length, 0);
-  const runningContainers = lists.reduce(
-    (n, l) => n + l.filter((c) => c.status === "running").length,
-    0
-  );
+  const total = lists.reduce((n, l) => n + l.length, 0);
+  const running = lists.reduce((n, l) => n + l.filter((c) => c.status === "running").length, 0);
+  const cores = hosts.reduce((n, m) => n + (m.cpu_cores || 0), 0);
+  const issues = overview.issues.length;
 
-  const issueCount = overview.issues.length;
-
-  // Only the two "is something wrong" cards get the alarm treatment — the
-  // Hosts / Containers ratios speak for themselves and a deliberately
-  // stopped container shouldn't paint the card red.
   return (
-    <div className={`summary-row ${square ? "summary-row--square" : ""}`}>
-      <Card
+    <div className="stat-strip">
+      <Item
         label="Health"
-        value={overview.ok ? "All clear" : `${issueCount} issue${issueCount === 1 ? "" : "s"}`}
-        bad={!overview.ok}
-        tone={overview.ok ? "var(--online)" : undefined}
+        value={overview.ok ? "all clear" : `${issues} issue${issues === 1 ? "" : "s"}`}
+        tone={overview.ok ? "ok" : "bad"}
       />
-      <Card
-        label="Hosts online"
-        value={`${onlineHosts} / ${hosts.length || "—"}`}
-        tone={tabColor("servers")}
+      <Item label="Hosts" value={`${onlineHosts}/${hosts.length || "—"}`} tone={onlineHosts < hosts.length ? "bad" : null} title="online" />
+      <Item label="Containers" value={`${running}/${total || "—"}`} title="running" />
+      {cores > 0 && <Item label="Threads" value={cores} title="CPU threads across the fleet" />}
+      <Item
+        label="Backups"
+        value={backups?.total ? `${backups.ok}/${backups.total}` : "none"}
+        tone={!backups?.total || backups.attention ? "bad" : null}
+        title="backup jobs healthy"
       />
-      <Card
-        label="Containers up"
-        value={`${runningContainers} / ${totalContainers || "—"}`}
-        tone={tabColor("containers")}
-      />
-      <BackupCard backups={backups} />
+      {agents && <FleetUpdate machines={machines} />}
     </div>
   );
 }

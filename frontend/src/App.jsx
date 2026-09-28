@@ -1,11 +1,11 @@
 import ContainerList from "./components/ContainerList";
 import Tabs from "./components/Tabs";
-import DeployTab from "./components/DeployTab";
 import Overview from "./components/Overview";
 import BackupsTab from "./components/BackupsTab";
-import ServersTab from "./components/ServersTab";
 import NetworkTab from "./components/NetworkTab";
 import PersonalTab from "./components/PersonalTab";
+import Greeting from "./components/Greeting";
+import { requestFocus } from "./components/focusRequest";
 import SiteSettings from "./components/SiteSettings";
 import SettingsDrawer from "./components/SettingsDrawer";
 import TerminalDock from "./components/TerminalDock";
@@ -22,8 +22,16 @@ import { tabColor } from "./components/tabColors";
 import brandImage from "./assets/brand.webp";
 import { DEMO, demoSnapshot } from "./demoData";
 import { AUTH_REQUIRED_EVENT } from "./components/apiAuth";
-import ModeSelector, { useModeSelector } from "./components/ModeSelector";
+import ModeSelector from "./components/ModeSelector";
+import { useModeSelector } from "./components/viewMode";
 import MorningBriefing from "./components/MorningBriefing";
+
+// The greeting heads the Simple page (it used to head Personal) and keeps
+// its on/off switch in Settings.
+function SimpleGreeting(props) {
+  const { settings } = useSettings();
+  return settings.personalCards?.greeting ? <Greeting {...props} /> : null;
+}
 
 const EMPTY_OVERVIEW = { ok: true, issues: [], recommendations: [] };
 
@@ -370,15 +378,13 @@ function App() {
     0
   );
 
-  const activeDeployments = deployments.filter(
-    (d) => d.status === "running" || d.status === "placing"
-  ).length;
-
   const openTodos = todos.filter((t) => !t.done).length;
 
-  const hostNames = Object.keys(machines);
-  const hostsOffline = hostNames.filter((n) => !machines[n].online).length;
 
+  // Simple has no tabs (briefing, overview, personal on one page).
+  // Advanced: the fleet (Overview — servers included), Containers, Backups.
+  // God adds Network and shells. Deploy has no tab: placement lives on in
+  // the API for the AI to drive.
   const tabs = [
     {
       value: "overview",
@@ -386,32 +392,32 @@ function App() {
       count: overview.ok ? null : overview.issues.length,
       tone: "bad",
     },
-    {
-      value: "servers",
-      label: "Servers",
-      count: hostNames.length || null,
-      tone: hostsOffline ? "bad" : undefined,
-    },
     { value: "containers", label: "Containers", count: totalContainers },
-    {
-      value: "network",
-      label: "Network",
-      count: checks.length || null,
-      tone: checks.some((c) => c.status === "down") ? "bad" : undefined,
-    },
-    { value: "deploy", label: "Deploy", count: activeDeployments },
     {
       value: "backups",
       label: "Backups",
       count: backups?.total || null,
       tone: backups?.attention ? "bad" : undefined,
     },
-    { value: "personal", label: "Personal", count: openTodos || null },
+    ...(viewMode === "god"
+      ? [
+          {
+            value: "network",
+            label: "Network",
+            count: checks.length || null,
+            tone: checks.some((c) => c.status === "down") ? "bad" : undefined,
+          },
+        ]
+      : []),
   ];
+  const tabValues = tabs.map((t) => t.value);
+  // A tab that doesn't exist in this mode (Network after leaving God) shows
+  // the Overview instead.
+  const shownTab = tabValues.includes(activeTab) ? activeTab : "overview";
 
   // Anything that says "go look at X" (Attention → View, Quick actions →
   // Containers) funnels through here.
-  const navigate = (target, { container } = {}) => {
+  const navigate = (target, { container, host } = {}) => {
     if (target === "settings") return setSettingsOpen(true);
     if (container) {
       try {
@@ -421,9 +427,13 @@ function App() {
       }
       setContainersKey((k) => k + 1);
     }
-    // If navigating to a detailed tab, automatically switch out of simple mode
-    if (viewMode === "simple") setMode("advanced");
-    setActiveTab(target);
+    // Old section names land where their content lives now.
+    if (target === "personal") return setMode("simple");
+    const tab = target === "servers" || target === "deploy" ? "overview" : target;
+    if (tab === "network" && viewMode !== "god") setMode("god");
+    else if (viewMode === "simple") setMode("advanced");
+    setActiveTab(tab);
+    if (target === "servers" && host) requestFocus(host);
   };
   const openSettingsFor = useCallback((host, container) => setSettingsFor({ host, container }), []);
 
@@ -431,7 +441,7 @@ function App() {
     <SettingsProvider>
       <AppShell
         tabs={tabs}
-        activeTab={activeTab}
+        activeTab={shownTab}
         onTab={setActiveTab}
         connected={connected}
         lastUpdate={lastUpdate}
@@ -443,6 +453,7 @@ function App() {
         <TerminalDock machines={machines} shells={viewMode === "god"}>
         {viewMode === "simple" && (
           <div className="simple-mode-content">
+            <SimpleGreeting overview={overview} openTodos={openTodos} />
             <MorningBriefing summary={morning_summary} machines={machines} onNavigate={navigate} />
             <Overview
               overview={overview}
@@ -457,12 +468,20 @@ function App() {
               onControl={control}
               onNavigate={navigate}
             />
+            <PersonalTab
+              overview={overview}
+              todos={todos}
+              onSetTodos={setTodos}
+              openTodos={openTodos}
+              checks={checks}
+              greeting={false}
+            />
           </div>
         )}
 
         {viewMode !== "simple" && (
           <>
-            {activeTab === "overview" && (
+            {shownTab === "overview" && (
               <Overview
                 overview={overview}
                 backups={backups}
@@ -473,59 +492,38 @@ function App() {
                 activity={activity}
                 alerts={alerts}
                 pins={pins}
+                history={history}
+                mainHost={mainHost}
+                detail
                 onControl={control}
                 onNavigate={navigate}
               />
             )}
 
-        {activeTab === "servers" && (
-          <ServersTab
-            machines={machines}
-            containers={containers}
-            history={history}
-            mainHost={mainHost}
-            connected={connected}
-          />
-        )}
+            {shownTab === "containers" && (
+              <ContainerList
+                key={containersKey}
+                containers={containers}
+                machines={machines}
+                onControl={control}
+                pins={pins}
+                onSetPins={setPins}
+                connected={connected}
+              />
+            )}
 
-        {activeTab === "containers" && (
-          <ContainerList
-            key={containersKey}
-            containers={containers}
-            machines={machines}
-            onControl={control}
-            pins={pins}
-            onSetPins={setPins}
-            connected={connected}
-          />
-        )}
+            {shownTab === "backups" && (
+              <BackupsTab machines={machines} connected={connected} />
+            )}
 
-        {activeTab === "network" && (
-          <NetworkTab
-            machines={machines}
-            containers={containers}
-            checks={checks}
-            connected={connected}
-          />
-        )}
-
-        {activeTab === "deploy" && (
-          <DeployTab machines={machines} deployments={deployments} connected={connected} />
-        )}
-
-        {activeTab === "backups" && (
-          <BackupsTab machines={machines} connected={connected} />
-        )}
-
-        {activeTab === "personal" && (
-          <PersonalTab
-            overview={overview}
-            todos={todos}
-            onSetTodos={setTodos}
-            openTodos={openTodos}
-            checks={checks}
-          />
-        )}
+            {shownTab === "network" && (
+              <NetworkTab
+                machines={machines}
+                containers={containers}
+                checks={checks}
+                connected={connected}
+              />
+            )}
           </>
         )}
 

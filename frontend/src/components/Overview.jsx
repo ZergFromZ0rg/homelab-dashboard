@@ -2,20 +2,20 @@ import RebalancePanel from "./RebalancePanel";
 import FirstRun from "./FirstRun";
 import SummaryRow from "./SummaryRow";
 import HostSummary from "./HostSummary";
+import HostGrid from "./HostGrid";
+import AddNode from "./AddNode";
 import { formatLatency } from "./format";
 import Timeline from "./Timeline";
 import QuickActions from "./QuickActions";
 import { useSettings } from "./settings";
 import AppIcon from "./AppIcon";
 
-// issue key -> which tab to open for the details: host-level problems
-// (offline, disk, temperature, backup...) live on Servers, container ones
-// on Containers.
+// issue key -> where the details live: host problems on this page's
+// server cards, checks on Network, container ones on Containers.
 function issueTab(key) {
-  if (key.startsWith("deploy:")) return "deploy";
   if (key.startsWith("check:")) return "network";
   if (key.startsWith("container:")) return "containers";
-  if (key.startsWith("host:")) return "servers";
+  if (key.startsWith("host:") || key.startsWith("deploy:")) return "servers";
   return "containers";
 }
 
@@ -147,6 +147,11 @@ function Panel({ title, count, tone, linkLabel, onLink, className = "", children
   );
 }
 
+// One page for the fleet. On top the headline numbers on a single line,
+// then four panels side by side (what's wrong, services, pinned, the
+// timeline); with `detail` (Advanced / God) every server's full vitals
+// follow, each foldable to a line — Servers used to be its own tab. Without
+// it (Simple) a one-line-per-host Servers panel stands in.
 function Overview({
   backups,
   overview,
@@ -157,6 +162,9 @@ function Overview({
   activity,
   alerts,
   pins,
+  history = {},
+  mainHost = null,
+  detail = false,
   onControl,
   onNavigate,
 }) {
@@ -168,36 +176,46 @@ function Overview({
   const down = checks.filter((c) => c.status === "down").length;
   const firing = alerts.filter((a) => a.resolved_at == null).length;
 
-  // Three columns, two rows: the headline numbers as a 2×2 square, the
-  // servers and the pinned containers across the top; what needs attention,
-  // service health and one merged timeline below. Every panel is a fixed
-  // slot in the grid, so the two rows always line up.
   return (
     <div className="overview overview--dense">
       <FirstRun machines={machines} backups={backups} onNavigate={onNavigate} />
-      <div className="ov-grid">
-        {homeCards.summary && (
-          <SummaryRow
-            overview={overview}
-            machines={machines}
-            containers={containers}
-            backups={backups}
-            square
-          />
-        )}
 
-        {homeCards.hosts && (
-          <Panel
-            title="Servers"
-            count={hostCount}
-            linkLabel="Details"
-            onLink={() => onNavigate("servers")}
-          >
+      {homeCards.summary && (
+        <SummaryRow
+          overview={overview}
+          machines={machines}
+          containers={containers}
+          backups={backups}
+          agents={detail}
+        />
+      )}
+
+      <div className="ov-grid">
+        {!detail && homeCards.hosts && (
+          <Panel title="Servers" count={hostCount}>
             <HostSummary
               machines={machines}
               containers={containers}
-              onOpen={() => onNavigate("servers")}
+              onOpen={(host) => onNavigate("servers", { host })}
             />
+          </Panel>
+        )}
+
+        {homeCards.attention && (
+          <IssuesPanel
+            overview={overview}
+            deployments={deployments}
+            onNavigate={onNavigate}
+          />
+        )}
+
+        {homeCards.services && checks.length > 0 && (
+          <Panel
+            title="Services"
+            count={down ? `${down} down` : checks.length}
+            tone={down ? "bad" : undefined}
+          >
+            <ServiceList checks={checks} onOpen={() => onNavigate("network")} />
           </Panel>
         )}
 
@@ -217,26 +235,6 @@ function Overview({
           </Panel>
         )}
 
-        {homeCards.attention && (
-          <IssuesPanel
-            overview={overview}
-            deployments={deployments}
-            onNavigate={onNavigate}
-          />
-        )}
-
-        {homeCards.services && checks.length > 0 && (
-          <Panel
-            title="Services"
-            count={down ? `${down} down` : checks.length}
-            tone={down ? "bad" : undefined}
-            linkLabel="Network"
-            onLink={() => onNavigate("network")}
-          >
-            <ServiceList checks={checks} onOpen={() => onNavigate("network")} />
-          </Panel>
-        )}
-
         {(homeCards.alerts || homeCards.activity) && (
           <Panel title="Timeline" count={firing ? `${firing} firing` : null} tone={firing ? "bad" : undefined} className="ov-scroll">
             <Timeline
@@ -246,6 +244,18 @@ function Overview({
           </Panel>
         )}
       </div>
+
+      {detail && homeCards.hosts && (
+        <>
+          <HostGrid
+            machines={machines}
+            containers={containers}
+            history={history}
+            mainHost={mainHost}
+          />
+          <AddNode />
+        </>
+      )}
     </div>
   );
 }

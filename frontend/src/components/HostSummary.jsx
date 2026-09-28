@@ -2,7 +2,7 @@
 // bar each for CPU, RAM and the fullest disk, and containers running. Bars
 // turn amber at 70% and red at 90% (the same levels the gauges use), so a
 // busy machine stands out and a healthy one stays quiet. A click opens the
-// Servers tab.
+// server card in full.
 
 import { diskLabel } from "./diskLabel";
 import { hostColor } from "./hostColor";
@@ -14,7 +14,7 @@ function level(pct) {
   return "ok";
 }
 
-function Meter({ label, pct }) {
+export function Meter({ label, pct }) {
   const known = typeof pct === "number";
   return (
     <span className={`ov-meter ov-meter--${level(pct)}`} title={label}>
@@ -51,7 +51,7 @@ function HostSummary({ machines, containers, onOpen }) {
             key={name}
             className={`ov-host ${offline ? "ov-host--off" : ""}`}
             onClick={() => onOpen?.(name)}
-            title={`Open ${name} in Servers`}
+            title={`Show ${name} in full`}
           >
             <span className="ov-host-name">
               <span className={`status-dot status-dot--${offline ? "bad" : "ok"}`} />
