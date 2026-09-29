@@ -12,7 +12,7 @@ function Item({ label, value, tone, title }) {
   );
 }
 
-function SummaryRow({ overview, machines, containers, backups, agents = false }) {
+function SummaryRow({ overview, machines, containers, backups, agents = false, ready = true }) {
   const hosts = Object.values(machines);
   const onlineHosts = hosts.filter((m) => m.online).length;
   const lists = Object.values(containers);
@@ -25,16 +25,22 @@ function SummaryRow({ overview, machines, containers, backups, agents = false })
     <div className="stat-strip">
       <Item
         label="Health"
-        value={overview.ok ? "all clear" : `${issues} issue${issues === 1 ? "" : "s"}`}
-        tone={overview.ok ? "ok" : "bad"}
+        value={!ready ? "—" : overview.ok ? "all clear" : `${issues} issue${issues === 1 ? "" : "s"}`}
+        tone={!ready ? null : overview.ok ? "ok" : "bad"}
+        title={ready ? undefined : "Waiting for the first update"}
       />
-      <Item label="Hosts" value={`${onlineHosts}/${hosts.length || "—"}`} tone={onlineHosts < hosts.length ? "bad" : null} title="online" />
-      <Item label="Containers" value={`${running}/${total || "—"}`} title="running" />
+      <Item
+        label="Hosts"
+        value={!ready ? "—" : hosts.length ? `${onlineHosts}/${hosts.length}` : "none"}
+        tone={onlineHosts < hosts.length ? "bad" : null}
+        title="online"
+      />
+      <Item label="Containers" value={total ? `${running}/${total}` : "—"} title="running" />
       {cores > 0 && <Item label="Threads" value={cores} title="CPU threads across the fleet" />}
       <Item
         label="Backups"
-        value={backups?.total ? `${backups.ok}/${backups.total}` : "none"}
-        tone={!backups?.total || backups.attention ? "bad" : null}
+        value={!ready ? "—" : backups?.total ? `${backups.ok}/${backups.total}` : "none"}
+        tone={ready && (!backups?.total || backups.attention) ? "bad" : null}
         title="backup jobs healthy"
       />
       {agents && <FleetUpdate machines={machines} />}

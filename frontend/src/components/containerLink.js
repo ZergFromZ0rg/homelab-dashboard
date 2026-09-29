@@ -28,15 +28,18 @@ export function containerUrl(host, ports) {
   return port ? `http://${host}:${port}` : null;
 }
 
+// Letter-avatar tints. No green, red or amber: those mean up / down /
+// warning everywhere else, and a red "N" beside a healthy container read
+// as a problem. Shown as a tint behind a colored letter, not a solid block.
 const AVATAR_COLORS = [
-  "#2dd4bf",
-  "#22c55e",
-  "#f59e0b",
-  "#ef4444",
-  "#a78bfa",
-  "#38bdf8",
-  "#f472b6",
-  "#84cc16",
+  "#5eead4", // teal
+  "#7dd3fc", // sky
+  "#a5b4fc", // periwinkle
+  "#c4b5fd", // violet
+  "#f0abfc", // orchid
+  "#f9a8d4", // pink
+  "#94a3b8", // slate
+  "#e2c08d", // sand
 ];
 
 export function avatarColor(name) {

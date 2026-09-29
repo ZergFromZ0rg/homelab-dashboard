@@ -10,14 +10,17 @@
 // match between them would misread as "this tab is that host".
 //
 // Plain hexes (not var(--accent)) so CSS can color-mix and animate them.
+// Every tab has its own (Files, System and Terminal used to fall back to
+// Overview's teal, so three tabs looked like one). Backups moved off
+// #7dd3fc, which was a lighter twin of Containers' sky blue.
 export const TAB_COLORS = {
-  overview: "#2dd4bf",
-  servers: "#a5b4fc",
-  containers: "#38bdf8",
-  network: "#c4b5fd",
-  deploy: "#f0abfc",
-  backups: "#7dd3fc",
-  personal: "#fda4af",
+  overview: "#2dd4bf", // teal
+  containers: "#38bdf8", // sky
+  files: "#e2c08d", // sand
+  backups: "#a5b4fc", // periwinkle
+  network: "#c4b5fd", // violet
+  system: "#f0abfc", // orchid
+  terminal: "#cbd5e1", // slate
 };
 
 export function tabColor(tab) {

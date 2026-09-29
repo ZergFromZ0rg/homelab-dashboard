@@ -1,3 +1,4 @@
+import { memo } from "react";
 import Card from "./Card";
 import { fetchWord } from "./personalApi";
 import { usePolled } from "./usePolled";
@@ -41,4 +42,6 @@ function WordCard() {
   );
 }
 
-export default WordCard;
+// Memoized: it takes no fleet data, so the 2 s dashboard tick needn't
+// re-render it.
+export default memo(WordCard);

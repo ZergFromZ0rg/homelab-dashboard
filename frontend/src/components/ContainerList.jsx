@@ -9,6 +9,8 @@ import { pinKey, togglePin } from "./containerPins";
 import { useLocalStorage } from "./useLocalStorage";
 import { hostColor } from "./hostColor";
 import { useSettings } from "./settings";
+import Icon from "./Icon";
+import { useTerminal } from "./terminalContext";
 
 const STATUS_FILTERS = [
   { value: "all", label: "All" },
@@ -149,7 +151,7 @@ function HostGroup({
           onClick={() => onHostState({ collapsed: !collapsed })}
           aria-expanded={!collapsed}
         >
-          <span className="host-toggle">▾</span>
+          <span className="host-toggle" aria-hidden="true"><Icon name="chevron" size={12} /></span>
           <span className="host-name">{host}</span>
           {unreachable ? (
             <span className="host-issue host-issue--bad">agent unreachable</span>
@@ -238,6 +240,7 @@ function ContainerList({
     settings: { highRestartCount, showContainerUptime },
   } = useSettings();
   const hosts = useMemo(() => Object.keys(containers).sort(), [containers]);
+  const terminal = useTerminal();
 
   const [query, setQuery] = useLocalStorage("homelab.containerSearch", "");
   const [statusFilter, setStatusFilter] = useLocalStorage(
@@ -305,7 +308,13 @@ function ContainerList({
 
   return (
     <section
-      className={`containers-section ${showContainerUptime ? "" : "no-uptime"}`}
+      className={[
+        "containers-section",
+        showContainerUptime ? "" : "no-uptime",
+        // One more icon per row (the shell) when any host allows shells, so
+        // the actions column is sized for it instead of spilling left.
+        hosts.some((h) => terminal?.available(h)) ? "containers-section--shell" : "",
+      ].join(" ")}
     >
       {hosts.length === 0 ? (
         <div className="empty-state">
@@ -373,7 +382,7 @@ function ContainerList({
               onClick={() => setPinnedCollapsed((c) => !c)}
               aria-expanded={pinnedOpen}
             >
-              <span className="host-toggle">▾</span>
+              <span className="host-toggle" aria-hidden="true"><Icon name="chevron" size={12} /></span>
               <span className="pinned-strip-star">★</span>
               Pinned
               <span className="host-running-count">{pinnedContainers.length}</span>
@@ -404,6 +413,22 @@ function ContainerList({
           </div>
         );
       })()}
+
+      {filtering && totalMatches === 0 && (
+        <div className="empty-state">
+          No containers match.{" "}
+          <button
+            type="button"
+            className="btn btn--sm btn--ghost"
+            onClick={() => {
+              setQuery("");
+              setStatusFilter("all");
+            }}
+          >
+            Clear filter
+          </button>
+        </div>
+      )}
 
       {hosts.map((host) => {
         // Pinned containers live in the strip above, not in their group.

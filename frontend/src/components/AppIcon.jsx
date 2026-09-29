@@ -24,7 +24,7 @@ function AppIcon({ url, label, className = "app-tile-icon" }) {
       {state !== "ok" && (
         <span
           className="app-tile-letter"
-          style={{ background: avatarColor(label) }}
+          style={{ "--avatar": avatarColor(label) }}
           aria-hidden="true"
         >
           {(label || "?").charAt(0).toUpperCase()}

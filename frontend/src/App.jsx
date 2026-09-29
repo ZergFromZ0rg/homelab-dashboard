@@ -29,11 +29,17 @@ import ModeSelector from "./components/ModeSelector";
 import { useModeSelector } from "./components/viewMode";
 import MorningBriefing from "./components/MorningBriefing";
 
-// The greeting heads the Simple page (it used to head Personal) and keeps
-// its on/off switch in Settings.
+// The Simple page's header line. Its greeting half keeps the Greeting
+// switch in Settings; its numbers half the Summary stats switch.
 function SimpleGreeting(props) {
   const { settings } = useSettings();
-  return settings.personalCards?.greeting ? <Greeting {...props} /> : null;
+  return (
+    <Greeting
+      {...props}
+      showHello={Boolean(settings.personalCards?.greeting)}
+      showStats={Boolean(settings.homeCards?.summary)}
+    />
+  );
 }
 
 const EMPTY_OVERVIEW = { ok: true, issues: [], recommendations: [] };
@@ -241,6 +247,9 @@ function useDashboardSocket() {
     todos,
     connected,
     lastUpdate,
+    // False until the first snapshot lands: the empty placeholders above
+    // mean "don't know yet", not "all clear".
+    ready: lastUpdate != null,
     setPins,
     setTodos,
   };
@@ -285,7 +294,7 @@ function AppShell({ tabs, activeTab, onTab, connected, lastUpdate, onOpenSetting
   // The active tab's color tints the page backdrop, so the section you're
   // in is a color before it's a word.
   return (
-    <div className={`app mode-${viewMode}`} style={{ "--page-accent": viewMode === "simple" ? "var(--text)" : tabColor(activeTab) }}>
+    <div className={`app mode-${viewMode}`} style={{ "--page-accent": viewMode === "simple" ? "var(--accent)" : tabColor(activeTab) }}>
       <header className={`topbar ${viewMode === "god" ? "topbar--god" : ""}`}>
         <div className="topbar-inner">
           <div className="brand">
@@ -299,7 +308,7 @@ function AppShell({ tabs, activeTab, onTab, connected, lastUpdate, onOpenSetting
           </div>
 
           {viewMode !== "simple" && <Tabs tabs={tabs} active={activeTab} onChange={onTab} />}
-          {viewMode === "simple" && <div className="tabs-spacer" style={{ flex: 1 }}></div>}
+          {viewMode === "simple" && <div className="tabs-spacer" />}
 
           <div className="topbar-actions">
             <ModeSelector mode={viewMode} onSetMode={onSetMode} />
@@ -354,6 +363,7 @@ function App() {
     mainHost,
     connected,
     lastUpdate,
+    ready,
     setPins,
     setTodos,
   } = useDashboardSocket();
@@ -363,11 +373,28 @@ function App() {
 
   useEffect(() => {
     const handleModeChange = () => setViewMode(getMode());
+    // Another browser tab switched modes: follow it.
+    const handleStorage = (e) => {
+      if (e.key === "homelab.viewMode") handleModeChange();
+    };
     window.addEventListener("homelab:mode-changed", handleModeChange);
-    return () => window.removeEventListener("homelab:mode-changed", handleModeChange);
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener("homelab:mode-changed", handleModeChange);
+      window.removeEventListener("storage", handleStorage);
+    };
   }, [getMode]);
 
   const [activeTab, setActiveTab] = useState("overview");
+  // A new view starts at its top; keeping the old scroll offset dropped you
+  // mid-page (or past the end) of a tab you hadn't read yet.
+  const view = viewMode === "simple" ? "simple" : activeTab;
+  const lastView = useRef(view);
+  useEffect(() => {
+    if (lastView.current === view) return;
+    lastView.current = view;
+    window.scrollTo({ top: 0 });
+  }, [view]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Container settings opened from the palette (rows open their own).
   const [settingsFor, setSettingsFor] = useState(null);
@@ -475,8 +502,14 @@ function App() {
           full={viewMode === "god" && shownTab === "terminal"}
         >
         {viewMode === "simple" && (
-          <div className="simple-mode-content">
-            <SimpleGreeting overview={overview} openTodos={openTodos} />
+          <div className="simple-mode-content view" key="simple">
+            <SimpleGreeting
+              overview={overview}
+              machines={machines}
+              containers={containers}
+              backups={backups}
+              ready={ready}
+            />
             <MorningBriefing summary={morning_summary} machines={machines} onNavigate={navigate} />
             <Overview
               overview={overview}
@@ -488,22 +521,21 @@ function App() {
               activity={activity}
               alerts={alerts}
               pins={pins}
+              ready={ready}
               onControl={control}
               onNavigate={navigate}
             />
             <PersonalTab
-              overview={overview}
               todos={todos}
               onSetTodos={setTodos}
               openTodos={openTodos}
               checks={checks}
-              greeting={false}
             />
           </div>
         )}
 
         {viewMode !== "simple" && (
-          <>
+          <div className={`view view--${shownTab}`} key={shownTab}>
             {shownTab === "overview" && (
               <Overview
                 overview={overview}
@@ -517,6 +549,7 @@ function App() {
                 pins={pins}
                 history={history}
                 mainHost={mainHost}
+                ready={ready}
                 detail
                 onControl={control}
                 onNavigate={navigate}
@@ -569,7 +602,7 @@ function App() {
                 connected={connected}
               />
             )}
-          </>
+          </div>
         )}
 
         <CommandPalette

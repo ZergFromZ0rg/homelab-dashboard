@@ -123,8 +123,8 @@ function ActionQueue({ actions, machines, now }) {
       {items.map((item) => (
         <li key={item.id} className="mb-action-card">
           <div className="mb-action-info">
-            <strong>{item.title}</strong>
-            {item.subtitle && <span>{item.subtitle}</span>}
+            <strong title={item.title}>{item.title}</strong>
+            {item.subtitle && <span title={item.subtitle}>{item.subtitle}</span>}
           </div>
           {runs[item.id] ? (
             <RunStatus run={runs[item.id]} now={now} onDismiss={() => dismiss(item.id)} />

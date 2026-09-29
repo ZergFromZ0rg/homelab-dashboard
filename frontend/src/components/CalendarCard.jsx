@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import Card from "./Card";
 import { useNow } from "./useNow";
 
@@ -115,4 +115,6 @@ function CalendarCard() {
   );
 }
 
-export default CalendarCard;
+// Memoized: it takes no fleet data, so the 2 s dashboard tick needn't
+// re-render it.
+export default memo(CalendarCard);

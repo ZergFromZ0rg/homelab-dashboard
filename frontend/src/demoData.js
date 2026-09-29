@@ -461,7 +461,7 @@ export function demoCheckHistory(id, range) {
   return { range, bucket_seconds: width, uptime: Math.round((10000 * ups) / total) / 100, points };
 }
 
-export function demoSnapshot() {
+function fullSnapshot() {
   const machines = {
     bigboy: machine({
       model: "AMD Ryzen 7 5800X 8-Core Processor",
@@ -727,6 +727,49 @@ export function demoSnapshot() {
       ]
     },
   };
+}
+
+// Edge cases for checking layouts: /?demo=empty (fresh install, nothing
+// reporting), /?demo=calm (nothing wrong anywhere), /?demo=offline (a host
+// down), /?demo=long (names long enough to have to truncate).
+export function demoSnapshot() {
+  const snap = fullSnapshot();
+  const scenario = new URLSearchParams(window.location.search).get("demo");
+  if (scenario === "empty") {
+    return {
+      ...snap,
+      machines: {}, containers: {}, history: {}, deployments: [], activity: [], alerts: [],
+      backups: null, checks: [], mainHost: null, pins: [], todos: [], morning_summary: null,
+      overview: { ok: true, issues: [], recommendations: [] },
+    };
+  }
+  if (scenario === "calm") {
+    return {
+      ...snap,
+      alerts: snap.alerts.filter((a) => a.resolved_at != null),
+      checks: snap.checks.map((c) => (c.status === "down" ? { ...c, status: "up", latency_ms: 41 } : c)),
+      backups: { ...snap.backups, ok: 3, attention: 0, pending: 0 },
+      overview: { ok: true, issues: [], recommendations: [], security: snap.overview.security },
+      morning_summary: { ...snap.morning_summary, degrading: [], needs_action: [] },
+    };
+  }
+  if (scenario === "offline") {
+    const host = "nuc-media";
+    return {
+      ...snap,
+      machines: { ...snap.machines, [host]: { ...snap.machines[host], online: false, agent_reachable: false } },
+      containers: { ...snap.containers, [host]: [] },
+    };
+  }
+  if (scenario === "long") {
+    const rename = (name) => `${name}-with-a-really-long-descriptive-name`;
+    const machines = Object.fromEntries(Object.entries(snap.machines).map(([k, v]) => [rename(k), v]));
+    const containers = Object.fromEntries(
+      Object.entries(snap.containers).map(([k, list]) => [rename(k), list.map((c) => ({ ...c, name: rename(c.name) }))])
+    );
+    return { ...snap, machines, containers, pins: [] };
+  }
+  return snap;
 }
 
 // Personal tab fixtures (weather / word of the day) so /?demo needs no backend.

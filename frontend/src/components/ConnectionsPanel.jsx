@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { fetchConnections } from "./connectionsApi";
 import { formatBytes } from "./format";
+import Icon from "./Icon";
 
 // Who this host is talking to, from its agent's conntrack table.
 //
@@ -122,7 +123,7 @@ function ConnectionsPanel({ host }) {
         onClick={toggle}
         aria-expanded={open}
       >
-        <span className="host-toggle">▾</span>
+        <span className="host-toggle" aria-hidden="true"><Icon name="chevron" size={12} /></span>
         CONNECTIONS
         {data?.available && (
           <span className="conn-count">{data.conversations_total}</span>

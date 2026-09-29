@@ -77,7 +77,7 @@ function BackupsTab({ machines, connected, showLocation = false, onOpenFolder })
         <div className="facts-row">
           <Fact
             label="Jobs"
-            value={jobs.length}
+            value={failing ? `${failing} of ${jobs.length} behind` : jobs.length}
             bad={failing > 0}
           />
           <Fact

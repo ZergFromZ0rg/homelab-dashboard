@@ -1,7 +1,7 @@
 import MachineVitals from "./MachineVitals";
 import HostFooter from "./HostFooter";
 import HostShellButton from "./HostShellButton";
-import { IconButton } from "./Icon";
+import Icon, { IconButton } from "./Icon";
 import { Meter } from "./HostSummary";
 import { diskLabel } from "./diskLabel";
 import { useRef, useState } from "react";
@@ -47,7 +47,7 @@ function MachineCard({ name, machine, history, containers, main = false }) {
           onClick={() => setFold(!isFolded)}
           title={isFolded ? `Show ${name}` : `Fold ${name}`}
         >
-          <span className="machine-fold-caret" aria-hidden="true">▾</span>
+          <span className="machine-fold-caret" aria-hidden="true"><Icon name="chevron" size={12} /></span>
           <span className="status-dot" />
           <h2 style={{ color: hostColor(name) }}>{name}</h2>
           {main && <span className="machine-badge">Dashboard host</span>}

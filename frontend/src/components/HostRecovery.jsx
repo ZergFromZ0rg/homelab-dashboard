@@ -8,6 +8,7 @@ import {
   unignore,
 } from "./backupsApi";
 import { formatAge, formatBytes } from "./format";
+import Icon from "./Icon";
 
 // What you would have if this machine died tonight.
 //
@@ -119,7 +120,7 @@ function HostRecovery({ host, defaultOpen = false }) {
         onClick={toggle}
         aria-expanded={open}
       >
-        <span className="host-toggle">▾</span>
+        <span className="host-toggle" aria-hidden="true"><Icon name="chevron" size={12} /></span>
         IF THIS HOST DIED
         {data && (
           <span className={`conn-count ${gaps ? "conn-count--bad" : ""}`}>

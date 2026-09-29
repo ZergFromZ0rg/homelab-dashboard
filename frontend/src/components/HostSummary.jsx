@@ -27,10 +27,14 @@ export function Meter({ label, pct }) {
   );
 }
 
-function HostSummary({ machines, containers, onOpen }) {
+function HostSummary({ machines, containers, ready = true, onOpen }) {
   const names = Object.keys(machines).sort();
   if (names.length === 0) {
-    return <p className="overview-empty">No hosts reporting yet.</p>;
+    return (
+      <p className="overview-empty ov-hosts-empty">
+        {ready ? "No hosts reporting yet." : "Connecting…"}
+      </p>
+    );
   }
 
   return (
@@ -55,7 +59,9 @@ function HostSummary({ machines, containers, onOpen }) {
           >
             <span className="ov-host-name">
               <span className={`status-dot status-dot--${offline ? "bad" : "ok"}`} />
-              <span style={{ color: hostColor(name) }}>{name}</span>
+              <span className="ov-host-label" style={{ color: hostColor(name) }} title={name}>
+                {name}
+              </span>
             </span>
 
             {offline ? (
@@ -71,8 +77,8 @@ function HostSummary({ machines, containers, onOpen }) {
               </>
             )}
 
-            <span className="ov-host-count">
-              {running}/{conts.length}
+            <span className="ov-host-count" title="containers running">
+              {offline ? "—" : `${running}/${conts.length}`}
             </span>
           </button>
         );

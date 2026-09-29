@@ -23,7 +23,7 @@
 
 .signin-card h1 {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--fs-xl);
 }
 
 .signin-mark {
@@ -35,7 +35,7 @@
   width: 100%;
   font: inherit;
   font-weight: 600;
-  font-size: 13px;
+  font-size: var(--fs-md);
   padding: 9px 12px;
   color: #06201c;
   background: var(--accent);
@@ -52,13 +52,13 @@
 
 .signin-note {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--fs-md);
   color: var(--text-muted);
 }
 
 .signin-error {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--offline);
 }
 
@@ -80,7 +80,7 @@
   gap: 8px;
   padding: 4px 0;
   border-top: 1px solid var(--border);
-  font-size: 13px;
+  font-size: var(--fs-md);
 }
 
 .passkey-row:first-child {
@@ -116,7 +116,7 @@
 }
 
 .passkey-used {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-faint);
   white-space: nowrap;
 }

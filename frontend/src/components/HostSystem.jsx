@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { jsonOrThrow } from "./apiAuth";
 import { confirmedFetch } from "./confirmedFetch";
+import Icon from "./Icon";
 
 // The machine under the containers, on its server card: systemd services
 // (failed first), OS package updates, reboot and power off. Reading is a
@@ -319,7 +320,7 @@ function HostSystem({ host, machine }) {
   return (
     <section className="conn">
       <button type="button" className={`conn-toggle ${open ? "expanded" : ""}`} onClick={() => setOpen(!open)} aria-expanded={open}>
-        <span className="host-toggle">▾</span>
+        <span className="host-toggle" aria-hidden="true"><Icon name="chevron" size={12} /></span>
         SYSTEM
         {failed > 0 && <span className="conn-count conn-count--bad">{failed} failed</span>}
       </button>

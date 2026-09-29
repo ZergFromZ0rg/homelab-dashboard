@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import Card from "./Card";
 import WeatherIcon from "./WeatherIcon";
 import { describeWeather } from "./weatherCodes";
@@ -18,7 +18,9 @@ function placeLabel(place) {
 }
 
 // Inline city search — the location is a per-browser preference, so it's
-// picked right on the card rather than in Settings.
+// picked right on the card rather than in Settings. It only grabs focus
+// when you asked to change the city: on first load an autofocused field
+// scrolled the page down to it (and opened the keyboard on a phone).
 function PlacePicker({ onPick, onCancel }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
@@ -58,7 +60,7 @@ function PlacePicker({ onPick, onCancel }) {
           className="deploy-input"
           placeholder="Search for your city…"
           value={query}
-          autoFocus
+          autoFocus={Boolean(onCancel)}
           onChange={(e) => setQuery(e.target.value)}
           aria-label="Search for a city"
         />
@@ -69,6 +71,9 @@ function PlacePicker({ onPick, onCancel }) {
         )}
       </div>
       {status && query.trim().length >= 2 && <p className="overview-empty">{status}</p>}
+      {!onCancel && query.trim().length < 2 && (
+        <p className="overview-empty">Pick a city for the current conditions and a five-day forecast.</p>
+      )}
       {shown.length > 0 && (
         <ul className="place-results">
           {shown.map((p) => (
@@ -214,4 +219,6 @@ function WeatherCard() {
   );
 }
 
-export default WeatherCard;
+// Memoized: it takes no fleet data, so the 2 s dashboard tick needn't
+// re-render it.
+export default memo(WeatherCard);

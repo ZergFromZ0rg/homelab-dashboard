@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import Card from "./Card";
 import NoteEditor from "./NoteEditor";
 import { formatAge } from "./format";
@@ -155,4 +155,6 @@ function NotesCard() {
   );
 }
 
-export default NotesCard;
+// Memoized: it takes no fleet data, so the 2 s dashboard tick needn't
+// re-render it.
+export default memo(NotesCard);

@@ -1,14 +1,18 @@
+/* Design tokens. Every color, size and duration in the app comes from here,
+   so the whole UI can be tuned in one place. */
 :root {
-  --bg: #0d1016;
-  --bg-card: #141923;
-  --bg-subtle: #1b212d;
-  --bg-raised: #212939;
-  --border: #262e3d;
-  --border-strong: #354055;
+  /* Surfaces, darkest first: page, panel, then translucent washes that
+     work on either (row hover, selected). */
+  --bg: #0a0c10;
+  --bg-card: #111419;
+  --bg-subtle: rgba(255, 255, 255, 0.04);
+  --bg-raised: rgba(255, 255, 255, 0.075);
+  --border: rgba(255, 255, 255, 0.075);
+  --border-strong: rgba(255, 255, 255, 0.13);
 
-  --text: #e9ecf2;
-  --text-muted: #9aa3b5;
-  --text-faint: #6b748a;
+  --text: #e3e6ec;
+  --text-muted: #9098a6;
+  --text-faint: #646b79;
 
   --radius: 6px;
   --radius-sm: 4px;
@@ -17,27 +21,46 @@
   --accent: #2dd4bf;
   --accent-bg: rgba(45, 212, 191, 0.12);
 
-  /* The dashboard's own host card, in System Stats — deliberately a
-     different hue from --accent (teal, used for interactive/selected
-     things) so it reads as "this one's special" without implying
-     clickable. */
+  /* The dashboard's own host — a hue apart from --accent so it reads as
+     "this one's special" without implying clickable. */
   --main-host: #60a5fa;
   --main-host-bg: rgba(96, 165, 250, 0.1);
 
-  --online: #22c55e;
-  --online-bg: rgba(34, 197, 94, 0.12);
-  --offline: #ef4444;
-  --offline-bg: rgba(239, 68, 68, 0.12);
-  --warning: #f59e0b;
-  --warning-bg: rgba(245, 158, 11, 0.12);
+  /* Status. Softer than the Tailwind 500s they replaced: still unmistakable
+     on the dark page, but they don't vibrate next to body text. */
+  --online: #3ecf8e;
+  --online-bg: rgba(62, 207, 142, 0.12);
+  --offline: #f26b6b;
+  --offline-bg: rgba(242, 107, 107, 0.12);
+  --warning: #eeaa3c;
+  --warning-bg: rgba(238, 170, 60, 0.12);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.28);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.32);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.45);
 
-  --sans: Inter, system-ui, "Segoe UI", Roboto, sans-serif;
-  --mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  /* One type scale. 13px is body; 11px is the floor for anything read
+     (2xs is only for chart ticks and in-cell digits). */
+  --fs-2xs: 10px;
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-md: 13px;
+  --fs-lg: 14px;
+  --fs-xl: 16px;
+  --fs-2xl: 20px;
+  --fs-3xl: 24px;
 
-  font: 14px/1.5 var(--sans);
+  /* Motion: quick and decelerating, so things feel like they respond
+     rather than perform. */
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.3, 1.3, 0.5, 1);
+  --dur-fast: 0.12s;
+  --dur: 0.2s;
+  --dur-slow: 0.32s;
+
+  --sans: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+
+  font: var(--fs-md) / 1.45 var(--sans);
   color-scheme: dark;
   color: var(--text);
   background: var(--bg);
@@ -45,6 +68,16 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Phones: no text inflation on rotate (iOS enlarges "small" text in
+     landscape unless told not to). */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  /* Numbers that tick every two seconds keep their width. */
+  font-variant-numeric: tabular-nums;
+  /* The page doesn't shift sideways when a tab is short enough to lose
+     its scrollbar. */
+  scrollbar-gutter: stable;
+  -webkit-tap-highlight-color: transparent;
 }
 
 * {
@@ -57,11 +90,84 @@ body {
   color: var(--text);
   font-family: var(--sans);
   overflow-x: hidden;
+  scrollbar-color: var(--border-strong) transparent;
 }
 
 h1,
-h2 {
+h2,
+h3 {
   font-weight: 600;
   color: var(--text);
   margin: 0;
+}
+
+/* Controls use the page font unless a rule says otherwise (browsers give
+   them their own 13.33px system font). */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+/* Every text field, select and textarea looks the same unless a class says
+   otherwise — :where() keeps this at zero specificity so any class wins.
+   (Unclassed fields used to fall back to the browser's grey inset box.) */
+:where(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"]), select, textarea) {
+  min-height: 28px;
+  padding: 0 8px;
+  font-size: var(--fs-md);
+  color: var(--text);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+:where(textarea) {
+  padding: 6px 8px;
+  line-height: 1.45;
+}
+
+:where(input, textarea)::placeholder {
+  color: var(--text-faint);
+}
+
+:where(input:not([type="checkbox"], [type="radio"], [type="range"]), select, textarea):focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+:where(input, select, textarea):disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+:where(input[type="checkbox"], input[type="radio"]) {
+  accent-color: var(--accent);
+}
+
+/* Touch screens: 16px inputs, or iOS zooms the whole page on focus. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

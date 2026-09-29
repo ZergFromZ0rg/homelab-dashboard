@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { DEMO } from "../demoData";
+import Icon from "./Icon";
 
 // The command to paste on a new machine, with this dashboard's address
 // already in it.
@@ -63,7 +64,7 @@ function AddNode() {
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
       >
-        <span className="host-toggle">▾</span>
+        <span className="host-toggle" aria-hidden="true"><Icon name="chevron" size={12} /></span>
         Add a node
       </button>
 

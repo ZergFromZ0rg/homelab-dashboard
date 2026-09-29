@@ -15,9 +15,10 @@ import { ensureConfirmed } from "./confirmedFetch";
 // Lazy-loaded by TerminalDock: xterm is the heaviest thing on the page and
 // most visits never open a shell.
 
+// Matches index.css's --bg / --text.
 const THEME = {
-  background: "#0b0e14",
-  foreground: "#e9ecf2",
+  background: "#0a0c10",
+  foreground: "#e3e6ec",
   cursor: "#2dd4bf",
   selectionBackground: "rgba(45, 212, 191, 0.3)",
   black: "#1b212d",
@@ -75,9 +76,9 @@ function TerminalView({ session, visible, onStatus, onReady, onFind }) {
     term.loadAddon(search);
     const highlight = {
       matchBackground: "#7c5a0b",
-      activeMatchBackground: "#f59e0b",
-      matchOverviewRuler: "#f59e0b",
-      activeMatchColorOverviewRuler: "#f59e0b",
+      activeMatchBackground: "#eeaa3c",
+      matchOverviewRuler: "#eeaa3c",
+      activeMatchColorOverviewRuler: "#eeaa3c",
     };
     hooks.current.onReady?.({
       find: (text, back = false) =>

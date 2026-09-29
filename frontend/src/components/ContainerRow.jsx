@@ -6,7 +6,8 @@ import { needsAttention } from "./containerSort";
 import { formatBytes, formatBytesPerSec, formatWhen } from "./format";
 import ContainerCharts from "./ContainerCharts";
 import Heartbeat from "./Heartbeat";
-import RebuildButton from "./RebuildButton";
+import RebuildButton, { RebuildNote } from "./RebuildButton";
+import { useRebuild } from "./useRebuild";
 import { useSettings } from "./settings";
 import { hostColor } from "./hostColor";
 import { useTerminal } from "./terminalContext";
@@ -72,6 +73,8 @@ function ContainerRow({
   const updating =
     (hostJob?.state === "running" || hostJob?.state === "starting") &&
     (hostJob.projects.length === 0 || hostJob.projects.includes(container.compose_project));
+
+  const rebuild = useRebuild(host, container, container.rebuild);
 
   const live = container.live_activity;
   const showLive = showLiveActivity && Boolean(live);
@@ -196,6 +199,7 @@ function ContainerRow({
                   scheduled
                 </span>
               )}
+              <RebuildNote note={rebuild.note} onDismiss={rebuild.dismiss} />
             </div>
           </div>
         </div>
@@ -310,9 +314,7 @@ function ContainerRow({
               newer build is exactly what you want to do from here. */}
           {container.rebuild && (
             <RebuildButton
-              host={host}
-              container={container}
-              target={container.rebuild}
+              rebuild={rebuild}
             />
           )}
 

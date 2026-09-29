@@ -23,7 +23,7 @@ function issueTab(key) {
 // each with a jump to where it lives. The longer "how to fix" notes sit
 // behind a toggle so the list itself stays short. When nothing is wrong
 // it's one quiet line.
-function IssuesPanel({ overview, deployments, onNavigate }) {
+function IssuesPanel({ overview, deployments, ready, onNavigate }) {
   const { ok, issues, recommendations, security } = overview;
   const unauthenticated = security && security.authenticated === false;
   const worst = issues.some((i) => i.severity === "bad") ? "bad" : "warn";
@@ -32,10 +32,12 @@ function IssuesPanel({ overview, deployments, onNavigate }) {
     <Panel
       title="Needs attention"
       count={ok ? null : issues.length}
-      tone={ok ? "ok" : worst}
+      tone={!ready ? undefined : ok ? "ok" : worst}
       className="ov-issues"
     >
-      {ok ? (
+      {!ready ? (
+        <p className="overview-empty">Waiting for the first update…</p>
+      ) : ok ? (
         <p className="ov-clear">
           <span className="status-dot status-dot--ok" />
           All clear
@@ -147,11 +149,13 @@ function Panel({ title, count, tone, linkLabel, onLink, className = "", children
   );
 }
 
-// One page for the fleet. On top the headline numbers on a single line,
-// then four panels side by side (what's wrong, services, pinned, the
-// timeline); with `detail` (Advanced / God) every server's full vitals
-// follow, each foldable to a line — Servers used to be its own tab. Without
-// it (Simple) a one-line-per-host Servers panel stands in.
+// One page for the fleet. Advanced / God (`detail`): the headline numbers
+// on one line, four panels side by side (what's wrong, services, pinned,
+// the timeline), then every server's full vitals, each foldable to a line
+// — Servers used to be its own tab. Simple: the headline numbers live in
+// the page header instead, the servers are one panel of columns (one per
+// host, like the briefing above it), then what's wrong / services / the
+// timeline, and pinned containers only once something is pinned.
 function Overview({
   backups,
   overview,
@@ -164,6 +168,7 @@ function Overview({
   pins,
   history = {},
   mainHost = null,
+  ready = true,
   detail = false,
   onControl,
   onNavigate,
@@ -176,6 +181,82 @@ function Overview({
   const down = checks.filter((c) => c.status === "down").length;
   const firing = alerts.filter((a) => a.resolved_at == null).length;
 
+  // Simple keeps healthy things quiet: with nothing wrong (and no login
+  // footnote to show) the header's "all clear" says it, not an empty panel.
+  const quiet =
+    !detail && ready && overview.ok && overview.security?.authenticated !== false;
+  const issues = homeCards.attention && !quiet && (
+    <IssuesPanel overview={overview} deployments={deployments} ready={ready} onNavigate={onNavigate} />
+  );
+  const services = homeCards.services && checks.length > 0 && (
+    <Panel
+      title="Services"
+      count={down ? `${down} down` : checks.length}
+      tone={down ? "bad" : undefined}
+    >
+      <ServiceList checks={checks} onOpen={() => onNavigate("network")} />
+    </Panel>
+  );
+  const pinned = homeCards.quickActions && (detail || pins.length > 0) && (
+    <Panel
+      title="Pinned"
+      count={pins.length || null}
+      linkLabel="Containers"
+      onLink={() => onNavigate("containers")}
+      className={detail ? "" : "ov-pinned-wide"}
+    >
+      <QuickActions pins={pins} containers={containers} machines={machines} onControl={onControl} />
+    </Panel>
+  );
+  const timeline = (homeCards.alerts || homeCards.activity) && (
+    <Panel
+      title="Timeline"
+      count={firing ? `${firing} firing` : null}
+      tone={firing ? "bad" : undefined}
+      className="ov-scroll"
+    >
+      <Timeline
+        alerts={homeCards.alerts ? alerts : []}
+        activity={homeCards.activity ? activity : []}
+      />
+    </Panel>
+  );
+
+  if (!detail) {
+    return (
+      <div className="overview overview--dense overview--simple">
+        <FirstRun machines={machines} backups={backups} onNavigate={onNavigate} />
+
+        {homeCards.hosts && (
+          <Panel
+            title="Servers"
+            count={hostCount || null}
+            linkLabel="Details"
+            onLink={() => onNavigate("servers")}
+            className="ov-hosts-panel"
+          >
+            <HostSummary
+              machines={machines}
+              containers={containers}
+              ready={ready}
+              onOpen={(host) => onNavigate("servers", { host })}
+            />
+          </Panel>
+        )}
+
+        {(issues || services || timeline) && (
+          <div className="ov-grid ov-grid--simple">
+            {issues}
+            {services}
+            {timeline}
+          </div>
+        )}
+
+        {pinned}
+      </div>
+    );
+  }
+
   return (
     <div className="overview overview--dense">
       <FirstRun machines={machines} backups={backups} onNavigate={onNavigate} />
@@ -186,66 +267,19 @@ function Overview({
           machines={machines}
           containers={containers}
           backups={backups}
-          agents={detail}
+          ready={ready}
+          agents
         />
       )}
 
       <div className="ov-grid">
-        {!detail && homeCards.hosts && (
-          <Panel title="Servers" count={hostCount}>
-            <HostSummary
-              machines={machines}
-              containers={containers}
-              onOpen={(host) => onNavigate("servers", { host })}
-            />
-          </Panel>
-        )}
-
-        {homeCards.attention && (
-          <IssuesPanel
-            overview={overview}
-            deployments={deployments}
-            onNavigate={onNavigate}
-          />
-        )}
-
-        {homeCards.services && checks.length > 0 && (
-          <Panel
-            title="Services"
-            count={down ? `${down} down` : checks.length}
-            tone={down ? "bad" : undefined}
-          >
-            <ServiceList checks={checks} onOpen={() => onNavigate("network")} />
-          </Panel>
-        )}
-
-        {homeCards.quickActions && (
-          <Panel
-            title="Pinned"
-            count={pins.length || null}
-            linkLabel="Containers"
-            onLink={() => onNavigate("containers")}
-          >
-            <QuickActions
-              pins={pins}
-              containers={containers}
-              machines={machines}
-              onControl={onControl}
-            />
-          </Panel>
-        )}
-
-        {(homeCards.alerts || homeCards.activity) && (
-          <Panel title="Timeline" count={firing ? `${firing} firing` : null} tone={firing ? "bad" : undefined} className="ov-scroll">
-            <Timeline
-              alerts={homeCards.alerts ? alerts : []}
-              activity={homeCards.activity ? activity : []}
-            />
-          </Panel>
-        )}
+        {issues}
+        {services}
+        {pinned}
+        {timeline}
       </div>
 
-      {detail && homeCards.hosts && (
+      {homeCards.hosts && (
         <>
           <HostGrid
             machines={machines}

@@ -103,6 +103,12 @@ const PATHS = {
       <path d="M8 11V8a4 4 0 0 1 8 0v3" />
     </>
   ),
+  hammer: (
+    <>
+      <path d="M13.5 8.5L5 17a1.8 1.8 0 0 0 2.5 2.5L16 11" />
+      <path d="M11 6l3-3 7 7-3 3z" />
+    </>
+  ),
 };
 
 const FILLED = new Set(["play", "stop"]);

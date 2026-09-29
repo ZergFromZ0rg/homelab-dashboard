@@ -1,5 +1,6 @@
-import { useNow } from "./useNow";
+import { useEffect, useState } from "react";
 import { useSettings } from "./settings";
+import SummaryRow from "./SummaryRow";
 
 function partOfDay(hour) {
   if (hour < 5) return "Good night";
@@ -8,43 +9,71 @@ function partOfDay(hour) {
   return "Good evening";
 }
 
-// Time-aware hello with the date and clock, plus a one-line read on the
-// fleet so the Personal tab still tells you if something is on fire.
-function Greeting({ overview, openTodos }) {
+// The current time, re-read on each minute boundary so the clock turns
+// over with the system clock instead of up to a polling interval late.
+function useMinute() {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    let timer;
+    const schedule = () => {
+      clearTimeout(timer);
+      const d = new Date();
+      const wait = 60_000 - (d.getSeconds() * 1000 + d.getMilliseconds()) + 50;
+      timer = setTimeout(() => {
+        setNow(new Date());
+        schedule();
+      }, wait);
+    };
+    // Back from sleep or a background tab: timers ran late, catch up now.
+    const wake = () => {
+      if (document.visibilityState !== "visible") return;
+      setNow(new Date());
+      schedule();
+    };
+    schedule();
+    document.addEventListener("visibilitychange", wake);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", wake);
+    };
+  }, []);
+  return now;
+}
+
+// The Simple page's first line: hello and the date, the fleet's headline
+// numbers, and the clock. Each half follows its own Settings switch
+// (Greeting under personal cards, Summary stats under home cards).
+function Greeting({ overview, machines, containers, backups, ready = true, showHello = true, showStats = true }) {
   const {
     settings: { displayName },
   } = useSettings();
-  const now = useNow(15000);
-
-  const issues = overview.issues.length;
+  const now = useMinute();
   const name = displayName.trim();
 
+  if (!showHello && !showStats) return null;
+
   return (
-    <div className="greeting">
-      <div>
-        <h2 className="greeting-hello">
-          {partOfDay(now.getHours())}
-          {name ? `, ${name}` : ""}
-        </h2>
-        <p className="greeting-date">
-          {now.toLocaleDateString(undefined, {
-            weekday: "long",
-            month: "long",
-            day: "numeric",
-          })}
-        </p>
-        <p className="greeting-status">
-          <span className={`status-dot status-dot--${overview.ok ? "ok" : "warn"}`} />
-          {overview.ok
-            ? "All systems operational"
-            : `${issues} issue${issues === 1 ? "" : "s"} need${issues === 1 ? "s" : ""} attention`}
-          {openTodos > 0 && ` · ${openTodos} open to-do${openTodos === 1 ? "" : "s"}`}
-        </p>
-      </div>
-      <div className="greeting-clock">
-        {now.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
-      </div>
-    </div>
+    <header className="simple-head">
+      {showHello && (
+        <div className="simple-hello">
+          <h2>
+            {partOfDay(now.getHours())}
+            {name ? `, ${name}` : ""}
+          </h2>
+          <span className="simple-date">
+            {now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+          </span>
+        </div>
+      )}
+      {showStats && (
+        <SummaryRow overview={overview} machines={machines} containers={containers} backups={backups} ready={ready} />
+      )}
+      {showHello && (
+        <time className="simple-clock" dateTime={now.toISOString()}>
+          {now.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
+        </time>
+      )}
+    </header>
   );
 }
 

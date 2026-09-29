@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchHostConfig, saveHostConfig } from "./hostConfigApi";
+import Icon from "./Icon";
 
 // One host's agent settings, on that host's card.
 //
@@ -129,7 +130,7 @@ function HostSettings({ host, defaultOpen = false }) {
         onClick={toggle}
         aria-expanded={open}
       >
-        <span className="host-toggle">▾</span>
+        <span className="host-toggle" aria-hidden="true"><Icon name="chevron" size={12} /></span>
         SETTINGS
         {data && !data.writable && <span className="conn-count">read-only</span>}
       </button>

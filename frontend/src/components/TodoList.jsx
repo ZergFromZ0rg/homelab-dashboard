@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 
 function newItem(text) {
   return {
@@ -139,4 +139,6 @@ function TodoList({ todos, onChange, compact }) {
   );
 }
 
-export default TodoList;
+// Memoized: it takes no fleet data, so the 2 s dashboard tick needn't
+// re-render it.
+export default memo(TodoList);
