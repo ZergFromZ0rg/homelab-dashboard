@@ -31,6 +31,7 @@ failures in a row, so one dropped packet doesn't page you.
 from __future__ import annotations
 
 import asyncio
+import bisect
 import re
 import random
 import socket
@@ -82,6 +83,19 @@ MAX_BODY_BYTES = 512 * 1024
 
 USER_AGENT = "homelab-dashboard/1.0 (service check)"
 MAX_REDIRECTS = 5
+
+# Latency histogram bin edges (ms), roughly log-spaced. Percentiles are read
+# back from per-hour counts of these bins, so they stay cheap to keep for 30
+# days and are accurate to within one bin.
+LATENCY_EDGES = (
+    0.5, 1, 2, 3, 5, 8, 12, 20, 30, 50, 80, 120, 200, 300, 500, 800,
+    1200, 2000, 3000, 5000, 10000, 30000,
+)
+HIST_BINS = len(LATENCY_EDGES) + 1
+
+# Downtime episodes kept per check, and for how long.
+MAX_INCIDENTS = 60
+INCIDENT_RETENTION_SECONDS = BUCKET_RETENTION_SECONDS
 
 # range key -> (window seconds, bucket seconds, raw?)
 RANGES = {
@@ -573,6 +587,10 @@ class _State:
     samples: deque = field(default_factory=lambda: deque(maxlen=RAW_MAX_SAMPLES))
     # hour start -> [samples, ups, latency_sum_ms, latency_count, latency_max_ms]
     buckets: dict = field(default_factory=dict)
+    # hour start -> per-bin counts of successful latencies
+    hist: dict = field(default_factory=dict)
+    # downtime episodes, oldest first: {"start", "end" (None = ongoing), "detail"}
+    incidents: list = field(default_factory=list)
     streak: int = 0
     fail_since: float | None = None
     last: tuple | None = None  # (t, ok, ms, detail)
@@ -595,6 +613,39 @@ def _merge(into: list, other: list) -> None:
     into[2] += other[2]
     into[3] += other[3]
     into[4] = max(into[4], other[4])
+
+
+def _bin(ms: float) -> int:
+    return bisect.bisect_right(LATENCY_EDGES, ms)
+
+
+def _add_hist(hist: list, ms: float) -> None:
+    hist[_bin(ms)] += 1
+
+
+def _percentile(hist: list, q: float, top: float | None = None) -> float | None:
+    """The q-th percentile (0-1) of a bin-count list, interpolated inside the
+    bin it falls in. ``top`` caps the answer at the largest value seen."""
+    total = sum(hist)
+    if total == 0:
+        return None
+    rank = q * total
+    seen = 0
+    for index, count in enumerate(hist):
+        if count and seen + count >= rank:
+            low = LATENCY_EDGES[index - 1] if index > 0 else 0.0
+            high = LATENCY_EDGES[index] if index < len(LATENCY_EDGES) else low * 2 or 1.0
+            value = low + (high - low) * ((rank - seen) / count)
+            return round(min(value, top) if top else value, 1)
+        seen += count
+    return None
+
+
+def _percentile_exact(values: list, q: float) -> float | None:
+    if not values:
+        return None
+    ordered = sorted(values)
+    return round(ordered[min(len(ordered) - 1, int(q * len(ordered)))], 1)
 
 
 class CheckService:
@@ -664,7 +715,15 @@ class CheckService:
             for k in ("type", "target", "expect_status", "verify_tls", "keyword", "keyword_mode")
         ):
             self.forget(after["id"])
+        if after.get("paused") and not before.get("paused"):
+            self._close_incident(after["id"], time.time())
         self.run_now(after["id"])
+
+    def _close_incident(self, check_id: str, now: float) -> None:
+        with self._lock:
+            state = self._states.get(check_id)
+            if state and state.incidents and state.incidents[-1]["end"] is None:
+                state.incidents[-1]["end"] = now
 
     # -- recording ----------------------------------------------------------
 
@@ -675,16 +734,32 @@ class CheckService:
             state.samples.append((now, result.ok, result.ms, result.detail))
             hour = int(now // BUCKET_SECONDS) * BUCKET_SECONDS
             _add(state.buckets.setdefault(hour, [0, 0, 0.0, 0, 0.0]), result.ok, result.ms)
+            if result.ok and result.ms is not None:
+                _add_hist(state.hist.setdefault(hour, [0] * HIST_BINS), result.ms)
             for old in [h for h in state.buckets if h < now - BUCKET_RETENTION_SECONDS]:
                 del state.buckets[old]
+                state.hist.pop(old, None)
 
             if result.ok:
+                if state.incidents and state.incidents[-1]["end"] is None:
+                    state.incidents[-1]["end"] = now
                 state.streak = 0
                 state.fail_since = None
             else:
                 if state.streak == 0:
                     state.fail_since = now
                 state.streak += 1
+                if state.streak >= FAILURES_BEFORE_DOWN:
+                    if state.incidents and state.incidents[-1]["end"] is None:
+                        state.incidents[-1]["detail"] = result.detail
+                    else:
+                        state.incidents.append(
+                            {"start": state.fail_since, "end": None, "detail": result.detail}
+                        )
+                        cutoff = now - INCIDENT_RETENTION_SECONDS
+                        state.incidents = [
+                            i for i in state.incidents if (i["end"] or now) >= cutoff
+                        ][-MAX_INCIDENTS:]
 
             state.last = (now, result.ok, result.ms, result.detail)
 
@@ -706,6 +781,44 @@ class CheckService:
                 total += bucket[2]
         return None if count == 0 else round(total / count, 1)
 
+    def _window_hist(self, state: _State, now: float, window: float) -> list:
+        merged = [0] * HIST_BINS
+        for hour, counts in state.hist.items():
+            if hour + BUCKET_SECONDS > now - window:
+                for i, c in enumerate(counts):
+                    merged[i] += c
+        return merged
+
+    def _max_ms(self, state: _State, now: float, window: float) -> float | None:
+        peaks = [
+            b[4] for hour, b in state.buckets.items()
+            if hour + BUCKET_SECONDS > now - window and b[3]
+        ]
+        return max(peaks) if peaks else None
+
+    def incidents(self, check_id: str | None = None, since: float | None = None,
+                  limit: int = 100, now: float | None = None) -> list[dict]:
+        """Downtime episodes, newest first. Ongoing ones carry ``end: None``."""
+        now = time.time() if now is None else now
+        names = {spec["id"]: spec["name"] for spec in self.store.all()}
+        out = []
+        with self._lock:
+            for cid, state in self._states.items():
+                if cid not in names or (check_id and cid != check_id):
+                    continue
+                for inc in state.incidents:
+                    if since is not None and (inc["end"] or now) < since:
+                        continue
+                    out.append({
+                        "check_id": cid,
+                        "name": names[cid],
+                        "start": inc["start"],
+                        "end": inc["end"],
+                        "detail": inc["detail"],
+                    })
+        out.sort(key=lambda i: i["start"], reverse=True)
+        return out[:limit]
+
     def summary(self, spec: dict, now: float | None = None) -> dict:
         now = time.time() if now is None else now
         with self._lock:
@@ -721,6 +834,8 @@ class CheckService:
             else:
                 status = "up"
 
+            day_hist = self._window_hist(state, now, 86400)
+            day_max = self._max_ms(state, now, 86400)
             recent = [
                 (round(ms, 1) if ok and ms is not None else None)
                 for _, ok, ms, _ in list(state.samples)[-RECENT_POINTS:]
@@ -745,6 +860,11 @@ class CheckService:
                 "uptime_7d": self._uptime(state, now, 7 * 86400),
                 "uptime_30d": self._uptime(state, now, 30 * 86400),
                 "avg_ms_24h": self._avg_ms(state, now, 86400),
+                "p50_ms_24h": _percentile(day_hist, 0.5, day_max),
+                "p95_ms_24h": _percentile(day_hist, 0.95, day_max),
+                "incidents_24h": sum(
+                    1 for i in state.incidents if (i["end"] or now) >= now - 86400
+                ),
                 "recent": recent,
             }
 
@@ -764,6 +884,8 @@ class CheckService:
         end = int(now // width) * width + width
         start = end - window
         slots = {t: [0, 0, 0.0, 0, 0.0] for t in range(start, end, width)}
+        hists = {t: [0] * HIST_BINS for t in slots}
+        raw_ms: dict = {t: [] for t in slots}
 
         with self._lock:
             state = self._states.get(check_id) or _State()
@@ -773,13 +895,29 @@ class CheckService:
                     slot = int(t // width) * width
                     if slot in slots:
                         _add(slots[slot], ok, ms)
+                        if ok and ms is not None:
+                            raw_ms[slot].append(ms)
             else:
                 for hour, bucket in state.buckets.items():
                     slot = int(hour // width) * width
                     if slot in slots:
                         _merge(slots[slot], bucket)
+                        for i, c in enumerate(state.hist.get(hour, ())):
+                            hists[slot][i] += c
 
             uptime = self._uptime(state, now, window)
+            whole = self._window_hist(state, now, window)
+            whole_max = self._max_ms(state, now, window)
+            if raw:
+                every = [ms for values in raw_ms.values() for ms in values]
+                p50, p95 = _percentile_exact(every, 0.5), _percentile_exact(every, 0.95)
+            else:
+                p50, p95 = _percentile(whole, 0.5, whole_max), _percentile(whole, 0.95, whole_max)
+
+        def point_pct(t, q):
+            if raw:
+                return _percentile_exact(raw_ms[t], q)
+            return _percentile(hists[t], q, slots[t][4] or None)
 
         points = [
             {
@@ -788,10 +926,20 @@ class CheckService:
                 "up": b[1],
                 "ms_avg": round(b[2] / b[3], 1) if b[3] else None,
                 "ms_max": round(b[4], 1) if b[3] else None,
+                "ms_p50": point_pct(t, 0.5) if b[3] else None,
+                "ms_p95": point_pct(t, 0.95) if b[3] else None,
             }
             for t, b in slots.items()
         ]
-        return {"range": range_key, "bucket_seconds": width, "uptime": uptime, "points": points}
+        return {
+            "range": range_key,
+            "bucket_seconds": width,
+            "uptime": uptime,
+            "p50": p50,
+            "p95": p95,
+            "points": points,
+            "incidents": self.incidents(check_id, since=start, now=now),
+        }
 
     # -- persistence --------------------------------------------------------
 
@@ -806,6 +954,8 @@ class CheckService:
                         if now - t < RAW_WINDOW_SECONDS
                     ],
                     "buckets": {str(h): b for h, b in state.buckets.items()},
+                    "hist": {str(h): c for h, c in state.hist.items()},
+                    "incidents": state.incidents,
                     "streak": state.streak,
                     "fail_since": state.fail_since,
                 }
@@ -833,11 +983,32 @@ class CheckService:
                 for hour, bucket in (saved.get("buckets") or {}).items():
                     if now - int(hour) < BUCKET_RETENTION_SECONDS and len(bucket) == 5:
                         state.buckets[int(hour)] = [float(x) if i in (2, 4) else int(x) for i, x in enumerate(bucket)]
+                for hour, counts in (saved.get("hist") or {}).items():
+                    if now - int(hour) < BUCKET_RETENTION_SECONDS and len(counts) == HIST_BINS:
+                        state.hist[int(hour)] = [int(c) for c in counts]
+                for inc in saved.get("incidents") or []:
+                    state.incidents.append({
+                        "start": float(inc["start"]),
+                        "end": None if inc.get("end") is None else float(inc["end"]),
+                        "detail": inc.get("detail"),
+                    })
                 state.streak = int(saved.get("streak") or 0)
                 state.fail_since = saved.get("fail_since")
                 if state.samples:
                     t, ok, ms, detail = state.samples[-1]
                     state.last = (t, ok, ms, detail)
+                # History from before incidents were recorded: an outage that
+                # is still going deserves an entry too.
+                if (
+                    state.streak >= FAILURES_BEFORE_DOWN
+                    and state.fail_since is not None
+                    and not (state.incidents and state.incidents[-1]["end"] is None)
+                ):
+                    state.incidents.append({
+                        "start": state.fail_since,
+                        "end": None,
+                        "detail": state.last[3] if state.last else None,
+                    })
                 self._states[check_id] = state
             except (TypeError, ValueError):
                 log.warning("ignoring unreadable history for check %s", check_id)

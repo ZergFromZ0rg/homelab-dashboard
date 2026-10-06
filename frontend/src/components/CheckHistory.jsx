@@ -1,6 +1,9 @@
 import { useState } from "react";
 import Sparkline from "./Sparkline";
+import { IncidentRows } from "./CheckIncidents";
 import { fetchCheckHistory } from "./checksApi";
+import { formatLatency } from "./format";
+import { useNow } from "./useNow";
 import { usePolled } from "./usePolled";
 
 const RANGES = [
@@ -24,13 +27,18 @@ function barTitle(point, bucketSeconds) {
       ? when.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric" })
       : when.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
   if (point.n === 0) return `${stamp} — no data`;
-  const ms = point.ms_avg != null ? ` · ${Math.round(point.ms_avg)} ms avg` : "";
+  const ms =
+    point.ms_avg != null
+      ? ` · ${Math.round(point.ms_avg)} ms avg` +
+        (point.ms_p95 != null ? `, p95 ${Math.round(point.ms_p95)} ms` : "")
+      : "";
   return `${stamp} — ${point.up}/${point.n} checks passed${ms}`;
 }
 
 // Uptime bars (one per time slot) and the latency line for a chosen range.
 function CheckHistory({ check }) {
   const [range, setRange] = useState("24h");
+  const now = useNow(1000).getTime() / 1000;
   const { data, error, loading } = usePolled(
     () => fetchCheckHistory(check.id, range),
     `${check.id}:${range}`,
@@ -61,7 +69,9 @@ function CheckHistory({ check }) {
         {data && (
           <span className="check-history-uptime">
             {data.uptime != null ? `${data.uptime}% up` : "no data yet"}
-            {peak > 0 && ` · peak ${Math.round(peak)} ms`}
+            {data.p50 != null && ` · p50 ${formatLatency(data.p50)}`}
+            {data.p95 != null && ` · p95 ${formatLatency(data.p95)}`}
+            {peak > 0 && ` · peak ${formatLatency(peak)}`}
           </span>
         )}
       </div>
@@ -93,6 +103,10 @@ function CheckHistory({ check }) {
             </>
           ) : (
             <p className="overview-empty">Not enough successful checks yet to draw latency.</p>
+          )}
+
+          {data.incidents?.length > 0 && (
+            <IncidentRows incidents={data.incidents.slice(0, 6)} now={now} showName={false} />
           )}
         </>
       )}

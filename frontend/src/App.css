@@ -8747,3 +8747,82 @@ a.lan-port--web:hover {
     overflow-y: auto;
   }
 }
+
+/* ----- Services: status strip button + incident list ----- */
+
+.fact--button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  margin-left: auto;
+}
+
+.fact--button:hover .fact-sub {
+  color: var(--text);
+}
+
+.fact--warn .fact-value {
+  color: var(--warning);
+}
+
+.facts-row--bad {
+  border-color: var(--offline);
+}
+
+.check-incidents {
+  margin-bottom: 10px;
+  padding: 4px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.incident-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.incident {
+  display: grid;
+  grid-template-columns: 96px minmax(80px, 160px) 150px minmax(0, 1fr);
+  gap: 12px;
+  align-items: baseline;
+  padding: 5px 0;
+  font-size: var(--fs-sm);
+  border-bottom: 1px solid var(--border);
+}
+
+.incident-list--solo .incident {
+  grid-template-columns: 96px 150px minmax(0, 1fr);
+}
+
+.incident:last-child {
+  border-bottom: 0;
+}
+
+.incident-when,
+.incident-detail {
+  color: var(--text-muted);
+}
+
+.incident-detail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.incident--ongoing .incident-len {
+  color: var(--offline);
+  font-weight: 600;
+}
+
+@media (max-width: 700px) {
+  .incident,
+  .incident-list--solo .incident {
+    grid-template-columns: 1fr auto;
+  }
+  .incident-detail {
+    grid-column: 1 / -1;
+  }
+}

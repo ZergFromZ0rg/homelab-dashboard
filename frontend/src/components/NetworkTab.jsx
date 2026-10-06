@@ -538,7 +538,7 @@ function NetworkTab({ machines, containers, checks, connected, history = {} }) {
 
       {section === "checks" && (
         <div className="net-checks fit-pane">
-          <ServicesTab checks={checks} connected={connected} embedded />
+          <ServicesTab checks={checks} connected={connected} />
         </div>
       )}
     </section>

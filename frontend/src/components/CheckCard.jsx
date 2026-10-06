@@ -118,6 +118,9 @@ function CheckCard({ check, now }) {
           className="check-cell-now"
           title={[
             check.detail,
+            check.p95_ms_24h != null
+              ? `24 h: p50 ${formatLatency(check.p50_ms_24h)} · p95 ${formatLatency(check.p95_ms_24h)}`
+              : null,
             check.checked_at != null ? `checked ${checkedAgo(now - check.checked_at)}` : null,
           ]
             .filter(Boolean)

@@ -177,10 +177,20 @@ function wave(base, jitter, n = 40, failEvery = 0) {
   );
 }
 
+// Fills in p50/p95/incident counts the way the backend summary would.
+function withPercentiles(list) {
+  return list.map((c) => ({
+    ...c,
+    p50_ms_24h: c.avg_ms_24h == null ? null : Math.round(c.avg_ms_24h * 0.92 * 10) / 10,
+    p95_ms_24h: c.avg_ms_24h == null ? null : Math.round(c.avg_ms_24h * (c.id === "k6" ? 3.1 : 1.7) * 10) / 10,
+    incidents_24h: c.status === "down" ? 1 : c.id === "k3" ? 1 : 0,
+  }));
+}
+
 function demoChecks() {
   const t = now();
   const base = { interval: 60, timeout: 5, expect_status: null, verify_tls: true, keyword: null, keyword_mode: "present", paused: false, failing: 0, down_since: null };
-  return [
+  return withPercentiles([
     { ...base, id: "k1", name: "Jellyfin", type: "http", target: "http://bigboy:8096", status: "up", last_ok: true, latency_ms: 34.2, detail: "HTTP 200", checked_at: t - 22, uptime_24h: 100, uptime_7d: 99.97, uptime_30d: 99.91, avg_ms_24h: 36.1, recent: wave(35, 6) },
     { ...base, id: "k2", name: "Router", type: "tcp", target: "192.168.1.1:443", status: "up", last_ok: true, latency_ms: 2.1, detail: "connected", checked_at: t - 41, uptime_24h: 100, uptime_7d: 100, uptime_30d: 99.99, avg_ms_24h: 2.4, recent: wave(2, 0.6) },
     { ...base, id: "k3", name: "Internet", type: "tcp", target: "1.1.1.1:443", status: "up", last_ok: true, latency_ms: 18.4, detail: "connected", checked_at: t - 9, uptime_24h: 99.79, uptime_7d: 99.6, uptime_30d: 99.7, avg_ms_24h: 21.8, recent: wave(19, 5) },
@@ -190,7 +200,7 @@ function demoChecks() {
     { ...base, id: "k8", name: "Gateway", type: "ping", target: "192.168.1.1", status: "up", last_ok: true, latency_ms: 0.9, detail: "reply from 192.168.1.1", checked_at: t - 12, uptime_24h: 100, uptime_7d: 100, uptime_30d: 99.99, avg_ms_24h: 1.1, recent: wave(1, 0.3) },
     { ...base, id: "k9", name: "Pi-hole", type: "keyword", target: "http://thinkpad:8080/admin", keyword: "Pi-hole", status: "up", last_ok: true, latency_ms: 46.3, detail: 'HTTP 200 · found "Pi-hole"', checked_at: t - 27, uptime_24h: 100, uptime_7d: 99.9, uptime_30d: 99.8, avg_ms_24h: 47.9, recent: wave(47, 9) },
     { ...base, id: "k7", name: "Plex", type: "http", target: "http://nuc-media:32400/web", status: "paused", paused: true, last_ok: null, latency_ms: null, detail: null, checked_at: null, uptime_24h: null, uptime_7d: null, uptime_30d: null, avg_ms_24h: null, recent: [] },
-  ];
+  ]);
 }
 
 // Mirrors GET /api/connections/{host}. bigboy is serving media and
@@ -454,12 +464,38 @@ export function demoCheckHistory(id, range) {
     const up = bad ? 0 : partial ? Math.round(n / 2) : n;
     const base = id === "k2" ? 2 : id === "k3" ? 19 : 40;
     const ms = up ? Math.round((base + Math.sin(i / 4) * base * 0.3 + (i % 5)) * 10) / 10 : null;
-    return { t: end - (count - i) * width, n, up, ms_avg: ms, ms_max: ms ? Math.round(ms * 1.8 * 10) / 10 : null };
+    return {
+      t: end - (count - i) * width, n, up, ms_avg: ms,
+      ms_max: ms ? Math.round(ms * 1.8 * 10) / 10 : null,
+      ms_p50: ms ? Math.round(ms * 0.95 * 10) / 10 : null,
+      ms_p95: ms ? Math.round(ms * 1.5 * 10) / 10 : null,
+    };
   });
 
   const total = points.reduce((a, p) => a + p.n, 0);
   const ups = points.reduce((a, p) => a + p.up, 0);
-  return { range, bucket_seconds: width, uptime: Math.round((10000 * ups) / total) / 100, points };
+  const lat = points.filter((p) => p.ms_avg != null);
+  const avg = lat.length ? lat.reduce((a, p) => a + p.ms_avg, 0) / lat.length : null;
+  return {
+    range,
+    bucket_seconds: width,
+    uptime: Math.round((10000 * ups) / total) / 100,
+    p50: avg == null ? null : Math.round(avg * 0.95 * 10) / 10,
+    p95: avg == null ? null : Math.round(avg * 1.6 * 10) / 10,
+    points,
+    incidents: demoIncidents().filter((i) => i.check_id === id),
+  };
+}
+
+// Mirrors GET /api/checks/incidents.
+export function demoIncidents() {
+  const t = now();
+  return [
+    { check_id: "k5", name: "Nextcloud", start: t - 1080, end: null, detail: "HTTP 502" },
+    { check_id: "k3", name: "Internet", start: t - 9 * 3600, end: t - 9 * 3600 + 140, detail: "timed out after 5s" },
+    { check_id: "k6", name: "Grafana", start: t - 30 * 3600, end: t - 30 * 3600 + 420, detail: "connection refused" },
+    { check_id: "k5", name: "Nextcloud", start: t - 52 * 3600, end: t - 52 * 3600 + 2700, detail: "HTTP 503" },
+  ];
 }
 
 function fullSnapshot() {

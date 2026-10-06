@@ -746,3 +746,77 @@ def test_a_down_keyword_check_alerts_with_its_type_and_reason():
     alert = alerts.evaluate({}, [], None, [down_check(type="keyword", detail='HTTP 200 · "Jellyfin" not found')],
                             now=1_000.0 + 60)["check:abc"]
     assert "keyword" in alert["message"] and "not found" in alert["message"]
+
+
+# --- percentiles + incidents ----------------------------------------------------
+
+
+def test_percentiles_in_summary_and_history(tmp_path):
+    service = make_service(tmp_path)
+    spec = add(service)
+    now = 10 * 86400 + 1800.0
+    for i in range(100):
+        service.record(spec["id"], Result(True, 10.0 if i < 95 else 400.0, "ok"), now - 100 + i / 10)
+
+    s = service.summary(spec, now)
+    assert 8 <= s["p50_ms_24h"] <= 12
+    assert 12 <= s["p95_ms_24h"] <= 400 and s["p95_ms_24h"] > s["p50_ms_24h"]
+
+    short = service.history(spec["id"], "3h", now)
+    assert short["p50"] == 10.0 and short["p95"] == 400.0
+    day = service.history(spec["id"], "24h", now)
+    assert day["p95"] is not None and any(p["ms_p95"] for p in day["points"])
+    assert day["p95"] <= 400.0     # capped at the largest value seen
+
+
+def test_no_percentiles_without_successes(tmp_path):
+    service = make_service(tmp_path)
+    spec = add(service)
+    service.record(spec["id"], Result(False, None, "boom"), 1_000_000.0)
+    s = service.summary(spec, 1_000_000.0)
+    assert s["p50_ms_24h"] is None and s["p95_ms_24h"] is None
+
+
+def test_incident_opens_at_down_and_closes_on_recovery(tmp_path):
+    service = make_service(tmp_path)
+    spec = add(service)
+    t = 1_000_000.0
+    service.record(spec["id"], Result(True, 20.0, "ok"), t)
+    service.record(spec["id"], Result(False, None, "HTTP 503"), t + 60)
+    assert service.incidents(spec["id"], now=t + 60) == []        # one blip is not an incident
+    service.record(spec["id"], Result(False, None, "HTTP 502"), t + 120)
+
+    (ongoing,) = service.incidents(spec["id"], now=t + 120)
+    assert ongoing["start"] == t + 60 and ongoing["end"] is None
+    assert ongoing["detail"] == "HTTP 502" and ongoing["name"] == "web"
+    assert service.summary(spec, t + 120)["incidents_24h"] == 1
+
+    service.record(spec["id"], Result(True, 20.0, "ok"), t + 180)
+    (done,) = service.incidents(spec["id"], now=t + 180)
+    assert done["end"] == t + 180
+    assert service.history(spec["id"], "24h", t + 180)["incidents"] == [done]
+
+
+def test_incidents_survive_restart_and_pausing_closes_them(tmp_path):
+    first = make_service(tmp_path)
+    spec = add(first)
+    now = time.time()
+    first.record(spec["id"], Result(False, None, "x"), now - 120)
+    first.record(spec["id"], Result(False, None, "x"), now - 60)
+    first.persist()
+
+    second = make_service(tmp_path)
+    (inc,) = second.incidents(now=now)
+    assert inc["end"] is None
+    second.changed(spec, {**spec, "paused": True})
+    assert second.incidents(now=now)[0]["end"] is not None
+
+
+def test_api_incidents(client):
+    created = client.post("/api/checks", json={"name": "a", "type": "tcp", "target": "h:1"}).json()
+    now = time.time()
+    checks.service.record(created["id"], Result(False, None, "refused"), now - 90)
+    checks.service.record(created["id"], Result(False, None, "refused"), now - 30)
+    body = client.get("/api/checks/incidents").json()
+    assert [i["name"] for i in body["incidents"]] == ["a"]
+    assert client.get("/api/checks/incidents?hours=0").status_code == 422

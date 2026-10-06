@@ -6,6 +6,8 @@ whatever address it's given, so it's gated like the other mutating routes.
 
 from __future__ import annotations
 
+import time
+
 from fastapi import APIRouter, Header, HTTPException, Query
 
 from backend import auth, checks
@@ -24,6 +26,13 @@ def _bad_request(error: ValueError) -> HTTPException:
 @router.get("/api/checks")
 def list_checks():
     return {"checks": checks.service.summaries()}
+
+
+@router.get("/api/checks/incidents")
+def list_incidents(hours: int = Query(default=168, ge=1, le=720), limit: int = Query(default=100, ge=1, le=500)):
+    """Downtime episodes across every check, newest first."""
+    since = time.time() - hours * 3600
+    return {"incidents": checks.service.incidents(since=since, limit=limit)}
 
 
 @router.post("/api/checks", status_code=201)
