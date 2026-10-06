@@ -503,9 +503,9 @@ function App() {
               openTodos={openTodos}
               ready={ready}
               onControl={control}
+              briefing={<MorningBriefing summary={morning_summary} machines={machines} onNavigate={navigate} />}
               onNavigate={navigate}
             />
-            <MorningBriefing summary={morning_summary} machines={machines} onNavigate={navigate} />
           </div>
         )}
 

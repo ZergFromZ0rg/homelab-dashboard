@@ -5,9 +5,7 @@ import Card from "./Card";
 import FirstRun from "./FirstRun";
 import { Meter } from "./HostSummary";
 import { IconButton } from "./Icon";
-import LinksCard from "./LinksCard";
 import TodoList from "./TodoList";
-import WeatherCard from "./WeatherCard";
 import { containerUrl } from "./containerLink";
 import { diskLabel } from "./diskLabel";
 import { formatBytes } from "./format";
@@ -144,7 +142,7 @@ function ContainerTable({ containers, onControl }) {
           onChange={(e) => setFilter(e.target.value)}
         />
       }
-      className="sh-table-card"
+      className="sh-table-card sh-fill"
     >
       <div className="sh-table-scroll">
         <table className="sh-table">
@@ -261,7 +259,7 @@ function Alerts({ overview, alerts, ready, onNavigate }) {
   ];
   const clear = ready && rows.length === 0;
   return (
-    <Card title="Alerts" count={clear || !ready ? null : rows.length} className="sh-alerts">
+    <Card title="Alerts" count={clear || !ready ? null : rows.length} className="sh-alerts sh-fill">
       {!ready ? (
         <p className="sh-empty">Waiting for the first update…</p>
       ) : clear ? (
@@ -303,6 +301,7 @@ function SimpleHome({
   onSetTodos,
   openTodos,
   ready,
+  briefing,
   onControl,
   onNavigate,
 }) {
@@ -323,21 +322,20 @@ function SimpleHome({
           <Clock />
           {show.calendar && <CalendarCard />}
           {show.todo && (
-            <Card title="To-do" count={openTodos || null}>
+            <Card title="To-do" count={openTodos || null} className="sh-todo sh-fill">
               <TodoList todos={todos} onChange={onSetTodos} compact />
             </Card>
           )}
-          {show.weather && <WeatherCard />}
         </aside>
 
         <main className="sh-col sh-col--mid">
           <AppGrid pins={pins} containers={containers} onNavigate={onNavigate} />
-          {show.links && <LinksCard checks={checks} />}
+          {briefing}
           <ContainerTable containers={containers} onControl={onControl} />
         </main>
 
         <aside className="sh-col sh-col--right">
-          <Card title="Servers" count={hosts.length || null}>
+          <Card title="Servers" count={hosts.length || null} className="sh-servers">
             <div className="sh-hosts">
               {hosts.length === 0 && <p className="sh-empty">{ready ? "No hosts reporting yet." : "Connecting…"}</p>}
               {hosts.map((h) => (

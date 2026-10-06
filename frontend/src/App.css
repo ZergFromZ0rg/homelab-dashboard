@@ -7124,67 +7124,104 @@ button.mb-item:disabled { cursor: default; }
 
 /* ----- Simple home board ----- */
 
+/* One window, no page scroll: the board is exactly as tall as what's left of
+   the viewport, and the lists inside it (to-dos, containers, alerts, apps)
+   scroll on their own. Phones fall back to a normal scrolling page. */
+.simple-mode-content {
+  height: calc(100dvh - var(--sh-offset, 124px));
+  min-height: 0;
+}
+
+.simple-home {
+  height: 100%;
+  min-height: 0;
+}
+
 .sh-grid {
   display: grid;
-  grid-template-columns: minmax(250px, 300px) minmax(0, 1fr) minmax(280px, 340px);
-  gap: 12px;
-  align-items: start;
+  grid-template-columns: minmax(230px, 280px) minmax(0, 1fr) minmax(270px, 320px);
+  gap: 10px;
+  height: 100%;
+  min-height: 0;
 }
 
 .sh-col {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
+  min-height: 0;
+}
+
+.sh-col > * {
+  flex: 0 0 auto;
+}
+
+.sh-col > .sh-fill {
+  flex: 1 1 0;
+  min-height: 90px;
+}
+
+.sh-fill {
+  display: flex;
+  flex-direction: column;
+}
+
+.sh-fill > .overview-card-body {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
 }
 
 .sh-empty {
-  padding: 12px;
+  padding: 10px 12px;
   color: var(--text-muted);
   font-size: var(--fs-sm);
 }
 
 .sh-clock {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 16px 12px;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  text-align: center;
 }
 
 .sh-clock time {
-  font: 500 40px / 1 var(--mono);
+  font: 500 30px / 1 var(--mono);
   letter-spacing: -0.03em;
 }
 
-.sh-clock span {
-  font-size: var(--fs-md);
+.sh-clock > span {
+  font-size: var(--fs-sm);
   color: var(--text-muted);
+  text-align: right;
 }
 
 .sh-clock small {
-  font-size: var(--fs-xs);
-  color: var(--text-faint);
+  display: none;
 }
 
-/* Pinned apps: icon tiles, name underneath, status dot in the corner. */
+/* Pinned apps: one row of small icon tiles, scrolls sideways if it must. */
 .sh-apps {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  display: flex;
   gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
 }
 
 .sh-app {
   position: relative;
+  flex: 0 0 72px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 12px 6px 8px;
+  gap: 4px;
+  padding: 9px 4px 6px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -7206,21 +7243,17 @@ a.sh-app:hover {
   cursor: default;
 }
 
-.sh-app-icon {
-  width: 40px;
-  height: 40px;
-}
-
+.sh-app-icon,
 .sh-app-icon img,
 .sh-app-icon .app-tile-letter {
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
 }
 
 .sh-app-dot {
   position: absolute;
-  top: 7px;
-  right: 7px;
+  top: 6px;
+  right: 6px;
 }
 
 .sh-app-name {
@@ -7228,13 +7261,22 @@ a.sh-app:hover {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-2xs);
   color: var(--text-muted);
+}
+
+.sh-col--mid .morning-briefing {
+  max-height: 34vh;
+  overflow-y: auto;
+}
+
+.sh-col--mid .morning-briefing .overview-card-body {
+  max-height: none;
 }
 
 /* The one container table. Stopped rows sort first. */
 .sh-filter {
-  width: 120px;
+  width: 110px;
   height: var(--control-h-sm);
   padding: 0 8px;
   background: var(--bg-subtle);
@@ -7245,13 +7287,15 @@ a.sh-app:hover {
 }
 
 .sh-table-card .overview-card-body {
+  display: flex;
+  flex-direction: column;
   padding: 0;
-  max-height: none;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .sh-table-scroll {
-  max-height: 420px;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 
@@ -7264,7 +7308,7 @@ a.sh-app:hover {
 .sh-table th {
   position: sticky;
   top: 0;
-  padding: 6px 12px;
+  padding: 5px 12px;
   background: var(--bg-card);
   border-bottom: 1px solid var(--border);
   color: var(--text-faint);
@@ -7276,7 +7320,7 @@ a.sh-app:hover {
 }
 
 .sh-table td {
-  padding: 5px 12px;
+  padding: 3px 12px;
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
@@ -7317,13 +7361,18 @@ a.sh-app:hover {
 .sh-table-foot {
   display: flex;
   justify-content: space-between;
-  padding: 6px 12px;
+  padding: 5px 12px;
   border-top: 1px solid var(--border);
   color: var(--text-muted);
   font-size: var(--fs-xs);
 }
 
 /* Servers: a block per host — name, uptime and temperature, then meters. */
+.sh-servers .overview-card-body {
+  max-height: 46vh;
+  overflow-y: auto;
+}
+
 .sh-hosts {
   display: flex;
   flex-direction: column;
@@ -7332,8 +7381,8 @@ a.sh-app:hover {
 .sh-host {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 10px 12px;
+  gap: 6px;
+  padding: 8px 12px;
   background: none;
   border: 0;
   border-bottom: 1px solid var(--border);
@@ -7366,7 +7415,7 @@ a.sh-app:hover {
 .sh-host-meters {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
 }
 
 /* Four headline numbers in a row. */
@@ -7381,7 +7430,7 @@ a.sh-app:hover {
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: 10px 4px;
+  padding: 8px 4px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -7395,7 +7444,7 @@ a.sh-app:hover {
 }
 
 .sh-tile strong {
-  font: 600 var(--fs-2xl) / 1.1 var(--mono);
+  font: 600 var(--fs-xl) / 1.1 var(--mono);
 }
 
 .sh-tile span {
@@ -7409,25 +7458,24 @@ a.sh-app:hover {
   color: var(--offline);
 }
 
-@media (max-width: 1180px) {
+/* Narrower than a laptop: stop pretending it's one window. */
+@media (max-width: 1000px), (max-height: 560px) {
+  .simple-mode-content,
+  .simple-home,
   .sh-grid {
-    grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+    height: auto;
   }
 
-  .sh-col--left {
-    grid-column: 1 / -1;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    align-items: start;
-  }
-}
-
-@media (max-width: 760px) {
   .sh-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 
   .sh-col--right {
     order: -1;
+  }
+
+  .sh-col > .sh-fill {
+    flex: 0 0 auto;
+    max-height: 420px;
   }
 }
