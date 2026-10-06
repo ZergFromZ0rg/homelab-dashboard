@@ -7669,3 +7669,25 @@ a.sh-app:hover {
     max-height: 420px;
   }
 }
+
+/* Live updates: a short scrolling list with the link to the full Timeline. */
+.mb-list--overnight {
+  max-height: 84px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.mb-seeall {
+  margin-top: 4px;
+  padding: 2px 4px;
+  background: none;
+  border: 0;
+  color: var(--accent);
+  font: inherit;
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+
+.mb-seeall:hover {
+  text-decoration: underline;
+}

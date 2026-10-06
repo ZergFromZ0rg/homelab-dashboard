@@ -18,26 +18,28 @@ function _ago(seconds) {
   return `${Math.floor(seconds / 86400)}d`;
 }
 
-// The newest few; the rest are a count. This is a live feed, not a report.
-const SHOWN_EVENTS = 3;
-
-function OvernightList({ overnight, now }) {
+// The newest events, scrolling inside a short box; the full history is the
+// Timeline on Advanced → Overview, one link away.
+function OvernightList({ overnight, now, onNavigate }) {
   if (!overnight || overnight.events_count === 0) {
     return <p className="mb-empty">Nothing new.</p>;
   }
+  const more = overnight.events_count - overnight.highlights.length;
   return (
-    <ul className="mb-list mb-list--overnight">
-      {overnight.highlights.slice(0, SHOWN_EVENTS).map((ev, i) => (
-        <li key={i} className={`mb-item mb-item--${ev.tone}`}>
-          <span className={`status-dot status-dot--${ev.tone}`} />
-          <span className="mb-text">{ev.text}</span>
-          <span className="mb-time">{_ago(now / 1000 - ev.at)}</span>
-        </li>
-      ))}
-      {overnight.events_count > SHOWN_EVENTS && (
-        <li className="mb-more">+{overnight.events_count - SHOWN_EVENTS} more events</li>
-      )}
-    </ul>
+    <>
+      <ul className="mb-list mb-list--overnight">
+        {overnight.highlights.map((ev, i) => (
+          <li key={i} className={`mb-item mb-item--${ev.tone}`}>
+            <span className={`status-dot status-dot--${ev.tone}`} />
+            <span className="mb-text">{ev.text}</span>
+            <span className="mb-time">{_ago(now / 1000 - ev.at)}</span>
+          </li>
+        ))}
+      </ul>
+      <button type="button" className="mb-seeall" onClick={() => onNavigate("overview")}>
+        {more > 0 ? `+${more} more · ` : ""}See all in Advanced →
+      </button>
+    </>
   );
 }
 
@@ -154,7 +156,7 @@ function MorningBriefing({ summary, machines, onNavigate }) {
       <div className="mb-columns">
         <section className="mb-column">
           <h3>Live updates</h3>
-          <OvernightList overnight={summary.overnight} now={now} />
+          <OvernightList overnight={summary.overnight} now={now} onNavigate={onNavigate} />
         </section>
         
         <section className="mb-column">
