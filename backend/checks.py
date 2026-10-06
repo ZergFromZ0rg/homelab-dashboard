@@ -25,6 +25,16 @@ State kept per check:
 - the last few hours of raw samples (for the sparkline and short-range chart)
 - hourly buckets for 30 days (for uptime % and the longer charts)
 
+Two optional settings shape how a check is read:
+
+- ``slow_ms``: answering slower than this for ``CHECK_FAILURES_BEFORE_DOWN``
+  probes in a row makes the check ``degraded`` — still up (it counts toward
+  uptime), but flagged and alerted as slow.
+- ``parent``: another check this one depends on. While the parent is down, a
+  failing child stays ``down`` (that is the truth) but reports
+  ``suppressed_by`` the root cause, and doesn't page on its own.
+- ``group``: a free-text label the table groups rows under.
+
 Both are persisted to the ``/data`` volume, so a redeploy doesn't reset your
 uptime history. A check only turns ``down`` after ``CHECK_FAILURES_BEFORE_DOWN``
 failures in a row, so one dropped packet doesn't page you.
@@ -118,7 +128,10 @@ _IPV4_RE = re.compile(r"^\d{1,3}(\.\d{1,3}){3}$")
 EDITABLE = (
     "name", "type", "target", "interval", "timeout", "expect_status",
     "verify_tls", "paused", "keyword", "keyword_mode", "warn_days",
+    "slow_ms", "parent", "group",
 )
+MAX_GROUP_LENGTH = 40
+MIN_SLOW_MS, MAX_SLOW_MS = 1, 60000
 
 
 # ---------------------------------------------------------------------------
@@ -272,6 +285,16 @@ def build_spec(payload: dict, existing: dict | None = None) -> dict:
     else:
         keyword, keyword_mode = None, "present"
 
+    slow_ms = _number(merged.get("slow_ms"), "slow threshold", MIN_SLOW_MS, MAX_SLOW_MS, None)
+
+    group = " ".join(str(merged.get("group") or "").split()) or None
+    if group and len(group) > MAX_GROUP_LENGTH:
+        raise ValueError(f"group must be at most {MAX_GROUP_LENGTH} characters")
+
+    parent = merged.get("parent") or None
+    if parent is not None and (not isinstance(parent, str) or len(parent) > 64):
+        raise ValueError("parent must be the id of another check")
+
     verify = merged.get("verify_tls", True)
     paused = merged.get("paused", False)
     if not isinstance(verify, bool) or not isinstance(paused, bool):
@@ -287,6 +310,9 @@ def build_spec(payload: dict, existing: dict | None = None) -> dict:
         "expect_status": expect,
         "verify_tls": verify if kind in HTTP_TYPES + ("tls",) else True,
         "warn_days": warn_days,
+        "slow_ms": slow_ms,
+        "parent": parent,
+        "group": group,
         "keyword": keyword,
         "keyword_mode": keyword_mode,
         "paused": paused,
@@ -629,6 +655,23 @@ class CheckStore:
     def _save_locked(self) -> None:
         write_json_atomic(self.path, self._items, label="checks")
 
+    def _check_parent_locked(self, spec: dict) -> None:
+        """A parent must be another existing check, and never loop back."""
+        parent = spec.get("parent")
+        if parent is None:
+            return
+        by_id = {i["id"]: i for i in self._items}
+        if parent == spec["id"]:
+            raise ValueError("a check can't depend on itself")
+        if parent not in by_id:
+            raise ValueError("the check it depends on doesn't exist")
+        seen = {spec["id"]}
+        while parent is not None:
+            if parent in seen:
+                raise ValueError("that would make the checks depend on each other")
+            seen.add(parent)
+            parent = (by_id.get(parent) or {}).get("parent")
+
     def all(self) -> list[dict]:
         with self._lock:
             return [dict(item) for item in self._items]
@@ -642,6 +685,7 @@ class CheckStore:
             if len(self._items) >= MAX_CHECKS:
                 raise ValueError(f"at most {MAX_CHECKS} checks")
             spec = build_spec({k: v for k, v in payload.items() if k != "id"})
+            self._check_parent_locked(spec)
             self._items.append(spec)
             self._save_locked()
             return dict(spec)
@@ -652,6 +696,7 @@ class CheckStore:
             for index, item in enumerate(self._items):
                 if item["id"] == check_id:
                     spec = build_spec(payload, item)
+                    self._check_parent_locked(spec)
                     self._items[index] = spec
                     self._save_locked()
                     return dict(item), dict(spec)
@@ -662,7 +707,10 @@ class CheckStore:
             kept = [i for i in self._items if i["id"] != check_id]
             if len(kept) == len(self._items):
                 return False
-            self._items = kept
+            # Whatever depended on it now stands on its own.
+            self._items = [
+                {**i, "parent": None} if i.get("parent") == check_id else i for i in kept
+            ]
             self._save_locked()
             return True
 
@@ -682,6 +730,8 @@ class _State:
     # downtime episodes, oldest first: {"start", "end" (None = ongoing), "detail"}
     incidents: list = field(default_factory=list)
     streak: int = 0
+    # consecutive answers slower than the check's slow_ms
+    slow_streak: int = 0
     fail_since: float | None = None
     last: tuple | None = None  # (t, ok, ms, detail)
     next_at: float = 0.0
@@ -780,7 +830,7 @@ class CheckService:
     def _run(self, spec: dict) -> None:
         try:
             result = self._prober(spec)
-            self.record(spec["id"], result, time.time())
+            self.record(spec["id"], result, time.time(), spec.get("slow_ms"))
         finally:
             with self._lock:
                 state = self._states.get(spec["id"])
@@ -817,7 +867,9 @@ class CheckService:
 
     # -- recording ----------------------------------------------------------
 
-    def record(self, check_id: str, result: Result, now: float) -> None:
+    def record(
+        self, check_id: str, result: Result, now: float, slow_ms: float | None = None
+    ) -> None:
         with self._lock:
             state = self._states.setdefault(check_id, _State())
 
@@ -829,6 +881,11 @@ class CheckService:
             for old in [h for h in state.buckets if h < now - BUCKET_RETENTION_SECONDS]:
                 del state.buckets[old]
                 state.hist.pop(old, None)
+
+            if result.ok and slow_ms is not None and result.ms is not None and result.ms > slow_ms:
+                state.slow_streak += 1
+            else:
+                state.slow_streak = 0
 
             if result.ok:
                 if state.incidents and state.incidents[-1]["end"] is None:
@@ -909,20 +966,39 @@ class CheckService:
         out.sort(key=lambda i: i["start"], reverse=True)
         return out[:limit]
 
-    def summary(self, spec: dict, now: float | None = None) -> dict:
+    def _status(self, spec: dict) -> str:
+        state = self._states.get(spec["id"]) or _State()
+        if spec["paused"]:
+            return "paused"
+        if state.last is None:
+            return "pending"
+        if state.streak >= FAILURES_BEFORE_DOWN:
+            return "down"
+        if spec.get("slow_ms") is not None and state.slow_streak >= FAILURES_BEFORE_DOWN:
+            return "degraded"
+        return "up"
+
+    def _root_cause(self, spec: dict, specs: dict) -> dict | None:
+        """The topmost down check this one depends on, if any."""
+        found = None
+        seen = {spec["id"]}
+        parent = specs.get(spec.get("parent"))
+        while parent is not None and parent["id"] not in seen:
+            seen.add(parent["id"])
+            if self._status(parent) == "down":
+                found = parent
+            parent = specs.get(parent.get("parent"))
+        return found
+
+    def summary(self, spec: dict, now: float | None = None, specs: dict | None = None) -> dict:
         now = time.time() if now is None else now
+        if specs is None:
+            specs = {i["id"]: i for i in self.store.all()}
         with self._lock:
             state = self._states.get(spec["id"]) or _State()
             last = state.last
-
-            if spec["paused"]:
-                status = "paused"
-            elif last is None:
-                status = "pending"
-            elif state.streak >= FAILURES_BEFORE_DOWN:
-                status = "down"
-            else:
-                status = "up"
+            status = self._status(spec)
+            cause = self._root_cause(spec, specs) if status == "down" else None
 
             day_hist = self._window_hist(state, now, 86400)
             day_max = self._max_ms(state, now, 86400)
@@ -937,10 +1013,11 @@ class CheckService:
                     for k in (
                         "id", "name", "type", "target", "interval", "timeout",
                         "expect_status", "verify_tls", "paused", "keyword", "keyword_mode",
-                        "warn_days",
+                        "warn_days", "slow_ms", "parent", "group",
                     )
                 },
                 "status": status,
+                "suppressed_by": None if cause is None else {"id": cause["id"], "name": cause["name"]},
                 "last_ok": None if last is None else last[1],
                 "latency_ms": round(last[2], 1) if last and last[1] and last[2] is not None else None,
                 "detail": last[3] if last else None,
@@ -961,7 +1038,9 @@ class CheckService:
 
     def summaries(self, now: float | None = None) -> list[dict]:
         now = time.time() if now is None else now
-        return [self.summary(spec, now) for spec in self.store.all()]
+        items = self.store.all()
+        specs = {i["id"]: i for i in items}
+        return [self.summary(spec, now, specs) for spec in items]
 
     def history(self, check_id: str, range_key: str, now: float | None = None) -> dict | None:
         if range_key not in RANGES:
@@ -1048,6 +1127,7 @@ class CheckService:
                     "hist": {str(h): c for h, c in state.hist.items()},
                     "incidents": state.incidents,
                     "streak": state.streak,
+                    "slow_streak": state.slow_streak,
                     "fail_since": state.fail_since,
                 }
                 for check_id, state in self._states.items()
@@ -1084,6 +1164,7 @@ class CheckService:
                         "detail": inc.get("detail"),
                     })
                 state.streak = int(saved.get("streak") or 0)
+                state.slow_streak = int(saved.get("slow_streak") or 0)
                 state.fail_since = saved.get("fail_since")
                 if state.samples:
                     t, ok, ms, detail = state.samples[-1]

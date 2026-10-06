@@ -51,13 +51,16 @@ function blank(check) {
     keyword: check?.keyword ?? "",
     keyword_mode: check?.keyword_mode ?? "present",
     warn_days: check?.warn_days ?? 14,
+    slow_ms: check?.slow_ms ?? "",
+    parent: check?.parent ?? "",
+    group: check?.group ?? "",
   };
 }
 
 // Add a check, or edit `check` when given. The backend validates and
 // normalizes the address (a bare LAN address becomes http://...), so this
 // only has to send what was typed.
-function CheckForm({ check, onSubmit, onCancel }) {
+function CheckForm({ check, onSubmit, onCancel, others = [], groups = [] }) {
   const [values, setValues] = useState(() => blank(check));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -80,6 +83,9 @@ function CheckForm({ check, onSubmit, onCancel }) {
         expect_status: isWeb(values.type) && values.expect_status !== "" ? Number(values.expect_status) : null,
         keyword: values.type === "keyword" ? values.keyword : null,
         warn_days: values.type === "tls" ? Number(values.warn_days) : null,
+        slow_ms: values.slow_ms === "" ? null : Number(values.slow_ms),
+        parent: values.parent || null,
+        group: values.group.trim() || null,
       });
     } catch (err) {
       setError(err.message);
@@ -219,6 +225,56 @@ function CheckForm({ check, onSubmit, onCancel }) {
               onChange={(e) => set({ timeout: e.target.value })}
             />
           </label>
+          <label className="deploy-field">
+            <span className="deploy-label">Slow above (ms, blank = never)</span>
+            <input
+              className="deploy-input"
+              type="number"
+              min="1"
+              max="60000"
+              value={values.slow_ms}
+              placeholder="300"
+              title="Answering slower than this for two checks in a row marks it slow — still up, but flagged"
+              onChange={(e) => set({ slow_ms: e.target.value })}
+            />
+          </label>
+          <label className="deploy-field">
+            <span className="deploy-label">Group</span>
+            <input
+              className="deploy-input"
+              list="check-groups"
+              value={values.group}
+              maxLength={40}
+              placeholder="Network, bigboy…"
+              onChange={(e) => set({ group: e.target.value })}
+            />
+            <datalist id="check-groups">
+              {groups.map((g) => (
+                <option key={g} value={g} />
+              ))}
+            </datalist>
+          </label>
+          {others.length > 0 && (
+            <label className="deploy-field">
+              <span className="deploy-label">Depends on</span>
+              <select
+                className="deploy-input"
+                value={values.parent}
+                title="While that check is down, this one is shown as 'behind' it and doesn't alert on its own"
+                onChange={(e) => set({ parent: e.target.value })}
+              >
+                <option value="">Nothing</option>
+                {others
+                  .slice()
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+              </select>
+            </label>
+          )}
           {values.type === "tls" && (
             <label className="deploy-field">
               <span className="deploy-label">Warn when fewer than (days) are left</span>

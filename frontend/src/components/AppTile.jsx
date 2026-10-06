@@ -39,7 +39,7 @@ function AppTile({ link, status, onRemove }) {
       {status && (
         <span
           className={`app-tile-dot status-dot status-dot--${
-            status === "up" ? "ok" : status === "down" ? "bad" : "none"
+            status === "up" ? "ok" : status === "down" ? "bad" : status === "degraded" ? "warn" : "none"
           }`}
           title={`This host is ${status} (Services)`}
         />

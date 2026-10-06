@@ -11,6 +11,7 @@ import Timeline from "./Timeline";
 import QuickActions from "./QuickActions";
 import { useSettings } from "./settings";
 import AppIcon from "./AppIcon";
+import { isRootDown } from "./checkStatus";
 
 // issue key -> where the details live: host problems on this page's
 // server cards, checks on Network, container ones on Containers.
@@ -97,7 +98,7 @@ function IssuesPanel({ overview, deployments, ready, onNavigate }) {
 // Service health as a dense two-column list: dot, icon, name, latency.
 // Down sorts first and is the only thing in color.
 function ServiceList({ checks, onOpen }) {
-  const order = { down: 0, pending: 1, up: 2, paused: 3 };
+  const order = { down: 0, degraded: 1, pending: 2, up: 3, paused: 4 };
   const sorted = [...checks].sort(
     (a, b) => order[a.status] - order[b.status] || a.name.localeCompare(b.name)
   );
@@ -110,11 +111,17 @@ function ServiceList({ checks, onOpen }) {
           key={c.id}
           className={`ov-service ov-service--${c.status}`}
           onClick={onOpen}
-          title={c.status === "down" ? `${c.name} is down — ${c.detail ?? ""}` : c.target}
+          title={
+            c.status === "down"
+              ? `${c.name} is down — ${c.suppressed_by ? `behind ${c.suppressed_by.name}` : c.detail ?? ""}`
+              : c.status === "degraded"
+                ? `${c.name} is slow — over ${formatLatency(c.slow_ms)}`
+                : c.target
+          }
         >
           <span
             className={`status-dot status-dot--${
-              c.status === "up" ? "ok" : c.status === "down" ? "bad" : "none"
+              c.status === "up" ? "ok" : c.status === "down" ? "bad" : c.status === "degraded" ? "warn" : "none"
             }`}
           />
           <AppIcon url={c.target} label={c.name} className="app-tile-icon ov-icon" />
@@ -122,7 +129,7 @@ function ServiceList({ checks, onOpen }) {
           <span className="ov-service-ms">
             {c.status === "down"
               ? "down"
-              : c.status === "up"
+              : c.status === "up" || c.status === "degraded"
                 ? formatLatency(c.latency_ms)
                 : c.status}
           </span>
@@ -180,7 +187,7 @@ function Overview({
   } = useSettings();
 
   const hostCount = Object.keys(machines).length;
-  const down = checks.filter((c) => c.status === "down").length;
+  const down = checks.filter(isRootDown).length;
   const firing = alerts.filter((a) => a.resolved_at == null).length;
 
   // Simple keeps healthy things quiet: with nothing wrong (and no login

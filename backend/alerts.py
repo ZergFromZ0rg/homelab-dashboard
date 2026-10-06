@@ -343,6 +343,23 @@ def _check_alert(check: dict, now: float) -> dict:
     }
 
 
+def _slow_alert(check: dict) -> dict:
+    name = check.get("name") or check.get("id")
+    ms, limit = check.get("latency_ms"), check.get("slow_ms")
+    return {
+        "title": f"{name} is slow",
+        "message": (
+            f"{name} ({check.get('type', '?')} {check.get('target', '?')}) is answering in "
+            f"{ms:g} ms, over its {limit:g} ms limit"
+            if isinstance(ms, (int, float)) and isinstance(limit, (int, float))
+            else f"{name} is answering slower than its limit"
+        ),
+        "host": None,
+        "severity": "warn",
+        "hint": "It still answers, so uptime isn't affected. Raise the slow threshold on the check if this is normal.",
+    }
+
+
 def _container_alerts(
     host: str, containers: list[dict], now: float
 ) -> dict[str, dict]:
@@ -460,7 +477,11 @@ def evaluate(
 
     for check in checks or []:
         if check.get("status") == "down":
-            out[f"check:{check['id']}"] = _check_alert(check, now)
+            # Behind a down dependency, the dependency's own alert says it.
+            if not check.get("suppressed_by"):
+                out[f"check:{check['id']}"] = _check_alert(check, now)
+        elif check.get("status") == "degraded":
+            out[f"check:{check['id']}:slow"] = _slow_alert(check)
 
     # A backup that quietly stops working is the failure you find out about
     # when you need the backup, which is the worst possible moment.

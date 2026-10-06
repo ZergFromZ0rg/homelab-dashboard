@@ -4,7 +4,9 @@ import CheckForm from "./CheckForm";
 import CheckIncidents from "./CheckIncidents";
 import CheckSuggestions from "./CheckSuggestions";
 import { createCheck } from "./checksApi";
+import { arrange, isAnswering, isBehind, isRootDown } from "./checkStatus";
 import { formatLatency } from "./format";
+import { useLocalStorage } from "./useLocalStorage";
 import { useNow } from "./useNow";
 
 function Fact({ label, value, sub, bad }) {
@@ -17,8 +19,6 @@ function Fact({ label, value, sub, bad }) {
   );
 }
 
-const ORDER = { down: 0, up: 1, pending: 2, paused: 3 };
-
 // Is each thing actually answering? HTTP / TCP / DNS probes run from the
 // dashboard backend on a schedule, with latency and uptime history.
 function ServicesTab({ checks, connected }) {
@@ -26,8 +26,12 @@ function ServicesTab({ checks, connected }) {
   const [adding, setAdding] = useState(false);
   const [showIncidents, setShowIncidents] = useState(false);
 
-  const down = checks.filter((c) => c.status === "down").length;
-  const up = checks.filter((c) => c.status === "up").length;
+  const [collapsed, setCollapsed] = useLocalStorage("checkGroupsCollapsed", {});
+
+  const down = checks.filter(isRootDown).length;
+  const behind = checks.filter(isBehind).length;
+  const slow = checks.filter((c) => c.status === "degraded").length;
+  const up = checks.filter(isAnswering).length;
   // Median of the checks' own medians ("typical"), and the worst 95th
   // percentile — the one number that shows a spike an average hides.
   const medians = checks.map((c) => c.p50_ms_24h).filter((v) => v != null).sort((a, b) => a - b);
@@ -39,15 +43,20 @@ function ServicesTab({ checks, connected }) {
   const uptime = uptimes.length ? uptimes.reduce((a, b) => a + b, 0) / uptimes.length : null;
   const incidents = checks.reduce((n, c) => n + (c.incidents_24h ?? 0), 0);
 
-  const sorted = [...checks].sort(
-    (a, b) => ORDER[a.status] - ORDER[b.status] || a.name.localeCompare(b.name)
-  );
+  const groups = arrange(checks);
+  const grouped = groups.some((g) => g.name !== "");
+  const groupNames = [...new Set(checks.map((c) => c.group).filter(Boolean))].sort();
 
   return (
     <section className="services-tab">
       {checks.length > 0 && (
         <div className={`facts-row facts-row--checks ${down ? "facts-row--bad" : ""}`}>
-          <Fact label="Answering" value={`${up} / ${checks.length}`} bad={down > 0} />
+          <Fact
+            label="Answering"
+            value={`${up} / ${checks.length}`}
+            bad={down > 0}
+            sub={[slow && `${slow} slow`, behind && `${behind} behind a down check`].filter(Boolean).join(" · ") || undefined}
+          />
           <Fact label="Typical" value={formatLatency(typical)} sub="p50" />
           <Fact
             label="Slowest"
@@ -87,6 +96,8 @@ function ServicesTab({ checks, connected }) {
       {adding && (
         <div className="check check--editing">
           <CheckForm
+            others={checks}
+            groups={groupNames}
             onCancel={() => setAdding(false)}
             onSubmit={async (values) => {
               await createCheck(values);
@@ -114,9 +125,38 @@ function ServicesTab({ checks, connected }) {
             <span>30 d</span>
             <span />
           </div>
-          {sorted.map((check) => (
-            <CheckCard key={check.id} check={check} now={now} />
-          ))}
+          {groups.map((group) => {
+            const shut = grouped && Boolean(collapsed[group.name]);
+            return (
+              <div key={group.name} className="check-group">
+                {grouped && (
+                  <button
+                    type="button"
+                    className="check-group-head"
+                    aria-expanded={!shut}
+                    onClick={() => setCollapsed({ ...collapsed, [group.name]: !shut })}
+                  >
+                    <span className="check-group-caret">{shut ? "▸" : "▾"}</span>
+                    <strong>{group.name || "Other"}</strong>
+                    <span className="check-group-count">{group.rows.length}</span>
+                    {group.down > 0 && <span className="chip chip--bad">{group.down} down</span>}
+                    {group.slow > 0 && <span className="chip chip--warn">{group.slow} slow</span>}
+                  </button>
+                )}
+                {!shut &&
+                  group.rows.map(({ check, depth }) => (
+                    <CheckCard
+                      key={check.id}
+                      check={check}
+                      now={now}
+                      depth={depth}
+                      all={checks}
+                      groups={groupNames}
+                    />
+                  ))}
+              </div>
+            );
+          })}
         </div>
       )}
     </section>

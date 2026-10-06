@@ -115,7 +115,7 @@ def suggest(containers: dict[str, list], nodes: dict, lan: dict, existing: list[
             continue
         out.append({
             "key": key, "group": "Hosts", "name": host, "type": "ping", "target": address,
-            "reason": "is this machine reachable",
+            "reason": "is this machine reachable", "host": host,
         })
 
     # The snapshot's shape: host -> that host's container list.
@@ -141,6 +141,8 @@ def suggest(containers: dict[str, list], nodes: dict, lan: dict, existing: list[
             "type": "http" if web else "tcp",
             "target": f"{scheme}://{address}:{port}" if web else f"{address}:{port}",
             "reason": f"{name} on {host}, port {port}",
+            "host": host,
+            "aliases": sorted(aliases(host)),
             # A self-signed certificate is the norm on a LAN service.
             "verify_tls": scheme != "https",
         })
@@ -184,14 +186,35 @@ def settle(items: list[dict]) -> list[dict]:
 
 def accept(store: checks.CheckStore, items: list[dict]) -> list[dict]:
     """Create a check for each (already filtered) suggestion. Stops quietly at
-    the check limit; returns the specs that were created."""
-    created = []
-    for item in settle(items):
+    the check limit; returns the specs that were created.
+
+    Hosts go first: a container's check is grouped under its host and depends
+    on that host's ping check (one just made, or one you already had), so a
+    dead machine raises one alert instead of one per container."""
+    created: list[dict] = []
+    host_check: dict[str, str] = {}
+    ordered = sorted(settle(items), key=lambda i: i["group"] != "Hosts")
+
+    for item in ordered:
+        is_host = item["group"] == "Hosts"
         payload = {k: item[k] for k in ("name", "type", "target") if k in item}
+        payload["group"] = item["group"]
         if item["type"] == "http":
             payload["verify_tls"] = item.get("verify_tls", True)
+        if not is_host:
+            parent = host_check.get(item.get("host", ""))
+            if parent is None:
+                aliases = set(item.get("aliases") or [])
+                parent = next(
+                    (c["id"] for c in store.all() if c["type"] == "ping" and c["target"].lower() in aliases),
+                    None,
+                )
+            payload["parent"] = parent
         try:
-            created.append(store.create(payload))
+            spec = store.create(payload)
         except ValueError:
             break
+        created.append(spec)
+        if is_host:
+            host_check[item["host"]] = spec["id"]
     return created

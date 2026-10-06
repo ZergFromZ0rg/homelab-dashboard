@@ -914,3 +914,139 @@ def test_tls_refused_and_timeout():
     port = sock.getsockname()[1]
     sock.close()
     assert probe(tls_spec(port)).detail == "connection refused"
+
+
+# --- slow threshold (degraded) ---------------------------------------------------------
+
+
+def test_slow_threshold_validation():
+    base = {"name": "c", "type": "tcp", "target": "h:1"}
+    assert build_spec(base)["slow_ms"] is None
+    assert build_spec({**base, "slow_ms": "250"})["slow_ms"] == 250
+    assert build_spec({**base, "slow_ms": ""})["slow_ms"] is None
+    for bad in (0, -5, 70000, "fast"):
+        with pytest.raises(ValueError):
+            build_spec({**base, "slow_ms": bad})
+
+
+def test_degraded_after_consecutive_slow_answers_and_recovers(tmp_path):
+    service = make_service(tmp_path)
+    spec = add(service, slow_ms=100)
+    t = 1_000_000.0
+
+    def rec(ms, at):
+        service.record(spec["id"], Result(True, ms, "ok"), t + at, 100)
+        return service.summary(service.store.get(spec["id"]), t + at)["status"]
+
+    assert rec(50, 0) == "up"
+    assert rec(300, 60) == "up"            # one slow answer is noise
+    assert rec(300, 120) == "degraded"
+    assert rec(50, 180) == "up"
+    assert service.summary(service.store.get(spec["id"]), t + 180)["uptime_24h"] == 100.0
+
+
+def test_slow_streak_ignored_without_a_threshold_and_down_wins(tmp_path):
+    service = make_service(tmp_path)
+    spec = add(service)
+    for i in range(3):
+        service.record(spec["id"], Result(True, 900.0, "ok"), 1_000_000.0 + i, None)
+    assert service.summary(spec, 1_000_100.0)["status"] == "up"
+
+    spec = service.store.update(spec["id"], {"slow_ms": 100})[1]
+    for i in range(3):
+        service.record(spec["id"], Result(True, 900.0, "ok"), 1_000_200.0 + i, 100)
+    assert service.summary(spec, 1_000_300.0)["status"] == "degraded"
+    for i in range(2):
+        service.record(spec["id"], Result(False, None, "boom"), 1_000_400.0 + i, 100)
+    assert service.summary(spec, 1_000_500.0)["status"] == "down"
+
+
+def test_slow_streak_survives_a_restart(tmp_path):
+    first = make_service(tmp_path)
+    spec = add(first, slow_ms=100)
+    now = time.time()
+    for i in range(2):
+        first.record(spec["id"], Result(True, 500.0, "ok"), now - 10 + i, 100)
+    first.persist()
+    assert make_service(tmp_path).summary(spec, now)["status"] == "degraded"
+
+
+def test_slow_alert_is_a_warning():
+    check = {"id": "a", "name": "Jelly", "type": "http", "target": "h", "status": "degraded",
+             "latency_ms": 420.0, "slow_ms": 300}
+    out = alerts.evaluate({}, [], {}, [check], [], now=1.0)
+    assert out["check:a:slow"]["severity"] == "warn" and "420" in out["check:a:slow"]["message"]
+
+
+# --- dependencies + groups -------------------------------------------------------------
+
+
+def test_parent_and_group_validation(tmp_path):
+    service = make_service(tmp_path)
+    router = add(service, name="router", group="  Network  gear ")
+    assert router["group"] == "Network gear" and router["parent"] is None
+
+    child = add(service, name="jelly", parent=router["id"])
+    assert child["parent"] == router["id"]
+    with pytest.raises(ValueError, match="doesn't exist"):
+        add(service, name="x", parent="nope")
+    with pytest.raises(ValueError, match="itself"):
+        service.store.update(router["id"], {"parent": router["id"]})
+    with pytest.raises(ValueError, match="each other"):
+        service.store.update(router["id"], {"parent": child["id"]})
+    with pytest.raises(ValueError):
+        add(service, name="y", group="g" * 41)
+
+
+def test_child_is_suppressed_while_its_parent_is_down(tmp_path):
+    service = make_service(tmp_path)
+    router = add(service, name="router")
+    switch = add(service, name="switch", parent=router["id"])
+    jelly = add(service, name="jelly", parent=switch["id"])
+    t = 1_000_000.0
+
+    for spec in (router, switch, jelly):
+        service.record(spec["id"], Result(True, 5.0, "ok"), t)
+    for at in (60, 120):
+        for spec in (router, switch, jelly):
+            service.record(spec["id"], Result(False, None, "no reply"), t + at)
+
+    by_name = {s["name"]: s for s in service.summaries(t + 120)}
+    assert by_name["router"]["status"] == "down" and by_name["router"]["suppressed_by"] is None
+    # both descendants are down, and both point at the topmost cause
+    for name in ("switch", "jelly"):
+        assert by_name[name]["status"] == "down"
+        assert by_name[name]["suppressed_by"] == {"id": router["id"], "name": "router"}
+
+    # the router recovers: its children are on their own again
+    service.record(router["id"], Result(True, 5.0, "ok"), t + 180)
+    by_name = {s["name"]: s for s in service.summaries(t + 180)}
+    assert by_name["jelly"]["suppressed_by"]["name"] == "switch"
+    assert by_name["switch"]["suppressed_by"] is None
+
+
+def test_paused_parent_does_not_suppress(tmp_path):
+    service = make_service(tmp_path)
+    parent = add(service, name="p")
+    child = add(service, name="c", parent=parent["id"])
+    for at in (0, 60):
+        service.record(parent["id"], Result(False, None, "x"), 1_000_000.0 + at)
+        service.record(child["id"], Result(False, None, "x"), 1_000_000.0 + at)
+    service.store.update(parent["id"], {"paused": True})
+    assert {s["name"]: s["suppressed_by"] for s in service.summaries(1_000_100.0)}["c"] is None
+
+
+def test_deleting_a_parent_frees_its_children(tmp_path):
+    service = make_service(tmp_path)
+    parent = add(service, name="p")
+    child = add(service, name="c", parent=parent["id"])
+    assert service.store.delete(parent["id"])
+    assert service.store.get(child["id"])["parent"] is None
+
+
+def test_suppressed_children_do_not_alert_but_the_parent_does():
+    router = {"id": "r", "name": "router", "type": "ping", "target": "1.1.1.1", "status": "down", "suppressed_by": None}
+    kid = {"id": "k", "name": "jelly", "type": "http", "target": "h", "status": "down",
+           "suppressed_by": {"id": "r", "name": "router"}}
+    out = alerts.evaluate({}, [], {}, [router, kid], [], now=1.0)
+    assert "check:r" in out and "check:k" not in out

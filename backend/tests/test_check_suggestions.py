@@ -135,3 +135,23 @@ def test_api_suggest_accept_dismiss(client):
     left = [s["key"] for s in client.get("/api/checks/suggestions").json()["suggestions"]]
     assert "host:bigboy" not in left and "host:thinkpad" not in left
     assert client.post("/api/checks/suggestions/accept", json={"keys": "x"}).status_code == 400
+
+
+def test_accept_groups_containers_under_their_host_check(tmp_path, monkeypatch):
+    monkeypatch.setattr(checks, "probe", lambda spec: Result(True, 1.0, "ok"))
+    store = CheckStore(tmp_path / "checks.json")
+    wanted = [s for s in cs.suggest(CONTAINERS, NODES, LAN, [], set()) if s["key"] in (
+        "container:bigboy:postgres", "host:bigboy", "container:thinkpad:udp-only")]
+    created = {c["name"]: c for c in cs.accept(store, wanted)}   # containers listed before their host
+    assert created["bigboy"]["group"] == "Hosts" and created["bigboy"]["parent"] is None
+    assert created["postgres"]["group"] == "bigboy"
+    assert created["postgres"]["parent"] == created["bigboy"]["id"]
+
+
+def test_accept_depends_on_an_existing_ping_check(tmp_path, monkeypatch):
+    monkeypatch.setattr(checks, "probe", lambda spec: Result(True, 1.0, "ok"))
+    store = CheckStore(tmp_path / "checks.json")
+    gateway = store.create({"name": "bigboy box", "type": "ping", "target": "bigboy"})
+    wanted = [s for s in cs.suggest(CONTAINERS, NODES, LAN, [gateway], {"host:thinkpad"}) if s["key"] == "container:bigboy:postgres"]
+    (created,) = cs.accept(store, wanted)
+    assert created["parent"] == gateway["id"]

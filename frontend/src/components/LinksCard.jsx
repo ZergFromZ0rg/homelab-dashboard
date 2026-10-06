@@ -44,7 +44,7 @@ function hostOf(target) {
 // hostname -> worst status any check reports for it, so a tile shows "down"
 // when any probe of that host is failing. Paused checks aren't watching
 // anything right now, so they don't colour a tile at all.
-const STATUS_RANK = { down: 0, pending: 1, up: 2 };
+const STATUS_RANK = { down: 0, degraded: 1, pending: 2, up: 3 };
 
 function watchedHosts(checks) {
   const out = {};

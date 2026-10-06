@@ -9,7 +9,7 @@ import { formatAge, formatDuration, formatLatency } from "./format";
 
 const TYPE_LABEL = { http: "HTTP", keyword: "Keyword", ping: "Ping", tcp: "TCP", dns: "DNS", tls: "Cert" };
 
-const STATUS_TONE = { up: "ok", down: "bad", paused: "none", pending: "none" };
+const STATUS_TONE = { up: "ok", degraded: "warn", down: "bad", paused: "none", pending: "none" };
 
 // Second-level precision: on a monitoring page "just now" hides whether the
 // last probe was 3s or 55s ago.
@@ -37,7 +37,7 @@ function Uptime({ value }) {
 // in ServicesTab): what it is, how it's answering now, the recent trend,
 // uptime over 24h / 7d / 30d, and icon actions. Longer-range charts open
 // underneath.
-function CheckCard({ check, now }) {
+function CheckCard({ check, now, depth = 0, all = [], groups = [] }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -60,6 +60,8 @@ function CheckCard({ check, now }) {
       <div className="check check--editing">
         <CheckForm
           check={check}
+          others={all.filter((c) => c.id !== check.id)}
+          groups={groups}
           onCancel={() => setEditing(false)}
           onSubmit={async (values) => {
             await updateCheck(check.id, values);
@@ -77,7 +79,12 @@ function CheckCard({ check, now }) {
   let sub;
   if (status === "down") {
     headline = "Down";
-    sub = `${check.down_since ? `${formatDuration(now - check.down_since)} · ` : ""}${check.detail ?? ""}`;
+    sub = check.suppressed_by
+      ? `behind ${check.suppressed_by.name}`
+      : `${check.down_since ? `${formatDuration(now - check.down_since)} · ` : ""}${check.detail ?? ""}`;
+  } else if (status === "degraded") {
+    headline = formatLatency(check.latency_ms);
+    sub = `slow · over ${formatLatency(check.slow_ms)}`;
   } else if (status === "paused") {
     headline = "Paused";
     sub = "";
@@ -98,15 +105,18 @@ function CheckCard({ check, now }) {
       : check.target;
 
   return (
-    <div className={`check-row check-row--${status} ${open ? "check-row--open" : ""}`}>
+    <div
+      className={`check-row check-row--${status} ${check.suppressed_by ? "check-row--behind" : ""} ${open ? "check-row--open" : ""}`}
+    >
       <div className="check-line">
         <span className="check-cell-icon">
           <span className={`status-dot status-dot--${STATUS_TONE[status] || "none"}`} />
           <AppIcon url={check.target} label={check.name} className="app-tile-icon ov-icon" />
         </span>
 
-        <span className="check-cell-name" title={target}>
+        <span className="check-cell-name" title={target} style={depth ? { paddingLeft: depth * 16 } : undefined}>
           <span className="check-title">
+            {depth > 0 && <span className="check-branch" aria-hidden="true">↳</span>}
             <strong>{check.name}</strong>
             <span className="chip">{TYPE_LABEL[check.type]}</span>
             {status === "up" && check.failing > 0 && (

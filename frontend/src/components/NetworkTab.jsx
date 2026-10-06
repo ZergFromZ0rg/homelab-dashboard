@@ -8,6 +8,7 @@ import ServicesTab from "./ServicesTab";
 import { IconButton } from "./Icon";
 import { formatBytesPerSec } from "./format";
 import { hostColor } from "./hostColor";
+import { isRootDown } from "./checkStatus";
 import { useLocalStorage } from "./useLocalStorage";
 import { useFitHeight } from "./useFitHeight";
 import { createNetwork, fetchNetworks, removeNetwork, setMembership } from "./networksApi";
@@ -470,7 +471,7 @@ function NetworkTab({ machines, containers, checks, connected, history = {} }) {
   const [picked, setPicked] = useLocalStorage("networkHost", null);
   const [section, setSection] = useLocalStorage("networkSection", "network");
   const host = hosts.includes(picked) ? picked : hosts[0];
-  const down = checks.filter((c) => c.status === "down").length;
+  const down = checks.filter(isRootDown).length;
   const perHost = section !== "checks";
 
   const sections = [

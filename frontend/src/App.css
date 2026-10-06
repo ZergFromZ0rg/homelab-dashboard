@@ -8900,3 +8900,67 @@ a.lan-port--web:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ----- Services: groups, dependencies, slow ----- */
+
+.check-group + .check-group {
+  border-top: 1px solid var(--border);
+}
+
+.check-group-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  text-align: left;
+  background: color-mix(in srgb, var(--text) 3%, transparent);
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.check-group-head strong {
+  color: var(--text);
+}
+
+.check-group-caret,
+.check-group-count {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+
+.chip--bad {
+  color: var(--offline);
+}
+
+.check-now--degraded {
+  color: var(--warning);
+}
+
+.check-row--degraded {
+  background: color-mix(in srgb, var(--warning) 6%, transparent);
+}
+
+/* Failing, but only because something it depends on is: quieter than a root cause. */
+.check-row--behind {
+  opacity: 0.7;
+  background: none;
+}
+
+.check-row--behind .check-now--down {
+  color: var(--text-muted);
+}
+
+.check-branch {
+  margin-right: 4px;
+  color: var(--text-faint);
+}
+
+.ov-service--degraded .ov-service-ms {
+  color: var(--warning);
+  font-weight: 700;
+}

@@ -28,6 +28,7 @@ import { AUTH_REQUIRED_EVENT } from "./components/apiAuth";
 import ModeSelector from "./components/ModeSelector";
 import { useModeSelector } from "./components/viewMode";
 import MorningBriefing from "./components/MorningBriefing";
+import { isRootDown } from "./components/checkStatus";
 
 const EMPTY_OVERVIEW = { ok: true, issues: [], recommendations: [] };
 
@@ -430,7 +431,7 @@ function App() {
             value: "network",
             label: "Network",
             count: checks.length || null,
-            tone: checks.some((c) => c.status === "down") ? "bad" : undefined,
+            tone: checks.some(isRootDown) ? "bad" : checks.some((c) => c.status === "degraded") ? "warn" : undefined,
           },
           {
             value: "system",
