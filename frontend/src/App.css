@@ -7121,3 +7121,313 @@ button.mb-item:disabled { cursor: default; }
 /* Files tab */
 .files-tab { display: flex; flex-direction: column; gap: 10px; }
 .files-jumps { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* ----- Simple home board ----- */
+
+.sh-grid {
+  display: grid;
+  grid-template-columns: minmax(250px, 300px) minmax(0, 1fr) minmax(280px, 340px);
+  gap: 12px;
+  align-items: start;
+}
+
+.sh-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.sh-empty {
+  padding: 12px;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.sh-clock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 16px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  text-align: center;
+}
+
+.sh-clock time {
+  font: 500 40px / 1 var(--mono);
+  letter-spacing: -0.03em;
+}
+
+.sh-clock span {
+  font-size: var(--fs-md);
+  color: var(--text-muted);
+}
+
+.sh-clock small {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+
+/* Pinned apps: icon tiles, name underneath, status dot in the corner. */
+.sh-apps {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 8px;
+}
+
+.sh-app {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 6px 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  text-decoration: none;
+  transition: border-color var(--dur-fast), background var(--dur-fast);
+}
+
+a.sh-app:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-raised);
+}
+
+.sh-app--off {
+  opacity: 0.55;
+}
+
+.sh-app--static {
+  cursor: default;
+}
+
+.sh-app-icon {
+  width: 40px;
+  height: 40px;
+}
+
+.sh-app-icon img,
+.sh-app-icon .app-tile-letter {
+  width: 40px;
+  height: 40px;
+}
+
+.sh-app-dot {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+}
+
+.sh-app-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+/* The one container table. Stopped rows sort first. */
+.sh-filter {
+  width: 120px;
+  height: var(--control-h-sm);
+  padding: 0 8px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: var(--fs-sm);
+}
+
+.sh-table-card .overview-card-body {
+  padding: 0;
+  max-height: none;
+  overflow: visible;
+}
+
+.sh-table-scroll {
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.sh-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+}
+
+.sh-table th {
+  position: sticky;
+  top: 0;
+  padding: 6px 12px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-faint);
+  font-size: var(--fs-2xs);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.sh-table td {
+  padding: 5px 12px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.sh-table .num {
+  text-align: right;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.sh-table a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.sh-table a:hover {
+  text-decoration: underline;
+}
+
+.sh-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sh-row--off td {
+  color: var(--text-muted);
+}
+
+.sh-actions {
+  text-align: right;
+}
+
+.sh-table tr:not(:hover) .sh-actions {
+  opacity: 0.25;
+}
+
+.sh-table-foot {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 12px;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+}
+
+/* Servers: a block per host — name, uptime and temperature, then meters. */
+.sh-hosts {
+  display: flex;
+  flex-direction: column;
+}
+
+.sh-host {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sh-host:last-child {
+  border-bottom: 0;
+}
+
+.sh-host:hover {
+  background: var(--bg-subtle);
+}
+
+.sh-host-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sh-host-meta {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+}
+
+.sh-host-meters {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+/* Four headline numbers in a row. */
+.sh-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.sh-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.sh-tile:hover {
+  border-color: var(--border-strong);
+}
+
+.sh-tile strong {
+  font: 600 var(--fs-2xl) / 1.1 var(--mono);
+}
+
+.sh-tile span {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.sh-tile--bad strong {
+  color: var(--offline);
+}
+
+@media (max-width: 1180px) {
+  .sh-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  }
+
+  .sh-col--left {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    align-items: start;
+  }
+}
+
+@media (max-width: 760px) {
+  .sh-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sh-col--right {
+    order: -1;
+  }
+}

@@ -7,7 +7,7 @@ import SystemTab from "./components/SystemTab";
 import FilesTab from "./components/FilesTab";
 import TerminalTab from "./components/TerminalTab";
 import PersonalTab from "./components/PersonalTab";
-import Greeting from "./components/Greeting";
+import SimpleHome from "./components/SimpleHome";
 import { requestFocus } from "./components/focusRequest";
 import SiteSettings from "./components/SiteSettings";
 import SettingsDrawer from "./components/SettingsDrawer";
@@ -28,19 +28,6 @@ import { AUTH_REQUIRED_EVENT } from "./components/apiAuth";
 import ModeSelector from "./components/ModeSelector";
 import { useModeSelector } from "./components/viewMode";
 import MorningBriefing from "./components/MorningBriefing";
-
-// The Simple page's header line. Its greeting half keeps the Greeting
-// switch in Settings; its numbers half the Summary stats switch.
-function SimpleGreeting(props) {
-  const { settings } = useSettings();
-  return (
-    <Greeting
-      {...props}
-      showHello={Boolean(settings.personalCards?.greeting)}
-      showStats={Boolean(settings.homeCards?.summary)}
-    />
-  );
-}
 
 const EMPTY_OVERVIEW = { ok: true, issues: [], recommendations: [] };
 
@@ -503,34 +490,22 @@ function App() {
         >
         {viewMode === "simple" && (
           <div className="simple-mode-content view" key="simple">
-            <SimpleGreeting
-              overview={overview}
-              machines={machines}
-              containers={containers}
-              backups={backups}
-              ready={ready}
-            />
-            <MorningBriefing summary={morning_summary} machines={machines} onNavigate={navigate} />
-            <Overview
+            <SimpleHome
               overview={overview}
               backups={backups}
               machines={machines}
               containers={containers}
               checks={checks}
-              deployments={deployments}
-              activity={activity}
               alerts={alerts}
               pins={pins}
+              todos={todos}
+              onSetTodos={setTodos}
+              openTodos={openTodos}
               ready={ready}
               onControl={control}
               onNavigate={navigate}
             />
-            <PersonalTab
-              todos={todos}
-              onSetTodos={setTodos}
-              openTodos={openTodos}
-              checks={checks}
-            />
+            <MorningBriefing summary={morning_summary} machines={machines} onNavigate={navigate} />
           </div>
         )}
 
