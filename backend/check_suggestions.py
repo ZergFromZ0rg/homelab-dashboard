@@ -80,9 +80,8 @@ def _host_address(host: str, lan: dict, nodes: dict) -> str:
     return urlsplit(nodes.get(host, {}).get("url", "")).hostname or host
 
 
-def _covered(existing: list[dict]) -> tuple[set[str], set[tuple[str, int]], set[str]]:
-    """What current checks already watch: names, (host, port) pairs, ping hosts."""
-    names = {c["name"].lower() for c in existing}
+def _covered(existing: list[dict]) -> tuple[set[tuple[str, int]], set[str]]:
+    """What current checks already watch: (host, port) pairs and ping hosts."""
     pairs: set[tuple[str, int]] = set()
     pinged: set[str] = set()
     for c in existing:
@@ -96,17 +95,23 @@ def _covered(existing: list[dict]) -> tuple[set[str], set[tuple[str, int]], set[
         elif c["type"] in ("tcp", "tls"):
             host, _, port = target.rpartition(":")
             pairs.add((host.lower(), int(port)))
-    return names, pairs, pinged
+    return pairs, pinged
 
 
 def suggest(containers: dict[str, list], nodes: dict, lan: dict, existing: list[dict], skip: set[str]) -> list[dict]:
-    names, pairs, pinged = _covered(existing)
+    pairs, pinged = _covered(existing)
     out: list[dict] = []
+
+    def aliases(host: str) -> set[str]:
+        """Every name an existing check might use for this host."""
+        found = {host.lower(), _host_address(host, lan, nodes).lower()}
+        found.add((urlsplit(nodes[host].get("url", "")).hostname or "").lower())
+        return found - {""}
 
     for host in sorted(nodes):
         address = _host_address(host, lan, nodes)
         key = f"host:{host}"
-        if key in skip or address.lower() in pinged or host.lower() in names:
+        if key in skip or aliases(host) & pinged:
             continue
         out.append({
             "key": key, "group": "Hosts", "name": host, "type": "ping", "target": address,
@@ -124,7 +129,7 @@ def suggest(containers: dict[str, list], nodes: dict, lan: dict, existing: list[
             continue
         address = _host_address(host, lan, nodes)
         key = f"container:{host}:{name}"
-        if key in skip or (address.lower(), port) in pairs or name.lower() in names:
+        if key in skip or any((a, port) in pairs for a in aliases(host)):
             continue
 
         web = port in WEB_PORTS or port in HTTPS_PORTS
@@ -139,6 +144,15 @@ def suggest(containers: dict[str, list], nodes: dict, lan: dict, existing: list[
             # A self-signed certificate is the norm on a LAN service.
             "verify_tls": scheme != "https",
         })
+    # The same container on two hosts (an agent, a reverse proxy) needs the
+    # host in its name to be told apart in the table.
+    seen: dict[str, int] = {}
+    for item in out:
+        if item["group"] != "Hosts":
+            seen[item["name"]] = seen.get(item["name"], 0) + 1
+    for item in out:
+        if seen.get(item["name"], 0) > 1 and item["group"] != "Hosts":
+            item["name"] = f"{item['name']} ({item['group']})"
     return out
 
 

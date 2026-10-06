@@ -60,10 +60,20 @@ def test_existing_checks_and_dismissals_hide_suggestions():
         {"name": "Gateway", "type": "ping", "target": "192.168.0.10"},
         {"name": "Jelly", "type": "http", "target": "http://192.168.0.10:8096"},
         {"name": "pg", "type": "tcp", "target": "192.168.0.10:5432"},
-        {"name": "qbittorrent", "type": "dns", "target": "x.com"},
+        {"name": "q", "type": "tcp", "target": "bigboy:8080"},      # by host name, not LAN address
     ]
     found = by_key(cs.suggest(CONTAINERS, NODES, LAN, existing, {"host:thinkpad"}))
     assert set(found) == set()
+
+
+def test_the_same_container_on_two_hosts_is_named_per_host():
+    both = grouped([box("bigboy", "portainer", {"9000/tcp": ["9000"]}), box("thinkpad", "portainer", {"9000/tcp": ["9000"]})])
+    names = sorted(i["name"] for i in cs.suggest(both, NODES, LAN, [], {"host:bigboy", "host:thinkpad"}))
+    assert names == ["portainer (bigboy)", "portainer (thinkpad)"]
+    # covering one leaves the other
+    covered = [{"name": "p", "type": "http", "target": "http://192.168.0.10:9000"}]
+    left = cs.suggest(both, NODES, LAN, covered, {"host:bigboy", "host:thinkpad"})
+    assert [i["key"] for i in left] == ["container:thinkpad:portainer"]
 
 
 def test_https_ports_use_https_and_skip_certificate_errors():
