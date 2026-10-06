@@ -3338,103 +3338,6 @@ textarea {
   font-size: var(--fs-sm);
 }
 
-.recovery-config {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 10px;
-}
-
-.recovery-config em {
-  font-style: normal;
-  color: var(--text-muted);
-}
-
-.recovery-config--bad { color: var(--offline); }
-.recovery-config--warn { color: var(--warning); }
-
-/* The number that makes the panel worth opening. */
-.recovery-summary {
-  margin: 0 0 12px;
-  padding: 8px 10px;
-  background: var(--bg-subtle);
-  border-left: 2px solid var(--offline);
-  border-radius: var(--radius-sm);
-}
-
-.recovery-projects,
-.recovery-items {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* A stack per small block, two across; the data under it one line each:
-   status, what, how big, what covers it. */
-.recovery-projects {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
-  align-items: start;
-  gap: 10px;
-}
-
-.recovery-projects > li {
-  padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-}
-
-.recovery-project {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 4px 8px;
-  margin-bottom: 4px;
-}
-
-.recovery-project code,
-.recovery-items code {
-  font-size: var(--fs-xs);
-  color: var(--text-muted);
-}
-
-.recovery-items li {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1.2fr) auto minmax(0, 1.6fr);
-  align-items: center;
-  gap: 8px;
-  padding: 3px 0;
-  border-top: 1px solid var(--border);
-}
-
-.recovery-items code {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.recovery-size {
-  color: var(--text-muted);
-  font-family: var(--mono);
-  font-size: var(--fs-xs);
-  white-space: nowrap;
-}
-
-.recovery-cover {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--fs-xs);
-  color: var(--text-muted);
-}
-
-.recovery-none {
-  margin: 2px 0 0 4px;
-  font-size: var(--fs-xs);
-  color: var(--text-muted);
-}
-
 .recovery-steps {
   margin-top: 12px;
   padding-top: 10px;
@@ -3459,23 +3362,6 @@ textarea {
 }
 
 /* Picking whole stacks to protect, rather than paths. */
-.recovery-pick {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-}
-
-.recovery-protect {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
-}
-
 .recovery-dest {
   display: inline-flex;
   align-items: center;
@@ -3493,15 +3379,6 @@ textarea {
 
 /* A stack somebody decided against. Visible, not hidden — hiding it would
    just move the surprise — but visibly out of the running. */
-.recovery-ignored {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--fs-xs);
-  color: var(--text-muted);
-  font-style: italic;
-}
-
 /* ----- Servers: one full-width card per node, every metric ----- */
 
 .machine-list {
@@ -3846,7 +3723,7 @@ textarea {
    stays in row 1 and whichever is open drops under the row at full width. */
 .sv-manage {
   display: grid;
-  grid-template-columns: repeat(3, max-content) 1fr;
+  grid-template-columns: repeat(2, max-content) 1fr;
   align-items: start;
   gap: 4px 28px;
   margin-top: 8px;
@@ -7815,4 +7692,186 @@ a.sh-app:hover {
 .hsys-pane .hsys-list,
 .hsys-pane .hsys-journal {
   max-height: 300px;
+}
+
+/* ----- Recover (the host card's "if this host died") ----- */
+
+.rec-verdict {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--bg-subtle);
+  border-left: 3px solid var(--online);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-md);
+}
+
+.rec-verdict--bad {
+  border-left-color: var(--offline);
+  background: var(--offline-bg);
+}
+
+.rec-checks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.rec-check {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.rec-check > span {
+  min-width: 90px;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.rec-check--ok strong {
+  color: var(--online);
+}
+
+.rec-check--bad strong {
+  color: var(--offline);
+}
+
+.rec-check em {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  font-style: normal;
+}
+
+/* The stacks: one line each, worst first; a click unfolds the data. */
+.rec-stacks {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.rec-head,
+.rec-stack > summary {
+  display: grid;
+  grid-template-columns: 22px minmax(120px, 1.2fr) 90px minmax(0, 2fr) 72px;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+}
+
+.rec-head {
+  border-bottom: 1px solid var(--border);
+  color: var(--text-faint);
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.rec-stack {
+  border-bottom: 1px solid var(--border);
+}
+
+.rec-stack:last-child {
+  border-bottom: 0;
+}
+
+.rec-stack > summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.rec-stack > summary::-webkit-details-marker {
+  display: none;
+}
+
+.rec-stack > summary:hover {
+  background: var(--bg-subtle);
+}
+
+.rec .num,
+.rec-head .num,
+.rec-stack .num {
+  text-align: right;
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.rec-state {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-sm);
+}
+
+.rec-state--bad {
+  color: var(--offline);
+}
+
+.rec-state--warn {
+  color: var(--warning);
+}
+
+.rec-state--ok {
+  color: var(--online);
+}
+
+.rec-state--none {
+  color: var(--text-muted);
+}
+
+.rec-act {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.rec-items {
+  margin: 0;
+  padding: 2px 12px 8px 44px;
+  list-style: none;
+}
+
+.rec-items li {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1.4fr) 80px minmax(0, 2fr) 72px;
+  align-items: center;
+  gap: 10px;
+  padding: 3px 0;
+}
+
+.rec-items code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+}
+
+.rec-cover {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+}
+
+.rec-protect {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+@media (max-width: 760px) {
+  .rec-checks {
+    grid-template-columns: 1fr;
+  }
 }

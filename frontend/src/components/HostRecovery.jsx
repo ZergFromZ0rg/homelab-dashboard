@@ -29,30 +29,24 @@ function fetchRecovery(host) {
   }).then(jsonOrThrow);
 }
 
-function ConfigBackup({ status }) {
-  const state = status?.state;
-  const tone =
-    state === "ok" ? "ok" : state === "stale" ? "warn" : state === "unknown" ? "none" : "bad";
-  const words = {
-    ok: "Compose files are backed up",
-    stale: "Compose-file backup is behind",
-    failing: "Compose-file backup is failing",
-    pending: "Compose-file backup hasn't run yet",
-    not_configured: "No compose-file backup — nothing to rebuild the stacks from",
-    disabled: "Compose-file backup is switched off",
-    unsupported: "This agent is too old to report its compose-file backup",
-    unknown: "Couldn't ask about the compose-file backup",
-  };
+const CONFIG_WORDS = {
+  ok: "Backed up",
+  stale: "Backup is behind",
+  failing: "Backup is failing",
+  pending: "Hasn't run yet",
+  not_configured: "Not backed up",
+  disabled: "Switched off",
+  unsupported: "Agent too old to say",
+  unknown: "Couldn't ask",
+};
 
-  return (
-    <p className={`recovery-config recovery-config--${tone}`}>
-      <span className={`status-dot status-dot--${tone === "ok" ? "ok" : tone}`} />
-      {words[state] || state}
-      {status?.last_success_age != null && state === "ok" && (
-        <em> · pushed {formatAge(status.last_success_age)}</em>
-      )}
-    </p>
-  );
+// One stack: a line with its status, and its data under a fold.
+function stackState(project) {
+  if (project.ignored) return { tone: "none", label: "Skipped on purpose", sort: 3 };
+  if (project.items.length === 0) return { tone: "none", label: "No data of its own", sort: 4 };
+  if (!project.settled) return { tone: "bad", label: "Not backed up", sort: 0 };
+  const behind = project.items.some((i) => i.protected_by && i.protected_by.state !== "ok");
+  return behind ? { tone: "warn", label: "Backup behind", sort: 1 } : { tone: "ok", label: "Backed up", sort: 2 };
 }
 
 // `open` / `onToggle` let a parent keep several of these to one open at a time;
@@ -115,6 +109,40 @@ function HostRecovery({ host, defaultOpen = false, open: openProp, onToggle }) {
   }, [host]);
 
   const gaps = data?.unprotected_count ?? 0;
+  const configState = data?.config_backup?.state;
+  const configOk = configState === "ok";
+  const atRisk = gaps > 0 || (data && !configOk && configState !== "disabled");
+
+  const skip = async (names, label, fallback, after) => {
+    const why = window.prompt(`Why is ${label} not worth backing up?`, fallback);
+    if (why === null) return;
+    await ignoreNames(host, names, why);
+    await load();
+    after?.();
+  };
+
+  const stacks = data
+    ? [...data.projects].map((p) => ({ p, st: stackState(p) })).sort((a, b) => a.st.sort - b.st.sort || a.p.project.localeCompare(b.p.project))
+    : [];
+
+  const protect = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const out = await backupProjects({
+        host,
+        projects: [...chosen],
+        dest_host: destHost,
+        directory: `/backups/${host}`,
+      });
+      setResult(out);
+      await load();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <div className="conn-panel">
@@ -125,10 +153,10 @@ function HostRecovery({ host, defaultOpen = false, open: openProp, onToggle }) {
         aria-expanded={open}
       >
         <span className="host-toggle" aria-hidden="true"><Icon name="chevron" size={12} /></span>
-        IF THIS HOST DIED
+        RECOVER
         {data && (
-          <span className={`conn-count ${gaps ? "conn-count--bad" : ""}`}>
-            {gaps ? `${gaps} undecided` : "nothing outstanding"}
+          <span className={`conn-count ${atRisk ? "conn-count--bad" : ""}`}>
+            {gaps ? `${formatBytes(data.unprotected_bytes)} at risk` : atRisk ? "at risk" : "safe"}
           </span>
         )}
       </button>
@@ -140,35 +168,52 @@ function HostRecovery({ host, defaultOpen = false, open: openProp, onToggle }) {
 
           {data && (
             <>
-              <ConfigBackup status={data.config_backup} />
+              <div className={`rec-verdict rec-verdict--${atRisk ? "bad" : "ok"}`}>
+                <span className={`status-dot status-dot--${atRisk ? "bad" : "ok"}`} />
+                <strong>
+                  {atRisk
+                    ? `If ${host} died, you would lose${gaps ? ` ${formatBytes(data.unprotected_bytes)} of data` : " your way to rebuild it"}.`
+                    : `If ${host} died, everything is backed up.`}
+                </strong>
+              </div>
 
-              {gaps > 0 && (
-                <p className="recovery-summary">
-                  <strong>{formatBytes(data.unprotected_bytes)}</strong> of data
-                  in {gaps} place{gaps > 1 ? "s" : ""} has no backup job and no
-                  decision. Losing this machine loses it.
-                  {data.ignored_count > 0 && (
-                    <em>
-                      {" "}
-                      ({data.ignored_count} stack
-                      {data.ignored_count > 1 ? "s" : ""} deliberately not
-                      backed up, below.)
-                    </em>
+              <div className="rec-checks">
+                <div className={`rec-check rec-check--${configOk ? "ok" : "bad"}`}>
+                  <span>Compose files</span>
+                  <strong>{CONFIG_WORDS[configState] || configState}</strong>
+                  {configOk && data.config_backup?.last_success_age != null && (
+                    <em>pushed {formatAge(data.config_backup.last_success_age)} ago</em>
                   )}
-                </p>
-              )}
+                </div>
+                <div className={`rec-check rec-check--${gaps ? "bad" : "ok"}`}>
+                  <span>Data</span>
+                  <strong>{gaps ? `${gaps} stack${gaps > 1 ? "s" : ""} not backed up` : "All backed up"}</strong>
+                  {data.ignored_count > 0 && <em>{data.ignored_count} skipped on purpose</em>}
+                </div>
+              </div>
 
-              <ul className="recovery-projects">
-                {data.projects.map((project) => (
-                  <li key={project.project}>
-                    <div className="recovery-project">
-                      {project.settled ? (
-                        <strong>{project.project}</strong>
-                      ) : (
-                        <label className="recovery-pick">
+              <div className="rec-stacks">
+                <div className="rec-head">
+                  <span />
+                  <span>Stack</span>
+                  <span className="num">Size</span>
+                  <span>Status</span>
+                  <span />
+                </div>
+                {stacks.map(({ p: project, st }) => {
+                  const total = project.items.reduce((n, i) => n + (i.bytes || 0), 0);
+                  const partial = project.items.some((i) => i.partial);
+                  const dest = project.items.find((i) => i.protected_by)?.protected_by?.dest;
+                  const pickable = !project.settled && !project.ignored && project.items.length > 0;
+                  return (
+                    <details key={project.project} className={`rec-stack rec-stack--${st.tone}`}>
+                      <summary>
+                        {pickable ? (
                           <input
                             type="checkbox"
+                            aria-label={`Back up ${project.project}`}
                             checked={chosen?.has(project.project) || false}
+                            onClick={(e) => e.stopPropagation()}
                             onChange={(e) => {
                               const next = new Set(chosen);
                               if (e.target.checked) next.add(project.project);
@@ -176,71 +221,61 @@ function HostRecovery({ host, defaultOpen = false, open: openProp, onToggle }) {
                               setChosen(next);
                             }}
                           />
-                          <strong>{project.project}</strong>
-                        </label>
-                      )}
-                      {project.working_dir && <code>{project.working_dir}</code>}
-
-                      {project.ignored ? (
-                        <span className="recovery-ignored">
-                          not backed up on purpose
-                          {project.ignored.reason ? ` — ${project.ignored.reason}` : ""}
-                          <button
-                            type="button"
-                            className="btn btn--sm btn--ghost"
-                            onClick={async () => {
-                              await unignore(host, project.project);
-                              await load();
-                            }}
-                          >
-                            undo
-                          </button>
+                        ) : (
+                          <span className={`status-dot status-dot--${st.tone}`} />
+                        )}
+                        <strong title={project.working_dir || undefined}>{project.project}</strong>
+                        <span className="num">{project.items.length ? `${formatBytes(total)}${partial ? "+" : ""}` : ""}</span>
+                        <span className={`rec-state rec-state--${st.tone}`} title={project.ignored?.reason || undefined}>
+                          {st.label}
+                          {dest && st.tone !== "bad" ? ` → ${dest}` : ""}
                         </span>
-                      ) : !project.settled ? (
-                        <button
-                          type="button"
-                          className="btn btn--sm btn--ghost"
-                          onClick={async () => {
-                            const why = window.prompt(
-                              `Why is ${project.project} not worth backing up?`,
-                              "replaced by this dashboard"
-                            );
-                            if (why === null) return;
-                            await ignoreNames(host, [project.project], why);
-                            await load();
-                          }}
-                        >
-                          don&apos;t back this up
-                        </button>
-                      ) : null}
-                    </div>
-
-                    {project.items.length === 0 ? (
-                      <p className="recovery-none">no data of its own</p>
-                    ) : (
-                      <ul className="recovery-items">
-                        {project.items.map((item) => (
-                          <li key={item.kind + item.name}>
-                            <span
-                              className={`status-dot status-dot--${
-                                item.protected_by
-                                  ? item.protected_by.state === "ok"
-                                    ? "ok"
-                                    : "warn"
-                                  : "bad"
-                              }`}
-                            />
-                            <code>{item.name}</code>
-                            <span className="recovery-size">
-                              {formatBytes(item.bytes)}
-                              {item.partial ? "+" : ""}
-                            </span>
-                            <span className="recovery-cover">
-                              {item.ignored ? (
-                                <>
-                                  not backed up on purpose
-                                  {item.ignored.reason ? ` — ${item.ignored.reason}` : ""}
-                                  {!project.ignored && (
+                        <span className="rec-act" onClick={(e) => e.stopPropagation()}>
+                          {project.ignored ? (
+                            <button
+                              type="button"
+                              className="btn btn--sm btn--ghost"
+                              onClick={async () => {
+                                await unignore(host, project.project);
+                                await load();
+                              }}
+                            >
+                              Undo
+                            </button>
+                          ) : pickable ? (
+                            <button
+                              type="button"
+                              className="btn btn--sm btn--ghost"
+                              onClick={() => skip([project.project], project.project, "replaced by this dashboard")}
+                            >
+                              Skip
+                            </button>
+                          ) : null}
+                        </span>
+                      </summary>
+                      {project.items.length > 0 && (
+                        <ul className="rec-items">
+                          {project.items.map((item) => {
+                            const tone = item.protected_by ? (item.protected_by.state === "ok" ? "ok" : "warn") : item.ignored ? "none" : "bad";
+                            return (
+                              <li key={item.kind + item.name}>
+                                <span className={`status-dot status-dot--${tone}`} />
+                                <code title={item.name}>{item.name}</code>
+                                <span className="num">
+                                  {formatBytes(item.bytes)}
+                                  {item.partial ? "+" : ""}
+                                </span>
+                                <span className="rec-cover">
+                                  {item.ignored
+                                    ? `Skipped${item.ignored.reason ? ` — ${item.ignored.reason}` : ""}`
+                                    : item.protected_by
+                                      ? `${item.protected_by.job} → ${item.protected_by.dest}`
+                                      : item.allowed === false
+                                        ? "Not backed up — this host doesn't allow that folder yet"
+                                        : "Not backed up"}
+                                </span>
+                                <span className="rec-act">
+                                  {item.ignored && !project.ignored ? (
                                     <button
                                       type="button"
                                       className="btn btn--sm btn--ghost"
@@ -249,66 +284,40 @@ function HostRecovery({ host, defaultOpen = false, open: openProp, onToggle }) {
                                         await load();
                                       }}
                                     >
-                                      undo
+                                      Undo
                                     </button>
-                                  )}
-                                </>
-                              ) : item.protected_by ? (
-                                <>
-                                  {item.protected_by.job} →{" "}
-                                  {item.protected_by.dest}
-                                  {item.protected_by.state !== "ok" && (
-                                    <strong> ({item.protected_by.state})</strong>
-                                  )}
-                                </>
-                              ) : (
-                                <>
-                                  {item.allowed === false
-                                    ? "not backed up — this host doesn't allow that directory yet"
-                                    : "not backed up"}
-                                  <button
-                                    type="button"
-                                    className="btn btn--sm btn--ghost"
-                                    onClick={async () => {
-                                      const why = window.prompt(
-                                        `Why is ${item.name} not worth backing up?`,
-                                        "regenerates / re-acquirable"
-                                      );
-                                      if (why === null) return;
-                                      await ignoreNames(host, [item.name], why);
-                                      await load();
-                                    }}
-                                  >
-                                    don&apos;t back this up
-                                  </button>
-                                </>
-                              )}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </li>
-                ))}
-              </ul>
+                                  ) : !item.ignored && !item.protected_by ? (
+                                    <button
+                                      type="button"
+                                      className="btn btn--sm btn--ghost"
+                                      onClick={() => skip([item.name], item.name, "regenerates / re-acquirable")}
+                                    >
+                                      Skip
+                                    </button>
+                                  ) : null}
+                                </span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </details>
+                  );
+                })}
+              </div>
 
               {gaps > 0 && (
-                <div className="recovery-protect">
-                  <strong>Protect the ticked stacks</strong>
+                <div className="rec-protect">
                   {dests && dests.length === 0 ? (
                     <p className="settings-hint">
-                      No other host can store backups yet. Set a backup
-                      directory on one of them first — a copy on this machine
-                      dies with this machine.
+                      No other host can store backups yet. Set a backup directory on one of them
+                      first — a copy on this machine dies with this machine.
                     </p>
                   ) : (
                     <>
                       <label className="recovery-dest">
                         <span>Send to</span>
-                        <select
-                          value={destHost}
-                          onChange={(e) => setDestHost(e.target.value)}
-                        >
+                        <select value={destHost} onChange={(e) => setDestHost(e.target.value)}>
                           {(dests || []).map((d) => (
                             <option key={d.host} value={d.host}>
                               {d.host}
@@ -319,30 +328,11 @@ function HostRecovery({ host, defaultOpen = false, open: openProp, onToggle }) {
                       </label>
                       <button
                         type="button"
-                        className="btn btn--sm"
+                        className="btn btn--primary"
                         disabled={busy || !destHost || !chosen?.size}
-                        onClick={async () => {
-                          setBusy(true);
-                          setError(null);
-                          try {
-                            const out = await backupProjects({
-                              host,
-                              projects: [...chosen],
-                              dest_host: destHost,
-                              directory: `/backups/${host}`,
-                            });
-                            setResult(out);
-                            await load();
-                          } catch (e) {
-                            setError(e.message);
-                          } finally {
-                            setBusy(false);
-                          }
-                        }}
+                        onClick={protect}
                       >
-                        {busy ? "Working…" : `Back up ${chosen?.size || 0} stack${
-                          chosen?.size === 1 ? "" : "s"
-                        }`}
+                        {busy ? "Working…" : `Back up ${chosen?.size || 0} ticked stack${chosen?.size === 1 ? "" : "s"}`}
                       </button>
                     </>
                   )}
@@ -350,13 +340,10 @@ function HostRecovery({ host, defaultOpen = false, open: openProp, onToggle }) {
                   {result && (
                     <div className="recovery-result">
                       {result.created.length > 0 && (
-                        <p>Created {result.created.length} job
-                          {result.created.length > 1 ? "s" : ""}.</p>
+                        <p>Created {result.created.length} job{result.created.length > 1 ? "s" : ""}.</p>
                       )}
                       {result.already_covered.length > 0 && (
-                        <p className="settings-hint">
-                          {result.already_covered.length} already covered.
-                        </p>
+                        <p className="settings-hint">{result.already_covered.length} already covered.</p>
                       )}
                       {result.refused.map((r) => (
                         <p key={r.name} className="form-error">
@@ -369,12 +356,11 @@ function HostRecovery({ host, defaultOpen = false, open: openProp, onToggle }) {
               )}
 
               <details className="recovery-steps">
-                <summary>Rebuilding this host</summary>
+                <summary>How to rebuild this host</summary>
                 <ol>
                   <li>
-                    Install the agent on the replacement and join it with the
-                    same host name — the Overview's <strong>Add a node</strong>{" "}
-                    gives the command.
+                    Install the agent on the replacement and join it with the same host name — the
+                    Overview's <strong>Add a node</strong> gives the command.
                   </li>
                   <li>
                     Clone the compose-file backup
@@ -384,19 +370,17 @@ function HostRecovery({ host, defaultOpen = false, open: openProp, onToggle }) {
                     and put each project back where it was.
                   </li>
                   <li>
-                    Restore each project's data from its archives — every
-                    backup job's Archives panel spells out the exact commands
-                    for its own paths and containers.
+                    Restore each stack's data from its archives — every backup job's Archives panel
+                    spells out the exact commands.
                   </li>
                   <li>
-                    <code>docker compose up -d</code> per project, oldest
-                    dependency first.
+                    <code>docker compose up -d</code> per project, oldest dependency first.
                   </li>
                 </ol>
                 {data.source_dirs?.length === 0 && (
                   <p className="settings-hint">
-                    This host allows no directories to be backed up yet. Set
-                    them in Settings above, then add jobs from the Backups tab.
+                    This host allows no directories to be backed up yet. Allow some in its agent
+                    settings (God mode → System → Settings), then add jobs from the Backups tab.
                   </p>
                 )}
               </details>
