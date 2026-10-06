@@ -467,6 +467,37 @@ def _series_by_job(promql: str, start: float, end: float, step: int) -> dict:
     return series
 
 
+def _interface_history(start: float, end: float, step: int) -> dict:
+    """job -> device -> {"rx": [...], "tx": [...]} for every interface the
+    live table lists (same hidden-device filter), so each row can draw its own
+    trend. One that never carried a byte in the window is left out."""
+    out: dict = {}
+
+    for direction, metric in (("rx", "receive"), ("tx", "transmit")):
+        promql = (
+            f'irate(node_network_{metric}_bytes_total'
+            f'{{device!~"{HIDDEN_IFACE_RE}"}}[5m])'
+        )
+        for result in query_range(promql, start, end, step):
+            job = result["metric"].get("job")
+            device = result["metric"].get("device")
+            if not (job and device):
+                continue
+            points = [
+                {"t": int(t), "v": None if v == "NaN" else float(v)}
+                for t, v in result["values"]
+            ]
+            out.setdefault(job, {}).setdefault(device, {"rx": [], "tx": []})[direction] = points
+
+    for job in list(out):
+        out[job] = {
+            device: series
+            for device, series in out[job].items()
+            if any((p["v"] or 0) > 0 for d in ("rx", "tx") for p in series[d])
+        }
+    return out
+
+
 def _temperature_history(start: float, end: float, step: int) -> dict:
     """Same CPU-chip preference as get_cpu_temperatures(), as a range query.
 
@@ -549,6 +580,7 @@ def get_machine_history() -> dict:
     )
 
     temperature = _temperature_history(start, end, step)
+    interfaces = _interface_history(start, end, step)
 
     jobs = set(cpu) | set(ram) | set(network_rx) | set(network_tx)
 
@@ -559,6 +591,7 @@ def get_machine_history() -> dict:
             "temperature": temperature.get(job, []),
             "network_rx": network_rx.get(job, []),
             "network_tx": network_tx.get(job, []),
+            "interfaces": interfaces.get(job, {}),
         }
         for job in jobs
     }

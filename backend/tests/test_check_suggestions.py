@@ -276,9 +276,11 @@ def test_suggested_agent_pings_send_several_echoes_and_accepting_keeps_that(tmp_
     items = cs.suggest({}, NODES, LAN, [], set(), GATEWAYS)
     network = [i for i in items if i.get("origin")]
     assert network and all(i["count"] == 5 for i in network)
+    limits = {i["key"].split(":")[0]: i["max_loss"] for i in network}
+    assert limits == {"link": 10, "gateway": 10, "internet": 20}
     store = CheckStore(tmp_path / "checks.json")
     made = cs.accept(store, [i for i in items if i["key"] in ("link:bigboy:thinkpad", "internet:1.1.1.1")])
-    assert {c["count"] for c in made} == {5}
+    assert {c["count"] for c in made} == {5} and {c["max_loss"] for c in made} == {10, 20}
 
 
 def test_matrix_cells_carry_loss_and_jitter():

@@ -38,6 +38,10 @@ VERIFY_TIMEOUT = 3.0
 WAN_TARGET = "1.1.1.1"
 # Echoes per suggested ping: enough for a loss percentage and jitter to mean something.
 ECHOES = 5
+# Loss that marks a suggested ping degraded: LAN links should lose nothing, a
+# public address answers ICMP less reliably.
+LAN_MAX_LOSS = 10
+WAN_MAX_LOSS = 20
 LINKS_GROUP = "Between hosts"
 NETWORK_GROUP = "Network"
 
@@ -138,7 +142,7 @@ def _network_suggestions(nodes, lan, gateways, links, any_ping, skip, aliases) -
             out.append({
                 "key": key, "group": LINKS_GROUP, "name": f"{source} → {target}",
                 "type": "ping", "target": _host_address(target, lan, nodes), "origin": source,
-                "reason": f"latency from {source} to {target}", "host": source, "count": ECHOES,
+                "reason": f"latency from {source} to {target}", "host": source, "count": ECHOES, "max_loss": LAN_MAX_LOSS,
                 "aliases": sorted(aliases(source)),
             })
 
@@ -155,7 +159,7 @@ def _network_suggestions(nodes, lan, gateways, links, any_ping, skip, aliases) -
             continue
         out.append({
             "key": key, "group": NETWORK_GROUP, "name": f"Router {gateway}", "type": "ping",
-            "target": gateway, "origin": host, "reason": f"{host}'s default gateway", "count": ECHOES,
+            "target": gateway, "origin": host, "reason": f"{host}'s default gateway", "count": ECHOES, "max_loss": LAN_MAX_LOSS,
             "host": host, "aliases": sorted(aliases(host)),
         })
 
@@ -164,7 +168,7 @@ def _network_suggestions(nodes, lan, gateways, links, any_ping, skip, aliases) -
     if origin and key not in skip and WAN_TARGET not in any_ping:
         out.append({
             "key": key, "group": NETWORK_GROUP, "name": f"Internet ({WAN_TARGET})", "type": "ping",
-            "target": WAN_TARGET, "origin": origin, "reason": f"can {origin} reach the internet", "count": ECHOES,
+            "target": WAN_TARGET, "origin": origin, "reason": f"can {origin} reach the internet", "count": ECHOES, "max_loss": WAN_MAX_LOSS,
             "host": origin, "aliases": sorted(aliases(origin)),
         })
     return out
@@ -275,7 +279,7 @@ def accept(store: checks.CheckStore, items: list[dict]) -> list[dict]:
 
     for item in ordered:
         is_host = item["group"] == "Hosts"
-        payload = {k: item[k] for k in ("name", "type", "target", "origin", "count") if k in item}
+        payload = {k: item[k] for k in ("name", "type", "target", "origin", "count", "max_loss") if k in item}
         payload["group"] = item["group"]
         if item["type"] == "http":
             payload["verify_tls"] = item.get("verify_tls", True)

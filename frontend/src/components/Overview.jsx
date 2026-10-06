@@ -115,7 +115,9 @@ function ServiceList({ checks, onOpen }) {
             c.status === "down"
               ? `${c.name} is down — ${c.suppressed_by ? `behind ${c.suppressed_by.name}` : c.detail ?? ""}`
               : c.status === "degraded"
-                ? `${c.name} is slow — over ${formatLatency(c.slow_ms)}`
+                ? c.lossy && !c.slow
+                  ? `${c.name} is losing packets — over ${c.max_loss}%`
+                  : `${c.name} is slow — over ${formatLatency(c.slow_ms)}`
                 : c.target
           }
         >

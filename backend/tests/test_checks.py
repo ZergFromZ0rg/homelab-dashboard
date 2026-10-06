@@ -978,6 +978,82 @@ def test_slow_alert_is_a_warning():
     assert out["check:a:slow"]["severity"] == "warn" and "420" in out["check:a:slow"]["message"]
 
 
+# --- loss threshold ----------------------------------------------------------------
+
+
+PING5 = {"name": "link", "type": "ping", "target": "192.168.0.1", "count": 5}
+
+
+def test_loss_threshold_validation():
+    assert build_spec(PING5)["max_loss"] is None
+    assert build_spec({**PING5, "max_loss": "10"})["max_loss"] == 10
+    assert build_spec({**PING5, "max_loss": ""})["max_loss"] is None
+    for bad in (0, -1, 101, "lots"):
+        with pytest.raises(ValueError):
+            build_spec({**PING5, "max_loss": bad})
+    # loss is only measured by a burst
+    with pytest.raises(ValueError, match="more than one echo"):
+        build_spec({"name": "x", "type": "ping", "target": "1.1.1.1", "max_loss": 10})
+
+
+def test_lossy_after_consecutive_bad_bursts_and_recovers(tmp_path):
+    service = make_service(tmp_path)
+    spec = add(service, **PING5, max_loss=10)
+    t = 1_000_000.0
+
+    def rec(loss, at):
+        service.record(spec["id"], Result(True, 1.0, "ok", loss=loss, jitter=0.1), t + at, None, 10)
+        return service.summary(service.store.get(spec["id"]), t + at)
+
+    assert rec(0.0, 0)["status"] == "up"
+    assert rec(40.0, 60)["status"] == "up"             # one bad burst is noise
+    bad = rec(40.0, 120)
+    assert bad["status"] == "degraded" and bad["lossy"] and not bad["slow"]
+    assert rec(10.0, 180)["status"] == "up"            # at the limit is fine
+    assert not rec(0.0, 240)["lossy"]
+
+
+def test_a_loss_streak_survives_a_restart_along_with_the_link_numbers(tmp_path):
+    first = make_service(tmp_path)
+    spec = add(first, **PING5, max_loss=10)
+    now = time.time()
+    for i in range(2):
+        first.record(spec["id"], Result(True, 1.0, "ok", loss=60.0, jitter=2.0), now - 10 + i, None, 10)
+    first.persist()
+    summary = make_service(tmp_path).summary(spec, now)
+    assert summary["status"] == "degraded"
+    assert summary["loss_pct_3h"] == 60.0 and summary["jitter_ms_3h"] == 2.0
+
+
+def test_old_history_without_link_numbers_still_loads(tmp_path):
+    first = make_service(tmp_path)
+    spec = add(first)
+    first.record(spec["id"], Result(True, 1.0, "ok"), time.time())
+    first.persist()
+    saved = json.loads((tmp_path / "history.json").read_text())
+    for state in saved["checks"].values():
+        state.pop("quality", None)
+        state.pop("loss_streak", None)
+    (tmp_path / "history.json").write_text(json.dumps(saved))
+    assert make_service(tmp_path).summary(spec, time.time())["loss_pct_3h"] is None
+
+
+def test_loss_alert_is_a_warning_naming_the_origin():
+    check = {"id": "a", "name": "bigboy → thinkpad", "type": "ping", "target": "192.168.0.132", "origin": "bigboy",
+             "status": "degraded", "lossy": True, "slow": False, "max_loss": 10, "loss_pct_3h": 24.0}
+    out = alerts.evaluate({}, [], {}, [check], [], now=1.0)
+    assert "check:a:slow" not in out
+    alert = out["check:a:loss"]
+    assert alert["severity"] == "warn" and "from bigboy" in alert["message"] and "24" in alert["message"]
+
+
+def test_slow_and_lossy_together_raise_both_alerts():
+    check = {"id": "a", "name": "x", "type": "ping", "target": "h", "status": "degraded", "latency_ms": 400.0,
+             "slow_ms": 300, "slow": True, "lossy": True, "max_loss": 5}
+    out = alerts.evaluate({}, [], {}, [check], [], now=1.0)
+    assert "check:a:slow" in out and "check:a:loss" in out
+
+
 # --- dependencies + groups -------------------------------------------------------------
 
 

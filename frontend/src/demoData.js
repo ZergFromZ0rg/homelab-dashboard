@@ -678,6 +678,12 @@ function fullSnapshot() {
       network_rx: series(m.network_rx, m.network_rx * 0.4),
       network_tx: series(m.network_tx, m.network_tx * 0.4),
       gpu_temperature: m.gpu?.devices?.length ? series(60, 4) : [],
+      interfaces: Object.fromEntries(
+        (m.interfaces ?? []).map((i) => [
+          i.device,
+          { rx: series(i.rx_bps ?? 0, (i.rx_bps ?? 0) * 0.4), tx: series(i.tx_bps ?? 0, (i.tx_bps ?? 0) * 0.4) },
+        ])
+      ),
     };
   }
 

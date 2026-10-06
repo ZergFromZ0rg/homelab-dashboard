@@ -364,6 +364,26 @@ def _slow_alert(check: dict) -> dict:
     }
 
 
+def _loss_alert(check: dict) -> dict:
+    name = check.get("name") or check.get("id")
+    loss, limit = check.get("loss_pct_3h"), check.get("max_loss")
+    origin = check.get("origin")
+    where = f" from {origin}" if origin else ""
+    if isinstance(limit, (int, float)):
+        message = f"{name} ({check.get('type', '?')} {check.get('target', '?')}{where}) is dropping echoes, over its {limit:g}% limit"
+        if isinstance(loss, (int, float)):
+            message += f" ({loss:g}% on average over the last 3 hours)"
+    else:
+        message = f"{name} is dropping more packets than its limit"
+    return {
+        "title": f"{name} is losing packets",
+        "message": message,
+        "host": None,
+        "severity": "warn",
+        "hint": "It still answers, so uptime isn't affected. A flaky cable, port or wireless link is the usual cause; raise the loss threshold on the check if this is normal.",
+    }
+
+
 def _container_alerts(
     host: str, containers: list[dict], now: float
 ) -> dict[str, dict]:
@@ -485,7 +505,11 @@ def evaluate(
             if not check.get("suppressed_by"):
                 out[f"check:{check['id']}"] = _check_alert(check, now)
         elif check.get("status") == "degraded":
-            out[f"check:{check['id']}:slow"] = _slow_alert(check)
+            lossy = check.get("lossy")
+            if check.get("slow", not lossy):
+                out[f"check:{check['id']}:slow"] = _slow_alert(check)
+            if lossy:
+                out[f"check:{check['id']}:loss"] = _loss_alert(check)
 
     # A backup that quietly stops working is the failure you find out about
     # when you need the backup, which is the worst possible moment.

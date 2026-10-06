@@ -56,6 +56,7 @@ function blank(check) {
     group: check?.group ?? "",
     origin: check?.origin ?? "",
     count: check?.count ?? 1,
+    max_loss: check?.max_loss ?? "",
   };
 }
 
@@ -90,6 +91,7 @@ function CheckForm({ check, onSubmit, onCancel, others = [], groups = [], hosts 
         group: values.group.trim() || null,
         origin: values.origin || null,
         count: values.type === "ping" ? Number(values.count) : 1,
+        max_loss: values.type === "ping" && Number(values.count) > 1 && values.max_loss !== "" ? Number(values.max_loss) : null,
       });
     } catch (err) {
       setError(err.message);
@@ -262,6 +264,21 @@ function CheckForm({ check, onSubmit, onCancel, others = [], groups = [], hosts 
                   </option>
                 ))}
               </select>
+            </label>
+          )}
+          {values.type === "ping" && Number(values.count) > 1 && (
+            <label className="deploy-field">
+              <span className="deploy-label">Losing more than (%, blank = never)</span>
+              <input
+                className="deploy-input"
+                type="number"
+                min="1"
+                max="100"
+                value={values.max_loss}
+                placeholder="10"
+                title="Dropping more than this share of echoes for two checks in a row marks it degraded and raises a warning — still up, but flagged"
+                onChange={(e) => set({ max_loss: e.target.value })}
+              />
             </label>
           )}
           <label className="deploy-field">

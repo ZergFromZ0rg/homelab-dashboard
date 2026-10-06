@@ -4800,6 +4800,17 @@ textarea {
   border-bottom: 0;
 }
 
+.net-trend-cell {
+  width: 120px;
+  min-width: 120px;
+}
+
+.net-trend-mini {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .net-mono {
   font-family: var(--mono);
   font-size: var(--fs-sm);

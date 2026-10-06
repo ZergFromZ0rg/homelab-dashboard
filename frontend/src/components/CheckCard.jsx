@@ -85,7 +85,12 @@ function CheckCard({ check, now, depth = 0, all = [], groups = [], hosts = [] })
       : `${check.down_since ? `${formatDuration(now - check.down_since)} · ` : ""}${check.detail ?? ""}`;
   } else if (status === "degraded") {
     headline = formatLatency(check.latency_ms);
-    sub = `slow · over ${formatLatency(check.slow_ms)}`;
+    sub = [
+      check.slow || !check.lossy ? `slow · over ${formatLatency(check.slow_ms)}` : null,
+      check.lossy ? `losing packets · over ${check.max_loss}%` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
   } else if (status === "paused") {
     headline = "Paused";
     sub = "";

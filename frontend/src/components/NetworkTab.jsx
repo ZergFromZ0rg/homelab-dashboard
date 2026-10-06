@@ -236,6 +236,23 @@ function TrafficByService({ machine, containers = [] }) {
   );
 }
 
+// One interface's last stretch of traffic: download over upload, both on the
+// interface's own scale so a quiet link isn't flattened by a busy one.
+function InterfaceTrend({ series, windowMinutes }) {
+  if (!series) return <span className="net-dim">—</span>;
+  const peak = Math.max(
+    1,
+    ...windowPoints(series.rx, windowMinutes).map((p) => p.v ?? 0),
+    ...windowPoints(series.tx, windowMinutes).map((p) => p.v ?? 0)
+  );
+  return (
+    <div className="net-trend-mini" title="Download (top) and upload (bottom), same scale">
+      <Sparkline points={series.rx} max={peak * 1.1} variant="rx" height={14} windowMinutes={windowMinutes} />
+      <Sparkline points={series.tx} max={peak * 1.1} variant="tx" height={14} windowMinutes={windowMinutes} />
+    </div>
+  );
+}
+
 function HostNetwork({ host, machine, containers, history, part = "network" }) {
   const {
     settings: { graphWindowMinutes: windowMinutes },
@@ -325,6 +342,7 @@ function HostNetwork({ host, machine, containers, history, part = "network" }) {
                   <th>Interface</th>
                   <th>Down</th>
                   <th>Up</th>
+                  <th>Trend</th>
                   <th />
                 </tr>
               </thead>
@@ -337,6 +355,9 @@ function HostNetwork({ host, machine, containers, history, part = "network" }) {
                     </td>
                     <td className="net-mono">↓ {formatBytesPerSec(i.rx_bps)}</td>
                     <td className="net-mono">↑ {formatBytesPerSec(i.tx_bps)}</td>
+                    <td className="net-trend-cell">
+                      <InterfaceTrend series={history?.interfaces?.[i.device]} windowMinutes={windowMinutes} />
+                    </td>
                     <td className="net-dim" title="An overlay link — not counted in the host's download/upload totals">
                       {i.in_total === false ? "overlay" : ""}
                     </td>
@@ -344,7 +365,7 @@ function HostNetwork({ host, machine, containers, history, part = "network" }) {
                 ))}
                 {!interfaces.length && (
                   <tr>
-                    <td colSpan={4} className="net-dim">No interface data from Prometheus.</td>
+                    <td colSpan={5} className="net-dim">No interface data from Prometheus.</td>
                   </tr>
                 )}
               </tbody>

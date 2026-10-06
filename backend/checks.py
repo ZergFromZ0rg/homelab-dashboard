@@ -127,7 +127,7 @@ _IPV4_RE = re.compile(r"^\d{1,3}(\.\d{1,3}){3}$")
 EDITABLE = (
     "name", "type", "target", "interval", "timeout", "expect_status",
     "verify_tls", "paused", "keyword", "keyword_mode", "warn_days",
-    "slow_ms", "parent", "group", "origin", "count",
+    "slow_ms", "parent", "group", "origin", "count", "max_loss",
 )
 MAX_ORIGIN_LENGTH = 64
 # The agent probes with the same timeout the check has; this is the extra
@@ -139,6 +139,7 @@ PROBE_FIELDS = (
 )
 MAX_GROUP_LENGTH = 40
 MIN_SLOW_MS, MAX_SLOW_MS = 1, 60000
+MIN_MAX_LOSS, MAX_MAX_LOSS = 1, 100
 
 
 # ---------------------------------------------------------------------------
@@ -298,6 +299,9 @@ def build_spec(payload: dict, existing: dict | None = None) -> dict:
         count = _number(merged.get("count"), "echo count", 1, MAX_PING_COUNT, 1, integer=True)
     else:
         count = 1
+    max_loss = _number(merged.get("max_loss"), "loss threshold", MIN_MAX_LOSS, MAX_MAX_LOSS, None)
+    if max_loss is not None and count < 2:
+        raise ValueError("a loss threshold needs more than one echo per check")
 
     group = " ".join(str(merged.get("group") or "").split()) or None
     if group and len(group) > MAX_GROUP_LENGTH:
@@ -329,6 +333,7 @@ def build_spec(payload: dict, existing: dict | None = None) -> dict:
         "warn_days": warn_days,
         "slow_ms": slow_ms,
         "count": count,
+        "max_loss": max_loss,
         "parent": parent,
         "group": group,
         "origin": origin,
@@ -490,6 +495,8 @@ class _State:
     streak: int = 0
     # consecutive answers slower than the check's slow_ms
     slow_streak: int = 0
+    # consecutive answers losing more echoes than the check's max_loss
+    loss_streak: int = 0
     # why the last probe couldn't run (inconclusive); cleared by the next that does
     probe_error: str | None = None
     fail_since: float | None = None
@@ -605,7 +612,7 @@ class CheckService:
     def _run(self, spec: dict) -> None:
         try:
             result = self._prober(spec)
-            self.record(spec["id"], result, time.time(), spec.get("slow_ms"))
+            self.record(spec["id"], result, time.time(), spec.get("slow_ms"), spec.get("max_loss"))
         finally:
             with self._lock:
                 state = self._states.get(spec["id"])
@@ -643,7 +650,12 @@ class CheckService:
     # -- recording ----------------------------------------------------------
 
     def record(
-        self, check_id: str, result: Result, now: float, slow_ms: float | None = None
+        self,
+        check_id: str,
+        result: Result,
+        now: float,
+        slow_ms: float | None = None,
+        max_loss: float | None = None,
     ) -> None:
         with self._lock:
             state = self._states.setdefault(check_id, _State())
@@ -668,6 +680,11 @@ class CheckService:
                 state.slow_streak += 1
             else:
                 state.slow_streak = 0
+
+            if result.ok and max_loss is not None and result.loss is not None and result.loss > max_loss:
+                state.loss_streak += 1
+            else:
+                state.loss_streak = 0
 
             if result.ok:
                 if state.incidents and state.incidents[-1]["end"] is None:
@@ -758,6 +775,8 @@ class CheckService:
             return "down"
         if spec.get("slow_ms") is not None and state.slow_streak >= FAILURES_BEFORE_DOWN:
             return "degraded"
+        if spec.get("max_loss") is not None and state.loss_streak >= FAILURES_BEFORE_DOWN:
+            return "degraded"
         return "up"
 
     def _root_cause(self, spec: dict, specs: dict) -> dict | None:
@@ -796,9 +815,11 @@ class CheckService:
                     for k in (
                         "id", "name", "type", "target", "interval", "timeout",
                         "expect_status", "verify_tls", "paused", "keyword", "keyword_mode",
-                        "warn_days", "slow_ms", "parent", "group", "origin", "count",
+                        "warn_days", "slow_ms", "parent", "group", "origin", "count", "max_loss",
                     )
                 },
+                "slow": spec.get("slow_ms") is not None and state.slow_streak >= FAILURES_BEFORE_DOWN,
+                "lossy": spec.get("max_loss") is not None and state.loss_streak >= FAILURES_BEFORE_DOWN,
                 "loss_pct_3h": loss_pct,
                 "jitter_ms_3h": jitter_ms,
                 "status": status,
@@ -914,6 +935,12 @@ class CheckService:
                     "incidents": state.incidents,
                     "streak": state.streak,
                     "slow_streak": state.slow_streak,
+                    "loss_streak": state.loss_streak,
+                    "quality": [
+                        [t, loss, jitter]
+                        for t, loss, jitter in state.quality
+                        if now - t < RAW_WINDOW_SECONDS
+                    ],
                     "fail_since": state.fail_since,
                 }
                 for check_id, state in self._states.items()
@@ -951,6 +978,10 @@ class CheckService:
                     })
                 state.streak = int(saved.get("streak") or 0)
                 state.slow_streak = int(saved.get("slow_streak") or 0)
+                state.loss_streak = int(saved.get("loss_streak") or 0)
+                for t, loss, jitter in saved.get("quality") or []:
+                    if now - t < RAW_WINDOW_SECONDS:
+                        state.quality.append((t, loss, jitter))
                 state.fail_since = saved.get("fail_since")
                 if state.samples:
                     t, ok, ms, detail = state.samples[-1]
