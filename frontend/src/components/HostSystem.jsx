@@ -305,14 +305,59 @@ function Power({ host }) {
   );
 }
 
-// The blocks on their own — the God-mode System tab shows them open.
-export function HostSystemPanels({ host, machine, autoCheckUpdates = false }) {
+// The blocks on their own — the God-mode System tab shows them all open.
+// `tabbed` (the server card on Advanced) shows one at a time under a tab bar,
+// opening on whatever most needs a look: the updates you came for, failed
+// services, pending updates, else the services.
+export function HostSystemPanels({ host, machine, autoCheckUpdates = false, tabbed = false }) {
+  const facts = machine.host_facts;
+  const failed = facts?.failed_units?.length || 0;
+  const pending = facts?.os_updates || 0;
+  const [tab, setTab] = useState(autoCheckUpdates || (!failed && pending) ? "updates" : "services");
+
+  const panels = {
+    services: <Services host={host} />,
+    journal: <Journal host={host} />,
+    updates: <OsUpdates host={host} facts={facts} autoCheck={autoCheckUpdates} />,
+    power: <Power host={host} />,
+  };
+
+  if (!tabbed) {
+    return (
+      <div className="hsys">
+        {panels.services}
+        {panels.journal}
+        {panels.updates}
+        {panels.power}
+      </div>
+    );
+  }
+
+  const tabs = [
+    ["updates", "OS updates", pending || null, facts?.security_updates ? "warn" : null],
+    ["services", "Services", failed || null, "bad"],
+    ["journal", "Journal", null, null],
+    ["power", "Power", facts?.reboot_required ? "!" : null, "warn"],
+  ];
+
   return (
-    <div className="hsys">
-      <Services host={host} />
-      <Journal host={host} />
-      <OsUpdates host={host} facts={machine.host_facts} autoCheck={autoCheckUpdates} />
-      <Power host={host} />
+    <div className="hsys hsys--tabbed">
+      <div className="hsys-tabs" role="tablist" aria-label="System">
+        {tabs.map(([id, label, badge, tone]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            className={tab === id ? "active" : ""}
+            onClick={() => setTab(id)}
+          >
+            {label}
+            {badge != null && <span className={`hsys-badge ${tone ? `hsys-badge--${tone}` : ""}`}>{badge}</span>}
+          </button>
+        ))}
+      </div>
+      <div className="hsys-pane">{panels[tab]}</div>
     </div>
   );
 }
@@ -340,7 +385,7 @@ function HostSystem({ host, machine, showUpdates = 0 }) {
         SYSTEM
         {failed > 0 && <span className="conn-count conn-count--bad">{failed} failed</span>}
       </button>
-      {open && <HostSystemPanels host={host} machine={machine} autoCheckUpdates={fromLink} />}
+      {open && <HostSystemPanels key={showUpdates} host={host} machine={machine} autoCheckUpdates={fromLink} tabbed />}
     </section>
   );
 }

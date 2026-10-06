@@ -7717,3 +7717,69 @@ a.sh-app:hover {
   color: var(--accent);
   text-decoration-color: var(--accent);
 }
+
+/* System on the Advanced server card: one panel at a time under a tab bar. */
+.hsys--tabbed {
+  gap: 0;
+}
+
+.hsys-tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--border);
+}
+
+.hsys-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  margin-bottom: -1px;
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+.hsys-tabs button:hover {
+  color: var(--text);
+}
+
+.hsys-tabs button.active {
+  border-bottom-color: var(--accent);
+  color: var(--text);
+}
+
+.hsys-badge {
+  padding: 0 6px;
+  background: var(--bg-raised);
+  border-radius: var(--radius-pill);
+  color: var(--text-muted);
+  font: 600 var(--fs-2xs) / 16px var(--mono);
+}
+
+.hsys-badge--warn {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.hsys-badge--bad {
+  background: var(--offline-bg);
+  color: var(--offline);
+}
+
+.hsys-pane {
+  padding-top: 10px;
+}
+
+.hsys-pane .hsys-block h4 {
+  display: none;
+}
+
+.hsys-pane .hsys-list,
+.hsys-pane .hsys-journal {
+  max-height: 300px;
+}
