@@ -99,7 +99,7 @@ def _covered(existing: list[dict]) -> tuple[set[str], set[tuple[str, int]], set[
     return names, pairs, pinged
 
 
-def suggest(containers: list[dict], nodes: dict, lan: dict, existing: list[dict], skip: set[str]) -> list[dict]:
+def suggest(containers: dict[str, list], nodes: dict, lan: dict, existing: list[dict], skip: set[str]) -> list[dict]:
     names, pairs, pinged = _covered(existing)
     out: list[dict] = []
 
@@ -113,9 +113,11 @@ def suggest(containers: list[dict], nodes: dict, lan: dict, existing: list[dict]
             "reason": "is this machine reachable",
         })
 
-    for container in sorted(containers, key=lambda c: (c.get("host") or "", c.get("name") or "")):
-        host, name = container.get("host"), container.get("name")
-        if not host or not name or container.get("status") != "running" or host not in nodes:
+    # The snapshot's shape: host -> that host's container list.
+    flat = [(host, c) for host, items in (containers or {}).items() for c in items or []]
+    for host, container in sorted(flat, key=lambda hc: (hc[0], hc[1].get("name") or "")):
+        name = container.get("name")
+        if not name or container.get("status") != "running" or host not in nodes:
             continue
         port = _main_port(container.get("ports") or {})
         if port is None:

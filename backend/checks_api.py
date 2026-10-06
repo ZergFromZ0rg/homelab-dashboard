@@ -45,7 +45,7 @@ async def _suggestions() -> list[dict]:
     snapshot = await main.shared_update()
     lan = (await asyncio.to_thread(lan_nodes))["nodes"]
     return check_suggestions.suggest(
-        snapshot.get("containers") or [],
+        snapshot.get("containers") or {},
         registry.all(),
         lan,
         checks.service.store.all(),

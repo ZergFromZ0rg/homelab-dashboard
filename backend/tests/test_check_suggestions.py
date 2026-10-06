@@ -12,7 +12,15 @@ def box(host, name, ports=None, status="running"):
     return {"host": host, "name": name, "status": status, "ports": ports or {}}
 
 
-CONTAINERS = [
+def grouped(items):
+    """The snapshot's shape: host -> list (the containers carry no host)."""
+    out = {}
+    for item in items:
+        out.setdefault(item["host"], []).append({k: v for k, v in item.items() if k != "host"})
+    return out
+
+
+CONTAINERS = grouped([
     box("bigboy", "jellyfin", {"8096/tcp": ["8096"]}),
     box("bigboy", "qbittorrent", {"6881/tcp": ["6881"], "6881/udp": ["6881"], "8080/tcp": ["8080"]}),
     box("bigboy", "postgres", {"5432/tcp": ["5432"]}),
@@ -20,7 +28,7 @@ CONTAINERS = [
     box("bigboy", "stopped", {"9000/tcp": ["9000"]}, status="exited"),
     box("ghost", "nowhere", {"80/tcp": ["80"]}),
     box("thinkpad", "udp-only", {"53/udp": ["53"]}),
-]
+])
 
 
 def by_key(items):
@@ -43,7 +51,7 @@ def test_hosts_and_container_ports_are_suggested():
 
 
 def test_falls_back_to_the_agent_url_host_without_lan_addresses():
-    found = by_key(cs.suggest([], NODES, {}, [], set()))
+    found = by_key(cs.suggest({}, NODES, {}, [], set()))
     assert found["host:bigboy"]["target"] == "100.72.0.9"
 
 
@@ -59,7 +67,7 @@ def test_existing_checks_and_dismissals_hide_suggestions():
 
 
 def test_https_ports_use_https_and_skip_certificate_errors():
-    item = cs.suggest([box("bigboy", "proxy", {"443/tcp": ["443"]})], NODES, LAN, [], {"host:bigboy", "host:thinkpad"})[0]
+    item = cs.suggest(grouped([box("bigboy", "proxy", {"443/tcp": ["443"]})]), NODES, LAN, [], {"host:bigboy", "host:thinkpad"})[0]
     assert item["target"] == "https://192.168.0.10:443" and item["verify_tls"] is False
 
 
