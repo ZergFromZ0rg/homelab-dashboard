@@ -1,4 +1,4 @@
-import { DEMO, demoCheckHistory, demoIncidents, demoSuggestions } from "../demoData";
+import { DEMO, demoCheckHistory, demoIncidents, demoMatrix, demoSuggestions } from "../demoData";
 import { jsonOrThrow } from "./apiAuth";
 
 function send(method, url, body) {
@@ -28,6 +28,11 @@ export function fetchIncidents(hours = 168) {
 export function fetchSuggestions() {
   if (DEMO) return Promise.resolve({ suggestions: demoSuggestions() });
   return fetch("/api/checks/suggestions").then(jsonOrThrow);
+}
+
+export function fetchMatrix() {
+  if (DEMO) return Promise.resolve(demoMatrix());
+  return fetch("/api/checks/matrix").then(jsonOrThrow);
 }
 
 export const acceptSuggestions = (keys) => send("POST", "/api/checks/suggestions/accept", { keys });

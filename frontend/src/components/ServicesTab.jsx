@@ -3,6 +3,7 @@ import CheckCard from "./CheckCard";
 import CheckForm from "./CheckForm";
 import CheckIncidents from "./CheckIncidents";
 import CheckSuggestions from "./CheckSuggestions";
+import LatencyMatrix from "./LatencyMatrix";
 import { createCheck } from "./checksApi";
 import { arrange, isAnswering, isBehind, isRootDown } from "./checkStatus";
 import { formatLatency } from "./format";
@@ -79,6 +80,8 @@ function ServicesTab({ checks, connected, hosts = [] }) {
       )}
 
       {showIncidents && <CheckIncidents now={now} />}
+
+      <LatencyMatrix />
 
       <CheckSuggestions />
 

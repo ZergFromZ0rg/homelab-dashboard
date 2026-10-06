@@ -8964,3 +8964,50 @@ a.lan-port--web:hover {
   color: var(--warning);
   font-weight: 700;
 }
+
+/* ----- Services: latency between hosts ----- */
+
+.latency-matrix {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 10px;
+  padding: 4px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--fs-sm);
+}
+
+.latency-matrix-row {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) repeat(var(--cols), minmax(70px, 1fr));
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 0;
+}
+
+.latency-matrix-row + .latency-matrix-row {
+  border-top: 1px solid var(--border);
+}
+
+.latency-matrix-corner {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+
+.latency-matrix-host {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.latency-matrix-cell {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.latency-matrix-cell--up { color: var(--online); }
+.latency-matrix-cell--slow { color: var(--warning); }
+.latency-matrix-cell--down { color: var(--offline); }
+.latency-matrix-cell--none { color: var(--text-faint); }

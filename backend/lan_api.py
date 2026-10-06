@@ -7,6 +7,8 @@ probing, so it needs the same gate as the other changing routes.
 
 from __future__ import annotations
 
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 
 import requests
@@ -60,24 +62,43 @@ def scan_start(host: str, body: dict | None = None, x_register_token: str | None
 nodes_router = APIRouter()
 
 
-def _identity(item: tuple[str, dict]) -> tuple[str, list]:
+def _identity(item: tuple[str, dict]) -> tuple[str, list, str | None]:
     name, node = item
     try:
         response = requests.get(
             f"{node['url'].rstrip('/')}/network/self", headers=agent_headers(), timeout=15
         )
         if response.ok:
-            return name, response.json().get("addresses", [])
+            body = response.json()
+            return name, body.get("addresses", []), body.get("gateway")
     except (requests.RequestException, ValueError):
         pass
-    return name, []
+    return name, [], None
+
+
+# Suggestions and the latency matrix both ask; the agents cache a minute
+# themselves, this just stops a poll from fanning out to every one of them.
+IDENTITY_TTL = 30.0
+_identity_cache: tuple[float, dict] | None = None
+_identity_lock = threading.Lock()
 
 
 @nodes_router.get("/api/lan-nodes")
 def lan_nodes():
-    """Every node's own private LAN addresses — how a scan result is told
-    apart as "that's bigboy". Agents too old to answer just have no entry."""
+    """Every node's own private LAN addresses and default gateway — how a
+    scan result is told apart as "that's bigboy", and what each host's router
+    is. Agents too old to answer just have no entry."""
+    global _identity_cache
+    with _identity_lock:
+        if _identity_cache and time.monotonic() - _identity_cache[0] < IDENTITY_TTL:
+            return _identity_cache[1]
     items = list(registry.all().items())
     with ThreadPoolExecutor(max(1, len(items))) as pool:
-        found = dict(pool.map(_identity, items))
-    return {"nodes": {name: addrs for name, addrs in found.items() if addrs}}
+        found = list(pool.map(_identity, items))
+    out = {
+        "nodes": {name: addrs for name, addrs, _ in found if addrs},
+        "gateways": {name: gateway for name, _, gateway in found if gateway},
+    }
+    with _identity_lock:
+        _identity_cache = (time.monotonic(), out)
+    return out

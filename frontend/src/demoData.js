@@ -493,10 +493,20 @@ export function demoSuggestions() {
   return [
     { key: "host:bigboy", group: "Hosts", name: "bigboy", type: "ping", target: "192.168.0.10", reason: "is this machine reachable" },
     { key: "host:thinkpad", group: "Hosts", name: "thinkpad", type: "ping", target: "192.168.0.132", reason: "is this machine reachable" },
+    { key: "link:thinkpad:bigboy", group: "Between hosts", name: "thinkpad → bigboy", type: "ping", target: "192.168.0.10", origin: "thinkpad", reason: "latency from thinkpad to bigboy" },
+    { key: "gateway:192.168.0.1", group: "Network", name: "Router 192.168.0.1", type: "ping", target: "192.168.0.1", origin: "bigboy", reason: "bigboy's default gateway" },
     { key: "container:bigboy:qbittorrent", group: "bigboy", name: "qbittorrent", type: "http", target: "http://192.168.0.10:8080", reason: "qbittorrent on bigboy, port 8080" },
     { key: "container:bigboy:sonarr", group: "bigboy", name: "sonarr", type: "http", target: "http://192.168.0.10:8989", reason: "sonarr on bigboy, port 8989" },
     { key: "container:bigboy:radarr", group: "bigboy", name: "radarr", type: "http", target: "http://192.168.0.10:7878", reason: "radarr on bigboy, port 7878" },
   ];
+}
+
+// Mirrors GET /api/checks/matrix.
+export function demoMatrix() {
+  const cell = (from, to, ms) => ({
+    from, to, id: `m-${from}-${to}`, status: "up", latency_ms: ms, p95_ms_24h: ms * 2.2, uptime_24h: 100, detail: "reply",
+  });
+  return { hosts: ["bigboy", "thinkpad"], cells: [cell("bigboy", "thinkpad", 0.9), cell("thinkpad", "bigboy", 1.3)] };
 }
 
 // Mirrors GET /api/checks/incidents.

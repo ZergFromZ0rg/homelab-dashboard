@@ -68,6 +68,7 @@ function CheckSuggestions() {
                     <input type="checkbox" checked={chosen.has(i.key)} onChange={() => toggle(i.key)} />
                     <strong>{i.name}</strong>
                     <span className="chip">{TYPE_LABEL[i.type]}</span>
+                    {i.origin && <span className="chip" title={`Runs from ${i.origin}'s agent`}>from {i.origin}</span>}
                     <code>{i.target}</code>
                   </label>
                 ))}

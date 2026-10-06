@@ -43,14 +43,26 @@ async def _suggestions() -> list[dict]:
     from backend.registry import registry
 
     snapshot = await main.shared_update()
-    lan = (await asyncio.to_thread(lan_nodes))["nodes"]
+    identity = await asyncio.to_thread(lan_nodes)
     return check_suggestions.suggest(
         snapshot.get("containers") or {},
         registry.all(),
-        lan,
+        identity["nodes"],
         checks.service.store.all(),
         check_suggestions.dismissed.all(),
+        identity.get("gateways"),
     )
+
+
+@router.get("/api/checks/matrix")
+async def latency_matrix():
+    """Ping latency between every pair of hosts, from the checks that run
+    one host's agent against another."""
+    from backend.lan_api import lan_nodes
+    from backend.registry import registry
+
+    identity = await asyncio.to_thread(lan_nodes)
+    return check_suggestions.matrix(checks.service.summaries(), registry.all(), identity["nodes"])
 
 
 @router.get("/api/checks/suggestions")
