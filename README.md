@@ -624,6 +624,46 @@ A build takes minutes, so the button starts a job and polls
 with the failing step's output on hover, or `handed_off`. One rebuild at a
 time per host.
 
+## Automatic updates from Git
+
+Open **Containers → Automatic updates** to see the Git repositories running
+on your registered machines, including this dashboard. Each agent discovers
+the checkout and Compose project from its containers, so you don't enter an
+IP address, repository URL or path. Turn on the projects you want to follow;
+services in one Compose project share one switch. Nothing is selected by
+default.
+
+The host checks the selected upstream branch every 15 seconds. After a push,
+it fast-forwards the checkout, builds the images, then replaces the containers
+and waits for them to be running (healthy where healthchecks exist). The first
+enable also deploys once to establish which commit is actually running.
+Detection normally takes about 15 seconds, plus build time; this is polling,
+not an instantaneous GitHub webhook. The browser and dashboard don't have to
+stay open: selections and deployment results live on each agent's data volume,
+and a separate helper can finish even when the agent itself is replaced.
+
+The card shows the branch, update state, latest successful commit and failures.
+Failed updates retry after a minute. Local edits, untracked files and diverged
+or locally-ahead branches stop the update instead of being discarded. A change
+to the selected remote, branch or Compose files requires turning the selection
+off and on again. Turning it off stops future updates; a build already running
+finishes. There is no automatic rollback after a failed container start.
+
+This needs the new `homelab-agent` on each participating machine once, with
+`REBUILD_ENABLED=1` and its existing host filesystem/Docker mounts. Older agents
+are shown with an update instruction. Discovery currently covers Compose
+projects started at the root of a normal Git clone, with Compose/environment
+files and build contexts inside that checkout. Linked worktrees, submodules,
+Compose profiles and additional/external build contexts are not supported.
+Public HTTP(S) remotes work, including public SSH remotes read over HTTPS;
+private repositories need credentials that these helpers do not currently
+receive. Unsupported projects or fetch failures are explained in the card.
+
+API: `GET /api/git-updates` discovers projects across registered agents;
+`PUT /api/git-updates/{host}/{project_id}` with `{"enabled": true|false}`
+changes a selection. It uses the same login/token and optional passkey
+confirmation as a manual rebuild.
+
 ## Volume backups
 
 The config backup each agent already runs covers how a stack is *defined* —

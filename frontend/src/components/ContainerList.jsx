@@ -11,6 +11,7 @@ import { hostColor } from "./hostColor";
 import { useSettings } from "./settings";
 import Icon from "./Icon";
 import { useTerminal } from "./terminalContext";
+import GitUpdates from "./GitUpdates";
 
 const STATUS_FILTERS = [
   { value: "all", label: "All" },
@@ -316,6 +317,7 @@ function ContainerList({
         hosts.some((h) => terminal?.available(h)) ? "containers-section--shell" : "",
       ].join(" ")}
     >
+      <GitUpdates machines={machines} />
       {hosts.length === 0 ? (
         <div className="empty-state">
           {connected === false

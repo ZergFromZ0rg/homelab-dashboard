@@ -91,6 +91,7 @@ _LABELS = [
     (r"^/api/disk/[^/]+/delete$", lambda m: "deleted"),
     (r"^/api/rebuild/[^/]+$", lambda m: "rebuild"),
     (r"^/api/fleet/rebuild$", lambda m: "fleet rebuild"),
+    (r"^/api/git-updates/[^/]+/[^/]+$", lambda m: "automatic repository updates changed"),
     (r"^/api/hosts/[^/]+/power$", lambda m: "host power"),
     (r"^/api/hosts/[^/]+/services/", lambda m: "service action"),
     (r"^/api/hosts/[^/]+/os-updates", lambda m: "OS update"),
@@ -110,7 +111,7 @@ _LABELS = [
 ]
 _LABELS = [(re.compile(p), f) for p, f in _LABELS]
 
-_HOST = re.compile(r"^/api/(?:containers|compose|updates|files|disk|rebuild|hosts|networks)/([^/]+)")
+_HOST = re.compile(r"^/api/(?:containers|compose|updates|git-updates|files|disk|rebuild|hosts|networks)/([^/]+)")
 
 
 _WRITES = {  # the same path, changing rather than reading

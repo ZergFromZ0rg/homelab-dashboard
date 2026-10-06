@@ -466,6 +466,35 @@ per-container stat errors).
 
 ## Updating
 
+### Automatically after a push
+
+Update the dashboard and participating `homelab-agent` installations once
+using the commands below so both sides support automatic Git updates. Each
+agent needs `REBUILD_ENABLED=1`; its data volume retains your selections.
+
+Then open **Containers → Automatic updates**. The dashboard asks its registered
+agents which Compose projects are running from Git clones and groups them by
+machine. Enable this dashboard's project and any other discovered projects you
+want to follow. No machine address or checkout path needs to be entered.
+
+The agent checks the selected upstream branch every 15 seconds and pulls/builds
+on a new commit. Enabling a project deploys once initially. It builds before
+replacing containers, preserves volumes and records success only after Compose
+reports the services running/healthy. Local edits and branches that cannot
+fast-forward are left alone; failures are shown in the card and retried after
+a minute. The workers continue through dashboard restarts and retain the
+outcome of a helper that replaced its own agent. Turning a project off stops
+future builds; an in-progress build finishes.
+
+Only public remotes are currently fetchable without additional credentials.
+The project must run from the root of a normal Git clone with its Compose/env
+files and build contexts inside it. Worktrees, submodules, profiles and
+additional/external build contexts are unsupported. See
+[Automatic updates from Git](../README.md#automatic-updates-from-git) for the
+full behavior and API.
+
+### Manually
+
 ```bash
 # dashboard
 cd homelab-dashboard && git pull && docker compose up -d --build
