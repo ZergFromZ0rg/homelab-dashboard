@@ -2,12 +2,14 @@ import DiskExplorer from "./DiskExplorer";
 import { diskLabel } from "./diskLabel";
 import { hostColor } from "./hostColor";
 import { useLocalStorage } from "./useLocalStorage";
+import { useFitHeight } from "./useFitHeight";
 
-// The file browser as a tab (Advanced / God): pick a server, jump to its
-// home, / or any of its disks, and browse, preview, upload, download and
-// delete like on the server card. `target` ({host, path, n}) opens a
+// The file browser as a tab (Advanced / God): servers and their places (home
+// and each disk, with how full it is) down the left, the folder on the right,
+// and browse, preview, upload, download and delete like on the server card. `target` ({host, path, n}) opens a
 // specific folder — how "Kept in …" on a backup lands here.
 function FilesTab({ machines, connected, target, onTargetUsed }) {
+  const fit = useFitHeight();
   const hosts = Object.keys(machines)
     .filter((h) => machines[h].agent_reachable)
     .sort();
@@ -34,18 +36,29 @@ function FilesTab({ machines, connected, target, onTargetUsed }) {
   const disks = [...(machines[host].filesystems || [])].sort((a, b) =>
     a.mountpoint.localeCompare(b.mountpoint)
   );
+  const places = [
+    { key: "~", label: "Home", path: "~" },
+    ...disks.map((fs) => ({
+      key: fs.mountpoint,
+      label: fs.mountpoint === "/" ? "System /" : diskLabel(fs),
+      path: fs.mountpoint,
+      title: `${fs.mountpoint} (${fs.device})`,
+      pct: fs.used_percent,
+    })),
+  ];
+  const active = places.find((pl) => pl.path === path)?.key ?? null;
 
   return (
-    <section className="files-tab">
-      <div className="system-bar">
-        <div className="net-hosts" role="tablist" aria-label="Server">
+    <section className="files-tab" ref={fit}>
+      <aside className="files-side">
+        <div className="files-hosts" role="tablist" aria-label="Server">
           {hosts.map((h) => (
             <button
               key={h}
               type="button"
               role="tab"
               aria-selected={h === host}
-              className={`net-host-tab ${h === host ? "active" : ""}`}
+              className={`files-host ${h === host ? "active" : ""}`}
               style={{ "--host-color": hostColor(h) }}
               onClick={() => go(h, "~")}
             >
@@ -54,26 +67,34 @@ function FilesTab({ machines, connected, target, onTargetUsed }) {
             </button>
           ))}
         </div>
-        <div className="files-jumps">
-          <button type="button" className="btn btn--sm" onClick={() => go(host, "~")}>Home</button>
-          <button type="button" className="btn btn--sm" onClick={() => go(host, "/")}>/</button>
-          {disks
-            .filter((fs) => fs.mountpoint !== "/")
-            .map((fs) => (
-              <button
-                key={fs.mountpoint}
-                type="button"
-                className="btn btn--sm"
-                title={`${fs.mountpoint} (${fs.device})`}
-                onClick={() => go(host, fs.mountpoint)}
-              >
-                {diskLabel(fs)}
-              </button>
-            ))}
-        </div>
-      </div>
 
-      <DiskExplorer key={`${host}:${path}:${wanted?.n ?? ""}`} host={host} start={path} />
+        <div className="files-places">
+          <h3>Places</h3>
+          {places.map((pl) => (
+            <button
+              key={pl.key}
+              type="button"
+              className={`files-place ${active === pl.key ? "active" : ""}`}
+              title={pl.title}
+              onClick={() => go(host, pl.path)}
+            >
+              <span className="files-place-name">{pl.label}</span>
+              {pl.pct != null && (
+                <>
+                  <span className="files-place-pct">{Math.round(pl.pct)}%</span>
+                  <span className={`files-place-bar ${pl.pct >= 90 ? "crit" : pl.pct >= 70 ? "warn" : ""}`}>
+                    <span style={{ width: `${Math.min(100, pl.pct)}%` }} />
+                  </span>
+                </>
+              )}
+            </button>
+          ))}
+        </div>
+      </aside>
+
+      <div className="files-main">
+        <DiskExplorer key={`${host}:${path}:${wanted?.n ?? ""}`} host={host} start={path} />
+      </div>
     </section>
   );
 }
