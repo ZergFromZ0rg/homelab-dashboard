@@ -33,6 +33,7 @@ function container(id, name, image, host, o = {}) {
     restart_count: o.restarts ?? 0,
     ports: o.ports ?? {},
     compose_project: o.project ?? null,
+    update: o.update ? { state: "available", can_update: true } : undefined,
     deployed_by: o.deployedBy ?? null,
     stats: {
       cpu_percent: o.cpu ?? 1.2,
@@ -582,14 +583,14 @@ function fullSnapshot() {
     bigboy: [
       container("a1", "jellyfin", "jellyfin/jellyfin:latest", "bigboy", {
         cpu: 22.5, ramMb: 1400, limitMb: 4096, ports: { "8096/tcp": ["8096"] },
-        rx: 3_200_000, tx: 18_000_000, live: { app: "jellyfin", detail: "2 users streaming" },
+        rx: 3_200_000, tx: 18_000_000, live: { app: "jellyfin", detail: "2 users streaming" }, update: true,
       }),
       container("a2", "qbittorrent", "lscr.io/linuxserver/qbittorrent:latest", "bigboy", {
         cpu: 6.8, ramMb: 610, ports: { "8080/tcp": ["8080"] },
         rx: 9_500_000, tx: 1_100_000, live: { app: "qbittorrent", detail: "3 downloading, 5 seeding" },
       }),
-      container("a3", "sonarr", "lscr.io/linuxserver/sonarr:latest", "bigboy", { cpu: 0.8, ramMb: 380, ports: { "8989/tcp": ["8989"] } }),
-      container("a4", "radarr", "lscr.io/linuxserver/radarr:latest", "bigboy", { cpu: 0.6, ramMb: 340, ports: { "7878/tcp": ["7878"] } }),
+      container("a3", "sonarr", "lscr.io/linuxserver/sonarr:latest", "bigboy", { update: true, cpu: 0.8, ramMb: 380, ports: { "8989/tcp": ["8989"] } }),
+      container("a4", "radarr", "lscr.io/linuxserver/radarr:latest", "bigboy", { update: true, cpu: 0.6, ramMb: 340, ports: { "7878/tcp": ["7878"] } }),
       container("a5", "postgres", "postgres:16", "bigboy", { cpu: 1.4, ramMb: 220, limitMb: 1024, health: "healthy" }),
       container("a6", "homelab-agent", "homelab-agent", "bigboy", { cpu: 0.4, ramMb: 60, rebuild: { project: "homelab", service: "homelab-agent", remote: "https://github.com/zerg/homelab-agent.git", can_pull: true } }),
       container("a7", "watchtower", "containrrr/watchtower", "bigboy", { status: "exited", cpu: 0, ramMb: 0, upHours: 200 }),
@@ -721,8 +722,8 @@ function fullSnapshot() {
           action: { method: "POST", url: "/api/hosts/bigboy/os-updates/upgrade", confirm: "Install 109 updates on bigboy?" }
         },
         {
-          id: "container_updates:bigboy", type: "container_updates", title: "Update 3 containers on bigboy", subtitle: "nginx, redis, jellyfin", host: "bigboy", button_label: "Update all",
-          action: { method: "POST", url: "/api/updates/bigboy", body: { containers: ["nginx", "redis", "jellyfin"] }, confirm: "Update 3 containers on bigboy?" }
+          id: "container_updates:bigboy", type: "container_updates", title: "Update 3 containers on bigboy", subtitle: "jellyfin, sonarr, radarr", host: "bigboy", button_label: "Update all",
+          action: { method: "POST", url: "/api/updates/bigboy", body: { containers: ["jellyfin", "sonarr", "radarr"] }, confirm: "Update 3 containers on bigboy?" }
         }
       ]
     },

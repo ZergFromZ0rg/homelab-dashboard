@@ -7691,3 +7691,29 @@ a.sh-app:hover {
 .mb-seeall:hover {
   text-decoration: underline;
 }
+
+/* An item's title as the link to its details. */
+.mb-action-link {
+  display: block;
+  max-width: 100%;
+  padding: 0;
+  overflow: hidden;
+  background: none;
+  border: 0;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-md);
+  font-weight: 600;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: var(--border-strong);
+  text-overflow: ellipsis;
+  text-underline-offset: 3px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.mb-action-link:hover {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
+}

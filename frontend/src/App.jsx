@@ -449,11 +449,22 @@ function App() {
 
   // Anything that says "go look at X" (Attention → View, Quick actions →
   // Containers) funnels through here.
-  const navigate = (target, { container, host, path, action } = {}) => {
+  const navigate = (target, { container, host, path, action, filter } = {}) => {
     if (target === "settings") return setSettingsOpen(true);
     if (container) {
       try {
         localStorage.setItem("homelab.containerSearch", JSON.stringify(container));
+      } catch {
+        // no storage: the tab still opens, just unfiltered
+      }
+      setContainersKey((k) => k + 1);
+    }
+    if (filter) {
+      // Open Containers already narrowed (e.g. "updates"), search cleared so
+      // an old query can't hide the rows.
+      try {
+        localStorage.setItem("homelab.containerStatusFilter", JSON.stringify(filter));
+        localStorage.setItem("homelab.containerSearch", JSON.stringify(""));
       } catch {
         // no storage: the tab still opens, just unfiltered
       }

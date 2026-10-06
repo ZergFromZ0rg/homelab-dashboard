@@ -56,7 +56,13 @@ function DegradingList({ degrading, onNavigate }) {
             className={`mb-item mb-item--${item.severity}`}
             title={item.detail}
             disabled={!item.host}
-            onClick={() => onNavigate("servers", { host: item.host })}
+            onClick={() =>
+              onNavigate("servers", {
+                host: item.host,
+                // The pending-updates line opens the package list itself.
+                action: item.key?.startsWith("os_updates:") ? "os-updates" : undefined,
+              })
+            }
           >
             <span className={`status-dot status-dot--${item.severity === "info" ? "none" : item.severity}`} />
             <span className="mb-text">{item.title}</span>
@@ -108,7 +114,7 @@ function detailsTarget(item) {
   if (item.type === "os_upgrade" || item.type === "reboot") {
     return ["servers", { host: item.host, action: "os-updates" }];
   }
-  if (item.type === "container_updates") return ["containers", {}];
+  if (item.type === "container_updates") return ["containers", { filter: "updates" }];
   return null;
 }
 
@@ -139,13 +145,19 @@ function ActionQueue({ actions, machines, now, onNavigate }) {
       {items.map((item) => (
         <li key={item.id} className="mb-action-card">
           <div className="mb-action-info">
-            <strong title={item.title}>{item.title}</strong>
-            {item.subtitle && <span title={item.subtitle}>{item.subtitle}</span>}
-            {detailsTarget(item) && (
-              <button type="button" className="mb-seeall" onClick={() => onNavigate(...detailsTarget(item))}>
-                Details in Advanced →
+            {detailsTarget(item) ? (
+              <button
+                type="button"
+                className="mb-action-link"
+                title={`${item.title} — see the details in Advanced`}
+                onClick={() => onNavigate(...detailsTarget(item))}
+              >
+                {item.title}
               </button>
+            ) : (
+              <strong title={item.title}>{item.title}</strong>
             )}
+            {item.subtitle && <span title={item.subtitle}>{item.subtitle}</span>}
           </div>
           {runs[item.id] ? (
             <RunStatus run={runs[item.id]} now={now} onDismiss={() => dismiss(item.id)} />

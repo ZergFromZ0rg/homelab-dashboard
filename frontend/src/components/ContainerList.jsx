@@ -18,6 +18,7 @@ const STATUS_FILTERS = [
   { value: "running", label: "Running" },
   { value: "attention", label: "Needs attention" },
   { value: "stopped", label: "Stopped" },
+  { value: "updates", label: "Updates" },
 ];
 
 // Attention rows (unhealthy / restart-looping) float to the top of a host
@@ -96,6 +97,8 @@ function matchesStatus(container, filter, restartThreshold) {
       return container.status !== "running";
     case "attention":
       return needsAttention(container, restartThreshold);
+    case "updates":
+      return container.update?.state === "available" || Boolean(container.update?.can_update);
     default:
       return true;
   }
