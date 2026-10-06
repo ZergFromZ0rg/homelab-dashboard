@@ -6,6 +6,7 @@ import FirstRun from "./FirstRun";
 import { Meter } from "./HostSummary";
 import { IconButton } from "./Icon";
 import TodoList from "./TodoList";
+import WeatherCard from "./WeatherCard";
 import { containerUrl } from "./containerLink";
 import { diskLabel } from "./diskLabel";
 import { formatBytes } from "./format";
@@ -423,6 +424,7 @@ function SimpleHome({
         <aside className="sh-col sh-col--left">
           <Clock />
           {show.calendar && <CalendarCard />}
+          {show.weather && <WeatherCard />}
           {show.todo && (
             <Card title="To-do" count={openTodos || null} className="sh-todo sh-fill">
               <TodoList todos={todos} onChange={onSetTodos} compact />
