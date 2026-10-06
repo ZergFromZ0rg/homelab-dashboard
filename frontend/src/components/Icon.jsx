@@ -72,6 +72,25 @@ const PATHS = {
       <path d="M9.5 13h5" />
     </>
   ),
+  filePlus: (
+    <>
+      <path d="M6.5 3.5h7l4 4v12a1 1 0 0 1-1 1h-10a1 1 0 0 1-1-1v-15a1 1 0 0 1 1-1z" />
+      <path d="M12 11v5" />
+      <path d="M9.5 13.5h5" />
+    </>
+  ),
+  copy: (
+    <>
+      <rect x="8.5" y="8.5" width="11" height="11" rx="1.5" />
+      <path d="M15.5 8.5v-3a1 1 0 0 0-1-1h-9a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h3" />
+    </>
+  ),
+  move: (
+    <>
+      <path d="M4 12h15" />
+      <path d="M14 7l5 5-5 5" />
+    </>
+  ),
   logs: (
     <>
       <path d="M5 6h14" />

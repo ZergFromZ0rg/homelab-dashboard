@@ -124,3 +124,17 @@ def test_changes_need_the_token_when_one_is_set(web, calls, monkeypatch):
     assert ok.status_code == 200
     # Reading stays open to the session.
     assert web.get("/api/files/box/list").status_code == 200
+
+
+@pytest.mark.parametrize("route", ["newfile", "move", "copy"])
+def test_new_changes_are_gated_and_forwarded(web, calls, monkeypatch, route):
+    monkeypatch.setattr(auth, "API_TOKEN", "s3cret")
+    answer(monkeypatch, calls, FakeResponse(json_body={"success": True}))
+    body = {"path": "/x", "dest": "/y"}
+
+    assert web.post(f"/api/files/box/{route}", json=body).status_code == 401
+    ok = web.post(f"/api/files/box/{route}", json=body, headers={"X-Register-Token": "s3cret"})
+
+    assert ok.status_code == 200
+    assert calls[-1][:2] == ("POST", f"http://agent:8123/files/{route}")
+    assert calls[-1][3] == body

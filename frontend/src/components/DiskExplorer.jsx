@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Icon, { IconButton } from "./Icon";
 import FileViewer from "./FileViewer";
 import { deleteDiskPath, fetchDiskUsage } from "./diskApi";
-import { downloadUrl, listFolder, makeFolder, renameEntry, uploadFile } from "./filesApi";
+import { copyEntry, downloadUrl, listFolder, makeFile, makeFolder, moveEntry, renameEntry, uploadFile } from "./filesApi";
 import { formatAge, formatBytes } from "./format";
 import { useNow } from "./useNow";
 
@@ -247,6 +247,29 @@ function DiskExplorer({ host, start = "~", onClose }) {
     act(entry.path, () => renameEntry(host, entry.path, name.trim()), () => `Renamed to ${name.trim()}.`);
   };
 
+  // A destination typed without a leading slash is relative to this folder.
+  const toPath = (typed) => (typed.startsWith("/") ? typed : join(path, typed));
+
+  const move = (entry) => {
+    const typed = window.prompt(`Move ${entry.name} to (a full path, or a name in this folder):`, entry.path);
+    if (!typed?.trim() || toPath(typed.trim()) === entry.path) return;
+    const dest = toPath(typed.trim());
+    act(entry.path, () => moveEntry(host, entry.path, dest), () => `Moved to ${dest}.`);
+  };
+
+  const copy = (entry) => {
+    const typed = window.prompt(`Copy ${entry.name} to (a full path, or a name in this folder):`, `${entry.path} copy`);
+    if (!typed?.trim()) return;
+    const dest = toPath(typed.trim());
+    act(entry.path, () => copyEntry(host, entry.path, dest), () => `Copied to ${dest}.`);
+  };
+
+  const newFile = () => {
+    const name = window.prompt("New file name:");
+    if (!name?.trim()) return;
+    act("mkdir", () => makeFile(host, join(path, name.trim())), () => `Made ${name.trim()}.`);
+  };
+
   const newFolder = () => {
     const name = window.prompt("New folder name:");
     if (!name?.trim()) return;
@@ -326,6 +349,7 @@ function DiskExplorer({ host, start = "~", onClose }) {
         </span>
         {writable && !opened && (
           <>
+            <IconButton icon="filePlus" label="New file" onClick={newFile} disabled={Boolean(busy)} />
             <IconButton icon="folderPlus" label="New folder" onClick={newFolder} disabled={Boolean(busy)} />
             <IconButton
               icon="upload"
@@ -449,15 +473,31 @@ function DiskExplorer({ host, start = "~", onClose }) {
                         <Icon name="download" />
                       </a>
                     )}
-                    {writable && e.kind !== "mount" && (
+                    {(e.kind === "file" || e.kind === "dir") && (
                       <IconButton
-                        icon="edit"
-                        label={`Rename ${e.name}`}
+                        icon="copy"
+                        label={`Copy ${e.name}`}
                         disabled={Boolean(busy)}
-                        onClick={() => rename(e)}
+                        onClick={() => copy(e)}
                       />
                     )}
-                    {e.kind !== "mount" && (
+                    {writable && e.kind !== "mount" && (
+                      <>
+                        <IconButton
+                          icon="edit"
+                          label={`Rename ${e.name}`}
+                          disabled={Boolean(busy)}
+                          onClick={() => rename(e)}
+                        />
+                        <IconButton
+                          icon="move"
+                          label={`Move ${e.name}`}
+                          disabled={Boolean(busy)}
+                          onClick={() => move(e)}
+                        />
+                      </>
+                    )}
+                    {writable && e.kind !== "mount" && (
                       <IconButton
                         icon="trash"
                         label={busy === e.path ? "Working…" : `Delete ${e.name}`}

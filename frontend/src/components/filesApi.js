@@ -2,8 +2,9 @@ import { DEMO, demoDiskUsage } from "../demoData";
 import { AUTH_REQUIRED_EVENT, jsonOrThrow } from "./apiAuth";
 
 // /api/files/{host}/... — the file browser. Reads work anywhere; changes
-// only inside the host's writable roots (its owner's home and the compose
-// stack folders), and the agent says why when it refuses. A 409 is a
+// where the agent's one rule allows (under a root such as the owner's home
+// and the compose folders, or in a folder not owned by root), and the agent
+// says why when it refuses. A 409 is a
 // conflict (exists already / changed on disk) and carries `conflict: true`
 // so the caller can offer to overwrite.
 
@@ -70,6 +71,12 @@ export const saveText = (host, path, content, modified) =>
   post(host, "text", { path, content, modified }, "PUT");
 
 export const renameEntry = (host, path, name) => post(host, "rename", { path, name });
+
+export const moveEntry = (host, path, dest) => post(host, "move", { path, dest });
+
+export const copyEntry = (host, path, dest) => post(host, "copy", { path, dest });
+
+export const makeFile = (host, path) => post(host, "newfile", { path });
 
 export const makeFolder = (host, path) => post(host, "mkdir", { path });
 

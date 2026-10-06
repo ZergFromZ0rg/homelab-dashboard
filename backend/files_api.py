@@ -1,7 +1,7 @@
 """File browser routes, proxied to each homelab-agent's ``/files/*``.
 
-The agent does the work and the refusing — reads anywhere, writes only
-under its roots (the owner's home and the compose stack folders), as the
+The agent does the work and the refusing — reads anywhere, and one rule
+decides every change (create, rename, move, copy-to, delete), run as the
 file's owner. See homelab-agent's files.py. This passes requests through,
 keeps the agent's status (400 refused, 409 conflict) and error text, and
 streams bytes both ways rather than holding a file in memory.
@@ -85,6 +85,24 @@ def rename(host: str, body: dict, x_register_token: str | None = Header(default=
 def make_folder(host: str, body: dict, x_register_token: str | None = Header(default=None)):
     auth.check_token(x_register_token)
     return _call("POST", f"{_agent(host)}/files/mkdir", json=body)
+
+
+@router.post("/newfile")
+def new_file(host: str, body: dict, x_register_token: str | None = Header(default=None)):
+    auth.check_token(x_register_token)
+    return _call("POST", f"{_agent(host)}/files/newfile", json=body)
+
+
+@router.post("/move")
+def move(host: str, body: dict, x_register_token: str | None = Header(default=None)):
+    auth.check_token(x_register_token)
+    return _call("POST", f"{_agent(host)}/files/move", json=body)
+
+
+@router.post("/copy")
+def copy(host: str, body: dict, x_register_token: str | None = Header(default=None)):
+    auth.check_token(x_register_token)
+    return _call("POST", f"{_agent(host)}/files/copy", json=body)
 
 
 @router.get("/download")
