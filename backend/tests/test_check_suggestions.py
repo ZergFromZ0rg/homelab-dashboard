@@ -270,3 +270,18 @@ def test_lan_nodes_reports_each_hosts_gateway_and_caches_briefly(monkeypatch):
     assert set(out["nodes"]) == {"bigboy", "thinkpad"}
     lan_api.lan_nodes()
     assert len(calls) == 2  # the second call came from the cache
+
+
+def test_suggested_agent_pings_send_several_echoes_and_accepting_keeps_that(tmp_path):
+    items = cs.suggest({}, NODES, LAN, [], set(), GATEWAYS)
+    network = [i for i in items if i.get("origin")]
+    assert network and all(i["count"] == 5 for i in network)
+    store = CheckStore(tmp_path / "checks.json")
+    made = cs.accept(store, [i for i in items if i["key"] in ("link:bigboy:thinkpad", "internet:1.1.1.1")])
+    assert {c["count"] for c in made} == {5}
+
+
+def test_matrix_cells_carry_loss_and_jitter():
+    row = summary("a", "192.168.0.132", "bigboy", 0.8) | {"loss_pct_3h": 20.0, "jitter_ms_3h": 0.4}
+    cell = cs.matrix([row], NODES, LAN)["cells"][0]
+    assert (cell["loss_pct_3h"], cell["jitter_ms_3h"]) == (20.0, 0.4)

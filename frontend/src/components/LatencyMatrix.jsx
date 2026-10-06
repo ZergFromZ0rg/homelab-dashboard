@@ -32,10 +32,13 @@ function LatencyMatrix() {
             if (from === to || !cell) {
               return <span key={to} role="cell" className="latency-matrix-cell latency-matrix-cell--none">—</span>;
             }
-            const state = cell.status === "down" ? "down" : cell.status === "degraded" ? "slow" : cell.latency_ms == null ? "none" : "up";
+            const lossy = (cell.loss_pct_3h ?? 0) >= 1;
+            const state =
+              cell.status === "down" ? "down" : cell.status === "degraded" || lossy ? "slow" : cell.latency_ms == null ? "none" : "up";
             const title = [
               `${from} → ${to}`,
               cell.status === "down" ? cell.detail : null,
+              cell.loss_pct_3h != null ? `loss ${cell.loss_pct_3h}% · jitter ${formatLatency(cell.jitter_ms_3h)} · 3 h` : null,
               cell.p95_ms_24h != null ? `p95 ${formatLatency(cell.p95_ms_24h)} · 24 h` : null,
               cell.uptime_24h != null ? `${cell.uptime_24h.toFixed(2)}% up · 24 h` : null,
             ]

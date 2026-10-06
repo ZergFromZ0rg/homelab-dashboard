@@ -10,7 +10,7 @@ const TYPES = [
   {
     value: "ping",
     label: "Ping",
-    hint: "One ICMP echo (IPv4). Some hosts and networks drop ping — use a Port check if that's yours.",
+    hint: "ICMP echoes (IPv4); several measure loss and jitter too. Some hosts and networks drop ping — use a Port check if that's yours.",
   },
   { value: "tcp", label: "Port", hint: "Open a TCP connection to host:port." },
   { value: "dns", label: "DNS lookup", hint: "Resolve a hostname." },
@@ -55,6 +55,7 @@ function blank(check) {
     parent: check?.parent ?? "",
     group: check?.group ?? "",
     origin: check?.origin ?? "",
+    count: check?.count ?? 1,
   };
 }
 
@@ -88,6 +89,7 @@ function CheckForm({ check, onSubmit, onCancel, others = [], groups = [], hosts 
         parent: values.parent || null,
         group: values.group.trim() || null,
         origin: values.origin || null,
+        count: values.type === "ping" ? Number(values.count) : 1,
       });
     } catch (err) {
       setError(err.message);
@@ -240,6 +242,23 @@ function CheckForm({ check, onSubmit, onCancel, others = [], groups = [], hosts 
                 {hosts.map((h) => (
                   <option key={h} value={h}>
                     {h}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {values.type === "ping" && (
+            <label className="deploy-field">
+              <span className="deploy-label">Echoes per check</span>
+              <select
+                className="deploy-input"
+                value={values.count}
+                title="More than one measures packet loss and jitter as well as latency (about a fifth of a second apart)"
+                onChange={(e) => set({ count: e.target.value })}
+              >
+                {[1, 3, 5, 10].map((n) => (
+                  <option key={n} value={n}>
+                    {n === 1 ? "1 (latency only)" : `${n} (latency, loss, jitter)`}
                   </option>
                 ))}
               </select>

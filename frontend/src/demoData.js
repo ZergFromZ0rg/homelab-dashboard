@@ -198,7 +198,7 @@ function demoChecks() {
     { ...base, id: "k5", group: "Cloud", name: "Nextcloud", type: "http", target: "https://cloud.example.com", status: "down", last_ok: false, latency_ms: null, detail: "HTTP 502", checked_at: t - 15, down_since: t - 1080, failing: 18, uptime_24h: 93.4, uptime_7d: 98.7, uptime_30d: 99.2, avg_ms_24h: 210.5, recent: [...wave(200, 30, 22), ...Array(18).fill(null)] },
     { ...base, id: "k6", group: "thinkpad", name: "Grafana", type: "http", target: "http://thinkpad:3000", status: "degraded", slow_ms: 80, last_ok: true, latency_ms: 88.9, detail: "HTTP 200", checked_at: t - 50, failing: 0, uptime_24h: 99.5, uptime_7d: 99.8, uptime_30d: 99.9, avg_ms_24h: 71.4, recent: wave(75, 20, 40, 13) },
     { ...base, id: "k10", group: "Cloud", parent: "k5", name: "Nextcloud DB", type: "tcp", target: "cloud.example.com:5432", status: "down", suppressed_by: { id: "k5", name: "Nextcloud" }, last_ok: false, latency_ms: null, detail: "connection refused", checked_at: t - 14, down_since: t - 1020, failing: 17, uptime_24h: 93.9, uptime_7d: 98.9, uptime_30d: 99.3, avg_ms_24h: 4.1, recent: [...wave(4, 1), ...Array(17).fill(null)] },
-    { ...base, id: "k8", group: "Network", name: "Gateway", type: "ping", target: "192.168.1.1", status: "up", last_ok: true, latency_ms: 0.9, detail: "reply from 192.168.1.1", checked_at: t - 12, uptime_24h: 100, uptime_7d: 100, uptime_30d: 99.99, avg_ms_24h: 1.1, recent: wave(1, 0.3) },
+    { ...base, id: "k8", group: "Network", name: "Gateway", type: "ping", count: 5, loss_pct_3h: 0, jitter_ms_3h: 0.2, target: "192.168.1.1", status: "up", last_ok: true, latency_ms: 0.9, detail: "reply from 192.168.1.1", checked_at: t - 12, uptime_24h: 100, uptime_7d: 100, uptime_30d: 99.99, avg_ms_24h: 1.1, recent: wave(1, 0.3) },
     { ...base, id: "k9", group: "bigboy", origin: "thinkpad", probe_error: "can't reach thinkpad's agent: timed out", name: "Pi-hole", type: "keyword", target: "http://thinkpad:8080/admin", keyword: "Pi-hole", status: "up", last_ok: true, latency_ms: 46.3, detail: 'HTTP 200 · found "Pi-hole"', checked_at: t - 27, uptime_24h: 100, uptime_7d: 99.9, uptime_30d: 99.8, avg_ms_24h: 47.9, recent: wave(47, 9) },
     { ...base, id: "k7", group: "bigboy", name: "Plex", type: "http", target: "http://nuc-media:32400/web", status: "paused", paused: true, last_ok: null, latency_ms: null, detail: null, checked_at: null, uptime_24h: null, uptime_7d: null, uptime_30d: null, avg_ms_24h: null, recent: [] },
   ]);
@@ -505,6 +505,7 @@ export function demoSuggestions() {
 export function demoMatrix() {
   const cell = (from, to, ms) => ({
     from, to, id: `m-${from}-${to}`, status: "up", latency_ms: ms, p95_ms_24h: ms * 2.2, uptime_24h: 100, detail: "reply",
+    loss_pct_3h: from === "thinkpad" ? 2 : 0, jitter_ms_3h: ms / 4,
   });
   return { hosts: ["bigboy", "thinkpad"], cells: [cell("bigboy", "thinkpad", 0.9), cell("thinkpad", "bigboy", 1.3)] };
 }

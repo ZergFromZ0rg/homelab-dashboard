@@ -66,7 +66,7 @@ from backend.env import env_float, env_str
 from backend.jsonstore import read_json, write_json_atomic
 from backend.docker import agent_headers
 from backend.log import system as log
-from backend.probes import DEFAULT_WARN_DAYS, Result, _short
+from backend.probes import DEFAULT_WARN_DAYS, MAX_PING_COUNT, Result, _short
 from backend.probes import probe as probe_here
 from backend.registry import registry
 
@@ -127,14 +127,16 @@ _IPV4_RE = re.compile(r"^\d{1,3}(\.\d{1,3}){3}$")
 EDITABLE = (
     "name", "type", "target", "interval", "timeout", "expect_status",
     "verify_tls", "paused", "keyword", "keyword_mode", "warn_days",
-    "slow_ms", "parent", "group", "origin",
+    "slow_ms", "parent", "group", "origin", "count",
 )
 MAX_ORIGIN_LENGTH = 64
 # The agent probes with the same timeout the check has; this is the extra
 # time allowed for the round trip to it.
 REMOTE_TIMEOUT_PAD = 10.0
 # What the agent needs to run a probe, and nothing more.
-PROBE_FIELDS = ("type", "target", "timeout", "expect_status", "verify_tls", "keyword", "keyword_mode", "warn_days")
+PROBE_FIELDS = (
+    "type", "target", "timeout", "expect_status", "verify_tls", "keyword", "keyword_mode", "warn_days", "count",
+)
 MAX_GROUP_LENGTH = 40
 MIN_SLOW_MS, MAX_SLOW_MS = 1, 60000
 
@@ -291,6 +293,11 @@ def build_spec(payload: dict, existing: dict | None = None) -> dict:
         keyword, keyword_mode = None, "present"
 
     slow_ms = _number(merged.get("slow_ms"), "slow threshold", MIN_SLOW_MS, MAX_SLOW_MS, None)
+    # Echoes per ping: more than one measures packet loss and jitter too.
+    if kind == "ping":
+        count = _number(merged.get("count"), "echo count", 1, MAX_PING_COUNT, 1, integer=True)
+    else:
+        count = 1
 
     group = " ".join(str(merged.get("group") or "").split()) or None
     if group and len(group) > MAX_GROUP_LENGTH:
@@ -321,6 +328,7 @@ def build_spec(payload: dict, existing: dict | None = None) -> dict:
         "verify_tls": verify if kind in HTTP_TYPES + ("tls",) else True,
         "warn_days": warn_days,
         "slow_ms": slow_ms,
+        "count": count,
         "parent": parent,
         "group": group,
         "origin": origin,
@@ -366,7 +374,10 @@ def probe_from_agent(spec: dict) -> Result:
         return unknown(f"{host}'s agent answered {response.status_code}")
     try:
         data = response.json()
-        return Result(bool(data["ok"]), data.get("ms"), _short(data.get("detail") or ""))
+        return Result(
+            bool(data["ok"]), data.get("ms"), _short(data.get("detail") or ""),
+            loss=data.get("loss"), jitter=data.get("jitter"),
+        )
     except (ValueError, KeyError, TypeError):
         return unknown(f"{host}'s agent sent an unreadable answer")
 
@@ -482,9 +493,24 @@ class _State:
     # why the last probe couldn't run (inconclusive); cleared by the next that does
     probe_error: str | None = None
     fail_since: float | None = None
+    # (t, loss %, jitter ms) of each multi-echo ping; not persisted
+    quality: deque = field(default_factory=lambda: deque(maxlen=RAW_MAX_SAMPLES))
     last: tuple | None = None  # (t, ok, ms, detail)
     next_at: float = 0.0
     running: bool = False
+
+
+def _link_quality(quality, now: float) -> tuple[float | None, float | None]:
+    """Average loss (%) and jitter (ms) over the raw window; None until a
+    multi-echo ping has run."""
+    rows = [q for q in quality if now - q[0] < RAW_WINDOW_SECONDS]
+    if not rows:
+        return None, None
+    jitters = [q[2] for q in rows if q[2] is not None]
+    return (
+        round(sum(q[1] for q in rows) / len(rows), 1),
+        round(sum(jitters) / len(jitters), 2) if jitters else None,
+    )
 
 
 def _add(bucket: list, ok: bool, ms: float | None) -> None:
@@ -628,6 +654,8 @@ class CheckService:
             state.probe_error = None
 
             state.samples.append((now, result.ok, result.ms, result.detail))
+            if result.loss is not None:
+                state.quality.append((now, result.loss, result.jitter))
             hour = int(now // BUCKET_SECONDS) * BUCKET_SECONDS
             _add(state.buckets.setdefault(hour, [0, 0, 0.0, 0, 0.0]), result.ok, result.ms)
             if result.ok and result.ms is not None:
@@ -754,6 +782,7 @@ class CheckService:
             status = self._status(spec)
             cause = self._root_cause(spec, specs) if status == "down" else None
 
+            loss_pct, jitter_ms = _link_quality(state.quality, now)
             day_hist = self._window_hist(state, now, 86400)
             day_max = self._max_ms(state, now, 86400)
             recent = [
@@ -767,9 +796,11 @@ class CheckService:
                     for k in (
                         "id", "name", "type", "target", "interval", "timeout",
                         "expect_status", "verify_tls", "paused", "keyword", "keyword_mode",
-                        "warn_days", "slow_ms", "parent", "group", "origin",
+                        "warn_days", "slow_ms", "parent", "group", "origin", "count",
                     )
                 },
+                "loss_pct_3h": loss_pct,
+                "jitter_ms_3h": jitter_ms,
                 "status": status,
                 "probe_error": state.probe_error,
                 "suppressed_by": None if cause is None else {"id": cause["id"], "name": cause["name"]},

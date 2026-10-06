@@ -97,7 +97,7 @@ function CheckCard({ check, now, depth = 0, all = [], groups = [], hosts = [] })
     sub = "";
   } else {
     headline = formatLatency(check.latency_ms);
-    sub = "";
+    sub = linkQuality(check);
   }
 
   if (check.probe_error && status !== "pending") sub = check.probe_error;
@@ -207,6 +207,13 @@ function CheckCard({ check, now, depth = 0, all = [], groups = [], hosts = [] })
       )}
     </div>
   );
+}
+
+// "loss 0% · jitter 0.3 ms" for a ping that sends several echoes.
+function linkQuality(check) {
+  if (check.loss_pct_3h == null) return "";
+  const jitter = check.jitter_ms_3h == null ? "" : ` · jitter ${formatLatency(check.jitter_ms_3h)}`;
+  return `loss ${check.loss_pct_3h}%${jitter}`;
 }
 
 export default CheckCard;

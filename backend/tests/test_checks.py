@@ -1168,3 +1168,122 @@ def test_down_alert_names_where_it_was_checked_from():
              "origin": "bigboy", "suppressed_by": None}
     alert = alerts.evaluate({}, [], {}, [check], [], now=1.0)["check:a"]
     assert "from bigboy" in alert["message"] and "bigboy" in alert["hint"]
+
+
+# --- ping bursts: loss and jitter ------------------------------------------------
+
+
+class BurstSocket:
+    """Answers each echo in turn from a script: a round-trip pause in seconds
+    (the reply comes after it) or None (lost). Keeps every packet sent."""
+
+    def __init__(self, script):
+        self.script = list(script)
+        self.sent = []
+        self.answered = 0
+
+    def sendto(self, data, addr):
+        self.sent.append(data)
+
+    def settimeout(self, value):
+        pass
+
+    def recvfrom(self, size):
+        while self.answered < len(self.sent):
+            index = self.answered
+            self.answered += 1
+            if self.script[index] is not None:
+                _t, _c, _s, ident, seq = struct.unpack("!BBHHH", self.sent[index][:8])
+                return struct.pack("!BBHHH", 0, 0, 0, ident, seq) + self.sent[index][8:], ("127.0.0.1", 0)
+        raise socket.timeout()
+
+    def close(self):
+        self.closed = True
+
+
+def burst(monkeypatch, script, **spec):
+    fake = BurstSocket(script)
+    monkeypatch.setattr(probes, "_open_icmp_socket", lambda: (fake, False))
+    monkeypatch.setattr(probes, "PING_GAP", 0.001)
+    result = probes.probe({"type": "ping", "target": "127.0.0.1", "timeout": 1.0, "count": len(script), **spec})
+    return fake, result
+
+
+def test_a_burst_that_is_fully_answered_has_no_loss(monkeypatch):
+    fake, result = burst(monkeypatch, [0.0] * 5)
+    assert len(fake.sent) == 5 and result.ok and result.loss == 0.0
+    assert result.detail.startswith("5/5 replies from 127.0.0.1") and fake.closed
+
+
+def test_lost_echoes_are_counted_but_one_answer_is_still_up(monkeypatch):
+    _fake, result = burst(monkeypatch, [0.0, None, 0.0, None, 0.0])
+    assert result.ok and result.loss == 40.0 and result.detail.startswith("3/5 replies")
+
+
+def test_a_burst_nothing_answers_is_down_with_total_loss(monkeypatch):
+    _fake, result = burst(monkeypatch, [None, None, None], timeout=0.3)
+    assert not result.ok and result.loss == 100.0 and "no reply" in result.detail
+
+
+def test_destination_unreachable_fails_the_whole_burst(monkeypatch):
+    class Unreachable(BurstSocket):
+        def recvfrom(self, size):
+            return struct.pack("!BBHHH", 3, 1, 0, 0, 0), ("127.0.0.1", 0)
+
+    monkeypatch.setattr(probes, "_open_icmp_socket", lambda: (Unreachable([0.0] * 3), False))
+    monkeypatch.setattr(probes, "PING_GAP", 0.001)
+    result = probes.probe({"type": "ping", "target": "127.0.0.1", "timeout": 1.0, "count": 3})
+    assert not result.ok and result.detail == "host unreachable"
+
+
+def test_the_burst_never_sends_more_echoes_than_fit_in_the_timeout(monkeypatch):
+    monkeypatch.setattr(probes, "_open_icmp_socket", lambda: (BurstSocket([0.0] * 10), False))
+    monkeypatch.setattr(probes, "PING_GAP", 0.2)
+    sent = []
+    monkeypatch.setattr(probes, "_echo_request", lambda ident, seq: sent.append(seq) or b"\0" * 8)
+    probes.probe({"type": "ping", "target": "127.0.0.1", "timeout": 0.5, "count": 10})
+    assert len(sent) == 2
+
+
+def test_jitter_is_the_mean_change_between_consecutive_round_trips():
+    assert probes._jitter([10.0]) is None
+    assert probes._jitter([10.0, 10.0, 10.0]) == 0.0
+    assert probes._jitter([10.0, 14.0, 12.0, 20.0]) == pytest.approx((4 + 2 + 8) / 3)
+
+
+def test_burst_result_summarises_an_uneven_link():
+    result = probes._burst_result([10.0, None, 14.0, 12.0], 5, "1.2.3.4")
+    assert result.ok and result.ms == pytest.approx(12.0) and result.loss == 25.0
+    assert result.jitter == pytest.approx(3.0) and "jitter 3.0 ms" in result.detail
+
+
+def test_echo_count_belongs_to_ping_checks():
+    assert build_spec({"name": "x", "type": "ping", "target": "1.1.1.1", "count": 5})["count"] == 5
+    assert build_spec({"name": "x", "type": "ping", "target": "1.1.1.1"})["count"] == 1
+    assert build_spec({"name": "x", "type": "tcp", "target": "h:1", "count": 5})["count"] == 1
+    with pytest.raises(ValueError):
+        build_spec({"name": "x", "type": "ping", "target": "1.1.1.1", "count": 11})
+
+
+def test_loss_and_jitter_from_an_agent_reach_the_result(agent):
+    FakeAgent.reply = (200, {"ok": True, "ms": 1.0, "detail": "4/5 replies", "loss": 20.0, "jitter": 0.4})
+    result = probe(build_spec({"name": "p", "type": "ping", "target": "192.168.0.1", "origin": "bigboy", "count": 5}))
+    assert (result.loss, result.jitter) == (20.0, 0.4)
+    assert FakeAgent.seen[0][1]["count"] == 5
+    # an agent that predates bursts answers without them
+    FakeAgent.reply = (200, {"ok": True, "ms": 1.0, "detail": "reply"})
+    assert probe(build_spec({"name": "p", "type": "ping", "target": "192.168.0.1", "origin": "bigboy"})).loss is None
+
+
+def test_summary_averages_loss_and_jitter_over_the_raw_window(tmp_path):
+    service = make_service(tmp_path)
+    spec = service.store.create({"name": "gw", "type": "ping", "target": "192.168.0.1", "count": 5})
+    assert service.summary(spec, 1000.0)["loss_pct_3h"] is None
+    t = 1_000_000.0
+    service.record(spec["id"], Result(True, 1.0, "ok", loss=0.0, jitter=0.2), t)
+    service.record(spec["id"], Result(True, 1.0, "ok", loss=40.0, jitter=0.6), t + 60)
+    service.record(spec["id"], Result(True, 1.0, "ok"), t + 120)   # a single-echo sample adds nothing
+    summary = service.summary(spec, t + 120)
+    assert summary["loss_pct_3h"] == 20.0 and summary["jitter_ms_3h"] == 0.4 and summary["count"] == 5
+    # past the window it ages out
+    assert service.summary(spec, t + 4 * 3600)["loss_pct_3h"] is None
