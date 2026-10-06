@@ -37,7 +37,7 @@ function Uptime({ value }) {
 // in ServicesTab): what it is, how it's answering now, the recent trend,
 // uptime over 24h / 7d / 30d, and icon actions. Longer-range charts open
 // underneath.
-function CheckCard({ check, now, depth = 0, all = [], groups = [] }) {
+function CheckCard({ check, now, depth = 0, all = [], groups = [], hosts = [] }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -62,6 +62,7 @@ function CheckCard({ check, now, depth = 0, all = [], groups = [] }) {
           check={check}
           others={all.filter((c) => c.id !== check.id)}
           groups={groups}
+          hosts={hosts}
           onCancel={() => setEditing(false)}
           onSubmit={async (values) => {
             await updateCheck(check.id, values);
@@ -89,8 +90,8 @@ function CheckCard({ check, now, depth = 0, all = [], groups = [] }) {
     headline = "Paused";
     sub = "";
   } else if (status === "pending") {
-    headline = "Checking…";
-    sub = "";
+    headline = check.probe_error ? "Can't probe" : "Checking…";
+    sub = check.probe_error ?? "";
   } else if (check.type === "tls" && /^(\d+) days? left/.test(check.detail ?? "")) {
     headline = `${check.detail.match(/^(\d+)/)[1]} d left`;
     sub = "";
@@ -98,6 +99,8 @@ function CheckCard({ check, now, depth = 0, all = [], groups = [] }) {
     headline = formatLatency(check.latency_ms);
     sub = "";
   }
+
+  if (check.probe_error && status !== "pending") sub = check.probe_error;
 
   const target =
     check.type === "keyword"
@@ -119,6 +122,16 @@ function CheckCard({ check, now, depth = 0, all = [], groups = [] }) {
             {depth > 0 && <span className="check-branch" aria-hidden="true">↳</span>}
             <strong>{check.name}</strong>
             <span className="chip">{TYPE_LABEL[check.type]}</span>
+            {check.origin && (
+              <span className="chip" title={`Checked from ${check.origin}'s agent, not from the dashboard`}>
+                from {check.origin}
+              </span>
+            )}
+            {check.probe_error && (
+              <span className="chip chip--warn" title={check.probe_error}>
+                can't probe
+              </span>
+            )}
             {status === "up" && check.failing > 0 && (
               <span className="chip chip--warn" title={check.detail ?? undefined}>
                 {check.failing} failed

@@ -328,18 +328,22 @@ def _check_alert(check: dict, now: float) -> dict:
     since = check.get("down_since")
     for_text = f" for {_ago(now - since)}" if isinstance(since, (int, float)) else ""
     detail = check.get("detail")
+    origin = check.get("origin")
+    where = (
+        f"Check that {target} is up and reachable from {origin} — checks on that host run from the agent there."
+        if origin
+        else f"Check that {target} is up and reachable from the dashboard host — "
+        "a check runs from the dashboard container, so 'localhost' is the dashboard itself."
+    )
     return {
         "title": f"{name} is down",
         "message": (
-            f"{name} ({kind} {target}) has been failing{for_text}"
+            f"{name} ({kind} {target}{f' from {origin}' if origin else ''}) has been failing{for_text}"
             + (f" — {detail}" if detail else "")
         ),
         "host": None,
         "severity": "bad",
-        "hint": (
-            f"Check that {target} is up and reachable from the dashboard host — "
-            "a check runs from the dashboard container, so 'localhost' is the dashboard itself."
-        ),
+        "hint": where,
     }
 
 

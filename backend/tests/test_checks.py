@@ -7,7 +7,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import pytest
 from fastapi.testclient import TestClient
 
-from backend import alerts, auth, checks, main
+from backend import alerts, auth, checks, main, probes
 from backend.checks import CheckService, CheckStore, Result, build_spec, probe
 
 
@@ -229,7 +229,7 @@ def test_a_crashing_probe_becomes_a_failed_result(monkeypatch):
     def boom(spec):
         raise RuntimeError("kaboom")
 
-    monkeypatch.setitem(checks.__dict__, "_probe_dns", boom)
+    monkeypatch.setitem(probes.__dict__, "_probe_dns", boom)
     result = probe(build_spec({"name": "t", "type": "dns", "target": "a.b"}))
     assert not result.ok and "kaboom" in result.detail
 
@@ -573,12 +573,12 @@ def test_expect_status_applies_to_keyword_checks_too(server):
 def test_body_read_is_capped(server, monkeypatch):
     # The keyword sits after 4000 bytes; with a 2 KB cap it must not be found,
     # and the message should say the page was only partly read.
-    monkeypatch.setattr(checks, "MAX_BODY_BYTES", 2048)
+    monkeypatch.setattr(probes, "MAX_BODY_BYTES", 2048)
     result = probe(kw_spec(server + "/big", "NEEDLE"))
     assert not result.ok
     assert result.detail == 'HTTP 200 · "NEEDLE" not found in the first 2 KB'
 
-    monkeypatch.setattr(checks, "MAX_BODY_BYTES", 512 * 1024)
+    monkeypatch.setattr(probes, "MAX_BODY_BYTES", 512 * 1024)
     assert probe(kw_spec(server + "/big", "NEEDLE")).ok
 
 
@@ -610,8 +610,8 @@ def test_ping_target_validation():
 
 
 def test_icmp_checksum_makes_a_packet_verify_to_zero():
-    packet = checks._echo_request(0x1234, 7)
-    assert checks._icmp_checksum(packet) == 0
+    packet = probes._echo_request(0x1234, 7)
+    assert probes._icmp_checksum(packet) == 0
     assert packet[0] == 8 and packet[1] == 0                      # echo request
     assert struct.unpack("!HH", packet[4:8]) == (0x1234, 7)
 
@@ -619,8 +619,8 @@ def test_icmp_checksum_makes_a_packet_verify_to_zero():
 def test_icmp_body_strips_an_ipv4_header_only_when_there_is_one():
     icmp = struct.pack("!BBHHH", 0, 0, 0, 1, 2)
     ip_header = bytes([0x45]) + bytes(19)                          # version 4, IHL 5
-    assert checks._icmp_body(ip_header + icmp) == icmp
-    assert checks._icmp_body(icmp) == icmp                         # type 0 can't look like 0x4N
+    assert probes._icmp_body(ip_header + icmp) == icmp
+    assert probes._icmp_body(icmp) == icmp                         # type 0 can't look like 0x4N
 
 
 class FakeIcmpSocket:
@@ -653,7 +653,7 @@ def echo_reply(header=b"", ident_delta=0, seq_delta=0):
 
 def patch_socket(monkeypatch, replies, raw=False):
     fake = FakeIcmpSocket(replies)
-    monkeypatch.setattr(checks, "_open_icmp_socket", lambda: (fake, raw))
+    monkeypatch.setattr(probes, "_open_icmp_socket", lambda: (fake, raw))
     return fake
 
 
@@ -695,7 +695,7 @@ def test_ping_without_icmp_permission_explains_the_fix(monkeypatch):
     def denied():
         raise PermissionError("nope")
 
-    monkeypatch.setattr(checks, "_open_icmp_socket", denied)
+    monkeypatch.setattr(probes, "_open_icmp_socket", denied)
     result = probe(build_spec(PING))
     assert not result.ok and "ping_group_range" in result.detail and "Port check" in result.detail
 
@@ -707,7 +707,7 @@ def test_ping_unresolvable_host():
 
 def test_ping_loopback_for_real():
     try:
-        sock, _ = checks._open_icmp_socket()
+        sock, _ = probes._open_icmp_socket()
         sock.close()
     except OSError:
         pytest.skip("ICMP sockets aren't permitted in this environment")
@@ -1050,3 +1050,121 @@ def test_suppressed_children_do_not_alert_but_the_parent_does():
            "suppressed_by": {"id": "r", "name": "router"}}
     out = alerts.evaluate({}, [], {}, [router, kid], [], now=1.0)
     assert "check:r" in out and "check:k" not in out
+
+
+# --- probing from a host (agent) ---------------------------------------------------------
+
+
+class FakeAgent(BaseHTTPRequestHandler):
+    seen: list = []
+    reply = (200, {"ok": True, "ms": 7.5, "detail": "connected"})
+
+    def do_POST(self):
+        body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        FakeAgent.seen.append((self.path, body, self.headers.get("X-Agent-Token")))
+        code, payload = FakeAgent.reply
+        data = json.dumps(payload).encode()
+        self.send_response(code)
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def log_message(self, *args):
+        pass
+
+
+@pytest.fixture
+def agent(monkeypatch):
+    FakeAgent.seen = []
+    FakeAgent.reply = (200, {"ok": True, "ms": 7.5, "detail": "connected"})
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), FakeAgent)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+
+    class Nodes:
+        def all(self):
+            return {"bigboy": {"url": f"http://127.0.0.1:{srv.server_address[1]}/"}, "dead": {"url": "http://127.0.0.1:9"}}
+
+    monkeypatch.setattr(checks, "registry", Nodes())
+    monkeypatch.setattr(checks, "agent_headers", lambda: {"X-Agent-Token": "s3cret"})
+    yield srv
+    srv.shutdown()
+
+
+def remote(**kw):
+    return build_spec({"name": "r", "type": "tcp", "target": "192.168.0.1:443", "origin": "bigboy", **kw})
+
+
+def test_origin_is_normalised():
+    assert remote()["origin"] == "bigboy"
+    assert build_spec({"name": "r", "type": "tcp", "target": "h:1"})["origin"] is None
+    assert remote(origin="dashboard")["origin"] is None
+    assert remote(origin="  ")["origin"] is None
+    with pytest.raises(ValueError):
+        remote(origin="x" * 65)
+
+
+def test_probe_runs_on_the_agent_and_sends_only_probe_fields(agent):
+    result = probe(remote(group="secret group", slow_ms=5))
+    assert result.ok and result.ms == 7.5 and result.detail == "connected" and not result.inconclusive
+    (path, body, token), = FakeAgent.seen
+    assert path == "/probe" and token == "s3cret"
+    assert set(body) == set(checks.PROBE_FIELDS)
+    assert body["type"] == "tcp" and body["target"] == "192.168.0.1:443"
+
+
+def test_a_failed_answer_from_the_agent_is_a_real_failure(agent):
+    FakeAgent.reply = (200, {"ok": False, "ms": None, "detail": "connection refused"})
+    result = probe(remote())
+    assert not result.ok and not result.inconclusive and result.detail == "connection refused"
+
+
+@pytest.mark.parametrize("origin,reply,expect", [
+    ("nowhere", None, "isn't a registered node"),
+    ("dead", None, "can't reach dead's agent"),
+    ("bigboy", (404, {}), "too old to run checks"),
+    ("bigboy", (401, {}), "refused the token"),
+    ("bigboy", (500, {}), "answered 500"),
+    ("bigboy", (200, {"nope": 1}), "unreadable"),
+])
+def test_an_unusable_agent_is_inconclusive_not_down(agent, origin, reply, expect):
+    if reply:
+        FakeAgent.reply = reply
+    result = probe(remote(origin=origin))
+    assert result.inconclusive and not result.ok and expect in result.detail
+
+
+def test_inconclusive_probes_leave_the_check_alone(tmp_path):
+    service = make_service(tmp_path)
+    spec = add(service, type="tcp", target="h:1", origin="bigboy")
+    t = 1_000_000.0
+    assert service.summary(spec, t)["status"] == "pending"
+
+    service.record(spec["id"], Result(False, None, "agent down", inconclusive=True), t)
+    s = service.summary(spec, t)
+    assert s["status"] == "pending" and s["probe_error"] == "agent down" and s["failing"] == 0
+
+    service.record(spec["id"], Result(True, 5.0, "connected"), t + 60)
+    for at in (120, 180, 240):
+        service.record(spec["id"], Result(False, None, "agent down", inconclusive=True), t + at)
+    s = service.summary(spec, t + 240)
+    assert s["status"] == "up" and s["failing"] == 0 and s["probe_error"] == "agent down"
+    assert service.incidents(spec["id"], now=t + 240) == []
+
+    service.record(spec["id"], Result(True, 5.0, "connected"), t + 300)
+    assert service.summary(spec, t + 300)["probe_error"] is None
+
+
+def test_changing_where_a_check_runs_resets_its_history(tmp_path):
+    service = make_service(tmp_path)
+    spec = add(service, type="tcp", target="h:1")
+    service.record(spec["id"], Result(True, 5.0, "ok"), time.time())
+    before, after = service.store.update(spec["id"], {"origin": "bigboy"})
+    service.changed(before, after)
+    assert service.summary(after)["status"] == "pending" and service.summary(after)["origin"] == "bigboy"
+
+
+def test_down_alert_names_where_it_was_checked_from():
+    check = {"id": "a", "name": "NAS", "type": "tcp", "target": "192.168.0.9:445", "status": "down",
+             "origin": "bigboy", "suppressed_by": None}
+    alert = alerts.evaluate({}, [], {}, [check], [], now=1.0)["check:a"]
+    assert "from bigboy" in alert["message"] and "bigboy" in alert["hint"]

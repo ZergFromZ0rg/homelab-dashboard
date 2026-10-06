@@ -539,7 +539,11 @@ function NetworkTab({ machines, containers, checks, connected, history = {} }) {
 
       {section === "checks" && (
         <div className="net-checks fit-pane">
-          <ServicesTab checks={checks} connected={connected} />
+          <ServicesTab
+            checks={checks}
+            connected={connected}
+            hosts={hosts.filter((h) => machines[h]?.agent_reachable != null)}
+          />
         </div>
       )}
     </section>

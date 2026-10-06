@@ -54,13 +54,14 @@ function blank(check) {
     slow_ms: check?.slow_ms ?? "",
     parent: check?.parent ?? "",
     group: check?.group ?? "",
+    origin: check?.origin ?? "",
   };
 }
 
 // Add a check, or edit `check` when given. The backend validates and
 // normalizes the address (a bare LAN address becomes http://...), so this
 // only has to send what was typed.
-function CheckForm({ check, onSubmit, onCancel, others = [], groups = [] }) {
+function CheckForm({ check, onSubmit, onCancel, others = [], groups = [], hosts = [] }) {
   const [values, setValues] = useState(() => blank(check));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -86,6 +87,7 @@ function CheckForm({ check, onSubmit, onCancel, others = [], groups = [] }) {
         slow_ms: values.slow_ms === "" ? null : Number(values.slow_ms),
         parent: values.parent || null,
         group: values.group.trim() || null,
+        origin: values.origin || null,
       });
     } catch (err) {
       setError(err.message);
@@ -225,6 +227,24 @@ function CheckForm({ check, onSubmit, onCancel, others = [], groups = [] }) {
               onChange={(e) => set({ timeout: e.target.value })}
             />
           </label>
+          {hosts.length > 0 && (
+            <label className="deploy-field">
+              <span className="deploy-label">Check from</span>
+              <select
+                className="deploy-input"
+                value={values.origin}
+                title="Run the check from this host's agent instead of the dashboard — it answers 'can that machine reach this?'"
+                onChange={(e) => set({ origin: e.target.value })}
+              >
+                <option value="">The dashboard</option>
+                {hosts.map((h) => (
+                  <option key={h} value={h}>
+                    {h}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label className="deploy-field">
             <span className="deploy-label">Slow above (ms, blank = never)</span>
             <input
@@ -318,9 +338,10 @@ function CheckForm({ check, onSubmit, onCancel, others = [], groups = [] }) {
       )}
 
       <p className="settings-hint">
-        Checks run from the dashboard's own container, so use the address the
-        dashboard can reach — for something on the same machine that's its
-        LAN address, not <code>localhost</code>.
+        {values.origin
+          ? `Runs from the agent on ${values.origin}, so use an address that machine can reach. If its agent is down the check says so instead of going red.`
+          : "Checks run from the dashboard's own container, so use the address the dashboard can reach — for something on the same machine that's its LAN address, not "}
+        {!values.origin && <code>localhost</code>}{!values.origin && "."}
       </p>
 
 

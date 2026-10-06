@@ -21,7 +21,7 @@ function Fact({ label, value, sub, bad }) {
 
 // Is each thing actually answering? HTTP / TCP / DNS probes run from the
 // dashboard backend on a schedule, with latency and uptime history.
-function ServicesTab({ checks, connected }) {
+function ServicesTab({ checks, connected, hosts = [] }) {
   const now = useNow(1000).getTime() / 1000;
   const [adding, setAdding] = useState(false);
   const [showIncidents, setShowIncidents] = useState(false);
@@ -98,6 +98,7 @@ function ServicesTab({ checks, connected }) {
           <CheckForm
             others={checks}
             groups={groupNames}
+            hosts={hosts}
             onCancel={() => setAdding(false)}
             onSubmit={async (values) => {
               await createCheck(values);
@@ -152,6 +153,7 @@ function ServicesTab({ checks, connected }) {
                       depth={depth}
                       all={checks}
                       groups={groupNames}
+                      hosts={hosts}
                     />
                   ))}
               </div>
