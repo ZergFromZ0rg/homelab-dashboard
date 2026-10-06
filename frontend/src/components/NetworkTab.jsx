@@ -184,6 +184,57 @@ function NetworkRow({ network, containers, onAct }) {
   );
 }
 
+// Where the node's download and upload come from: each container's own in /
+// out, busiest first, against the node's total. The remainder is traffic that
+// isn't a container's — the host itself, and containers on the host network.
+function TrafficByService({ machine, containers = [] }) {
+  const rows = containers
+    .filter((c) => c.status === "running")
+    .map((c) => ({
+      name: c.name,
+      id: c.id,
+      rx: c.stats?.network?.rx_bps ?? 0,
+      tx: c.stats?.network?.tx_bps ?? 0,
+    }))
+    .sort((a, b) => b.rx + b.tx - (a.rx + a.tx));
+  const sumRx = rows.reduce((n, r) => n + r.rx, 0);
+  const sumTx = rows.reduce((n, r) => n + r.tx, 0);
+  const otherRx = Math.max(0, (machine?.network_rx ?? 0) - sumRx);
+  const otherTx = Math.max(0, (machine?.network_tx ?? 0) - sumTx);
+  const all = [...rows, { name: "Host and everything else", id: "__other", rx: otherRx, tx: otherTx, other: true }];
+  const peak = Math.max(1, ...all.map((r) => Math.max(r.rx, r.tx)));
+
+  return (
+    <section className="overview-card net-services">
+      <div className="overview-card-head">
+        <h2>Traffic by service</h2>
+        <span className="overview-card-count">{rows.length}</span>
+        <span className="net-services-note">per container, this moment</span>
+      </div>
+      <div className="net-svc">
+        <div className="net-svc-row net-svc-head" role="presentation">
+          <span>Service</span>
+          <span>↓ In</span>
+          <span>↑ Out</span>
+        </div>
+        {all.map((r) => (
+          <div key={r.id} className={`net-svc-row ${r.other ? "net-svc-row--other" : ""} ${r.rx + r.tx < 1 ? "net-svc-row--idle" : ""}`}>
+            <span className="net-svc-name" title={r.name}>{r.name}</span>
+            <span className="net-svc-cell">
+              <i style={{ width: `${(r.rx / peak) * 100}%` }} className="rx" />
+              <b>{formatBytesPerSec(r.rx)}</b>
+            </span>
+            <span className="net-svc-cell">
+              <i style={{ width: `${(r.tx / peak) * 100}%` }} className="tx" />
+              <b>{formatBytesPerSec(r.tx)}</b>
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function HostNetwork({ host, machine, containers, history, part = "network" }) {
   const {
     settings: { graphWindowMinutes: windowMinutes },
@@ -265,6 +316,7 @@ function HostNetwork({ host, machine, containers, history, part = "network" }) {
           </div>
         ))}
       </div>
+      <TrafficByService machine={machine} containers={containers} />
       <div className="net-grid">
         <div className="net-col">
           <section className="overview-card">
@@ -420,7 +472,7 @@ function HostNetwork({ host, machine, containers, history, part = "network" }) {
 function NetworkTab({ machines, containers, checks, connected, history = {} }) {
   const fit = useFitHeight();
   const hosts = Object.keys(machines).sort();
-  const [picked, setPicked] = useState(null);
+  const [picked, setPicked] = useLocalStorage("networkHost", null);
   const [section, setSection] = useLocalStorage("networkSection", "network");
   const host = hosts.includes(picked) ? picked : hosts[0];
   const down = checks.filter((c) => c.status === "down").length;

@@ -157,6 +157,34 @@ function Section({ title, aside, children }) {
 }
 
 // A number with its trend underneath.
+// Which containers the download and upload above are coming from: the five
+// busiest right now, in and out. (God mode's Network tab has the full list.)
+function TopTalkers({ containers }) {
+  const top = (containers || [])
+    .filter((c) => c.status === "running")
+    .map((c) => ({ name: c.name, rx: c.stats?.network?.rx_bps ?? 0, tx: c.stats?.network?.tx_bps ?? 0 }))
+    .filter((c) => c.rx + c.tx >= 1)
+    .sort((a, b) => b.rx + b.tx - (a.rx + a.tx))
+    .slice(0, 5);
+  if (top.length === 0) return null;
+  return (
+    <div className="sv-talkers" title="Busiest containers right now">
+      <div className="sv-talkers-head">
+        <span>Busiest</span>
+        <span>↓ in</span>
+        <span>↑ out</span>
+      </div>
+      {top.map((c) => (
+        <div className="sv-talker" key={c.name}>
+          <span title={c.name}>{c.name}</span>
+          <span>{formatSpeed(c.rx)}</span>
+          <span>{formatSpeed(c.tx)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function Trend({ label, value, tone, children }) {
   return (
     <div className="sv-trend">
@@ -214,7 +242,7 @@ function PerCore({ cores }) {
 // Everything known about one server, laid out as five dense sections:
 // CPU, memory, storage, network & system, thermals & GPU. Every metric the
 // agent and node_exporter report is on screen — this is the tab for detail.
-function MachineVitals({ host, machine, history, explore, onExplore, showUpdates = 0 }) {
+function MachineVitals({ host, machine, history, containers = [], explore, onExplore, showUpdates = 0 }) {
   // System / Recover: one open at a time. A "Details"
   // link elsewhere (showUpdates) opens System.
   const [managing, setManaging] = useState(showUpdates > 0 ? "system" : null);
@@ -398,6 +426,8 @@ function MachineVitals({ host, machine, history, explore, onExplore, showUpdates
               <Sparkline points={history?.network_tx} max={netMax} variant="tx" height={28} windowMinutes={windowMinutes} />
             </Trend>
           </div>
+
+          <TopTalkers containers={containers} />
 
           {machine.interfaces?.length > 0 && (
             <table className="sv-table">

@@ -54,6 +54,7 @@ function MachineCard({ name, machine, history, containers, main = false }) {
             host={name}
             machine={machine}
             history={history}
+            containers={containers}
             explore={explore}
             onExplore={setExplore}
             showUpdates={showUpdates}

@@ -8495,3 +8495,123 @@ a.lan-port--web:hover {
 .lan-row--node td:first-child {
   box-shadow: inset 3px 0 0 var(--host-color, var(--accent));
 }
+
+/* ----- Network: traffic by service ----- */
+
+.net-services {
+  margin-bottom: 10px;
+}
+
+.net-services-note {
+  margin-left: auto;
+  color: var(--text-faint);
+  font-size: var(--fs-xs);
+}
+
+.net-svc {
+  max-height: 230px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.net-svc-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1.3fr) minmax(0, 2fr) minmax(0, 2fr);
+  align-items: center;
+  gap: 14px;
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-sm);
+}
+
+.net-svc-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg-card);
+  color: var(--text-faint);
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.net-svc-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.net-svc-row--other .net-svc-name {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.net-svc-row--idle {
+  opacity: 0.45;
+}
+
+.net-svc-cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 20px;
+}
+
+.net-svc-cell i {
+  position: absolute;
+  inset: 3px auto 3px 0;
+  min-width: 1px;
+  border-radius: 2px;
+  opacity: 0.35;
+}
+
+.net-svc-cell i.rx {
+  background: var(--accent);
+}
+
+.net-svc-cell i.tx {
+  background: #7aa2f7;
+}
+
+.net-svc-cell b {
+  position: relative;
+  padding-left: 6px;
+  font: 500 var(--fs-xs) var(--mono);
+}
+
+/* Busiest containers under a node's download / upload. */
+.sv-talkers {
+  margin: 8px 0 4px;
+  font-size: var(--fs-xs);
+}
+
+.sv-talkers-head,
+.sv-talker {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 64px 64px;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.sv-talkers-head {
+  color: var(--text-faint);
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sv-talkers-head span:not(:first-child),
+.sv-talker span:not(:first-child) {
+  text-align: right;
+}
+
+.sv-talker span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sv-talker span:not(:first-child) {
+  color: var(--text-muted);
+  font-family: var(--mono);
+}
