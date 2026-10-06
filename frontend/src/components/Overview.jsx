@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from "react";
 import RebalancePanel from "./RebalancePanel";
 import FirstRun from "./FirstRun";
 import SummaryRow from "./SummaryRow";
@@ -258,38 +259,66 @@ function Overview({
   }
 
   return (
-    <div className="overview overview--dense">
-      <FirstRun machines={machines} backups={backups} onNavigate={onNavigate} />
-
-      {homeCards.summary && (
-        <SummaryRow
-          overview={overview}
-          machines={machines}
-          containers={containers}
-          backups={backups}
-          ready={ready}
-          agents
-        />
-      )}
-
-      <div className="ov-grid">
-        {issues}
-        {services}
-        {pinned}
-        {timeline}
-      </div>
-
-      {homeCards.hosts && (
-        <>
-          <HostGrid
+    <DetailWindows>
+      <section className="ovw-win">
+        <FirstRun machines={machines} backups={backups} onNavigate={onNavigate} />
+        {homeCards.summary && (
+          <SummaryRow
+            overview={overview}
             machines={machines}
             containers={containers}
-            history={history}
-            mainHost={mainHost}
+            backups={backups}
+            ready={ready}
+            agents
           />
-          <AddNode />
-        </>
-      )}
+        )}
+        {homeCards.hosts ? (
+          <HostGrid machines={machines} containers={containers} history={history} mainHost={mainHost} />
+        ) : (
+          <p className="overview-empty">Server cards are switched off in Settings.</p>
+        )}
+      </section>
+
+      <section className="ovw-win ovw-win--panels">
+        <div className="ovw-col">
+          {issues}
+          {services}
+          {homeCards.hosts && <AddNode />}
+        </div>
+        <div className="ovw-col">
+          {pinned}
+          {timeline}
+        </div>
+      </section>
+    </DetailWindows>
+  );
+}
+
+// Advanced / God Overview as two screens that snap into place as you scroll:
+// the servers first (swipe sideways for more of them), then the panels that
+// answer "what's wrong, what's running, what happened". Each screen is as
+// tall as the window, so the lists inside scroll rather than the page.
+function DetailWindows({ children }) {
+  const root = useRef(null);
+  useLayoutEffect(() => {
+    const html = document.documentElement;
+    const measure = () => {
+      const top = document.querySelector(".topbar")?.getBoundingClientRect().height || 56;
+      html.style.setProperty("--ov-top", `${top}px`);
+      root.current?.style.setProperty("--ov-h", `${Math.max(460, window.innerHeight - top - 32)}px`);
+    };
+    measure();
+    html.classList.add("ov-snap");
+    window.addEventListener("resize", measure);
+    return () => {
+      window.removeEventListener("resize", measure);
+      html.classList.remove("ov-snap");
+      html.style.removeProperty("--ov-top");
+    };
+  }, []);
+  return (
+    <div className="overview overview--dense ovw" ref={root}>
+      {children}
     </div>
   );
 }
