@@ -56,3 +56,17 @@ export function startScan(host) {
     body: "{}",
   }).then(jsonOrThrow);
 }
+
+// Every node's own LAN addresses ({host: [{iface, ip, mac}]}), to mark the
+// devices in a scan that are the dashboard's own nodes.
+export function fetchNodeAddresses() {
+  if (DEMO) {
+    return Promise.resolve({
+      nodes: {
+        bigboy: [{ iface: "eth0", ip: "192.168.1.10", mac: "d8:5e:d3:42:10:10" }],
+        thinkpad: [{ iface: "enp0s25", ip: "192.168.1.11", mac: "00:e0:4c:68:00:11" }],
+      },
+    });
+  }
+  return fetch("/api/lan-nodes").then(jsonOrThrow);
+}

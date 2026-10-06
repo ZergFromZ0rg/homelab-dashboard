@@ -166,3 +166,21 @@ def test_lan_scan_says_when_the_agent_is_too_old(web, calls, monkeypatch):
     monkeypatch.setattr(lan_api.requests, "request", lambda *a, **k: FakeResponse(status=404))
     resp = web.get("/api/lan/box/scan")
     assert resp.status_code == 502 and "rebuild" in resp.json()["error"]
+
+
+def test_lan_nodes_collects_each_nodes_own_addresses(web, monkeypatch):
+    monkeypatch.setattr(
+        registry, "all",
+        lambda: {"a": {"url": "http://a:8123"}, "b": {"url": "http://b:8123"}, "old": {"url": "http://old:8123"}},
+    )
+
+    def fake_get(url, **kwargs):
+        if "old" in url:
+            return FakeResponse(status=404)
+        host = url.split("//")[1].split(":")[0]
+        return FakeResponse(json_body={"addresses": [{"iface": "eth0", "ip": f"192.168.0.{ord(host) - 90}", "mac": "aa:bb"}]})
+
+    monkeypatch.setattr(lan_api.requests, "get", fake_get)
+    out = web.get("/api/lan-nodes").json()["nodes"]
+    assert set(out) == {"a", "b"}
+    assert out["a"][0]["ip"] == "192.168.0.7"

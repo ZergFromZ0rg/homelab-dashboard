@@ -7,6 +7,8 @@ probing, so it needs the same gate as the other changing routes.
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
+
 import requests
 from fastapi import APIRouter, Header
 from fastapi.responses import JSONResponse
@@ -14,6 +16,7 @@ from fastapi.responses import JSONResponse
 from backend import auth
 from backend.docker import agent_headers
 from backend.hosts import agent_for as _agent
+from backend.registry import registry
 
 router = APIRouter(prefix="/api/lan/{host}")
 
@@ -50,3 +53,29 @@ def scan_status(host: str):
 def scan_start(host: str, body: dict | None = None, x_register_token: str | None = Header(default=None)):
     auth.check_token(x_register_token)
     return _call("POST", host, json=body or {})
+
+
+nodes_router = APIRouter()
+
+
+def _identity(item: tuple[str, dict]) -> tuple[str, list]:
+    name, node = item
+    try:
+        response = requests.get(
+            f"{node['url'].rstrip('/')}/network/self", headers=agent_headers(), timeout=15
+        )
+        if response.ok:
+            return name, response.json().get("addresses", [])
+    except (requests.RequestException, ValueError):
+        pass
+    return name, []
+
+
+@nodes_router.get("/api/lan-nodes")
+def lan_nodes():
+    """Every node's own private LAN addresses — how a scan result is told
+    apart as "that's bigboy". Agents too old to answer just have no entry."""
+    items = list(registry.all().items())
+    with ThreadPoolExecutor(max(1, len(items))) as pool:
+        found = dict(pool.map(_identity, items))
+    return {"nodes": {name: addrs for name, addrs in found.items() if addrs}}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { fetchScan, startScan } from "./lanApi";
+import { fetchNodeAddresses, fetchScan, startScan } from "./lanApi";
+import { hostColor } from "./hostColor";
 import { useLocalStorage } from "./useLocalStorage";
 
 // What is on this host's LAN, live. "Scan now" sweeps the subnet from the
@@ -42,6 +43,7 @@ function LanScan({ host }) {
   const [job, setJob] = useState(null);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("");
+  const [nodes, setNodes] = useState({});
   const [auto, setAuto] = useLocalStorage("lanAuto", false);
   const [known, setKnown] = useLocalStorage("lanKnown", {});
   // What the previous scan of this host saw, held for the scan on screen.
@@ -80,6 +82,28 @@ function LanScan({ host }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per host
   }, [host]);
 
+  // Which devices are the dashboard's own nodes, by IP or MAC.
+  useEffect(() => {
+    let alive = true;
+    fetchNodeAddresses()
+      .then((body) => alive && setNodes(body.nodes || {}))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const byAddress = useMemo(() => {
+    const map = new Map();
+    for (const [name, addrs] of Object.entries(nodes)) {
+      for (const a of addrs) {
+        map.set(a.ip, name);
+        if (a.mac) map.set(a.mac.toLowerCase(), name);
+      }
+    }
+    return map;
+  }, [nodes]);
+  const nodeOf = (d) => byAddress.get(d.ip) || (d.mac && byAddress.get(d.mac.toLowerCase())) || null;
+
   const scanning = job?.state === "scanning";
   useEffect(() => {
     if (!scanning) return undefined;
@@ -107,12 +131,14 @@ function LanScan({ host }) {
   const devices = useMemo(() => {
     const q = filter.trim().toLowerCase();
     return [...(job?.devices || [])]
-      .filter((d) => !q || `${d.ip} ${d.mac || ""} ${d.hostname || ""} ${(d.ports || []).map((p) => p.service).join(" ")}`.toLowerCase().includes(q))
+      .filter((d) => !q || `${d.ip} ${d.mac || ""} ${d.hostname || ""} ${nodeOf(d) || ""} ${(d.ports || []).map((p) => p.service).join(" ")}`.toLowerCase().includes(q))
       .sort((a, b) => ipKey(a.ip) - ipKey(b.ip));
-  }, [job, filter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- nodeOf follows byAddress
+  }, [job, filter, byAddress]);
 
   const isNew = (d) => !firstScan && !baseline.current.has(d.mac || d.ip);
   const newCount = (job?.devices || []).filter(isNew).length;
+  const ownCount = (job?.devices || []).filter((d) => nodeOf(d)).length;
   const pct = job?.total ? Math.round((job.scanned / job.total) * 100) : 0;
   const idle = !job || job.state === "idle";
 
@@ -129,6 +155,7 @@ function LanScan({ host }) {
         {job?.subnet && (
           <span className="lan-meta">
             {job.subnet} from {host} · {job.devices.length} device{job.devices.length === 1 ? "" : "s"}
+            {ownCount > 0 && <> · {ownCount} yours</>}
             {newCount > 0 && <strong className="lan-new-count"> · {newCount} new</strong>}
           </span>
         )}
@@ -169,18 +196,34 @@ function LanScan({ host }) {
             </tr>
           </thead>
           <tbody>
-            {devices.map((d) => (
-              <tr key={d.ip} className={isNew(d) ? "lan-row--new" : ""}>
+            {devices.map((d) => {
+              const node = nodeOf(d);
+              return (
+              <tr
+                key={d.ip}
+                className={`${isNew(d) ? "lan-row--new" : ""} ${node ? "lan-row--node" : ""}`}
+                style={node ? { "--host-color": hostColor(node) } : undefined}
+              >
                 <td className="net-mono">
                   {d.ip}
-                  {d.via === "self" && <span className="chip">this host</span>}
                   {isNew(d) && <span className="chip chip--warn">new</span>}
                 </td>
-                <td>{d.hostname || <span className="net-dim">—</span>}</td>
+                <td>
+                  {node ? (
+                    <span className="lan-node" style={{ "--host-color": hostColor(node) }} title={d.via === "self" ? `${node} — the host running this scan` : `${node} — one of your nodes`}>
+                      <span className="lan-node-dot" />
+                      {node}
+                      {d.via === "self" && <em>scanner</em>}
+                    </span>
+                  ) : (
+                    d.hostname || <span className="net-dim">—</span>
+                  )}
+                </td>
                 <td className="net-mono net-dim">{d.mac || "—"}</td>
                 <td><Ports ip={d.ip} ports={d.ports} /></td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       )}
