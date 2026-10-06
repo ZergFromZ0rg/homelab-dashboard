@@ -35,11 +35,11 @@ const AVATAR_COLORS = [
   "#5eead4", // teal
   "#7dd3fc", // sky
   "#a5b4fc", // periwinkle
-  "#c4b5fd", // violet
-  "#f0abfc", // orchid
-  "#f9a8d4", // pink
+  "#67e8f9", // cyan
+  "#93c5fd", // light blue
   "#94a3b8", // slate
   "#e2c08d", // sand
+  "#d4b896", // tan
 ];
 
 export function avatarColor(name) {

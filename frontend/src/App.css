@@ -3658,11 +3658,11 @@ textarea {
 }
 
 .sv-mode--user { background: #38bdf8; }
-.sv-mode--system { background: #a78bfa; }
+.sv-mode--system { background: #818cf8; }
 .sv-mode--iowait { background: #f59e0b; }
 .sv-mode--steal { background: #ef4444; }
-.sv-mode--irq { background: #f472b6; }
-.sv-mode--softirq { background: #e879f9; }
+.sv-mode--irq { background: #7dd3fc; }
+.sv-mode--softirq { background: #99f6e4; }
 .sv-mode--nice { background: #2dd4bf; }
 
 /* Per-core bars */

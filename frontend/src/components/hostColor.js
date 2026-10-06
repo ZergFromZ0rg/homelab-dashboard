@@ -1,7 +1,9 @@
 // Consistent color per host name, so the same host reads as the same
 // color everywhere it shows up — Containers tab host groups, the pin
 // chip, Quick Actions, node cards in System Stats. Makes scanning a busy
-// list faster once you've learned "blue = bigboy".
+// list faster once you've learned "blue = bigboy". Cool blues and neutrals
+// only — no pink or purple (2026-10-05: the old pink / fuchsia / purple
+// hosts clashed with everything else on screen).
 //
 // A deliberately different palette (and hash) from containerLink.js's
 // avatarColor() — host identity and container identity are two
@@ -11,11 +13,10 @@
 // orange" would misread as a status, not an identity.
 const HOST_COLORS = [
   "#60a5fa", // blue
-  "#c084fc", // purple
-  "#f472b6", // pink
   "#22d3ee", // cyan
   "#818cf8", // indigo
-  "#e879f9", // fuchsia
+  "#d4b896", // tan
+  "#78909c", // blue-grey
 ];
 
 export function hostColor(host) {

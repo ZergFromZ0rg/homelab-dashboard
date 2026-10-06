@@ -310,7 +310,7 @@
 }
 
 .mode-selector--god {
-  --mode-color: var(--offline);
+  --mode-color: var(--warning);
 }
 
 .mode-thumb {
@@ -1099,14 +1099,14 @@ textarea.deploy-input {
   animation-delay: calc(var(--i, 0) * 25ms);
 }
 
-/* God mode: the top bar's hairline turns red — you're driving the
-   machines themselves now. */
+/* God mode: the top bar's hairline turns amber — you're driving the
+   machines themselves now (the same amber that marks "powerful" switches). */
 .topbar {
   transition: border-color var(--dur-slow) var(--ease);
 }
 
 .topbar--god {
-  border-bottom-color: color-mix(in srgb, var(--offline) 40%, var(--border));
+  border-bottom-color: color-mix(in srgb, var(--warning) 40%, var(--border));
 }
 
 /* ----- Phones: nothing wider than the screen ----- */

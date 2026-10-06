@@ -18,9 +18,9 @@ export const TAB_COLORS = {
   containers: "#38bdf8", // sky
   files: "#e2c08d", // sand
   backups: "#a5b4fc", // periwinkle
-  network: "#c4b5fd", // violet
-  system: "#f0abfc", // orchid
-  terminal: "#cbd5e1", // slate
+  network: "#7aa2f7", // cornflower
+  system: "#94a3b8", // slate
+  terminal: "#e5e7eb", // near-white
 };
 
 export function tabColor(tab) {

@@ -30,8 +30,8 @@
      on the dark page, but they don't vibrate next to body text. */
   --online: #3ecf8e;
   --online-bg: rgba(62, 207, 142, 0.12);
-  --offline: #f26b6b;
-  --offline-bg: rgba(242, 107, 107, 0.12);
+  --offline: #ef5b50;
+  --offline-bg: rgba(239, 91, 80, 0.12);
   --warning: #eeaa3c;
   --warning-bg: rgba(238, 170, 60, 0.12);
 
