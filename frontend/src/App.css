@@ -7182,13 +7182,14 @@ button.mb-item:disabled { cursor: default; }
 
 .sh-clock {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 10px;
   padding: 10px 14px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
+  white-space: nowrap;
 }
 
 .sh-clock time {
@@ -7196,14 +7197,25 @@ button.mb-item:disabled { cursor: default; }
   letter-spacing: -0.03em;
 }
 
-.sh-clock > span {
-  font-size: var(--fs-sm);
+.sh-clock time small {
+  margin-left: 5px;
   color: var(--text-muted);
+  font: 500 var(--fs-sm) / 1 var(--sans);
+  letter-spacing: 0.04em;
+}
+
+.sh-clock > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
   text-align: right;
 }
 
-.sh-clock small {
-  display: none;
+.sh-clock > span b {
+  color: var(--text);
+  font-weight: 500;
 }
 
 /* Pinned apps: one row that scrolls sideways with no scrollbar. The "+" tile
@@ -7506,9 +7518,12 @@ a.sh-app:hover {
 }
 
 /* Servers: a block per host — name, uptime and temperature, then meters. */
-.sh-servers .overview-card-body {
-  max-height: 46vh;
-  overflow-y: auto;
+.sh-col > .sh-servers {
+  flex-grow: 3;
+}
+
+.sh-fill > .overview-card-body {
+  scrollbar-width: thin;
 }
 
 .sh-hosts {

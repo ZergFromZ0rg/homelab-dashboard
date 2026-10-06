@@ -33,16 +33,21 @@ function Clock() {
     settings: { displayName },
   } = useSettings();
   const name = displayName.trim();
+  // The hour and minutes big, "PM" small beside them: the locale's own
+  // "p.m." at clock size wrapped onto a second line.
+  const parts = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).formatToParts(now);
+  const clock = parts.filter((p) => p.type !== "dayPeriod").map((p) => p.value).join("").trim();
+  const period = parts.find((p) => p.type === "dayPeriod")?.value.replace(/\./g, "").toUpperCase();
   return (
-    <section className="sh-clock">
+    <section className="sh-clock" title={`${partOfDay(now.getHours())}${name ? `, ${name}` : ""}`}>
       <time dateTime={now.toISOString()}>
-        {now.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
+        {clock}
+        {period && <small>{period}</small>}
       </time>
-      <span>{now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</span>
-      <small>
-        {partOfDay(now.getHours())}
-        {name ? `, ${name}` : ""}
-      </small>
+      <span>
+        <b>{now.toLocaleDateString(undefined, { weekday: "long" })}</b>
+        {now.toLocaleDateString(undefined, { month: "long", day: "numeric" })}
+      </span>
     </section>
   );
 }
@@ -215,7 +220,6 @@ function ContainerTable({ containers, onControl }) {
 
   const all = allContainers(containers);
   const running = all.filter((c) => c.status === "running");
-  const cpu = running.reduce((n, c) => n + (c.stats?.cpu_percent || 0), 0);
   const mem = running.reduce((n, c) => n + (c.stats?.memory?.used_bytes || 0), 0);
 
   const act = (c, verb) => {
@@ -296,10 +300,11 @@ function ContainerTable({ containers, onControl }) {
         </table>
       </div>
       <div className="sh-table-foot">
-        <span>{all.length} containers</span>
         <span>
-          CPU {cpu.toFixed(1)}% · Memory {formatBytes(mem)}
+          {all.length} containers · {running.length} running
+          {all.length - running.length > 0 ? ` · ${all.length - running.length} stopped` : ""}
         </span>
+        <span title="Memory used by the running containers, all hosts added together">{formatBytes(mem)} RAM</span>
       </div>
     </Card>
   );
@@ -432,7 +437,7 @@ function SimpleHome({
         </main>
 
         <aside className="sh-col sh-col--right">
-          <Card title="Servers" count={hosts.length || null} className="sh-servers">
+          <Card title="Servers" count={hosts.length || null} className="sh-servers sh-fill">
             <div className="sh-hosts">
               {hosts.length === 0 && <p className="sh-empty">{ready ? "No hosts reporting yet." : "Connecting…"}</p>}
               {hosts.map((h) => (
