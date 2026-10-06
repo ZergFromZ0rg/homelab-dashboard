@@ -7,7 +7,7 @@ import { IconButton } from "./Icon";
 import { deleteCheck, runCheck, updateCheck } from "./checksApi";
 import { formatAge, formatDuration, formatLatency } from "./format";
 
-const TYPE_LABEL = { http: "HTTP", keyword: "Keyword", ping: "Ping", tcp: "TCP", dns: "DNS" };
+const TYPE_LABEL = { http: "HTTP", keyword: "Keyword", ping: "Ping", tcp: "TCP", dns: "DNS", tls: "Cert" };
 
 const STATUS_TONE = { up: "ok", down: "bad", paused: "none", pending: "none" };
 
@@ -83,6 +83,9 @@ function CheckCard({ check, now }) {
     sub = "";
   } else if (status === "pending") {
     headline = "Checking…";
+    sub = "";
+  } else if (check.type === "tls" && /^(\d+) days? left/.test(check.detail ?? "")) {
+    headline = `${check.detail.match(/^(\d+)/)[1]} d left`;
     sub = "";
   } else {
     headline = formatLatency(check.latency_ms);

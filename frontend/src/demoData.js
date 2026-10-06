@@ -487,6 +487,17 @@ export function demoCheckHistory(id, range) {
   };
 }
 
+// Mirrors GET /api/checks/suggestions.
+export function demoSuggestions() {
+  return [
+    { key: "host:bigboy", group: "Hosts", name: "bigboy", type: "ping", target: "192.168.0.10", reason: "is this machine reachable" },
+    { key: "host:thinkpad", group: "Hosts", name: "thinkpad", type: "ping", target: "192.168.0.132", reason: "is this machine reachable" },
+    { key: "container:bigboy:qbittorrent", group: "bigboy", name: "qbittorrent", type: "http", target: "http://192.168.0.10:8080", reason: "qbittorrent on bigboy, port 8080" },
+    { key: "container:bigboy:sonarr", group: "bigboy", name: "sonarr", type: "http", target: "http://192.168.0.10:8989", reason: "sonarr on bigboy, port 8989" },
+    { key: "container:bigboy:radarr", group: "bigboy", name: "radarr", type: "http", target: "http://192.168.0.10:7878", reason: "radarr on bigboy, port 7878" },
+  ];
+}
+
 // Mirrors GET /api/checks/incidents.
 export function demoIncidents() {
   const t = now();

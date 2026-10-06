@@ -14,6 +14,11 @@ const TYPES = [
   },
   { value: "tcp", label: "Port", hint: "Open a TCP connection to host:port." },
   { value: "dns", label: "DNS lookup", hint: "Resolve a hostname." },
+  {
+    value: "tls",
+    label: "Certificate",
+    hint: "Goes red when the HTTPS certificate is about to expire (or already has) — the thing that works until the day it doesn't.",
+  },
 ];
 
 const TARGET_HELP = {
@@ -22,9 +27,11 @@ const TARGET_HELP = {
   ping: { placeholder: "192.168.1.1 or router.local", label: "Host or IP" },
   tcp: { placeholder: "192.168.1.10:22", label: "Host and port" },
   dns: { placeholder: "example.com", label: "Hostname" },
+  tls: { placeholder: "example.com or 192.168.1.10:8443", label: "Host (and port, default 443)" },
 };
 
 const isWeb = (type) => type === "http" || type === "keyword";
+const usesTls = (type) => isWeb(type) || type === "tls";
 
 // One-click starting points for the two checks everyone wants.
 const PRESETS = [
@@ -43,6 +50,7 @@ function blank(check) {
     verify_tls: check?.verify_tls ?? true,
     keyword: check?.keyword ?? "",
     keyword_mode: check?.keyword_mode ?? "present",
+    warn_days: check?.warn_days ?? 14,
   };
 }
 
@@ -71,6 +79,7 @@ function CheckForm({ check, onSubmit, onCancel }) {
         timeout: Number(values.timeout),
         expect_status: isWeb(values.type) && values.expect_status !== "" ? Number(values.expect_status) : null,
         keyword: values.type === "keyword" ? values.keyword : null,
+        warn_days: values.type === "tls" ? Number(values.warn_days) : null,
       });
     } catch (err) {
       setError(err.message);
@@ -106,7 +115,15 @@ function CheckForm({ check, onSubmit, onCancel }) {
             type="button"
             className={values.type === t.value ? "active" : ""}
             aria-pressed={values.type === t.value}
-            onClick={() => set({ type: t.value })}
+            onClick={() =>
+              set({
+                type: t.value,
+                // A certificate changes over weeks: look hourly, not every minute.
+                ...(!check && values.interval === (values.type === "tls" ? 3600 : 60)
+                  ? { interval: t.value === "tls" ? 3600 : 60 }
+                  : {}),
+              })
+            }
             title={t.hint}
           >
             {t.label}
@@ -202,6 +219,29 @@ function CheckForm({ check, onSubmit, onCancel }) {
               onChange={(e) => set({ timeout: e.target.value })}
             />
           </label>
+          {values.type === "tls" && (
+            <label className="deploy-field">
+              <span className="deploy-label">Warn when fewer than (days) are left</span>
+              <input
+                className="deploy-input"
+                type="number"
+                min="1"
+                max="365"
+                value={values.warn_days}
+                onChange={(e) => set({ warn_days: e.target.value })}
+              />
+            </label>
+          )}
+          {usesTls(values.type) && (
+            <label className="settings-check check-form-tls">
+              <input
+                type="checkbox"
+                checked={!values.verify_tls}
+                onChange={(e) => set({ verify_tls: !e.target.checked })}
+              />
+              Accept a self-signed certificate
+            </label>
+          )}
           {isWeb(values.type) && (
             <>
               <label className="deploy-field">
@@ -215,14 +255,6 @@ function CheckForm({ check, onSubmit, onCancel }) {
                   placeholder="200"
                   onChange={(e) => set({ expect_status: e.target.value })}
                 />
-              </label>
-              <label className="settings-check check-form-tls">
-                <input
-                  type="checkbox"
-                  checked={!values.verify_tls}
-                  onChange={(e) => set({ verify_tls: !e.target.checked })}
-                />
-                Accept a self-signed certificate
               </label>
             </>
           )}

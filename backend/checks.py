@@ -13,6 +13,8 @@ backend runs on a schedule:
     ping     one ICMP echo to an IPv4 host. Latency = round trip.
     tcp      open a TCP connection to host:port. Latency = connect time.
     dns      resolve a hostname with the backend's resolver. Latency = lookup.
+    tls      TLS handshake to host[:port] (default 443); up while the
+             certificate has at least ``warn_days`` left. Latency = handshake.
 
 The probes run *from the dashboard backend*, so they test reachability from
 where the dashboard lives ("localhost" means the dashboard container itself —
@@ -33,6 +35,8 @@ from __future__ import annotations
 import asyncio
 import bisect
 import re
+import ssl
+import tempfile
 import random
 import socket
 import struct
@@ -55,7 +59,7 @@ from backend.log import system as log
 CHECKS_FILE = Path(env_str("CHECKS_FILE", "/data/checks.json"))
 HISTORY_FILE = Path(env_str("CHECK_HISTORY_FILE", "/data/check_history.json"))
 
-TYPES = ("http", "keyword", "ping", "tcp", "dns")
+TYPES = ("http", "keyword", "ping", "tcp", "dns", "tls")
 HTTP_TYPES = ("http", "keyword")
 
 MAX_CHECKS = 100
@@ -64,6 +68,9 @@ MAX_TARGET_LENGTH = 500
 
 MIN_INTERVAL, MAX_INTERVAL, DEFAULT_INTERVAL = 10, 3600, 60
 MIN_TIMEOUT, MAX_TIMEOUT, DEFAULT_TIMEOUT = 1.0, 30.0, 5.0
+# A certificate changes over weeks, so an hourly look is plenty.
+TLS_DEFAULT_INTERVAL = 3600
+MIN_WARN_DAYS, MAX_WARN_DAYS, DEFAULT_WARN_DAYS = 1, 365, 14
 
 # Consecutive failed probes before a check counts as down.
 FAILURES_BEFORE_DOWN = max(1, int(env_float("CHECK_FAILURES_BEFORE_DOWN", 2)))
@@ -110,7 +117,7 @@ _LOCAL_SUFFIX_RE = re.compile(r"\.(local|lan|home|internal)$", re.IGNORECASE)
 _IPV4_RE = re.compile(r"^\d{1,3}(\.\d{1,3}){3}$")
 EDITABLE = (
     "name", "type", "target", "interval", "timeout", "expect_status",
-    "verify_tls", "paused", "keyword", "keyword_mode",
+    "verify_tls", "paused", "keyword", "keyword_mode", "warn_days",
 )
 
 
@@ -152,6 +159,20 @@ def _clean_tcp_target(raw: str) -> str:
     host, sep, port = raw.strip().rpartition(":")
     if not sep or not _HOST_RE.match(host) or not port.isdigit() or not 1 <= int(port) <= 65535:
         raise ValueError("target must look like host:port, e.g. 192.168.1.10:22")
+    return f"{host}:{int(port)}"
+
+
+def _clean_tls_target(raw: str) -> str:
+    """host or host:port; a pasted https:// address is reduced to its host."""
+    raw = raw.strip()
+    if "://" in raw:
+        parts = urlsplit(raw)
+        raw = f"{parts.hostname or ''}:{parts.port or 443}" if parts.hostname else ""
+    host, sep, port = raw.rpartition(":")
+    if not sep:
+        host, port = raw, "443"
+    if not _HOST_RE.match(host) or not port.isdigit() or not 1 <= int(port) <= 65535:
+        raise ValueError("target must look like host or host:port, e.g. example.com:8443")
     return f"{host}:{int(port)}"
 
 
@@ -219,9 +240,13 @@ def build_spec(payload: dict, existing: dict | None = None) -> dict:
         "ping": _clean_ping_target,
         "tcp": _clean_tcp_target,
         "dns": _clean_dns_target,
+        "tls": _clean_tls_target,
     }[kind](target)
 
-    interval = _number(merged.get("interval"), "interval", MIN_INTERVAL, MAX_INTERVAL, DEFAULT_INTERVAL, integer=True)
+    interval = _number(
+        merged.get("interval"), "interval", MIN_INTERVAL, MAX_INTERVAL,
+        TLS_DEFAULT_INTERVAL if kind == "tls" else DEFAULT_INTERVAL, integer=True,
+    )
     timeout = _number(merged.get("timeout"), "timeout", MIN_TIMEOUT, MAX_TIMEOUT, DEFAULT_TIMEOUT)
     if timeout > interval:
         raise ValueError("timeout can't be longer than the interval")
@@ -231,6 +256,14 @@ def build_spec(payload: dict, existing: dict | None = None) -> dict:
         expect = _number(expect, "expected status", 100, 599, None, integer=True)
     else:
         expect = None
+
+    if kind == "tls":
+        warn_days = _number(
+            merged.get("warn_days"), "warning days", MIN_WARN_DAYS, MAX_WARN_DAYS,
+            DEFAULT_WARN_DAYS, integer=True,
+        )
+    else:
+        warn_days = None
 
     if kind == "keyword":
         keyword, keyword_mode = _clean_keyword(
@@ -252,7 +285,8 @@ def build_spec(payload: dict, existing: dict | None = None) -> dict:
         "interval": interval,
         "timeout": timeout,
         "expect_status": expect,
-        "verify_tls": verify if kind in HTTP_TYPES else True,
+        "verify_tls": verify if kind in HTTP_TYPES + ("tls",) else True,
+        "warn_days": warn_days,
         "keyword": keyword,
         "keyword_mode": keyword_mode,
         "paused": paused,
@@ -404,6 +438,61 @@ def _probe_dns(spec: dict) -> Result:
     return Result(bool(answers), ms, f"resolved to {address}")
 
 
+def _decode_der_not_after(der: bytes) -> float:
+    """notAfter of a certificate we didn't validate (self-signed LAN
+    services), via the stdlib's own decoder, which only reads files."""
+    pem = ssl.DER_cert_to_PEM_cert(der)
+    with tempfile.NamedTemporaryFile("w", suffix=".pem") as handle:
+        handle.write(pem)
+        handle.flush()
+        info = ssl._ssl._test_decode_cert(handle.name)  # noqa: SLF001
+    return ssl.cert_time_to_seconds(info["notAfter"])
+
+
+def _probe_tls(spec: dict) -> Result:
+    host, _, port = spec["target"].rpartition(":")
+    timeout = spec["timeout"]
+    verify = spec.get("verify_tls", True)
+    context = ssl.create_default_context()
+    if not verify:
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+
+    started = time.perf_counter()
+    try:
+        with socket.create_connection((host, int(port)), timeout=timeout) as raw:
+            with context.wrap_socket(raw, server_hostname=host) as tls:
+                ms = (time.perf_counter() - started) * 1000
+                if verify:
+                    not_after = ssl.cert_time_to_seconds(tls.getpeercert()["notAfter"])
+                else:
+                    not_after = _decode_der_not_after(tls.getpeercert(binary_form=True))
+    except ssl.SSLCertVerificationError as error:
+        reason = error.verify_message or str(error)
+        if "expired" in reason:
+            return Result(False, None, "certificate has expired")
+        return Result(
+            False, None,
+            _short(f"certificate not trusted: {reason} — accept a self-signed certificate if that's expected"),
+        )
+    except socket.gaierror:
+        return Result(False, None, "DNS lookup failed")
+    except (socket.timeout, TimeoutError):
+        return Result(False, None, f"timed out after {timeout:g}s")
+    except ConnectionRefusedError:
+        return Result(False, None, "connection refused")
+    except (ssl.SSLError, OSError, KeyError, ValueError) as error:
+        return Result(False, None, _short(f"TLS failed: {error}"))
+
+    days = int((not_after - time.time()) // 86400)
+    when = time.strftime("%b %-d, %Y", time.gmtime(not_after))
+    if days < 0:
+        return Result(False, None, f"expired {-days} days ago")
+    if days < (spec.get("warn_days") or DEFAULT_WARN_DAYS):
+        return Result(False, ms, f"only {days} days left · expires {when}")
+    return Result(True, ms, f"{days} days left · expires {when}")
+
+
 def _icmp_checksum(data: bytes) -> int:
     if len(data) % 2:
         data += b"\0"
@@ -507,6 +596,7 @@ def probe(spec: dict) -> Result:
             "ping": _probe_ping,
             "tcp": _probe_tcp,
             "dns": _probe_dns,
+            "tls": _probe_tls,
         }[spec["type"]](spec)
     except Exception as error:  # noqa: BLE001 - a probe must not kill its worker
         log.warning("check %s crashed: %s", spec.get("name"), error)
@@ -847,6 +937,7 @@ class CheckService:
                     for k in (
                         "id", "name", "type", "target", "interval", "timeout",
                         "expect_status", "verify_tls", "paused", "keyword", "keyword_mode",
+                        "warn_days",
                     )
                 },
                 "status": status,

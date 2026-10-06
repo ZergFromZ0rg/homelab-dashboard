@@ -2,6 +2,7 @@ import { useState } from "react";
 import CheckCard from "./CheckCard";
 import CheckForm from "./CheckForm";
 import CheckIncidents from "./CheckIncidents";
+import CheckSuggestions from "./CheckSuggestions";
 import { createCheck } from "./checksApi";
 import { formatLatency } from "./format";
 import { useNow } from "./useNow";
@@ -69,6 +70,8 @@ function ServicesTab({ checks, connected }) {
       )}
 
       {showIncidents && <CheckIncidents now={now} />}
+
+      <CheckSuggestions />
 
       <div className="services-head">
         <h2 title="Probes run from the dashboard every minute (by default) and turn red after two failures in a row.">

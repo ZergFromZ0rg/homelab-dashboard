@@ -820,3 +820,97 @@ def test_api_incidents(client):
     body = client.get("/api/checks/incidents").json()
     assert [i["name"] for i in body["incidents"]] == ["a"]
     assert client.get("/api/checks/incidents?hours=0").status_code == 422
+
+
+# --- TLS expiry ----------------------------------------------------------------------
+
+import shutil
+import ssl
+import subprocess
+
+needs_openssl = pytest.mark.skipif(shutil.which("openssl") is None, reason="needs the openssl CLI")
+
+
+def _tls_server(tmp_path, days):
+    key, cert = tmp_path / f"k{days}.pem", tmp_path / f"c{days}.pem"
+    subprocess.run(
+        ["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", str(days),
+         "-subj", "/CN=localhost", "-keyout", str(key), "-out", str(cert)],
+        check=True, capture_output=True,
+    )
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.load_cert_chain(cert, key)
+    listener = socket.socket()
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(5)
+
+    def serve():
+        while True:
+            try:
+                conn, _ = listener.accept()
+            except OSError:
+                return
+            try:
+                context.wrap_socket(conn, server_side=True).close()
+            except (ssl.SSLError, OSError):
+                conn.close()
+
+    threading.Thread(target=serve, daemon=True).start()
+    return listener, listener.getsockname()[1]
+
+
+def tls_spec(port, **kw):
+    return build_spec({"name": "cert", "type": "tls", "target": f"127.0.0.1:{port}", **kw})
+
+
+def test_tls_target_and_defaults():
+    spec = build_spec({"name": "c", "type": "tls", "target": "https://example.com/path"})
+    assert spec["target"] == "example.com:443"
+    assert spec["interval"] == 3600 and spec["warn_days"] == 14
+    assert build_spec({"name": "c", "type": "tls", "target": "example.com:8443"})["target"] == "example.com:8443"
+    with pytest.raises(ValueError):
+        build_spec({"name": "c", "type": "tls", "target": "example.com:99999"})
+    with pytest.raises(ValueError):
+        build_spec({"name": "c", "type": "tls", "target": "x.com", "warn_days": 0})
+    assert build_spec({"name": "c", "type": "tcp", "target": "x.com:1"})["warn_days"] is None
+
+
+@needs_openssl
+def test_tls_long_certificate_is_up_and_reports_days(tmp_path):
+    listener, port = _tls_server(tmp_path, 90)
+    try:
+        result = probe(tls_spec(port, verify_tls=False))
+    finally:
+        listener.close()
+    assert result.ok and result.ms is not None
+    assert result.detail.startswith(("89 days left", "90 days left"))
+
+
+@needs_openssl
+def test_tls_certificate_close_to_expiry_is_down(tmp_path):
+    listener, port = _tls_server(tmp_path, 5)
+    try:
+        soon = probe(tls_spec(port, verify_tls=False))
+        relaxed = probe(tls_spec(port, verify_tls=False, warn_days=2))
+    finally:
+        listener.close()
+    assert not soon.ok and soon.detail.startswith(("only 4 days left", "only 5 days left"))
+    assert relaxed.ok
+
+
+@needs_openssl
+def test_tls_untrusted_certificate_explains_itself(tmp_path):
+    listener, port = _tls_server(tmp_path, 90)
+    try:
+        result = probe(tls_spec(port))
+    finally:
+        listener.close()
+    assert not result.ok and "not trusted" in result.detail
+
+
+def test_tls_refused_and_timeout():
+    sock = socket.socket()
+    sock.bind(("127.0.0.1", 0))
+    port = sock.getsockname()[1]
+    sock.close()
+    assert probe(tls_spec(port)).detail == "connection refused"

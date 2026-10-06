@@ -6,11 +6,12 @@ whatever address it's given, so it's gated like the other mutating routes.
 
 from __future__ import annotations
 
+import asyncio
 import time
 
 from fastapi import APIRouter, Header, HTTPException, Query
 
-from backend import auth, checks
+from backend import auth, check_suggestions, checks
 
 router = APIRouter()
 
@@ -33,6 +34,52 @@ def list_incidents(hours: int = Query(default=168, ge=1, le=720), limit: int = Q
     """Downtime episodes across every check, newest first."""
     since = time.time() - hours * 3600
     return {"incidents": checks.service.incidents(since=since, limit=limit)}
+
+
+async def _suggestions() -> list[dict]:
+    # Imported here: main imports this module at startup.
+    from backend import main
+    from backend.lan_api import lan_nodes
+    from backend.registry import registry
+
+    snapshot = await main.shared_update()
+    lan = (await asyncio.to_thread(lan_nodes))["nodes"]
+    return check_suggestions.suggest(
+        snapshot.get("containers") or [],
+        registry.all(),
+        lan,
+        checks.service.store.all(),
+        check_suggestions.dismissed.all(),
+    )
+
+
+@router.get("/api/checks/suggestions")
+async def list_suggestions():
+    """Hosts and containers nothing is watching yet. Nothing is created."""
+    return {"suggestions": await _suggestions()}
+
+
+@router.post("/api/checks/suggestions/accept", status_code=201)
+async def accept_suggestions(payload: dict, x_register_token: str | None = Header(default=None)):
+    """Create checks for the suggestions with these keys (the server rebuilds
+    the list, so only things it would have suggested can be added)."""
+    auth.check_token(x_register_token)
+    keys = payload.get("keys")
+    if not isinstance(keys, list):
+        raise HTTPException(status_code=400, detail="keys must be a list")
+    wanted = [s for s in await _suggestions() if s["key"] in set(keys)]
+    created = await asyncio.to_thread(check_suggestions.accept, checks.service.store, wanted)
+    return {"created": created}
+
+
+@router.post("/api/checks/suggestions/dismiss")
+def dismiss_suggestions(payload: dict, x_register_token: str | None = Header(default=None)):
+    auth.check_token(x_register_token)
+    keys = payload.get("keys")
+    if not isinstance(keys, list):
+        raise HTTPException(status_code=400, detail="keys must be a list")
+    check_suggestions.dismissed.add(keys)
+    return {"dismissed": len(keys)}
 
 
 @router.post("/api/checks", status_code=201)
