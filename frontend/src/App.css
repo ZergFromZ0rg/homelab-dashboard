@@ -8667,3 +8667,83 @@ a.lan-port--web:hover {
     grid-template-columns: 1fr;
   }
 }
+
+/* Network: every section is one window. The page never scrolls and neither
+   does the pane — the cards and tables inside it share the height and scroll
+   on their own. (A very short window falls back to a scrolling pane.) */
+.network-tab > .fit-pane:not(.net-checks) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.network-tab .net-host {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  min-height: 0;
+}
+
+.network-tab .net-top {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.network-tab .net-grid {
+  flex: 1;
+  align-items: stretch;
+  min-height: 0;
+  margin: 0;
+}
+
+.network-tab .net-col {
+  min-height: 0;
+}
+
+.network-tab .net-col > .overview-card,
+.network-tab .net-grid > .net-networks {
+  flex: 1 1 auto;
+  min-height: 90px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.net-fill {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  margin: 0;
+}
+
+.net-fill .lan,
+.net-fill .conn-panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.lan-scroll,
+.net-fill .conn-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.lan-scroll .net-table th,
+.net-fill .conn-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg-card);
+}
+
+@media (max-height: 560px) {
+  .network-tab > .fit-pane:not(.net-checks) {
+    overflow-y: auto;
+  }
+}

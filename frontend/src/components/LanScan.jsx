@@ -186,6 +186,7 @@ function LanScan({ host }) {
       )}
 
       {devices.length > 0 && (
+        <div className="lan-scroll">
         <table className="net-table lan-table">
           <thead>
             <tr>
@@ -238,6 +239,7 @@ function LanScan({ host }) {
             })}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );

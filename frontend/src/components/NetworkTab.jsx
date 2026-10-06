@@ -450,13 +450,13 @@ function HostNetwork({ host, machine, containers, history, part = "network" }) {
       )}
 
       {part === "devices" && (
-        <section className="overview-card">
+        <section className="overview-card net-fill">
           <LanScan host={host} />
         </section>
       )}
 
       {part === "connections" && (
-        <section className="overview-card net-conns">
+        <section className="overview-card net-conns net-fill">
           <ConnectionsPanel host={host} defaultOpen />
         </section>
       )}
