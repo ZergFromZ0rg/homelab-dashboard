@@ -1,4 +1,4 @@
-import { HostSystemPanels } from "./HostSystem";
+import { Journal, OsUpdates, Power, Services } from "./HostSystem";
 import HostSettings from "./HostSettings";
 import HostRecovery from "./HostRecovery";
 import HostShellButton from "./HostShellButton";
@@ -22,9 +22,12 @@ function Fact({ label, value, title }) {
 // disks, systemd services, the journal, OS updates, power, the agent's
 // settings and what you'd lose if it died. The server cards on Overview
 // keep the same controls folded away.
+const disksCount = (m) => (m.filesystems || []).length || null;
+
 function SystemTab({ machines, connected }) {
   const hosts = Object.keys(machines).sort();
   const [picked, setPicked] = useLocalStorage("systemHost", null);
+  const [tab, setTab] = useLocalStorage("systemTab", "disks");
   const host = hosts.includes(picked) ? picked : hosts[0];
 
   if (!host) {
@@ -32,6 +35,18 @@ function SystemTab({ machines, connected }) {
   }
 
   const m = machines[host];
+  const facts = m.host_facts;
+  const failed = facts?.failed_units?.length || 0;
+  const needsControl = ["updates", "services", "journal", "power"];
+  const tabs = [
+    ["disks", "Disks", disksCount(m), null],
+    ["updates", "OS updates", facts?.os_updates || null, facts?.security_updates ? "warn" : null],
+    ["services", "Services", failed || null, "bad"],
+    ["journal", "Journal", null, null],
+    ["power", "Power", facts?.reboot_required ? "!" : null, "warn"],
+    ["recover", "Recover", null, null],
+    ["settings", "Settings", null, null],
+  ];
   const d = m.details || {};
   const gpus = gpuDevices(m);
   const disks = [...(m.filesystems || [])].sort((a, b) => (b.used_percent ?? 0) - (a.used_percent ?? 0));
@@ -79,20 +94,25 @@ function SystemTab({ machines, connected }) {
         </p>
       )}
 
-      <div className="system-grid">
-        <div className="overview-card system-col">
-          <div className="overview-card-head"><h2>Machine</h2></div>
-          <div className="overview-card-body">
-            {m.terminal ? <HostSystemPanels host={host} machine={m} /> : <p className="mb-empty">Not available.</p>}
-          </div>
-        </div>
+      <div className="hsys-tabs" role="tablist" aria-label="System">
+        {tabs.map(([id, label, badge, tone]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            className={tab === id ? "active" : ""}
+            onClick={() => setTab(id)}
+          >
+            {label}
+            {badge != null && <span className={`hsys-badge ${tone ? `hsys-badge--${tone}` : ""}`}>{badge}</span>}
+          </button>
+        ))}
+      </div>
 
-        <div className="system-col">
+      <div className="system-pane">
+        {tab === "disks" && (
           <div className="overview-card">
-            <div className="overview-card-head">
-              <h2>Disks</h2>
-              <span className="overview-card-count">{disks.length}</span>
-            </div>
             <table className="net-table">
               <thead>
                 <tr><th>Disk</th><th>Mount</th><th>Size</th><th>Used</th><th>Full in</th></tr>
@@ -111,15 +131,20 @@ function SystemTab({ machines, connected }) {
                     </td>
                   </tr>
                 ))}
+                {disks.length === 0 && (
+                  <tr><td colSpan={5} className="net-dim">No disks reported.</td></tr>
+                )}
               </tbody>
             </table>
           </div>
-
-          <div className="overview-card system-panels">
-            <HostSettings key={`s-${host}`} host={host} defaultOpen />
-            <HostRecovery key={`r-${host}`} host={host} defaultOpen />
-          </div>
-        </div>
+        )}
+        {needsControl.includes(tab) && !m.terminal && <p className="mb-empty">Not available — host control is off.</p>}
+        {tab === "updates" && m.terminal && <OsUpdates key={host} host={host} facts={m.host_facts} />}
+        {tab === "services" && m.terminal && <Services key={host} host={host} />}
+        {tab === "journal" && m.terminal && <Journal key={host} host={host} />}
+        {tab === "power" && m.terminal && <Power key={host} host={host} />}
+        {tab === "recover" && <HostRecovery key={`r-${host}`} host={host} defaultOpen />}
+        {tab === "settings" && <HostSettings key={`s-${host}`} host={host} defaultOpen />}
       </div>
     </section>
   );

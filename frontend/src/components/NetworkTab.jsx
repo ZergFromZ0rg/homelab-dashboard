@@ -4,6 +4,7 @@ import ServicesTab from "./ServicesTab";
 import { IconButton } from "./Icon";
 import { formatBytesPerSec } from "./format";
 import { hostColor } from "./hostColor";
+import { useLocalStorage } from "./useLocalStorage";
 import { createNetwork, fetchNetworks, removeNetwork, setMembership } from "./networksApi";
 
 // One server's network, all of it: traffic, interfaces, published ports,
@@ -178,7 +179,7 @@ function NetworkRow({ network, containers, onAct }) {
   );
 }
 
-function HostNetwork({ host, machine, containers }) {
+function HostNetwork({ host, machine, containers, part = "network" }) {
   const [data, setData] = useState(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
@@ -228,6 +229,8 @@ function HostNetwork({ host, machine, containers }) {
         <Fact label="Ports" value={ports.length} />
       </div>
 
+      {part === "network" && (
+      <>
       <div className="net-grid">
         <div className="net-col">
           <section className="overview-card">
@@ -362,10 +365,14 @@ function HostNetwork({ host, machine, containers }) {
           )}
         </section>
       </div>
+      </>
+      )}
 
-      <section className="overview-card net-conns">
-        <ConnectionsPanel host={host} />
-      </section>
+      {part === "connections" && (
+        <section className="overview-card net-conns">
+          <ConnectionsPanel host={host} defaultOpen />
+        </section>
+      )}
     </div>
   );
 }
@@ -373,15 +380,40 @@ function HostNetwork({ host, machine, containers }) {
 function NetworkTab({ machines, containers, checks, connected }) {
   const hosts = Object.keys(machines).sort();
   const [picked, setPicked] = useState(null);
+  const [section, setSection] = useLocalStorage("networkSection", "network");
   const host = hosts.includes(picked) ? picked : hosts[0];
+  const down = checks.filter((c) => c.status === "down").length;
+  const perHost = section !== "checks";
+
+  const sections = [
+    ["network", "Host network", null],
+    ["connections", "Connections", null],
+    ["checks", "Service checks", down ? `${down} down` : checks.length || null],
+  ];
 
   return (
     <section className="network-tab">
-      {hosts.length === 0 ? (
-        <div className="empty-state">
-          {connected === false ? "Connecting…" : "No servers reporting yet."}
-        </div>
-      ) : (
+      <div className="hsys-tabs" role="tablist" aria-label="Network">
+        {sections.map(([id, label, badge]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={section === id}
+            className={section === id ? "active" : ""}
+            onClick={() => setSection(id)}
+          >
+            {label}
+            {badge != null && <span className={`hsys-badge ${id === "checks" && down ? "hsys-badge--bad" : ""}`}>{badge}</span>}
+          </button>
+        ))}
+      </div>
+
+      {perHost && hosts.length === 0 && (
+        <div className="empty-state">{connected === false ? "Connecting…" : "No servers reporting yet."}</div>
+      )}
+
+      {perHost && hosts.length > 0 && (
         <>
           <div className="net-hosts" role="tablist" aria-label="Server">
             {hosts.map((h) => (
@@ -401,17 +433,20 @@ function NetworkTab({ machines, containers, checks, connected }) {
           </div>
 
           <HostNetwork
-            key={host}
+            key={`${host}-${section}`}
             host={host}
             machine={machines[host]}
             containers={containers[host]}
+            part={section}
           />
         </>
       )}
 
-      <div className="net-checks">
-        <ServicesTab checks={checks} connected={connected} embedded />
-      </div>
+      {section === "checks" && (
+        <div className="net-checks">
+          <ServicesTab checks={checks} connected={connected} embedded />
+        </div>
+      )}
     </section>
   );
 }

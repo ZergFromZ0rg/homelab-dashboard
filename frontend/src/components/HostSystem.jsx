@@ -305,6 +305,8 @@ function Power({ host }) {
   );
 }
 
+export { Services, Journal, OsUpdates, Power };
+
 // The blocks on their own — the God-mode System tab shows them all open.
 // `tabbed` (the server card on Advanced) shows one at a time under a tab bar,
 // opening on whatever most needs a look: the updates you came for, failed

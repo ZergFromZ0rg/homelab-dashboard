@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { fetchConnections } from "./connectionsApi";
 import { formatBytes } from "./format";
 import Icon from "./Icon";
@@ -89,8 +89,8 @@ function PeerRow({ peer }) {
   );
 }
 
-function ConnectionsPanel({ host }) {
-  const [open, setOpen] = useState(false);
+function ConnectionsPanel({ host, defaultOpen = false }) {
+  const [open, setOpen] = useState(defaultOpen);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -106,6 +106,14 @@ function ConnectionsPanel({ host }) {
       setLoading(false);
     }
   }
+
+  // Opened from the start (the Network tab's Connections section): fetch once.
+  useEffect(() => {
+    if (!defaultOpen) return undefined;
+    const timer = setTimeout(() => load(false), 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [host]);
 
   // Fetching on the click rather than in an effect keyed on `open`: the
   // click *is* the trigger, and an effect would re-run on every unrelated

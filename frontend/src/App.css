@@ -8004,3 +8004,21 @@ html.ov-snap {
     overflow-y: visible;
   }
 }
+
+/* God tabs: a section bar under the host buttons, one section at a time. */
+.system-pane {
+  margin-top: 10px;
+}
+
+.network-tab > .hsys-tabs {
+  margin-bottom: 10px;
+}
+
+.system-pane .hsys-block h4 {
+  display: none;
+}
+
+.system-pane .hsys-list,
+.system-pane .hsys-journal {
+  max-height: 55vh;
+}
