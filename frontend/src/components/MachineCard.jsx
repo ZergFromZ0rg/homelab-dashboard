@@ -14,6 +14,8 @@ import { useLocalStorage } from "./useLocalStorage";
 // the dashboard itself runs on. Folded state is remembered per host.
 function MachineCard({ name, machine, history, containers, main = false }) {
   const [explore, setExplore] = useState(null);
+  // Bumped to open the System section on its OS updates.
+  const [showUpdates, setShowUpdates] = useState(0);
   const [folded, setFolded] = useLocalStorage("hostFolded", {});
   const isFolded = Boolean(folded?.[name]);
   const setFold = (value) => setFolded((all) => ({ ...all, [name]: value }));
@@ -22,6 +24,7 @@ function MachineCard({ name, machine, history, containers, main = false }) {
   useFocusRequest(name, (action) => {
     setFold(false);
     if (action === "files") setExplore("~");
+    if (action === "os-updates") setShowUpdates((n) => n + 1);
     card.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 
@@ -87,6 +90,7 @@ function MachineCard({ name, machine, history, containers, main = false }) {
             history={history}
             explore={explore}
             onExplore={setExplore}
+            showUpdates={showUpdates}
           />
           <HostFooter machine={machine} containers={containers} />
         </>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { jsonOrThrow } from "./apiAuth";
 import { confirmedFetch } from "./confirmedFetch";
 import Icon from "./Icon";
@@ -182,7 +182,7 @@ function Journal({ host }) {
   );
 }
 
-function OsUpdates({ host, facts }) {
+function OsUpdates({ host, facts, autoCheck = false }) {
   const [list, setList] = useState(null);
   const [checking, setChecking] = useState(false);
   const [run, setRun] = useState(null);
@@ -199,6 +199,12 @@ function OsUpdates({ host, facts }) {
       setChecking(false);
     }
   };
+
+  // Opened from a "Details" link: list the packages straight away.
+  useEffect(() => {
+    if (autoCheck) check();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when opened
+  }, []);
 
   // Follow a running upgrade (started here, or already running when the
   // panel opened) until the unit on the host finishes.
@@ -300,31 +306,41 @@ function Power({ host }) {
 }
 
 // The blocks on their own — the God-mode System tab shows them open.
-export function HostSystemPanels({ host, machine }) {
+export function HostSystemPanels({ host, machine, autoCheckUpdates = false }) {
   return (
     <div className="hsys">
       <Services host={host} />
       <Journal host={host} />
-      <OsUpdates host={host} facts={machine.host_facts} />
+      <OsUpdates host={host} facts={machine.host_facts} autoCheck={autoCheckUpdates} />
       <Power host={host} />
     </div>
   );
 }
 
-function HostSystem({ host, machine }) {
-  const [open, setOpen] = useState(false);
+// `showUpdates` is a counter the host card bumps when a link elsewhere (the
+// Simple page's "Details") asks for the OS updates: open, and list them.
+function HostSystem({ host, machine, showUpdates = 0 }) {
+  const [open, setOpen] = useState(showUpdates > 0);
+  const [fromLink, setFromLink] = useState(showUpdates > 0);
+  const section = useRef(null);
+  useEffect(() => {
+    if (!showUpdates) return;
+    setOpen(true);
+    setFromLink(true);
+    setTimeout(() => section.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 150);
+  }, [showUpdates]);
   if (!machine.terminal) return null;
   const facts = machine.host_facts;
   const failed = facts?.failed_units?.length || 0;
 
   return (
-    <section className="conn">
+    <section className="conn" ref={section}>
       <button type="button" className={`conn-toggle ${open ? "expanded" : ""}`} onClick={() => setOpen(!open)} aria-expanded={open}>
         <span className="host-toggle" aria-hidden="true"><Icon name="chevron" size={12} /></span>
         SYSTEM
         {failed > 0 && <span className="conn-count conn-count--bad">{failed} failed</span>}
       </button>
-      {open && <HostSystemPanels host={host} machine={machine} />}
+      {open && <HostSystemPanels host={host} machine={machine} autoCheckUpdates={fromLink} />}
     </section>
   );
 }

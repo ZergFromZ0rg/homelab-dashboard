@@ -101,7 +101,18 @@ function RunStatus({ run, now, onDismiss }) {
   );
 }
 
-function ActionQueue({ actions, machines, now }) {
+// Where the detail behind each kind of item lives in Advanced: the host's own
+// card for OS updates (its System section, opened with the package list), the
+// Containers tab for image updates.
+function detailsTarget(item) {
+  if (item.type === "os_upgrade" || item.type === "reboot") {
+    return ["servers", { host: item.host, action: "os-updates" }];
+  }
+  if (item.type === "container_updates") return ["containers", {}];
+  return null;
+}
+
+function ActionQueue({ actions, machines, now, onNavigate }) {
   const { runs, start, dismiss } = useActionRuns(machines);
 
   // Items you've acted on stay listed (with their status) after the next
@@ -130,6 +141,11 @@ function ActionQueue({ actions, machines, now }) {
           <div className="mb-action-info">
             <strong title={item.title}>{item.title}</strong>
             {item.subtitle && <span title={item.subtitle}>{item.subtitle}</span>}
+            {detailsTarget(item) && (
+              <button type="button" className="mb-seeall" onClick={() => onNavigate(...detailsTarget(item))}>
+                Details in Advanced →
+              </button>
+            )}
           </div>
           {runs[item.id] ? (
             <RunStatus run={runs[item.id]} now={now} onDismiss={() => dismiss(item.id)} />
@@ -166,7 +182,7 @@ function MorningBriefing({ summary, machines, onNavigate }) {
 
         <section className="mb-column">
           <h3>Needs a yes</h3>
-          <ActionQueue actions={summary.needs_action} machines={machines} now={now} />
+          <ActionQueue actions={summary.needs_action} machines={machines} now={now} onNavigate={onNavigate} />
         </section>
       </div>
     </section>

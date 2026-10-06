@@ -449,7 +449,7 @@ function App() {
 
   // Anything that says "go look at X" (Attention → View, Quick actions →
   // Containers) funnels through here.
-  const navigate = (target, { container, host, path } = {}) => {
+  const navigate = (target, { container, host, path, action } = {}) => {
     if (target === "settings") return setSettingsOpen(true);
     if (container) {
       try {
@@ -465,7 +465,7 @@ function App() {
     if (["network", "system", "terminal"].includes(tab) && viewMode !== "god") setMode("god");
     else if (viewMode === "simple") setMode("advanced");
     setActiveTab(tab);
-    if (target === "servers" && host) requestFocus(host);
+    if (target === "servers" && host) requestFocus(host, action);
     if (target === "files" && host) setFilesTarget({ host, path, n: Date.now() });
   };
   const openSettingsFor = useCallback((host, container) => setSettingsFor({ host, container }), []);
