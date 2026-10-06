@@ -6966,42 +6966,108 @@ button.mb-item:disabled { cursor: default; }
 
 /* ----- God mode: Terminal tab ----- */
 
-.tl-bar {
+.terminal-tab {
+  display: grid;
+  grid-template-columns: 270px minmax(0, 1fr);
+  gap: 10px;
+  height: var(--fit-h, 80vh);
+  min-height: 0;
+}
+
+.tl-side {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px 18px;
-  padding: 6px 11px;
-  border: 1px solid var(--border);
-  background: var(--bg-card);
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
+
 .tl-host {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--host-color);
+  border-radius: var(--radius);
 }
+
+.tl-host-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tl-host-head .btn {
+  margin-left: auto;
+}
+
 .tl-name {
   color: var(--host-color);
   font-size: var(--fs-md);
   text-transform: capitalize;
-  margin-right: 2px;
 }
+
+.tl-container {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 6px;
+}
+
 .tl-select {
-  max-width: 160px;
-  padding: 3px 6px;
+  min-width: 0;
+  height: var(--control-h-sm);
+  padding: 0 6px;
   font: var(--fs-sm) var(--sans);
   color: var(--text);
   background: var(--bg-subtle);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
 }
+
+/* The terminals are pinned over this box; it shows only while none are open. */
+.tl-stage {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 0;
+  background: var(--bg-card);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+}
+
 .tl-empty {
-  margin: 24px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0 20px;
   text-align: center;
   color: var(--text-muted);
   font-size: var(--fs-md);
 }
+
+.tl-empty small {
+  color: var(--text-faint);
+  font-size: var(--fs-xs);
+}
+
+@media (max-width: 900px) {
+  .terminal-tab {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(260px, 1fr);
+    height: auto;
+    min-height: var(--fit-h, 80vh);
+  }
+}
+
 .term-dock--full {
   top: var(--term-full-top, 120px);
+  left: var(--term-full-left, 0);
+  right: var(--term-full-right, 0);
+  bottom: var(--term-full-bottom, 0);
   box-shadow: none;
   border: 1px solid var(--border);
 }

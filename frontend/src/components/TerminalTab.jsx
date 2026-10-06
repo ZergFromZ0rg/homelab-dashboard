@@ -1,34 +1,35 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { useTerminal } from "./terminalContext";
 import { hostColor } from "./hostColor";
+import { useFitHeight } from "./useFitHeight";
 
-// God mode's Terminal tab: a launcher line per server — a root shell on
-// the machine, or a shell / the logs of any running container — over the
-// terminal dock stretched to fill the page. The sessions are the dock's,
-// so they keep running when you switch tabs and are still here when you
-// come back.
+// The sessions are the dock's, so they keep running when you switch tabs and
+// are still here when you come back.
 function HostLauncher({ host, machine, containers }) {
   const terminal = useTerminal();
   const running = (containers || []).filter((c) => c.status === "running").sort((a, b) => a.name.localeCompare(b.name));
   const [picked, setPicked] = useState("");
   const container = running.find((c) => c.id === picked) || running[0];
   const shells = terminal?.available(host);
+  const off = `Host control is off on ${host}'s agent (TERMINAL_ENABLED)`;
 
   return (
     <div className="tl-host" style={{ "--host-color": hostColor(host) }}>
-      <span className={`status-dot status-dot--${machine.online ? "ok" : "bad"}`} />
-      <strong className="tl-name">{host}</strong>
-      <button
-        type="button"
-        className="btn btn--sm"
-        disabled={!shells}
-        title={shells ? `Root shell on ${host}` : `Host control is off on ${host}'s agent (TERMINAL_ENABLED)`}
-        onClick={() => terminal.open({ host, target: "host" })}
-      >
-        Host shell
-      </button>
+      <div className="tl-host-head">
+        <span className={`status-dot status-dot--${machine.online ? "ok" : "bad"}`} />
+        <strong className="tl-name">{host}</strong>
+        <button
+          type="button"
+          className="btn btn--sm"
+          disabled={!shells}
+          title={shells ? `Root shell on ${host}` : off}
+          onClick={() => terminal.open({ host, target: "host" })}
+        >
+          Host shell
+        </button>
+      </div>
       {running.length > 0 && (
-        <>
+        <div className="tl-container">
           <select className="tl-select" value={container?.id || ""} onChange={(e) => setPicked(e.target.value)} aria-label={`Container on ${host}`}>
             {running.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
@@ -38,6 +39,7 @@ function HostLauncher({ host, machine, containers }) {
             type="button"
             className="btn btn--sm"
             disabled={!shells}
+            title={shells ? undefined : off}
             onClick={() => terminal.open({ host, target: "container", container: container.id, name: container.name })}
           >
             Shell
@@ -49,22 +51,30 @@ function HostLauncher({ host, machine, containers }) {
           >
             Logs
           </button>
-        </>
+        </div>
       )}
     </div>
   );
 }
 
+// God mode's Terminal tab: the servers down the left, each with a root shell
+// and a shell / logs picker for its containers; the terminals fill the rest.
 function TerminalTab({ machines, containers }) {
   const terminal = useTerminal();
-  const bar = useRef(null);
+  const fit = useFitHeight();
+  const stage = useRef(null);
   const hosts = Object.keys(machines).sort();
 
-  // The full-page dock starts where this bar ends.
+  // The terminal dock is fixed to the window; pin it exactly over the stage.
   useLayoutEffect(() => {
+    const root = document.documentElement;
     const place = () => {
-      const bottom = bar.current?.getBoundingClientRect().bottom ?? 120;
-      document.documentElement.style.setProperty("--term-full-top", `${Math.round(bottom + 8)}px`);
+      const r = stage.current?.getBoundingClientRect();
+      if (!r) return;
+      root.style.setProperty("--term-full-top", `${Math.round(r.top)}px`);
+      root.style.setProperty("--term-full-left", `${Math.round(r.left)}px`);
+      root.style.setProperty("--term-full-right", `${Math.round(window.innerWidth - r.right)}px`);
+      root.style.setProperty("--term-full-bottom", `${Math.round(window.innerHeight - r.bottom)}px`);
     };
     place();
     window.addEventListener("resize", place);
@@ -72,21 +82,25 @@ function TerminalTab({ machines, containers }) {
     return () => {
       window.removeEventListener("resize", place);
       window.removeEventListener("scroll", place);
+      for (const k of ["top", "left", "right", "bottom"]) root.style.removeProperty(`--term-full-${k}`);
     };
   });
 
   return (
-    <section className="terminal-tab">
-      <div className="tl-bar" ref={bar}>
+    <section className="terminal-tab" ref={fit}>
+      <aside className="tl-side">
         {hosts.map((h) => (
           <HostLauncher key={h} host={h} machine={machines[h]} containers={containers[h]} />
         ))}
+      </aside>
+      <div className="tl-stage" ref={stage}>
+        {!terminal?.count && (
+          <p className="tl-empty">
+            Open a host shell, or pick a container for a shell or its logs.
+            <small>Terminals stay open when you switch tabs; logs open in any mode.</small>
+          </p>
+        )}
       </div>
-      {!terminal?.count && (
-        <p className="tl-empty">
-          Open a shell above. Terminals stay open when you switch tabs; logs open in any mode.
-        </p>
-      )}
     </section>
   );
 }

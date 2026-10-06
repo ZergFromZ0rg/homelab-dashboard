@@ -1154,17 +1154,6 @@ textarea.deploy-input {
     padding-inline: 10px;
   }
 
-  /* Terminal launcher: each host's controls wrap under its name. */
-  .tl-host {
-    flex-wrap: wrap;
-    width: 100%;
-  }
-
-  .tl-select {
-    flex: 1;
-    min-width: 0;
-    max-width: none;
-  }
 }
 
 /* Phones: logo, mode switch and the three icons on one row, tabs below. */
