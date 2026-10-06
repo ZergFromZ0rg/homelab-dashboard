@@ -13,7 +13,7 @@ import requests
 from fastapi import APIRouter, Header
 from fastapi.responses import JSONResponse
 
-from backend import auth
+from backend import auth, oui
 from backend.docker import agent_headers
 from backend.hosts import agent_for as _agent
 from backend.registry import registry
@@ -41,6 +41,8 @@ def _call(method: str, host: str, **kwargs) -> JSONResponse:
         body = response.json()
     except ValueError:
         body = {"error": f"agent answered {response.status_code}"}
+    if isinstance(body, dict) and isinstance(body.get("devices"), list):
+        oui.annotate(body["devices"])
     return JSONResponse(status_code=response.status_code, content=body)
 
 

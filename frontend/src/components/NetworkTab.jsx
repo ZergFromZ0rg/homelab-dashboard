@@ -286,16 +286,10 @@ function HostNetwork({ host, machine, containers, history, part = "network" }) {
 
   return (
     <div className="net-host" style={{ "--host-color": hostColor(host) }}>
-      {part === "network" && (
-      <div className="stat-strip">
-        <Fact label="Interfaces" value={interfaces.length || "—"} />
-        <Fact label="Networks" value={data ? userNets : "…"} />
-        <Fact label="Ports" value={ports.length} />
-      </div>
-      )}
 
       {part === "network" && (
       <>
+      <div className="net-top">
       <div className="net-traffic">
         {[
           ["Down", "rx", machine?.network_rx, history?.network_rx],
@@ -317,6 +311,7 @@ function HostNetwork({ host, machine, containers, history, part = "network" }) {
         ))}
       </div>
       <TrafficByService machine={machine} containers={containers} />
+      </div>
       <div className="net-grid">
         <div className="net-col">
           <section className="overview-card">
@@ -487,29 +482,25 @@ function NetworkTab({ machines, containers, checks, connected, history = {} }) {
 
   return (
     <section className="network-tab fit-page" ref={fit}>
-      <div className="hsys-tabs" role="tablist" aria-label="Network">
-        {sections.map(([id, label, badge]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={section === id}
-            className={section === id ? "active" : ""}
-            onClick={() => setSection(id)}
-          >
-            {label}
-            {badge != null && <span className={`hsys-badge ${id === "checks" && down ? "hsys-badge--bad" : ""}`}>{badge}</span>}
-          </button>
-        ))}
-      </div>
+      <div className="net-bar">
+        <div className="hsys-tabs" role="tablist" aria-label="Network">
+          {sections.map(([id, label, badge]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={section === id}
+              className={section === id ? "active" : ""}
+              onClick={() => setSection(id)}
+            >
+              {label}
+              {badge != null && <span className={`hsys-badge ${id === "checks" && down ? "hsys-badge--bad" : ""}`}>{badge}</span>}
+            </button>
+          ))}
+        </div>
 
-      {perHost && hosts.length === 0 && (
-        <div className="empty-state">{connected === false ? "Connecting…" : "No servers reporting yet."}</div>
-      )}
-
-      {perHost && hosts.length > 0 && (
-        <>
-          <div className="net-hosts" role="tablist" aria-label="Server">
+        {perHost && hosts.length > 0 && (
+          <div className="net-hosts net-hosts--bar" role="tablist" aria-label="Server">
             {hosts.map((h) => (
               <button
                 key={h}
@@ -525,8 +516,15 @@ function NetworkTab({ machines, containers, checks, connected, history = {} }) {
               </button>
             ))}
           </div>
+        )}
+      </div>
 
-          <div className="fit-pane">
+      {perHost && hosts.length === 0 && (
+        <div className="empty-state">{connected === false ? "Connecting…" : "No servers reporting yet."}</div>
+      )}
+
+      {perHost && hosts.length > 0 && (
+        <div className="fit-pane">
           <HostNetwork
             key={`${host}-${section}`}
             host={host}
@@ -535,8 +533,7 @@ function NetworkTab({ machines, containers, checks, connected, history = {} }) {
             history={history[host]}
             part={section}
           />
-          </div>
-        </>
+        </div>
       )}
 
       {section === "checks" && (

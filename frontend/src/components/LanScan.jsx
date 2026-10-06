@@ -131,7 +131,7 @@ function LanScan({ host }) {
   const devices = useMemo(() => {
     const q = filter.trim().toLowerCase();
     return [...(job?.devices || [])]
-      .filter((d) => !q || `${d.ip} ${d.mac || ""} ${d.hostname || ""} ${nodeOf(d) || ""} ${(d.ports || []).map((p) => p.service).join(" ")}`.toLowerCase().includes(q))
+      .filter((d) => !q || `${d.ip} ${d.mac || ""} ${d.vendor || ""} ${d.hostname || ""} ${nodeOf(d) || ""} ${(d.ports || []).map((p) => p.service).join(" ")}`.toLowerCase().includes(q))
       .sort((a, b) => ipKey(a.ip) - ipKey(b.ip));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- nodeOf follows byAddress
   }, [job, filter, byAddress]);
@@ -192,6 +192,7 @@ function LanScan({ host }) {
               <th>IP</th>
               <th>Name</th>
               <th>MAC</th>
+              <th>Maker</th>
               <th>Open ports</th>
             </tr>
           </thead>
@@ -220,6 +221,17 @@ function LanScan({ host }) {
                   )}
                 </td>
                 <td className="net-mono net-dim">{d.mac || "—"}</td>
+                <td>
+                  {d.vendor ? (
+                    <span title={d.vendor}>{d.vendor}</span>
+                  ) : d.randomized ? (
+                    <span className="net-dim" title="A randomized (private) address — phones and laptops use these to avoid being tracked, so it names no manufacturer">
+                      Private address
+                    </span>
+                  ) : (
+                    <span className="net-dim">—</span>
+                  )}
+                </td>
                 <td><Ports ip={d.ip} ports={d.ports} /></td>
               </tr>
               );

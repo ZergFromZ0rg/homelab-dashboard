@@ -8615,3 +8615,55 @@ a.lan-port--web:hover {
   color: var(--text-muted);
   font-family: var(--mono);
 }
+
+/* Network: sections and servers share one row; the top of Host network is the
+   two charts beside the per-service table. */
+.net-bar {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.net-bar .hsys-tabs {
+  border-bottom: 0;
+  margin-bottom: 0;
+}
+
+.net-hosts--bar {
+  margin: 0 0 4px auto;
+}
+
+.network-tab > .hsys-tabs {
+  margin-bottom: 10px;
+}
+
+.net-top {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(0, 2.2fr);
+  gap: 10px;
+  margin-bottom: 10px;
+  align-items: start;
+}
+
+.net-top .net-traffic {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+}
+
+.net-top .net-services {
+  margin: 0;
+}
+
+.net-top .net-svc {
+  max-height: 188px;
+}
+
+@media (max-width: 900px) {
+  .net-top {
+    grid-template-columns: 1fr;
+  }
+}

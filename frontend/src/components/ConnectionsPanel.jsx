@@ -95,8 +95,8 @@ function ConnectionsPanel({ host, defaultOpen = false }) {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  async function load(refresh) {
-    setLoading(true);
+  async function load(refresh, silent = false) {
+    if (!silent) setLoading(true);
     setError(null);
     try {
       setData(await fetchConnections(host, { refresh }));
@@ -111,7 +111,12 @@ function ConnectionsPanel({ host, defaultOpen = false }) {
   useEffect(() => {
     if (!defaultOpen) return undefined;
     const timer = setTimeout(() => load(false), 0);
-    return () => clearTimeout(timer);
+    // Shown as its own section, so keep it live.
+    const live = setInterval(() => load(false, true), 5000);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(live);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [host]);
 
@@ -125,18 +130,20 @@ function ConnectionsPanel({ host, defaultOpen = false }) {
 
   return (
     <div className="conn-panel">
-      <button
-        type="button"
-        className={`conn-toggle ${open ? "expanded" : ""}`}
-        onClick={toggle}
-        aria-expanded={open}
-      >
-        <span className="host-toggle" aria-hidden="true"><Icon name="chevron" size={12} /></span>
-        CONNECTIONS
-        {data?.available && (
-          <span className="conn-count">{data.conversations_total}</span>
-        )}
-      </button>
+      {!defaultOpen && (
+        <button
+          type="button"
+          className={`conn-toggle ${open ? "expanded" : ""}`}
+          onClick={toggle}
+          aria-expanded={open}
+        >
+          <span className="host-toggle" aria-hidden="true"><Icon name="chevron" size={12} /></span>
+          CONNECTIONS
+          {data?.available && (
+            <span className="conn-count">{data.conversations_total}</span>
+          )}
+        </button>
+      )}
 
       {open && (
         <div className="conn-body">
