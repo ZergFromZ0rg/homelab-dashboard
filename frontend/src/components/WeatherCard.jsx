@@ -107,7 +107,43 @@ function Forecast({ weather }) {
   );
 }
 
-function WeatherCard() {
+// Today only: icon, the temperature now, the day's high and low, and the
+// chance of rain or snow. The five-day strip and the details are the full card.
+function Today({ data }) {
+  const now = data.current;
+  const today = data.daily[0];
+  const sky = today ? describeWeather(today.code).label : null;
+  return (
+    <div className="weather-today">
+      <WeatherIcon kind={describeWeather(now.code).icon} night={!now.is_day} size={34} />
+      <div className="weather-today-main">
+        <div className="weather-temp">
+          {now.temperature}
+          <span>{data.units.temp}</span>
+        </div>
+        <div className="weather-label">{describeWeather(now.code).label}</div>
+      </div>
+      {today && (
+        <dl className="weather-today-day" title={`Feels like ${now.feels_like}°`}>
+          <div>
+            <dt>High</dt>
+            <dd>{today.high}°</dd>
+          </div>
+          <div>
+            <dt>Low</dt>
+            <dd>{today.low}°</dd>
+          </div>
+          <div title={sky}>
+            <dt>{/snow|sleet/i.test(sky) ? "Snow" : "Rain"}</dt>
+            <dd>{today.precip ?? 0}%</dd>
+          </div>
+        </dl>
+      )}
+    </div>
+  );
+}
+
+function WeatherCard({ compact = false }) {
   const { settings, update } = useSettings();
   const location = settings.weatherLocation;
   const units = settings.temperatureUnits;
@@ -158,7 +194,7 @@ function WeatherCard() {
   );
 
   return (
-    <Card title={location ? `Weather · ${location.name}` : "Weather"} actions={actions}>
+    <Card title={location ? (compact ? location.name : `Weather · ${location.name}`) : "Weather"} actions={actions}>
       {(!location || changing) && (
         <PlacePicker onPick={pick} onCancel={location ? () => setChanging(false) : null} />
       )}
@@ -172,7 +208,8 @@ function WeatherCard() {
               outbound internet access.
             </p>
           )}
-          {data && (
+          {data && compact && <Today data={data} />}
+          {data && !compact && (
             <>
               <div className="weather-now">
                 <WeatherIcon

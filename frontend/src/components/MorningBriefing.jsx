@@ -18,21 +18,24 @@ function _ago(seconds) {
   return `${Math.floor(seconds / 86400)}d`;
 }
 
+// The newest few; the rest are a count. This is a live feed, not a report.
+const SHOWN_EVENTS = 3;
+
 function OvernightList({ overnight, now }) {
   if (!overnight || overnight.events_count === 0) {
-    return <p className="mb-empty">Quiet night.</p>;
+    return <p className="mb-empty">Nothing new.</p>;
   }
   return (
     <ul className="mb-list mb-list--overnight">
-      {overnight.highlights.map((ev, i) => (
+      {overnight.highlights.slice(0, SHOWN_EVENTS).map((ev, i) => (
         <li key={i} className={`mb-item mb-item--${ev.tone}`}>
           <span className={`status-dot status-dot--${ev.tone}`} />
           <span className="mb-text">{ev.text}</span>
           <span className="mb-time">{_ago(now / 1000 - ev.at)}</span>
         </li>
       ))}
-      {overnight.events_count > overnight.highlights.length && (
-        <li className="mb-more">+{overnight.events_count - overnight.highlights.length} more events</li>
+      {overnight.events_count > SHOWN_EVENTS && (
+        <li className="mb-more">+{overnight.events_count - SHOWN_EVENTS} more events</li>
       )}
     </ul>
   );
@@ -150,7 +153,7 @@ function MorningBriefing({ summary, machines, onNavigate }) {
       </div>
       <div className="mb-columns">
         <section className="mb-column">
-          <h3>Overnight</h3>
+          <h3>Live updates</h3>
           <OvernightList overnight={summary.overnight} now={now} />
         </section>
         

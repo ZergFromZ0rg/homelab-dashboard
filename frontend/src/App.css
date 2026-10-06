@@ -7415,13 +7415,50 @@ a.sh-app:hover {
   color: var(--text-muted);
 }
 
-.sh-col--mid .morning-briefing {
-  max-height: 34vh;
-  overflow-y: auto;
+/* The briefing keeps its full height — "Needs a yes" is the important part,
+   so it is the full-width top row and Live updates / Degrading sit under it.
+   The container table gives way instead. */
+.sh-col--mid .morning-briefing .mb-columns {
+  grid-template-columns: 1fr 1fr;
 }
 
-.sh-col--mid .morning-briefing .overview-card-body {
-  max-height: none;
+.sh-col--mid .mb-column:nth-child(3) {
+  grid-column: 1 / -1;
+  order: -1;
+  border-left: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.sh-col--mid .mb-column:nth-child(2) {
+  border-left: 1px solid var(--border);
+}
+
+.weather-today {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.weather-today-main .weather-temp {
+  font-size: var(--fs-2xl);
+}
+
+.weather-today-day {
+  display: flex;
+  gap: 12px;
+  margin: 0 0 0 auto;
+}
+
+.weather-today-day dt {
+  color: var(--text-faint);
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.weather-today-day dd {
+  margin: 0;
+  font: 600 var(--fs-md) var(--mono);
 }
 
 /* The one container table. Stopped rows sort first. */
