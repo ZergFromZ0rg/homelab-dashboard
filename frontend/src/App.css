@@ -3206,19 +3206,33 @@ textarea {
 /* ----- Host settings ----- */
 
 .host-settings {
-  padding: 10px 2px 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  align-items: start;
+  gap: 10px;
+  padding: 10px 0 0;
+}
+
+/* Messages and the save bar run the full width; the groups sit side by side
+   as small bordered blocks. Help text lives in each field's tooltip. */
+.host-settings > :not(.hs-group) {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.hs-group {
+  padding: 10px 12px 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
 }
 
 .hs-group h4 {
   margin: 0 0 8px;
-  font-size: var(--fs-xs);
-  font-weight: 700;
+  font-size: var(--fs-2xs);
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
 }
 
 .hs-field {
@@ -3230,13 +3244,8 @@ textarea {
 }
 
 .hs-field strong {
-  font-size: var(--fs-sm);
-  font-weight: 600;
-}
-
-.hs-field em {
-  font-style: normal;
   font-size: var(--fs-xs);
+  font-weight: 500;
   color: var(--text-muted);
 }
 
@@ -3244,22 +3253,22 @@ textarea {
 .hs-field input[type="password"],
 .hs-field input[type="number"] {
   width: 100%;
+  height: var(--control-h);
 }
 
 .hs-field--check {
   flex-direction: row;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
-}
-
-.hs-field--check input {
-  margin-top: 3px;
 }
 
 .hs-field--check span {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+}
+
+.hs-field--check strong {
+  color: var(--text);
+  font-size: var(--fs-sm);
 }
 
 /* A switch that hands over the host earns a mark, not a hidden warning. */
@@ -3271,14 +3280,12 @@ textarea {
 
 .hs-host-scope {
   margin: -6px 0 10px;
-  font-size: var(--fs-xs);
-  color: var(--text-muted);
-  opacity: 0.85;
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
 }
 
 .hs-locked {
-  margin: 0;
-  padding: 8px 10px;
+  padding: 6px 10px;
   font-size: var(--fs-sm);
   color: var(--warning);
   background: var(--bg-subtle);
@@ -3286,11 +3293,14 @@ textarea {
 }
 
 .hs-actions {
+  position: sticky;
+  bottom: 0;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 10px;
-  padding-top: 4px;
+  padding: 8px 0;
+  background: var(--bg-card);
   border-top: 1px solid var(--border);
 }
 
@@ -3359,15 +3369,27 @@ textarea {
   list-style: none;
 }
 
+/* A stack per small block, two across; the data under it one line each:
+   status, what, how big, what covers it. */
+.recovery-projects {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+  align-items: start;
+  gap: 10px;
+}
+
 .recovery-projects > li {
-  margin-bottom: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
 }
 
 .recovery-project {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 4px 8px;
+  margin-bottom: 4px;
 }
 
 .recovery-project code,
@@ -3378,10 +3400,11 @@ textarea {
 
 .recovery-items li {
   display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: baseline;
+  grid-template-columns: auto minmax(0, 1.2fr) auto minmax(0, 1.6fr);
+  align-items: center;
   gap: 8px;
-  padding: 3px 0 3px 4px;
+  padding: 3px 0;
+  border-top: 1px solid var(--border);
 }
 
 .recovery-items code {
@@ -3392,12 +3415,16 @@ textarea {
 
 .recovery-size {
   color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
   white-space: nowrap;
 }
 
-/* Wraps under the row rather than squeezing the path. */
 .recovery-cover {
-  grid-column: 2 / -1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: var(--fs-xs);
   color: var(--text-muted);
 }

@@ -20,7 +20,7 @@ function Field({ setting, value, onChange, disabled }) {
 
   if (kind === "bool") {
     return (
-      <label className={`hs-field hs-field--check ${danger ? "hs-danger" : ""}`}>
+      <label className={`hs-field hs-field--check ${danger ? "hs-danger" : ""}`} title={help}>
         <input
           type="checkbox"
           checked={value === "1"}
@@ -29,14 +29,13 @@ function Field({ setting, value, onChange, disabled }) {
         />
         <span>
           <strong>{label}</strong>
-          <em>{help}</em>
         </span>
       </label>
     );
   }
 
   return (
-    <label className="hs-field">
+    <label className="hs-field" title={help}>
       <strong>{label}</strong>
       <input
         type={kind === "secret" ? "password" : kind === "number" ? "number" : "text"}
@@ -51,7 +50,6 @@ function Field({ setting, value, onChange, disabled }) {
         }
         onChange={(e) => onChange(key, e.target.value)}
       />
-      <em>{help}</em>
     </label>
   );
 }
@@ -162,12 +160,13 @@ function HostSettings({ host, defaultOpen = false, open: openProp, onToggle }) {
                       disabled={busy}
                     />
                     {s.scope === "host" && (
-                      <p className="hs-host-scope">
-                        Set where the container starts — {s.source === "unset"
-                          ? "not set"
-                          : `currently from the ${s.source}`}
-                        . Change it in this host's <code>.env</code> and
-                        recreate the agent.
+                      <p
+                        className="hs-host-scope"
+                        title={`Fixed where the container starts (${
+                          s.source === "unset" ? "not set" : `from the ${s.source}`
+                        }). Change it in this host's .env and recreate the agent.`}
+                      >
+                        Set in the host's <code>.env</code>
                       </p>
                     )}
                   </div>
@@ -196,9 +195,7 @@ function HostSettings({ host, defaultOpen = false, open: openProp, onToggle }) {
                 </button>
               )}
               {saved && <span className="hs-saved">{saved}</span>}
-              <span className="settings-hint">
-                Applies immediately — nothing restarts.
-              </span>
+              <span className="settings-hint">Applies immediately, nothing restarts.</span>
             </div>
           )}
         </div>
