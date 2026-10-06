@@ -7206,12 +7206,135 @@ button.mb-item:disabled { cursor: default; }
   display: none;
 }
 
-/* Pinned apps: one row of small icon tiles, scrolls sideways if it must. */
+/* Pinned apps: one row that scrolls sideways with no scrollbar. The "+" tile
+   is sticky at the right edge, so it is always there. Padding leaves room
+   for the focus ring and the "−" badge. */
 .sh-apps {
   display: flex;
   gap: 8px;
+  padding: 4px 0 4px 2px;
   overflow-x: auto;
-  padding-bottom: 2px;
+  scroll-snap-type: x proximity;
+  scroll-behavior: smooth;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.sh-apps::-webkit-scrollbar {
+  display: none;
+}
+
+.sh-apps > .sh-app {
+  scroll-snap-align: start;
+}
+
+.sh-app--add {
+  position: sticky;
+  right: 0;
+  z-index: 2;
+  flex: 0 0 72px;
+  justify-content: center;
+  border-style: dashed;
+  color: var(--text-muted);
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  /* Fades whatever scrolls underneath instead of cutting it off. */
+  box-shadow: -14px 0 10px -2px var(--bg);
+}
+
+.sh-app--add:hover,
+.sh-app--active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Hold "+": every tile goes red with a "−"; tap one to unpin it. */
+.sh-app--removable {
+  border-color: var(--offline);
+  background: var(--offline-bg);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  opacity: 1;
+  animation: sh-wiggle 0.5s ease-in-out infinite alternate;
+}
+
+.sh-app--removable:hover {
+  background: color-mix(in srgb, var(--offline) 28%, var(--bg-card));
+}
+
+.sh-app-minus {
+  position: absolute;
+  top: -5px;
+  left: -5px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  background: var(--offline);
+  border-radius: 50%;
+  color: #fff;
+  font: 700 14px / 1 var(--sans);
+}
+
+@keyframes sh-wiggle {
+  from {
+    transform: rotate(-1.2deg);
+  }
+  to {
+    transform: rotate(1.2deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sh-app--removable {
+    animation: none;
+  }
+}
+
+.sh-app-plus {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  font: 300 26px / 1 var(--sans);
+}
+
+.sh-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 96px;
+  margin-top: 8px;
+  padding: 8px;
+  overflow-y: auto;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.sh-pick {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 3px 9px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+.sh-pick small {
+  font-size: var(--fs-2xs);
+}
+
+.sh-pick:hover {
+  border-color: var(--accent);
 }
 
 .sh-app {
@@ -7243,11 +7366,26 @@ a.sh-app:hover {
   cursor: default;
 }
 
-.sh-app-icon,
-.sh-app-icon img,
-.sh-app-icon .app-tile-letter {
+/* The favicon loads on top of the letter. Left in the flow it sat beside
+   the letter and squeezed it into a narrow pill until it finished. */
+.sh-app-icon {
+  position: relative;
   width: 32px;
   height: 32px;
+}
+
+.sh-app-icon .app-tile-letter {
+  flex: none;
+  width: 32px;
+  height: 32px;
+}
+
+.sh-app-icon img {
+  position: absolute;
+  inset: 0;
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
 }
 
 .sh-app-dot {

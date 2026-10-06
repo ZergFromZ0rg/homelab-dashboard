@@ -498,6 +498,7 @@ function App() {
               checks={checks}
               alerts={alerts}
               pins={pins}
+              onSetPins={setPins}
               todos={todos}
               onSetTodos={setTodos}
               openTodos={openTodos}
