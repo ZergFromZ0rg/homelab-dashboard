@@ -6,7 +6,6 @@ import NetworkTab from "./components/NetworkTab";
 import SystemTab from "./components/SystemTab";
 import FilesTab from "./components/FilesTab";
 import TerminalTab from "./components/TerminalTab";
-import PersonalTab from "./components/PersonalTab";
 import SimpleHome from "./components/SimpleHome";
 import { requestFocus, requestSection } from "./components/focusRequest";
 import SiteSettings from "./components/SiteSettings";

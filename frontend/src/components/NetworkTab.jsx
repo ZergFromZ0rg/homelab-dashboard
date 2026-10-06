@@ -18,15 +18,6 @@ import { createNetwork, fetchNetworks, removeNetwork, setMembership } from "./ne
 // and who it's talking to. Pick the server at the top; the service checks
 // — which probe things *from* the dashboard — sit underneath.
 
-function Fact({ label, value }) {
-  return (
-    <span className="stat-item">
-      <span className="stat-label">{label}</span>
-      <strong>{value}</strong>
-    </span>
-  );
-}
-
 // Every host port a container publishes, as one row per mapping.
 function publishedPorts(containers) {
   const rows = [];
@@ -236,19 +227,19 @@ function TrafficByService({ machine, containers = [] }) {
   );
 }
 
-// One interface's last stretch of traffic: download over upload, both on the
-// interface's own scale so a quiet link isn't flattened by a busy one.
-function InterfaceTrend({ series, windowMinutes }) {
-  if (!series) return <span className="net-dim">—</span>;
+// One direction's last stretch of traffic, under its current rate. Download
+// and upload share the interface's own scale, so a quiet link isn't flattened
+// by a busy one and the two lines can be compared.
+function InterfaceTrend({ series, direction, windowMinutes }) {
+  if (!series) return null;
   const peak = Math.max(
     1,
     ...windowPoints(series.rx, windowMinutes).map((p) => p.v ?? 0),
     ...windowPoints(series.tx, windowMinutes).map((p) => p.v ?? 0)
   );
   return (
-    <div className="net-trend-mini" title="Download (top) and upload (bottom), same scale">
-      <Sparkline points={series.rx} max={peak * 1.1} variant="rx" height={14} windowMinutes={windowMinutes} />
-      <Sparkline points={series.tx} max={peak * 1.1} variant="tx" height={14} windowMinutes={windowMinutes} />
+    <div className="net-trend-mini">
+      <Sparkline points={series[direction]} max={peak * 1.1} variant={direction} height={14} windowMinutes={windowMinutes} />
     </div>
   );
 }
@@ -342,7 +333,6 @@ function HostNetwork({ host, machine, containers, history, part = "network" }) {
                   <th>Interface</th>
                   <th>Down</th>
                   <th>Up</th>
-                  <th>Trend</th>
                   <th />
                 </tr>
               </thead>
@@ -353,10 +343,13 @@ function HostNetwork({ host, machine, containers, history, part = "network" }) {
                       <strong>{i.name}</strong>
                       {i.device !== i.name && <span className="net-dim"> {i.device}</span>}
                     </td>
-                    <td className="net-mono">↓ {formatBytesPerSec(i.rx_bps)}</td>
-                    <td className="net-mono">↑ {formatBytesPerSec(i.tx_bps)}</td>
-                    <td className="net-trend-cell">
-                      <InterfaceTrend series={history?.interfaces?.[i.device]} windowMinutes={windowMinutes} />
+                    <td className="net-mono">
+                      ↓ {formatBytesPerSec(i.rx_bps)}
+                      <InterfaceTrend series={history?.interfaces?.[i.device]} direction="rx" windowMinutes={windowMinutes} />
+                    </td>
+                    <td className="net-mono">
+                      ↑ {formatBytesPerSec(i.tx_bps)}
+                      <InterfaceTrend series={history?.interfaces?.[i.device]} direction="tx" windowMinutes={windowMinutes} />
                     </td>
                     <td className="net-dim" title="An overlay link — not counted in the host's download/upload totals">
                       {i.in_total === false ? "overlay" : ""}
@@ -365,7 +358,7 @@ function HostNetwork({ host, machine, containers, history, part = "network" }) {
                 ))}
                 {!interfaces.length && (
                   <tr>
-                    <td colSpan={5} className="net-dim">No interface data from Prometheus.</td>
+                    <td colSpan={4} className="net-dim">No interface data from Prometheus.</td>
                   </tr>
                 )}
               </tbody>

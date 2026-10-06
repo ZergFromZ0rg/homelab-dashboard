@@ -397,7 +397,6 @@ function SimpleHome({
   machines,
   containers,
   backups,
-  checks,
   alerts,
   pins,
   onSetPins,
