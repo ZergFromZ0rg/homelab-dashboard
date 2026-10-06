@@ -588,6 +588,7 @@ function App() {
                 containers={containers}
                 checks={checks}
                 connected={connected}
+                history={history}
               />
             )}
           </div>

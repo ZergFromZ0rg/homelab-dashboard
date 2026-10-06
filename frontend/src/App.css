@@ -8320,3 +8320,149 @@ html.ov-snap {
   z-index: 2;
   background: var(--bg-card);
 }
+
+/* ----- Network: live traffic and the LAN scan ----- */
+
+.net-traffic {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.net-trend {
+  padding: 8px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.net-trend-head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.net-trend-head strong {
+  color: var(--text);
+  font: 600 var(--fs-lg) var(--mono);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.lan {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+}
+
+.lan-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+
+.lan-auto {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+.lan-meta {
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.lan-new-count {
+  color: var(--warning);
+  font-weight: 600;
+}
+
+.lan-filter {
+  width: 160px;
+  height: var(--control-h-sm);
+  margin-left: auto;
+  padding: 0 8px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: var(--fs-sm);
+}
+
+.lan-progress {
+  position: relative;
+  height: 20px;
+  overflow: hidden;
+  background: var(--bg-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.lan-progress > span {
+  display: block;
+  height: 100%;
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+  transition: width 0.4s var(--ease);
+}
+
+.lan-progress > em {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text);
+  font-size: var(--fs-xs);
+  font-style: normal;
+}
+
+.lan-empty {
+  margin: 0;
+  padding: 24px 12px;
+  color: var(--text-muted);
+  font-size: var(--fs-md);
+  text-align: center;
+}
+
+.lan-table td {
+  vertical-align: middle;
+}
+
+.lan-table .chip {
+  margin-left: 8px;
+}
+
+.lan-row--new td {
+  background: var(--warning-bg);
+}
+
+.lan-ports {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.lan-port {
+  padding: 1px 7px;
+  background: var(--bg-raised);
+  border-radius: var(--radius-pill);
+  color: var(--text-muted);
+  font: 500 var(--fs-xs) var(--mono);
+  text-decoration: none;
+}
+
+a.lan-port--web {
+  color: var(--accent);
+}
+
+a.lan-port--web:hover {
+  background: var(--accent-bg);
+}

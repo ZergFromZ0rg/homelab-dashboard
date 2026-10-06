@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import ConnectionsPanel from "./ConnectionsPanel";
+import LanScan from "./LanScan";
+import Sparkline from "./Sparkline";
+import { windowPoints } from "./historyWindow";
+import { useSettings } from "./settings";
 import ServicesTab from "./ServicesTab";
 import { IconButton } from "./Icon";
 import { formatBytesPerSec } from "./format";
@@ -180,7 +184,10 @@ function NetworkRow({ network, containers, onAct }) {
   );
 }
 
-function HostNetwork({ host, machine, containers, part = "network" }) {
+function HostNetwork({ host, machine, containers, history, part = "network" }) {
+  const {
+    settings: { graphWindowMinutes: windowMinutes },
+  } = useSettings();
   const [data, setData] = useState(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
@@ -217,21 +224,47 @@ function HostNetwork({ host, machine, containers, part = "network" }) {
 
   const ports = publishedPorts(containers);
   const interfaces = machine?.interfaces || [];
+  const trafficMax =
+    Math.max(
+      1,
+      ...windowPoints(history?.network_rx, windowMinutes).map((p) => p.v ?? 0),
+      ...windowPoints(history?.network_tx, windowMinutes).map((p) => p.v ?? 0)
+    ) * 1.15;
   const nets = (data?.networks || []).map((n) => ({ ...n, host }));
   const userNets = nets.filter((n) => !n.builtin).length;
 
   return (
     <div className="net-host" style={{ "--host-color": hostColor(host) }}>
+      {part === "network" && (
       <div className="stat-strip">
-        <Fact label="Down" value={`↓ ${formatBytesPerSec(machine?.network_rx)}`} />
-        <Fact label="Up" value={`↑ ${formatBytesPerSec(machine?.network_tx)}`} />
         <Fact label="Interfaces" value={interfaces.length || "—"} />
         <Fact label="Networks" value={data ? userNets : "…"} />
         <Fact label="Ports" value={ports.length} />
       </div>
+      )}
 
       {part === "network" && (
       <>
+      <div className="net-traffic">
+        {[
+          ["Down", "rx", machine?.network_rx, history?.network_rx],
+          ["Up", "tx", machine?.network_tx, history?.network_tx],
+        ].map(([label, variant, now, points]) => (
+          <div className="net-trend" key={variant}>
+            <div className="net-trend-head">
+              <span>{label}</span>
+              <strong>{formatBytesPerSec(now)}</strong>
+            </div>
+            <Sparkline
+              points={points}
+              max={trafficMax}
+              variant={variant}
+              height={34}
+              windowMinutes={windowMinutes}
+            />
+          </div>
+        ))}
+      </div>
       <div className="net-grid">
         <div className="net-col">
           <section className="overview-card">
@@ -369,6 +402,12 @@ function HostNetwork({ host, machine, containers, part = "network" }) {
       </>
       )}
 
+      {part === "devices" && (
+        <section className="overview-card">
+          <LanScan host={host} />
+        </section>
+      )}
+
       {part === "connections" && (
         <section className="overview-card net-conns">
           <ConnectionsPanel host={host} defaultOpen />
@@ -378,7 +417,7 @@ function HostNetwork({ host, machine, containers, part = "network" }) {
   );
 }
 
-function NetworkTab({ machines, containers, checks, connected }) {
+function NetworkTab({ machines, containers, checks, connected, history = {} }) {
   const fit = useFitHeight();
   const hosts = Object.keys(machines).sort();
   const [picked, setPicked] = useState(null);
@@ -389,6 +428,7 @@ function NetworkTab({ machines, containers, checks, connected }) {
 
   const sections = [
     ["network", "Host network", null],
+    ["devices", "Devices", null],
     ["connections", "Connections", null],
     ["checks", "Service checks", down ? `${down} down` : checks.length || null],
   ];
@@ -440,6 +480,7 @@ function NetworkTab({ machines, containers, checks, connected }) {
             host={host}
             machine={machines[host]}
             containers={containers[host]}
+            history={history[host]}
             part={section}
           />
           </div>

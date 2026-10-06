@@ -89,6 +89,7 @@ _LABELS = [
     (r"^/api/files/[^/]+/move$", lambda m: "moved"),
     (r"^/api/files/[^/]+/copy$", lambda m: "copied"),
     (r"^/api/disk/[^/]+/delete$", lambda m: "deleted"),
+    (r"^/api/lan/[^/]+/scan$", lambda m: "network scan"),
     (r"^/api/rebuild/[^/]+$", lambda m: "rebuild"),
     (r"^/api/fleet/rebuild$", lambda m: "fleet rebuild"),
     (r"^/api/git-updates/[^/]+/[^/]+$", lambda m: "automatic repository updates changed"),

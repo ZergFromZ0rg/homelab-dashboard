@@ -138,3 +138,31 @@ def test_new_changes_are_gated_and_forwarded(web, calls, monkeypatch, route):
     assert ok.status_code == 200
     assert calls[-1][:2] == ("POST", f"http://agent:8123/files/{route}")
     assert calls[-1][3] == body
+
+
+# --- LAN scan proxy -----------------------------------------------------------
+
+from backend import lan_api  # noqa: E402
+
+
+def test_lan_scan_status_passes_through_and_start_is_gated(web, calls, monkeypatch):
+    monkeypatch.setattr(auth, "API_TOKEN", "s3cret")
+    seen = []
+
+    def fake(method, url, **kwargs):
+        seen.append((method, url, kwargs.get("json")))
+        return FakeResponse(json_body={"state": "scanning", "devices": []})
+
+    monkeypatch.setattr(lan_api.requests, "request", fake)
+
+    assert web.get("/api/lan/box/scan").json()["state"] == "scanning"
+    assert web.post("/api/lan/box/scan", json={}).status_code == 401
+    ok = web.post("/api/lan/box/scan", json={"iface": "eth0"}, headers={"X-Register-Token": "s3cret"})
+    assert ok.status_code == 200
+    assert seen[-1] == ("POST", "http://agent:8123/network/scan", {"iface": "eth0"})
+
+
+def test_lan_scan_says_when_the_agent_is_too_old(web, calls, monkeypatch):
+    monkeypatch.setattr(lan_api.requests, "request", lambda *a, **k: FakeResponse(status=404))
+    resp = web.get("/api/lan/box/scan")
+    assert resp.status_code == 502 and "rebuild" in resp.json()["error"]
