@@ -15,6 +15,7 @@ import { formatUptime } from "./machineInfo";
 import { pinKey, togglePin } from "./containerPins";
 import { useSettings } from "./settings";
 import { useNow } from "./useNow";
+import { useFitHeight } from "./useFitHeight";
 
 // The Simple page: a board you can read from across the room. Three columns —
 // time, calendar and to-dos on the left; pinned apps as icon tiles over one
@@ -417,8 +418,10 @@ function SimpleHome({
   const running = all.filter((c) => c.status === "running").length;
   const issues = overview.issues.length;
 
+  const fit = useFitHeight(4, 520);
+
   return (
-    <div className="simple-home">
+    <div className="simple-home" ref={fit}>
       <FirstRun machines={machines} backups={backups} onNavigate={onNavigate} />
       <div className="sh-grid">
         <aside className="sh-col sh-col--left">

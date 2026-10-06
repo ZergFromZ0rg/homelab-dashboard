@@ -25,7 +25,10 @@ function HostGrid({ machines, containers, history, mainHost, children }) {
     return <p className="overview-empty">No hosts reporting yet.</p>;
   }
 
-  const go = (i) => track.current?.scrollTo({ left: i * track.current.clientWidth, behavior: "smooth" });
+  const go = (i) => {
+    const el = track.current;
+    if (el) el.scrollTo({ left: i * el.clientWidth, behavior: "smooth" });
+  };
 
   return (
     <div className="ovw-hosts">

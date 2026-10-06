@@ -5,6 +5,7 @@ import { IconButton } from "./Icon";
 import { formatBytesPerSec } from "./format";
 import { hostColor } from "./hostColor";
 import { useLocalStorage } from "./useLocalStorage";
+import { useFitHeight } from "./useFitHeight";
 import { createNetwork, fetchNetworks, removeNetwork, setMembership } from "./networksApi";
 
 // One server's network, all of it: traffic, interfaces, published ports,
@@ -378,6 +379,7 @@ function HostNetwork({ host, machine, containers, part = "network" }) {
 }
 
 function NetworkTab({ machines, containers, checks, connected }) {
+  const fit = useFitHeight();
   const hosts = Object.keys(machines).sort();
   const [picked, setPicked] = useState(null);
   const [section, setSection] = useLocalStorage("networkSection", "network");
@@ -392,7 +394,7 @@ function NetworkTab({ machines, containers, checks, connected }) {
   ];
 
   return (
-    <section className="network-tab">
+    <section className="network-tab fit-page" ref={fit}>
       <div className="hsys-tabs" role="tablist" aria-label="Network">
         {sections.map(([id, label, badge]) => (
           <button
@@ -432,6 +434,7 @@ function NetworkTab({ machines, containers, checks, connected }) {
             ))}
           </div>
 
+          <div className="fit-pane">
           <HostNetwork
             key={`${host}-${section}`}
             host={host}
@@ -439,11 +442,12 @@ function NetworkTab({ machines, containers, checks, connected }) {
             containers={containers[host]}
             part={section}
           />
+          </div>
         </>
       )}
 
       {section === "checks" && (
-        <div className="net-checks">
+        <div className="net-checks fit-pane">
           <ServicesTab checks={checks} connected={connected} embedded />
         </div>
       )}

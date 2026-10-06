@@ -7037,13 +7037,8 @@ button.mb-item:disabled { cursor: default; }
 /* One window, no page scroll: the board is exactly as tall as what's left of
    the viewport, and the lists inside it (to-dos, containers, alerts, apps)
    scroll on their own. Phones fall back to a normal scrolling page. */
-.simple-mode-content {
-  height: calc(100dvh - var(--sh-offset, 124px));
-  min-height: 0;
-}
-
 .simple-home {
-  height: 100%;
+  height: var(--fit-h, calc(100dvh - 124px));
   min-height: 0;
 }
 
@@ -7560,7 +7555,6 @@ a.sh-app:hover {
 
 /* Narrower than a laptop: stop pretending it's one window. */
 @media (max-width: 1000px), (max-height: 560px) {
-  .simple-mode-content,
   .simple-home,
   .sh-grid {
     height: auto;
@@ -8021,4 +8015,82 @@ html.ov-snap {
 .system-pane .hsys-list,
 .system-pane .hsys-journal {
   max-height: 55vh;
+}
+
+/* A page that fits the window: the lists inside scroll, the page doesn't. */
+.fit-page {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: var(--fit-h, 80vh);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.fit-page > * {
+  flex: 0 0 auto;
+}
+
+.fit-page > .system-pane,
+.fit-page > .fit-pane {
+  flex: 1 1 0;
+  min-height: 0;
+  margin: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+/* The host card on a slide fits the slide: its five columns scroll on their
+   own if a long one (sensors, processes) doesn't fit. */
+.ovw-slide {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ovw-slide > .machine-card {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  margin: 0;
+  min-height: 0;
+}
+
+.ovw-slide > .machine-card > .sv-grid {
+  flex: 1;
+  min-height: 0;
+}
+
+.ovw-slide .sv-section {
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.ovw-slide .sv-section::-webkit-scrollbar {
+  display: none;
+}
+
+/* A short window can't hold two snapping screens; let the page scroll. */
+@media (max-height: 560px) {
+  html.ov-snap {
+    scroll-snap-type: none;
+  }
+}
+
+/* Keep the five columns on one row inside a slide, down to a small laptop;
+   the stock layout drops to three and a second row, which can't fit here. */
+@media (min-width: 901px) {
+  .ovw-slide .sv-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .ovw-slide .sv-section {
+    border-top: 0;
+    border-left: 1px solid var(--border);
+  }
+
+  .ovw-slide .sv-section:first-child {
+    border-left: 0;
+  }
 }

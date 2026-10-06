@@ -7,6 +7,7 @@ import { formatUptime, gpuDevices } from "./machineInfo";
 import { diskLabel } from "./diskLabel";
 import { hostColor } from "./hostColor";
 import { useLocalStorage } from "./useLocalStorage";
+import { useFitHeight } from "./useFitHeight";
 
 function Fact({ label, value, title }) {
   if (value == null || value === "") return null;
@@ -25,6 +26,7 @@ function Fact({ label, value, title }) {
 const disksCount = (m) => (m.filesystems || []).length || null;
 
 function SystemTab({ machines, connected }) {
+  const fit = useFitHeight();
   const hosts = Object.keys(machines).sort();
   const [picked, setPicked] = useLocalStorage("systemHost", null);
   const [tab, setTab] = useLocalStorage("systemTab", "disks");
@@ -54,7 +56,7 @@ function SystemTab({ machines, connected }) {
   const cores = m.cpu_physical_cores;
 
   return (
-    <section className="system-tab" style={{ "--host-color": hostColor(host) }}>
+    <section className="system-tab fit-page" ref={fit} style={{ "--host-color": hostColor(host) }}>
       <div className="system-bar">
         <div className="net-hosts" role="tablist" aria-label="Server">
           {hosts.map((h) => (
