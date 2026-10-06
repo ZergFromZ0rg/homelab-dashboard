@@ -8286,3 +8286,37 @@ html.ov-snap {
     overflow: visible;
   }
 }
+
+/* Containers and Backups: toolbar fixed, the list scrolls inside the window.
+   One column header for the whole list, stuck to the top of it. */
+.containers-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  scrollbar-gutter: stable;
+}
+
+.containers-scroll > * {
+  flex: 0 0 auto;
+}
+
+.container-list--head {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  margin: 0 1px;
+  background: var(--bg);
+  border: 0;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.containers-section .container-list:not(.container-list--head) .crow-head {
+  display: none;
+}
+
+.backups-tab .backup-head-row {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg-card);
+}

@@ -8,6 +8,7 @@ import { formatBytes } from "./format";
 import { pinKey, togglePin } from "./containerPins";
 import { useLocalStorage } from "./useLocalStorage";
 import { hostColor } from "./hostColor";
+import { useFitHeight } from "./useFitHeight";
 import { useSettings } from "./settings";
 import Icon from "./Icon";
 import { useTerminal } from "./terminalContext";
@@ -240,6 +241,7 @@ function ContainerList({
   onSetPins,
   connected,
 }) {
+  const fit = useFitHeight();
   const {
     settings: { highRestartCount, showContainerUptime },
   } = useSettings();
@@ -312,15 +314,16 @@ function ContainerList({
 
   return (
     <section
+      ref={fit}
       className={[
         "containers-section",
+        "fit-page",
         showContainerUptime ? "" : "no-uptime",
         // One more icon per row (the shell) when any host allows shells, so
         // the actions column is sized for it instead of spilling left.
         hosts.some((h) => terminal?.available(h)) ? "containers-section--shell" : "",
       ].join(" ")}
     >
-      <GitUpdates machines={machines} />
       {hosts.length === 0 ? (
         <div className="empty-state">
           {connected === false
@@ -376,6 +379,11 @@ function ContainerList({
           </div>
         </div>
       )}
+
+      <div className="containers-scroll fit-pane">
+      <div className="container-list container-list--head">
+        <ContainerTableHead />
+      </div>
 
       {pinnedContainers.length > 0 && (() => {
         const pinnedOpen = filtering ? true : !pinnedCollapsed;
@@ -458,6 +466,9 @@ function ContainerList({
           />
         );
       })}
+
+      <GitUpdates machines={machines} />
+      </div>
     </section>
   );
 }

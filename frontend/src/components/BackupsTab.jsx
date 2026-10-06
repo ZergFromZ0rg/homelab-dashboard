@@ -4,6 +4,7 @@ import BackupForm from "./BackupForm";
 import { createBackup, deleteBackup, fetchBackups, updateBackup } from "./backupsApi";
 import { formatAge, formatBytes } from "./format";
 import { useNow } from "./useNow";
+import { useFitHeight } from "./useFitHeight";
 
 // Scheduled volume backups.
 //
@@ -31,6 +32,7 @@ function rank(job) {
 }
 
 function BackupsTab({ machines, connected, showLocation = false, onOpenFolder }) {
+  const fit = useFitHeight();
   const now = useNow(30000).getTime() / 1000;
   const [data, setData] = useState({ backups: [], default_dest_host: null });
   const [adding, setAdding] = useState(false);
@@ -72,7 +74,7 @@ function BackupsTab({ machines, connected, showLocation = false, onOpenFolder })
   const stalest = ages.length ? Math.max(...ages) : null;
 
   return (
-    <section className="backups-tab">
+    <section className="backups-tab fit-page" ref={fit}>
       {jobs.length > 0 && (
         <div className="facts-row">
           <Fact
@@ -109,6 +111,7 @@ function BackupsTab({ machines, connected, showLocation = false, onOpenFolder })
 
       {error && <p className="form-error">{error}</p>}
 
+      <div className="fit-pane">
       {adding && (
         <div className="backup backup--editing">
           <BackupForm
@@ -164,6 +167,7 @@ function BackupsTab({ machines, connected, showLocation = false, onOpenFolder })
           ))}
         </div>
       )}
+      </div>
     </section>
   );
 }
