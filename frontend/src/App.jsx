@@ -8,7 +8,7 @@ import FilesTab from "./components/FilesTab";
 import TerminalTab from "./components/TerminalTab";
 import PersonalTab from "./components/PersonalTab";
 import SimpleHome from "./components/SimpleHome";
-import { requestFocus } from "./components/focusRequest";
+import { requestFocus, requestSection } from "./components/focusRequest";
 import SiteSettings from "./components/SiteSettings";
 import SettingsDrawer from "./components/SettingsDrawer";
 import TerminalDock from "./components/TerminalDock";
@@ -449,7 +449,7 @@ function App() {
 
   // Anything that says "go look at X" (Attention → View, Quick actions →
   // Containers) funnels through here.
-  const navigate = (target, { container, host, path, action, filter } = {}) => {
+  const navigate = (target, { container, host, path, action, filter, section } = {}) => {
     if (target === "settings") return setSettingsOpen(true);
     if (container) {
       try {
@@ -477,6 +477,7 @@ function App() {
     else if (viewMode === "simple") setMode("advanced");
     setActiveTab(tab);
     if (target === "servers" && host) requestFocus(host, action);
+    if (section) requestSection(section);
     if (target === "files" && host) setFilesTarget({ host, path, n: Date.now() });
   };
   const openSettingsFor = useCallback((host, container) => setSettingsFor({ host, container }), []);

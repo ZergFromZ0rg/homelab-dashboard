@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef } from "react";
+import { useSectionRequest } from "./focusRequest";
 import RebalancePanel from "./RebalancePanel";
 import FirstRun from "./FirstRun";
 import SummaryRow from "./SummaryRow";
@@ -279,7 +280,7 @@ function Overview({
         )}
       </section>
 
-      <section className="ovw-win ovw-win--panels">
+      <section className="ovw-win ovw-win--panels" data-section="panels">
         <div className="ovw-col">
           {issues}
           {services}
@@ -300,6 +301,12 @@ function Overview({
 // tall as the window, so the lists inside scroll rather than the page.
 function DetailWindows({ children }) {
   const root = useRef(null);
+  // A link from Simple ("See all" under Live updates) lands on the second
+  // screen, where the Timeline is.
+  useSectionRequest((name) => {
+    if (name !== "timeline") return;
+    setTimeout(() => root.current?.querySelector('[data-section="panels"]')?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
+  });
   useLayoutEffect(() => {
     const html = document.documentElement;
     const measure = () => {

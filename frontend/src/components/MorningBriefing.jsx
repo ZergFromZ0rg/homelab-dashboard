@@ -36,7 +36,7 @@ function OvernightList({ overnight, now, onNavigate }) {
           </li>
         ))}
       </ul>
-      <button type="button" className="mb-seeall" onClick={() => onNavigate("overview")}>
+      <button type="button" className="mb-seeall" onClick={() => onNavigate("overview", { section: "timeline" })}>
         {more > 0 ? `+${more} more · ` : ""}See all in Advanced →
       </button>
     </>

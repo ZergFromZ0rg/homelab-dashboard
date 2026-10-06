@@ -33,3 +33,32 @@ export function useFocusRequest(host, handler) {
     return () => window.removeEventListener(EVENT, onEvent);
   }, [host]);
 }
+
+// "Open this part of the Advanced overview" — the Simple page's links. Kept
+// until the overview mounts and takes it, like a host request above.
+const SECTION_EVENT = "homelab:section-request";
+let pendingSection = null;
+
+export function requestSection(name) {
+  pendingSection = { name, at: Date.now() };
+  window.dispatchEvent(new CustomEvent(SECTION_EVENT, { detail: pendingSection }));
+}
+
+export function useSectionRequest(handler) {
+  const ref = useRef(handler);
+  useEffect(() => {
+    ref.current = handler;
+  }, [handler]);
+
+  useEffect(() => {
+    const take = (request) => {
+      if (!request || Date.now() - request.at > 5000) return;
+      pendingSection = null;
+      setTimeout(() => ref.current(request.name), 0);
+    };
+    take(pendingSection);
+    const onEvent = (e) => take(e.detail);
+    window.addEventListener(SECTION_EVENT, onEvent);
+    return () => window.removeEventListener(SECTION_EVENT, onEvent);
+  }, []);
+}

@@ -7900,33 +7900,6 @@ html.ov-snap {
   min-height: 0;
 }
 
-.ovw-pager {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-
-.ovw-pager > button {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: var(--control-h);
-  padding: 0 12px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
-  color: var(--text-muted);
-  font: inherit;
-  font-size: var(--fs-sm);
-  cursor: pointer;
-}
-
-.ovw-pager > button.active {
-  border-color: var(--host-color, var(--accent));
-  color: var(--host-color, var(--text));
-}
-
 .ovw-track {
   display: flex;
   flex: 1;
