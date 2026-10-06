@@ -364,15 +364,16 @@ export function HostSystemPanels({ host, machine, autoCheckUpdates = false, tabb
 
 // `showUpdates` is a counter the host card bumps when a link elsewhere (the
 // Simple page's "Details") asks for the OS updates: open, and list them.
-function HostSystem({ host, machine, showUpdates = 0 }) {
-  const [open, setOpen] = useState(showUpdates > 0);
+function HostSystem({ host, machine, showUpdates = 0, open: openProp, onToggle }) {
+  const [openState, setOpen] = useState(showUpdates > 0);
+  const open = openProp ?? openState;
   const [fromLink, setFromLink] = useState(showUpdates > 0);
   const section = useRef(null);
   useEffect(() => {
     if (!showUpdates) return;
     setOpen(true);
     setFromLink(true);
-    setTimeout(() => section.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 150);
+    setTimeout(() => section.current?.querySelector(".hsys")?.scrollIntoView({ behavior: "smooth", block: "center" }), 250);
   }, [showUpdates]);
   if (!machine.terminal) return null;
   const facts = machine.host_facts;
@@ -380,7 +381,7 @@ function HostSystem({ host, machine, showUpdates = 0 }) {
 
   return (
     <section className="conn" ref={section}>
-      <button type="button" className={`conn-toggle ${open ? "expanded" : ""}`} onClick={() => setOpen(!open)} aria-expanded={open}>
+      <button type="button" className={`conn-toggle ${open ? "expanded" : ""}`} onClick={() => (onToggle ? onToggle() : setOpen(!open))} aria-expanded={open}>
         <span className="host-toggle" aria-hidden="true"><Icon name="chevron" size={12} /></span>
         SYSTEM
         {failed > 0 && <span className="conn-count conn-count--bad">{failed} failed</span>}

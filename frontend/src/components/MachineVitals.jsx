@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import DiskExplorer from "./DiskExplorer";
 import HostRecovery from "./HostRecovery";
 import { formatUptime, gpuDevices } from "./machineInfo";
@@ -215,6 +216,15 @@ function PerCore({ cores }) {
 // CPU, memory, storage, network & system, thermals & GPU. Every metric the
 // agent and node_exporter report is on screen — this is the tab for detail.
 function MachineVitals({ host, machine, history, explore, onExplore, showUpdates = 0 }) {
+  // System / Settings / If this host died: one open at a time. A "Details"
+  // link elsewhere (showUpdates) opens System.
+  const [managing, setManaging] = useState(showUpdates > 0 ? "system" : null);
+  useEffect(() => {
+    if (showUpdates > 0) setManaging("system");
+  }, [showUpdates]);
+  const manage = {
+    props: (id) => ({ open: managing === id, onToggle: () => setManaging((m) => (m === id ? null : id)) }),
+  };
   const {
     settings: { graphWindowMinutes: windowMinutes },
   } = useSettings();
@@ -491,9 +501,9 @@ function MachineVitals({ host, machine, history, explore, onExplore, showUpdates
 
       {host && (
         <div className="sv-manage">
-          <HostSystem host={host} machine={machine} showUpdates={showUpdates} />
-          <HostSettings host={host} />
-          <HostRecovery host={host} />
+          <HostSystem host={host} machine={machine} showUpdates={showUpdates} {...manage.props("system")} />
+          <HostSettings host={host} {...manage.props("settings")} />
+          <HostRecovery host={host} {...manage.props("recovery")} />
         </div>
       )}
     </>

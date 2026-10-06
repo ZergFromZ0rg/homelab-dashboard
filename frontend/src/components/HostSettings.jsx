@@ -56,8 +56,11 @@ function Field({ setting, value, onChange, disabled }) {
   );
 }
 
-function HostSettings({ host, defaultOpen = false }) {
-  const [open, setOpen] = useState(defaultOpen);
+// `open` / `onToggle` let a parent keep several of these to one open at a time;
+// without them it manages itself.
+function HostSettings({ host, defaultOpen = false, open: openProp, onToggle }) {
+  const [openState, setOpen] = useState(defaultOpen);
+  const open = openProp ?? openState;
   const [data, setData] = useState(null);
   const [edits, setEdits] = useState({});
   const [error, setError] = useState(null);
@@ -82,7 +85,8 @@ function HostSettings({ host, defaultOpen = false }) {
   // trigger, and most of the time nobody is looking at this.
   function toggle() {
     if (!open && data === null && !busy) load();
-    setOpen(!open);
+    if (onToggle) onToggle();
+    else setOpen(!open);
   }
 
   // Opened from the start (System tab): fetch once on mount.

@@ -55,8 +55,11 @@ function ConfigBackup({ status }) {
   );
 }
 
-function HostRecovery({ host, defaultOpen = false }) {
-  const [open, setOpen] = useState(defaultOpen);
+// `open` / `onToggle` let a parent keep several of these to one open at a time;
+// without them it manages itself.
+function HostRecovery({ host, defaultOpen = false, open: openProp, onToggle }) {
+  const [openState, setOpen] = useState(defaultOpen);
+  const open = openProp ?? openState;
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -99,7 +102,8 @@ function HostRecovery({ host, defaultOpen = false }) {
 
   function toggle() {
     if (!open && data === null && !busy) load();
-    setOpen(!open);
+    if (onToggle) onToggle();
+    else setOpen(!open);
   }
 
   // Opened from the start (System tab): fetch once on mount.
