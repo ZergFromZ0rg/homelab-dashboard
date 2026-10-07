@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchNodeAddresses, fetchScan, startScan } from "./lanApi";
 import { hostColor } from "./hostColor";
+import NetworkMap from "./NetworkMap";
+import { classify } from "./topology";
 import { useLocalStorage } from "./useLocalStorage";
 
 // What is on this host's LAN, live. "Scan now" sweeps the subnet from the
@@ -13,6 +15,8 @@ const AUTO_MS = 60_000;
 const WEB = new Set(["http", "jellyfin", "https"]);
 
 const ipKey = (ip) => ip.split(".").reduce((n, part) => n * 256 + Number(part), 0);
+const GHOST_DAYS = 7;
+const MAX_SEEN = 200;
 
 function Ports({ ip, ports }) {
   if (ports == null) return <span className="net-dim">…</span>;
@@ -44,6 +48,11 @@ function LanScan({ host }) {
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("");
   const [nodes, setNodes] = useState({});
+  const [gateways, setGateways] = useState({});
+  const [view, setView] = useLocalStorage("lanView", "list");
+  // Every device ever seen on this host's LAN, so the map can show the ones
+  // that have gone quiet. {host: {key: {ip, mac, vendor, hostname, last}}}
+  const [seen, setSeen] = useLocalStorage("lanSeen", {});
   const [auto, setAuto] = useLocalStorage("lanAuto", false);
   const [known, setKnown] = useLocalStorage("lanKnown", {});
   // What the previous scan of this host saw, held for the scan on screen.
@@ -86,7 +95,11 @@ function LanScan({ host }) {
   useEffect(() => {
     let alive = true;
     fetchNodeAddresses()
-      .then((body) => alive && setNodes(body.nodes || {}))
+      .then((body) => {
+        if (!alive) return;
+        setNodes(body.nodes || {});
+        setGateways(body.gateways || {});
+      })
       .catch(() => {});
     return () => {
       alive = false;
@@ -116,6 +129,18 @@ function LanScan({ host }) {
   useEffect(() => {
     if (!finishedAt) return;
     setKnown((all) => ({ ...all, [host]: job.devices.map((d) => d.mac || d.ip) }));
+    setSeen((all) => {
+      const mine = { ...(all[host] || {}) };
+      for (const d of job.devices) {
+        mine[d.mac || d.ip] = { ip: d.ip, mac: d.mac, vendor: d.vendor, hostname: d.hostname, randomized: d.randomized, last: Date.now() };
+      }
+      const cutoff = Date.now() - GHOST_DAYS * 86_400_000;
+      const newest = Object.entries(mine)
+        .filter(([, g]) => g.last > cutoff)
+        .sort((a, b) => b[1].last - a[1].last)
+        .slice(0, MAX_SEEN);
+      return { ...all, [host]: Object.fromEntries(newest) };
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per finished scan
   }, [finishedAt, host]);
 
@@ -137,6 +162,30 @@ function LanScan({ host }) {
   }, [job, filter, byAddress]);
 
   const isNew = (d) => !firstScan && !baseline.current.has(d.mac || d.ip);
+
+  // What the map draws: the devices on screen, classified, plus (when not
+  // filtering) recently seen ones that haven't answered this time.
+  const mapDevices = useMemo(() => {
+    const gateway = gateways[host] || null;
+    const live = devices.map((d) => {
+      const node = nodeOf(d);
+      const key = d.mac || d.ip;
+      const base = { ...d, key, node, isNew: isNew(d) };
+      return { ...base, kind: classify(base, { gateway }) };
+    });
+    if (filter.trim()) return live;
+    const here = new Set(live.map((d) => d.key));
+    const ips = new Set(live.map((d) => d.ip));
+    const ghosts = Object.entries(seen[host] || {})
+      .filter(([key, g]) => !here.has(key) && !ips.has(g.ip))
+      .map(([key, g]) => {
+        const base = { ...g, key, ports: null, gone: true, node: byAddress.get(g.ip) || null };
+        return { ...base, kind: classify(base, { gateway }) };
+      });
+    return [...live, ...ghosts];
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- nodeOf follows byAddress
+  }, [devices, gateways, seen, host, filter, byAddress]);
+
   const newCount = (job?.devices || []).filter(isNew).length;
   const ownCount = (job?.devices || []).filter((d) => nodeOf(d)).length;
   const pct = job?.total ? Math.round((job.scanned / job.total) * 100) : 0;
@@ -159,6 +208,13 @@ function LanScan({ host }) {
             {newCount > 0 && <strong className="lan-new-count"> · {newCount} new</strong>}
           </span>
         )}
+        <div className="lan-view" role="group" aria-label="View">
+          {[["list", "List"], ["map", "Map"]].map(([id, label]) => (
+            <button key={id} type="button" aria-pressed={view === id} className={view === id ? "active" : ""} onClick={() => setView(id)}>
+              {label}
+            </button>
+          ))}
+        </div>
         <input
           className="lan-filter"
           type="search"
@@ -178,14 +234,18 @@ function LanScan({ host }) {
 
       {(error || job?.error) && <p className="form-error">{error || job.error}</p>}
 
-      {idle && !error && (
+      {idle && !error && mapDevices.length === 0 && (
         <p className="lan-empty">
-          Sweeps the network {host} is on and lists every device that answers — name, MAC, open ports.
-          Run it twice and anything new is marked.
+          Sweeps the network {host} is on and lists every device that answers — name, MAC, open ports —
+          as a table or a live map. Run it twice and anything new is marked.
         </p>
       )}
 
-      {devices.length > 0 && (
+      {view === "map" && (mapDevices.length > 0 || scanning) && (
+        <NetworkMap devices={mapDevices} gateway={gateways[host]} subnet={job?.subnet} scanning={scanning} />
+      )}
+
+      {view === "list" && devices.length > 0 && (
         <div className="lan-scroll">
         <table className="net-table lan-table">
           <thead>

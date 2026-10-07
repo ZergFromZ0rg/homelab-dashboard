@@ -9050,3 +9050,205 @@ a.lan-port--web:hover {
 .latency-matrix-cell--slow { color: var(--warning); }
 .latency-matrix-cell--down { color: var(--offline); }
 .latency-matrix-cell--none { color: var(--text-faint); }
+
+/* --- LAN topology map (Network → Devices → Map) ------------------------ */
+
+.lan-view {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.lan-view button {
+  height: var(--control-h-sm);
+  padding: 0 10px;
+  background: transparent;
+  border: 0;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+.lan-view button.active {
+  background: var(--bg-subtle);
+  color: var(--text);
+}
+
+.nmap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nmap-svg {
+  flex: 1;
+  min-height: 280px;
+  width: 100%;
+  max-height: 70vh;
+}
+
+.nmap-link {
+  stroke: var(--border-strong, var(--border));
+  stroke-width: 1;
+  transition: opacity 0.3s;
+}
+
+.nmap-link--wan {
+  stroke-dasharray: 4 4;
+}
+
+.nmap-link--gone {
+  opacity: 0.35;
+  stroke-dasharray: 2 4;
+}
+
+.nmap-node {
+  --kind: var(--text-muted);
+  transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s;
+  cursor: pointer;
+  outline: none;
+}
+
+.nmap-node--router { --kind: var(--accent); }
+.nmap-node--network { --kind: #818cf8; }
+.nmap-node--node { --kind: var(--host-color, var(--accent)); }
+.nmap-node--server { --kind: #22d3ee; }
+.nmap-node--computer { --kind: #60a5fa; }
+.nmap-node--media { --kind: #d4b896; }
+.nmap-node--printer { --kind: #78909c; }
+.nmap-node--iot { --kind: #a3a3a3; }
+.nmap-node--phone { --kind: #94a3b8; }
+.nmap-node--internet { --kind: var(--text-faint); cursor: default; }
+
+.nmap-dot {
+  fill: var(--bg-card);
+  stroke: var(--kind);
+  stroke-width: 2;
+}
+
+.nmap-node--node .nmap-dot,
+.nmap-node--router .nmap-dot {
+  fill: var(--kind);
+  fill-opacity: 0.18;
+}
+
+.nmap-node:hover .nmap-dot,
+.nmap-node:focus-visible .nmap-dot,
+.nmap-node--sel .nmap-dot {
+  stroke-width: 3.5;
+}
+
+.nmap-node--gone {
+  opacity: 0.4;
+}
+
+.nmap-node--gone .nmap-dot {
+  stroke-dasharray: 3 3;
+}
+
+.nmap-node--new .nmap-dot {
+  stroke: var(--warning);
+}
+
+.nmap-node--pulse .nmap-dot {
+  animation: nmap-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes nmap-pulse {
+  50% { stroke-opacity: 0.35; }
+}
+
+.nmap-label,
+.nmap-sub {
+  text-anchor: middle;
+  fill: var(--text);
+  font-size: 11px;
+  pointer-events: none;
+}
+
+.nmap-sub {
+  fill: var(--text-faint);
+  font-size: 9.5px;
+  font-family: var(--font-mono, monospace);
+}
+
+.nmap-node--internet .nmap-label {
+  fill: var(--text-muted);
+}
+
+.nmap-foot {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.nmap-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.nmap-key i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 5px;
+  border-radius: 50%;
+  border: 2px solid var(--text-muted);
+  box-sizing: border-box;
+}
+
+.nmap-key--router i { border-color: var(--accent); }
+.nmap-key--network i { border-color: #818cf8; }
+.nmap-key--node i { border-color: #60a5fa; }
+.nmap-key--server i { border-color: #22d3ee; }
+.nmap-key--computer i { border-color: #60a5fa; }
+.nmap-key--media i { border-color: #d4b896; }
+.nmap-key--printer i { border-color: #78909c; }
+
+.nmap-detail {
+  min-width: 240px;
+  padding: 8px 10px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+}
+
+.nmap-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nmap-detail-head .btn {
+  margin-left: auto;
+}
+
+.nmap-detail dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 12px;
+  margin: 6px 0 0;
+}
+
+.nmap-detail dt {
+  color: var(--text-faint);
+}
+
+.nmap-detail dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nmap-node { transition: none; }
+  .nmap-node--pulse .nmap-dot { animation: none; }
+}

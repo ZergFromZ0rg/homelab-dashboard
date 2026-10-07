@@ -66,6 +66,7 @@ export function fetchNodeAddresses() {
         bigboy: [{ iface: "eth0", ip: "192.168.1.10", mac: "d8:5e:d3:42:10:10" }],
         thinkpad: [{ iface: "enp0s25", ip: "192.168.1.11", mac: "00:e0:4c:68:00:11" }],
       },
+      gateways: { bigboy: "192.168.1.1", thinkpad: "192.168.1.1" },
     });
   }
   return fetch("/api/lan-nodes").then(jsonOrThrow);
