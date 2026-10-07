@@ -21,6 +21,8 @@ export const pcapUrl = (host) => url(host, "/pcap");
 const DEMO_FLOWS = [
   ["TCP", "192.168.1.31", 51522, "192.168.1.10", 8096, "jellyfin", "[A] win 501"],
   ["TCP", "192.168.1.10", 41022, "140.82.121.4", 443, "https", "[PA] win 64240"],
+  ["TCP", "192.168.1.31", 52311, "104.18.32.7", 443, "https", "Client Hello → api.github.com", "api.github.com"],
+  ["TCP", "192.168.1.11", 40818, "172.66.147.243", 443, "https", "Client Hello → jellyfin.example.com", "jellyfin.example.com"],
   ["UDP", "192.168.1.58", 5353, "224.0.0.251", 5353, "mdns", "A _hap._tcp.local?"],
   ["UDP", "192.168.1.31", 49321, "192.168.1.1", 53, "dns", "A api.github.com?"],
   ["UDP", "192.168.1.1", 53, "192.168.1.31", 49321, "dns", "A api.github.com → 140.82.121.4"],
@@ -42,7 +44,7 @@ function demoSnapshot(after = 0) {
     packets.push({
       n, ts: demo.startedAt / 1000 + n / 14, len, iface: demo.iface, dir: n % 3 ? "in" : "out",
       proto: f[0], src: f[1], sport: f[2] || undefined, dst: f[3], dport: f[4] || undefined,
-      svc: f[5], info: f[6], ttl: 64, l2: 14,
+      svc: f[5], info: f[6], sni: f[7], app: f[7] ? "tls" : undefined, ttl: 64, l2: 14,
       hex: "aabbcc000002aabbcc00000108004500003c1c4640004006b1e6c0a8010ac0a8010100500050",
     });
   }
@@ -59,7 +61,7 @@ function demoSnapshot(after = 0) {
   const flows = DEMO_FLOWS.map((f, i) => ({
     proto: f[0], a: f[1], a_port: f[2], b: f[3], b_port: f[4],
     pkts: Math.floor(count / DEMO_FLOWS.length), bytes: Math.floor((bytes * (9 - i)) / 45),
-    out: 3, in: 5, first: demo.startedAt / 1000, last: demo.startedAt / 1000 + seconds,
+    out: 3, in: 5, name: f[7] || null, first: demo.startedAt / 1000, last: demo.startedAt / 1000 + seconds,
   }));
   return {
     state: demo.stopped ? "stopped" : done ? "done" : "capturing",

@@ -9368,13 +9368,32 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
 }
 
 .pcap-split:has(.pcap-detail) {
-  grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(120px, 1fr) minmax(0, 168px);
 }
 
-@media (max-width: 900px) {
+/* Stacked under the list the detail is wide and short: fields beside the hex. */
+@media (max-width: 1279px) {
+  .pcap-detail {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 18px;
+    align-content: start;
+  }
+
+  .pcap-detail-head {
+    grid-column: 1 / -1;
+  }
+
+  .pcap-detail dl {
+    margin: 0;
+  }
+}
+
+@media (min-width: 1280px) {
   .pcap-split:has(.pcap-detail) {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(120px, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+    grid-template-rows: minmax(0, 1fr);
   }
 }
 
@@ -9399,8 +9418,32 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
   background: color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
+/* Source / destination / proto / length stay as narrow as their content;
+   Info takes what is left and truncates, so a server name is never the
+   thing that gets cut off first. */
+.pcap-packets {
+  table-layout: auto;
+}
+
+.pcap-packets th:last-child,
+.pcap-packets td:last-child {
+  width: 100%;
+}
+
 .pcap-info {
-  max-width: 420px;
+  max-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pcap-sni,
+.pcap-name {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.pcap-name {
+  max-width: 260px;
   overflow: hidden;
   text-overflow: ellipsis;
 }

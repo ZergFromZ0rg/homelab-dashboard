@@ -17,7 +17,7 @@ const POLL_MS = 1000;
 const KEEP = 3000; // packets held in the page
 const SHOWN = 500; // rows drawn
 const DURATIONS = [[30, "30 s"], [60, "1 min"], [180, "3 min"], [300, "5 min"], [600, "10 min"]];
-const PROTOCOLS = ["tcp", "udp", "icmp", "arp", "dns"];
+const PROTOCOLS = ["tcp", "udp", "icmp", "arp", "dns", "tls"];
 const DEFAULTS = { iface: "", duration: 60, host: "", port: "", proto: "", payload: false };
 const LIVE = new Set(["capturing"]);
 
@@ -74,6 +74,7 @@ function Flows({ flows, onFilter }) {
         <tr>
           <th>Proto</th>
           <th>Between</th>
+          <th>Server name</th>
           <th className="pcap-r">Packets</th>
           <th className="pcap-r">Bytes</th>
           <th className="pcap-r" title="Packets leaving this host / arriving at it">Out / in</th>
@@ -84,6 +85,7 @@ function Flows({ flows, onFilter }) {
           <tr key={`${f.proto}|${f.a}|${f.a_port}|${f.b}|${f.b_port}`} className="pcap-click" onClick={() => onFilter(f.a)} title={`Show packets involving ${f.a}`}>
             <td><span className={`pcap-proto pcap-proto--${f.proto.toLowerCase()}`}>{f.proto}</span></td>
             <td className="net-mono">{endpoint(f.a, f.a_port)} <span className="net-dim">↔</span> {endpoint(f.b, f.b_port)}</td>
+            <td className="pcap-name" title={f.name || undefined}>{f.name || <span className="net-dim">—</span>}</td>
             <td className="net-mono pcap-r">{f.pkts.toLocaleString()}</td>
             <td className="net-mono pcap-r">{formatBytes(f.bytes)}</td>
             <td className="net-mono net-dim pcap-r">{f.out} / {f.in}</td>
@@ -119,6 +121,7 @@ function Detail({ packet, started, onClose }) {
     ["To", `${endpoint(packet.dst, packet.dport)}${packet.dst_mac ? `  ·  ${packet.dst_mac}` : ""}`],
     ["Protocol", `${packet.proto}${packet.svc ? ` · ${packet.svc}` : ""}${packet.ip ? ` · IPv${packet.ip}` : ""}`],
     ["Length", `${packet.len} bytes on the wire${packet.ttl != null ? `, TTL ${packet.ttl}` : ""}`],
+    ...(packet.sni ? [["Server name", packet.sni]] : []),
     ["Info", packet.info || "—"],
   ];
   return (
@@ -225,7 +228,7 @@ function PacketCapture({ host }) {
   const visible = useMemo(() => {
     const q = filter.trim().toLowerCase();
     const rows = q
-      ? packets.filter((p) => `${p.src} ${p.dst} ${p.sport || ""} ${p.dport || ""} ${p.proto} ${p.svc || ""} ${p.info || ""}`.toLowerCase().includes(q))
+      ? packets.filter((p) => `${p.src} ${p.dst} ${p.sport || ""} ${p.dport || ""} ${p.proto} ${p.svc || ""} ${p.info || ""} ${p.sni || ""}`.toLowerCase().includes(q))
       : packets;
     return rows.slice(-SHOWN);
   }, [packets, filter]);
@@ -333,7 +336,7 @@ function PacketCapture({ host }) {
           {view === "packets" && (
             <div className="pcap-split">
               <div className="lan-scroll" ref={listRef} onScroll={onScroll}>
-                <table className="net-table lan-table pcap-table">
+                <table className="net-table lan-table pcap-table pcap-packets">
                   <thead>
                     <tr>
                       <th className="pcap-r">#</th>
@@ -354,7 +357,9 @@ function PacketCapture({ host }) {
                         <td className="net-mono">{endpoint(p.dst, p.dport)}</td>
                         <td><span className={`pcap-proto pcap-proto--${(p.app || p.proto).toLowerCase().replace(/[^a-z0-9]/g, "")}`}>{p.app ? p.app.toUpperCase() : p.proto}</span></td>
                         <td className="net-mono pcap-r">{p.len}</td>
-                        <td className="pcap-info" title={p.info}>{p.info}</td>
+                        <td className="pcap-info" title={p.info}>
+                          {p.sni ? <>Client Hello → <strong className="pcap-sni">{p.sni}</strong></> : p.info}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -368,7 +373,7 @@ function PacketCapture({ host }) {
           {view === "flows" && (
             <div className="lan-scroll">
               <Flows
-                flows={(job.flows || []).filter((f) => !filter.trim() || `${f.a} ${f.b} ${f.a_port} ${f.b_port} ${f.proto}`.toLowerCase().includes(filter.trim().toLowerCase()))}
+                flows={(job.flows || []).filter((f) => !filter.trim() || `${f.a} ${f.b} ${f.a_port} ${f.b_port} ${f.proto} ${f.name || ""}`.toLowerCase().includes(filter.trim().toLowerCase()))}
                 onFilter={(ip) => { setFilter(ip); setView("packets"); }}
               />
             </div>
