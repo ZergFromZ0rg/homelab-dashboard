@@ -34,7 +34,7 @@ export function classify(d, { gateway = null } = {}) {
   if (d.node) return "node";
   if (gateway && d.ip === gateway) return "router";
   if (has(name, /^(router|gateway|modem)\b/i)) return "router";
-  if (hasPort(d, 631, 9100) || has(vendor, /canon|epson|brother|xerox|lexmark|kyocera/i)) return "printer";
+  if (hasPort(d, 631) || has(vendor, /canon|epson|brother|xerox|lexmark|kyocera/i)) return "printer";
   if (hasPort(d, 8096, 32400) || has(vendor, /roku|sonos|vizio|tcl|chromecast/i)) return "media";
   if (has(vendor, /espressif|tuya|shelly|sonoff|ring|nest|ecobee|philips lighting|signify|wyze|xiaomi.*(iot|home)/i)) return "iot";
   if (hasPort(d, 62078) || has(vendor, /samsung|oneplus|huawei|oppo|motorola|xiaomi|google/i)) return "phone";

@@ -14,7 +14,7 @@ const DEMO_DEVICES = [
   { ip: "192.168.1.11", mac: "00:e0:4c:68:00:11", vendor: "Realtek Semiconductor Corp.", hostname: "thinkpad.lan", ports: [{ port: 22, service: "ssh" }, { port: 8081, service: "http" }] },
   { ip: "192.168.1.20", mac: "b8:27:eb:9a:20:20", vendor: "Raspberry Pi Foundation", hostname: "pihole.lan", ports: [{ port: 80, service: "http" }, { port: 53, service: "dns" }] },
   { ip: "192.168.1.31", mac: "3c:22:fb:7c:31:31", vendor: "Apple, Inc.", hostname: null, ports: [{ port: 62078, service: "ios" }] },
-  { ip: "192.168.1.42", mac: "a4:83:e7:0d:42:42", vendor: "Hewlett Packard", hostname: "printer.lan", ports: [{ port: 631, service: "ipp" }, { port: 9100, service: "printer" }] },
+  { ip: "192.168.1.42", mac: "a4:83:e7:0d:42:42", vendor: "Hewlett Packard", hostname: "printer.lan", ports: [{ port: 631, service: "ipp" }, { port: 9100, service: "9100" }] },
   { ip: "192.168.1.58", mac: "7c:2f:80:91:58:58", vendor: "Espressif Inc.", hostname: null, ports: [] },
   { ip: "192.168.1.77", mac: "de:ad:be:ef:77:77", randomized: true, hostname: null, ports: [] },
 ];

@@ -10,7 +10,9 @@ describe("classify", () => {
   });
 
   it("uses ports and vendors", () => {
-    expect(classify(dev("10.0.0.5", { ports: [{ port: 9100, service: "printer" }] }))).toBe("printer");
+    expect(classify(dev("10.0.0.5", { ports: [{ port: 631, service: "ipp" }] }))).toBe("printer");
+    // 9100 alone is as likely node-exporter as a printer.
+    expect(classify(dev("10.0.0.12", { ports: [{ port: 9100, service: "9100" }] }))).toBe("unknown");
     expect(classify(dev("10.0.0.6", { ports: [{ port: 8096, service: "jellyfin" }] }))).toBe("media");
     expect(classify(dev("10.0.0.7", { vendor: "Espressif Inc." }))).toBe("iot");
     expect(classify(dev("10.0.0.8", { ports: [{ port: 62078, service: "ios" }] }))).toBe("phone");
