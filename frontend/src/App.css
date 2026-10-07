@@ -8763,6 +8763,30 @@ a.lan-port--web:hover {
   }
 }
 
+/* Stacked (narrow) layout: cards keep their natural height, the pane scrolls. */
+@media (max-width: 1000px) {
+  .network-tab > .fit-pane:not(.net-checks) {
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+
+  .network-tab .net-host {
+    flex: 0 0 auto;
+    height: auto;
+  }
+
+  .network-tab .net-grid {
+    flex: 0 0 auto;
+  }
+
+  .network-tab .net-col > .overview-card,
+  .network-tab .net-grid > .net-networks {
+    flex: 0 0 auto;
+    min-height: 0;
+    overflow-y: visible;
+  }
+}
+
 /* ----- Services: status strip button + incident list ----- */
 
 .fact--button {
