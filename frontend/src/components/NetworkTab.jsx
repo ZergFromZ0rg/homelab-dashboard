@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import ConnectionsPanel from "./ConnectionsPanel";
 import LanScan from "./LanScan";
+import PacketCapture from "./PacketCapture";
 import Sparkline from "./Sparkline";
 import { windowPoints } from "./historyWindow";
 import { useSettings } from "./settings";
@@ -470,6 +471,12 @@ function HostNetwork({ host, machine, containers, history, part = "network" }) {
         </section>
       )}
 
+      {part === "packets" && (
+        <section className="overview-card net-fill">
+          <PacketCapture host={host} />
+        </section>
+      )}
+
       {part === "connections" && (
         <section className="overview-card net-conns net-fill">
           <ConnectionsPanel host={host} defaultOpen />
@@ -492,6 +499,7 @@ function NetworkTab({ machines, containers, checks, connected, history = {} }) {
     ["network", "Host network", null],
     ["devices", "Scans", null],
     ["connections", "Connections", null],
+    ["packets", "Packets", null],
     ["checks", "Service checks", down ? `${down} down` : checks.length || null],
   ];
 

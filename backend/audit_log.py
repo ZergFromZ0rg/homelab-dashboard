@@ -39,7 +39,7 @@ MAX_BODY = 32 * 1024
 # Body/query keys that identify what was acted on. Anything else in a body
 # (file contents, passwords, compose text) is never written.
 TARGET_KEYS = ("path", "container", "containers", "name", "host", "hosts", "app",
-               "target", "service", "project", "network", "id", "overwrite", "pull")
+               "target", "service", "project", "network", "id", "overwrite", "pull", "iface")
 
 # Reads worth a line: they hand over file contents, logs or settings.
 READS = [
@@ -49,6 +49,7 @@ READS = [
         r"^/api/hosts/[^/]+/services/[^/]+/logs$",
         r"^/api/hosts/[^/]+/journal$",
         r"^/api/hosts/[^/]+/config$",
+        r"^/api/capture/[^/]+/pcap$",
     )
 ]
 
@@ -90,6 +91,8 @@ _LABELS = [
     (r"^/api/files/[^/]+/copy$", lambda m: "copied"),
     (r"^/api/disk/[^/]+/delete$", lambda m: "deleted"),
     (r"^/api/lan/[^/]+/scan$", lambda m: "network scan"),
+    (r"^/api/capture/[^/]+/pcap$", lambda m: "packet capture downloaded"),
+    (r"^/api/capture/[^/]+$", lambda m: "packet capture"),
     (r"^/api/rebuild/[^/]+$", lambda m: "rebuild"),
     (r"^/api/fleet/rebuild$", lambda m: "fleet rebuild"),
     (r"^/api/git-updates/[^/]+/[^/]+$", lambda m: "automatic repository updates changed"),
@@ -112,7 +115,7 @@ _LABELS = [
 ]
 _LABELS = [(re.compile(p), f) for p, f in _LABELS]
 
-_HOST = re.compile(r"^/api/(?:containers|compose|updates|git-updates|files|disk|rebuild|hosts|networks)/([^/]+)")
+_HOST = re.compile(r"^/api/(?:containers|compose|updates|git-updates|files|disk|rebuild|hosts|networks|capture|lan)/([^/]+)")
 
 
 _WRITES = {  # the same path, changing rather than reading
