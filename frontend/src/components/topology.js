@@ -53,16 +53,14 @@ export function shortName(d) {
   return d.ip.split(".").slice(-2).join(".");
 }
 
-const INNER = 150;
-const RING = 105;
 const PER_RING = 14;
 const GAP = 24; // degrees left open at the top for the Internet link
 
-// Positions around (0, 0), where the router sits. Your own nodes (and the
-// gear that carries the network) take the inner ring; everything else fills
-// outer rings of at most PER_RING devices each. Returns {x, y} by key, plus
-// the outermost radius, so the caller can size its viewBox.
-export function layout(devices) {
+// Positions around (0, 0), where the router sits, on ellipses that fill an
+// rx × ry area. Your own nodes (and the gear that carries the network) take
+// the inner ring; everything else fills outer rings of at most PER_RING
+// devices each, out to the edge. Returns {x, y, ring} by key.
+export function layout(devices, { rx = 300, ry = 300 } = {}) {
   const sorted = [...devices].sort(
     (a, b) => ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind) || ipKey(a.ip) - ipKey(b.ip)
   );
@@ -73,17 +71,16 @@ export function layout(devices) {
   if (inner.length === 0) rings.shift();
 
   const positions = new Map();
-  let radius = 0;
   rings.forEach((ring, r) => {
-    radius = INNER + r * RING;
+    const frac = rings.length === 1 ? 0.75 : 0.4 + (0.6 * r) / (rings.length - 1);
     const span = 360 - GAP * 2;
+    const step = span / Math.max(ring.length, 1);
     ring.forEach((d, i) => {
       // Offset alternate rings so spokes to the router don't line up.
-      const step = span / Math.max(ring.length, 1);
       const angle = -90 + GAP + step * (i + (r % 2 ? 0.25 : 0.5));
       const rad = (angle * Math.PI) / 180;
-      positions.set(d.key, { x: Math.cos(rad) * radius, y: Math.sin(rad) * radius, ring: r });
+      positions.set(d.key, { x: Math.cos(rad) * rx * frac, y: Math.sin(rad) * ry * frac, ring: r });
     });
   });
-  return { positions, radius: radius || INNER };
+  return { positions };
 }

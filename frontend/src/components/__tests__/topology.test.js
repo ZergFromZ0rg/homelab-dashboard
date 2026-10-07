@@ -27,11 +27,10 @@ describe("layout", () => {
       dev("10.0.0.3", { kind: "node" }),
       ...Array.from({ length: 20 }, (_, i) => dev(`10.0.1.${i + 1}`, { kind: "unknown" })),
     ];
-    const { positions, radius } = layout(devices);
+    const { positions } = layout(devices);
     expect(positions.size).toBe(devices.length);
     expect(positions.get("10.0.0.3").ring).toBe(0);
     expect(positions.get("10.0.0.2").ring).toBe(1);
-    expect(radius).toBeGreaterThan(150);
   });
 
   it("leaves the top open for the Internet link", () => {
@@ -40,7 +39,16 @@ describe("layout", () => {
     // A lone device lands opposite the Internet link, not on it.
     expect(Math.abs(x)).toBeLessThan(1);
     expect(y).toBeGreaterThan(0);
-    expect(layout([]).radius).toBeGreaterThan(0);
+  });
+});
+
+describe("layout size", () => {
+  it("stretches to the area it is given", () => {
+    const devices = Array.from({ length: 8 }, (_, i) => dev(`10.0.0.${i + 2}`, { kind: "unknown" }));
+    const reach = (area) => Math.max(...[...layout(devices, area).positions.values()].map((p) => Math.abs(p.x)));
+    expect(reach({ rx: 600, ry: 200 })).toBeGreaterThan(reach({ rx: 300, ry: 200 }));
+    const { positions } = layout(devices, { rx: 600, ry: 200 });
+    expect(Math.max(...[...positions.values()].map((p) => Math.abs(p.y)))).toBeLessThanOrEqual(200);
   });
 });
 

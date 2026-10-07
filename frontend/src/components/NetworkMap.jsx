@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { hostColor } from "./hostColor";
 import { KINDS, layout, shortName } from "./topology";
 
@@ -7,7 +7,9 @@ import { KINDS, layout, shortName } from "./topology";
 // more; devices seen on an earlier scan but missing now stay as faded ghosts.
 // Devices come in already classified (see topology.js).
 
-const PAD = 70;
+const MARGIN_X = 60; // room for a label past the outermost node
+const MARGIN_TOP = 56; // the Internet pill
+const MARGIN_BOTTOM = 56;
 
 function Node({ d, pos, selected, onSelect }) {
   const color = d.node ? hostColor(d.node) : undefined;
@@ -75,22 +77,38 @@ export default function NetworkMap({ devices, gateway, subnet, scanning }) {
   const [selected, setSelected] = useState(null);
   const router = devices.find((d) => d.kind === "router");
   const mapped = useMemo(() => devices.filter((d) => d !== router), [devices, router]);
-  const { positions, radius } = useMemo(() => layout(mapped), [mapped]);
-  const extent = radius + PAD;
-  const top = -(extent + 20);
+  // The drawing is 1:1 with the pixels it gets, so text stays crisp and the
+  // rings stretch to whatever shape the pane is.
+  const box = useRef(null);
+  const [size, setSize] = useState({ w: 800, h: 520 });
+  useEffect(() => {
+    const el = box.current;
+    if (!el || typeof ResizeObserver === "undefined") return undefined;
+    const watch = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      if (width > 0 && height > 0) setSize({ w: Math.round(width), h: Math.round(height) });
+    });
+    watch.observe(el);
+    return () => watch.disconnect();
+  }, []);
+  const rx = Math.max(120, size.w / 2 - MARGIN_X);
+  const ry = Math.max(120, size.h / 2 - Math.max(MARGIN_TOP, MARGIN_BOTTOM));
+  const { positions } = useMemo(() => layout(mapped, { rx, ry }), [mapped, rx, ry]);
+  const top = -size.h / 2 + 4;
   const picked = devices.find((d) => d.key === selected) || null;
   const kinds = [...new Set(devices.map((d) => d.kind))];
 
   return (
     <div className="nmap">
+      <div className="nmap-stage" ref={box}>
       <svg
         className="nmap-svg"
-        viewBox={`${-extent} ${top} ${extent * 2} ${extent * 2 + 20 + 40}`}
+        viewBox={`${-size.w / 2} ${-size.h / 2} ${size.w} ${size.h}`}
         role="img"
         aria-label={`Network map: ${devices.length} devices on ${subnet || "the LAN"}`}
       >
         <g className="nmap-links">
-          <line x1="0" y1="0" x2="0" y2={top + 24} className="nmap-link nmap-link--wan" />
+          <line x1="0" y1="0" x2="0" y2={top + 12} className="nmap-link nmap-link--wan" />
           {mapped.map((d) => {
             const p = positions.get(d.key);
             return p ? (
@@ -128,6 +146,7 @@ export default function NetworkMap({ devices, gateway, subnet, scanning }) {
           return pos ? <Node key={d.key} d={d} pos={pos} selected={selected === d.key} onSelect={setSelected} /> : null;
         })}
       </svg>
+      </div>
 
       <div className="nmap-foot">
         <span className="nmap-legend">

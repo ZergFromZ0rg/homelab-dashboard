@@ -9083,11 +9083,17 @@ a.lan-port--web:hover {
   gap: 8px;
 }
 
-.nmap-svg {
+.nmap-stage {
+  position: relative;
   flex: 1;
-  min-height: 280px;
+  min-height: 320px;
+}
+
+.nmap-svg {
+  position: absolute;
+  inset: 0;
   width: 100%;
-  max-height: 70vh;
+  height: 100%;
 }
 
 .nmap-link {
@@ -9165,13 +9171,13 @@ a.lan-port--web:hover {
 .nmap-sub {
   text-anchor: middle;
   fill: var(--text);
-  font-size: 11px;
+  font-size: 12px;
   pointer-events: none;
 }
 
 .nmap-sub {
   fill: var(--text-faint);
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-family: var(--font-mono, monospace);
 }
 
