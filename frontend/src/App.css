@@ -9257,6 +9257,8 @@ a.lan-port--web:hover {
 @media (prefers-reduced-motion: reduce) {
   .nmap-node { transition: none; }
   .nmap-node--pulse .nmap-dot { animation: none; }
+}
+
 /* LAN device names: a guess is dim italic, a rename is one click away. */
 .lan-name { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
 .lan-guess { color: var(--text-muted); font-style: italic; }
