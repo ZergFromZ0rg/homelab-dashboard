@@ -39,7 +39,8 @@ MAX_BODY = 32 * 1024
 # Body/query keys that identify what was acted on. Anything else in a body
 # (file contents, passwords, compose text) is never written.
 TARGET_KEYS = ("path", "container", "containers", "name", "host", "hosts", "app",
-               "target", "service", "project", "network", "id", "overwrite", "pull", "iface")
+               "target", "service", "project", "network", "id", "overwrite", "pull", "iface",
+               "payload", "promisc")
 
 # Reads worth a line: they hand over file contents, logs or settings.
 READS = [
@@ -50,6 +51,7 @@ READS = [
         r"^/api/hosts/[^/]+/journal$",
         r"^/api/hosts/[^/]+/config$",
         r"^/api/capture/[^/]+/pcap$",
+        r"^/api/captures/[^/]+(/pcap)?$",
     )
 ]
 
@@ -92,6 +94,9 @@ _LABELS = [
     (r"^/api/disk/[^/]+/delete$", lambda m: "deleted"),
     (r"^/api/lan/[^/]+/scan$", lambda m: "network scan"),
     (r"^/api/capture/[^/]+/pcap$", lambda m: "packet capture downloaded"),
+    (r"^/api/capture/[^/]+/save$", lambda m: "packet capture saved"),
+    (r"^/api/captures/[^/]+/pcap$", lambda m: "saved capture downloaded"),
+    (r"^/api/captures/[^/]+$", lambda m: "saved capture opened"),
     (r"^/api/capture/[^/]+$", lambda m: "packet capture"),
     (r"^/api/rebuild/[^/]+$", lambda m: "rebuild"),
     (r"^/api/fleet/rebuild$", lambda m: "fleet rebuild"),
@@ -121,6 +126,7 @@ _HOST = re.compile(r"^/api/(?:containers|compose|updates|git-updates|files|disk|
 _WRITES = {  # the same path, changing rather than reading
     "file opened": "file edited",
     "agent settings read": "agent settings changed",
+    "saved capture opened": "saved capture renamed or deleted",
 }
 
 

@@ -13,11 +13,12 @@ import requests
 from fastapi import APIRouter, Header
 from fastapi.responses import JSONResponse, Response
 
-from backend import auth
+from backend import auth, capture_store
 from backend.docker import agent_headers
 from backend.hosts import agent_for as _agent
 
 router = APIRouter(prefix="/api/capture/{host}")
+saved_router = APIRouter(prefix="/api/captures")
 
 TIMEOUT = 40  # starting reads the host's interfaces through a helper container
 PCAP_TIMEOUT = 30
@@ -94,3 +95,74 @@ def pcap(host: str, x_register_token: str | None = Header(default=None)):
         media_type="application/vnd.tcpdump.pcap",
         headers={"Content-Disposition": f'attachment; filename="{host}-capture.pcap"'},
     )
+
+
+@router.post("/save")
+def save(host: str, body: dict | None = None, x_register_token: str | None = Header(default=None)):
+    """Copy the agent's current capture (packets, .pcap and all) into the
+    dashboard's saved captures."""
+    auth.check_token(x_register_token)
+    try:
+        snapshot = requests.get(
+            f"{_agent(host)}/capture", params={"after": 0, "limit": 3000}, headers=agent_headers(), timeout=TIMEOUT
+        )
+        refused = _reason(snapshot)
+        if refused:
+            return refused
+        dump = requests.get(f"{_agent(host)}/capture/pcap", headers=agent_headers(), timeout=PCAP_TIMEOUT)
+    except requests.RequestException as error:
+        return _fail(error)
+    try:
+        data = snapshot.json()
+    except ValueError:
+        return JSONResponse(status_code=502, content={"error": f"agent answered {snapshot.status_code}"})
+    if not isinstance(data, dict) or data.get("state") in (None, "idle"):
+        return JSONResponse(status_code=409, content={"error": "there is no capture on this host to save"})
+    try:
+        return capture_store.save(host, (body or {}).get("name"), data, dump.content)
+    except capture_store.StoreError as error:
+        return JSONResponse(status_code=409, content={"error": str(error)})
+
+
+@saved_router.get("")
+def saved_list():
+    return {"captures": capture_store.list_all()}
+
+
+def _missing() -> JSONResponse:
+    return JSONResponse(status_code=404, content={"error": "no such saved capture"})
+
+
+@saved_router.get("/{capture_id}")
+def saved_open(capture_id: str, x_register_token: str | None = Header(default=None)):
+    auth.check_token(x_register_token)
+    found = capture_store.read(capture_id)
+    return found if found else _missing()
+
+
+@saved_router.get("/{capture_id}/pcap")
+def saved_pcap(capture_id: str, x_register_token: str | None = Header(default=None)):
+    auth.check_token(x_register_token)
+    found = capture_store.pcap(capture_id)
+    if not found:
+        return _missing()
+    content, meta = found
+    stem = "".join(c if c.isalnum() or c in "-_" else "-" for c in meta["name"]).strip("-") or capture_id
+    return Response(
+        content=content,
+        media_type="application/vnd.tcpdump.pcap",
+        headers={"Content-Disposition": f'attachment; filename="{stem}.pcap"'},
+    )
+
+
+@saved_router.patch("/{capture_id}")
+def saved_rename(capture_id: str, body: dict, x_register_token: str | None = Header(default=None)):
+    auth.check_token(x_register_token)
+    meta = capture_store.rename(capture_id, str(body.get("name") or ""))
+    return meta if meta else _missing()
+
+
+@saved_router.delete("/{capture_id}")
+def saved_delete(capture_id: str, x_register_token: str | None = Header(default=None)):
+    auth.check_token(x_register_token)
+    return {"deleted": True} if capture_store.delete(capture_id) else _missing()

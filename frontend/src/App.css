@@ -9637,3 +9637,272 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
 .pcap-num {
   text-align: right;
 }
+
+/* --- Packet capture: options, display filter, TCP trouble, saved, stream -- */
+
+.pcap-options {
+  gap: 8px 14px;
+}
+
+.pcap-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.pcap-spacer {
+  flex: 1;
+}
+
+.pcap-display {
+  display: flex;
+  flex: 1 1 280px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pcap .lan-bar .pcap-expr--display {
+  flex: 1 1 200px;
+  max-width: 460px;
+  min-width: 140px;
+}
+
+.pcap .lan-bar .pcap-expr--text {
+  border-color: color-mix(in srgb, var(--warning) 55%, var(--border));
+}
+
+.pcap-display-note {
+  max-width: 340px;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pcap-display-note--text {
+  color: var(--warning);
+}
+
+.pcap-row--warn td {
+  background: color-mix(in srgb, var(--warning) 11%, transparent);
+}
+
+.pcap-row--bad td {
+  background: color-mix(in srgb, var(--offline) 13%, transparent);
+}
+
+.pcap-row--selected td {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.pcap-warn {
+  color: var(--warning);
+}
+
+.pcap-stat--btn {
+  padding: 0;
+  background: none;
+  border: 0;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pcap-stat--btn:hover strong {
+  text-decoration: underline;
+}
+
+.pcap-flow-issues {
+  color: var(--warning);
+}
+
+.pcap-alert {
+  margin: 0;
+  padding: 6px 10px;
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+  border-radius: var(--radius-sm);
+  color: var(--warning);
+  font-size: var(--fs-sm);
+}
+
+.pcap-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 10px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+}
+
+.pcap-issues {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  padding: 2px 0 8px;
+  font-size: var(--fs-sm);
+}
+
+.pcap-issue {
+  padding: 2px 9px;
+  background: color-mix(in srgb, var(--warning) 14%, transparent);
+  border: 0;
+  border-radius: var(--radius-pill);
+  color: var(--warning);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+
+.pcap-issue--bad {
+  background: color-mix(in srgb, var(--offline) 16%, transparent);
+  color: var(--offline);
+}
+
+.pcap-detail-head .pcap-follow {
+  margin: 0 auto 0 12px;
+}
+
+.pcap-proto--http { color: var(--accent); }
+.pcap-proto--dhcp,
+.pcap-proto--ntp { color: var(--online); }
+.pcap-proto--tls { color: var(--accent); }
+
+/* Saved captures */
+
+.pcap-saved {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 260px;
+  padding: 10px 12px;
+  overflow-y: auto;
+  background: var(--bg-subtle);
+  border-radius: var(--radius-sm);
+  scrollbar-width: thin;
+}
+
+.pcap-saved-form {
+  display: flex;
+  gap: 8px;
+}
+
+.pcap-saved-form .pcap-expr {
+  flex: 1;
+  height: var(--control-h-sm);
+  padding: 0 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font: var(--fs-sm) var(--sans);
+}
+
+.pcap-saved-table td {
+  padding: 3px 10px;
+  font-size: var(--fs-sm);
+}
+
+.pcap-saved-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.pcap-linkish {
+  max-width: 240px;
+  padding: 0;
+  overflow: hidden;
+  background: none;
+  border: 0;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.pcap-linkish:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+/* Follow TCP stream */
+
+.pcap-stream {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pcap-stream-head,
+.pcap-stream-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  font-size: var(--fs-sm);
+}
+
+.pcap-stream-close {
+  margin-left: auto;
+}
+
+.pcap-stream-key {
+  font: var(--fs-xs) var(--mono);
+}
+
+.pcap-stream-key--client { color: var(--accent); }
+.pcap-stream-key--server { color: var(--online); }
+
+.pcap-stream-warn {
+  color: var(--warning);
+  font-size: var(--fs-xs);
+}
+
+.pcap-stream-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 10px;
+  background: var(--bg-subtle);
+  border-radius: var(--radius-sm);
+  scrollbar-width: thin;
+}
+
+.pcap-stream-chunk {
+  margin: 0 0 6px;
+  padding: 4px 8px;
+  border-left: 3px solid var(--border);
+  font: var(--fs-sm) / 1.45 var(--mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.pcap-stream-chunk--client {
+  border-left-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.pcap-stream-chunk--server {
+  border-left-color: var(--online);
+  background: color-mix(in srgb, var(--online) 8%, transparent);
+}
+
+.pcap-stream-gap {
+  margin: 4px 0 6px;
+  color: var(--warning);
+  font-size: var(--fs-xs);
+  text-align: center;
+}
