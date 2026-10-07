@@ -49,7 +49,7 @@ function LanScan({ host }) {
   const [filter, setFilter] = useState("");
   const [nodes, setNodes] = useState({});
   const [gateways, setGateways] = useState({});
-  const [view, setView] = useLocalStorage("lanView", "list");
+  const [view, setView] = useLocalStorage("lanScanView", "map");
   // Every device ever seen on this host's LAN, so the map can show the ones
   // that have gone quiet. {host: {key: {ip, mac, vendor, hostname, last}}}
   const [seen, setSeen] = useLocalStorage("lanSeen", {});

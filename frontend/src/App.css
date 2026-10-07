@@ -9051,7 +9051,7 @@ a.lan-port--web:hover {
 .latency-matrix-cell--down { color: var(--offline); }
 .latency-matrix-cell--none { color: var(--text-faint); }
 
-/* --- LAN topology map (Network → Devices → Map) ------------------------ */
+/* --- LAN topology map (Network → Scans → Map) ------------------------ */
 
 .lan-view {
   display: inline-flex;

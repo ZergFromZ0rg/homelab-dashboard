@@ -490,7 +490,7 @@ function NetworkTab({ machines, containers, checks, connected, history = {} }) {
 
   const sections = [
     ["network", "Host network", null],
-    ["devices", "Devices", null],
+    ["devices", "Scans", null],
     ["connections", "Connections", null],
     ["checks", "Service checks", down ? `${down} down` : checks.length || null],
   ];
