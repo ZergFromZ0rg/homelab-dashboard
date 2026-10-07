@@ -9292,8 +9292,10 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
   min-height: 0;
 }
 
-.pcap .lan-bar select,
-.pcap .lan-bar .pcap-field {
+.pcap .lan-bar select {
+  flex: 0 0 auto;
+  width: auto;
+  max-width: 220px;
   height: var(--control-h-sm);
   padding: 0 8px;
   background: var(--bg-subtle);
@@ -9303,13 +9305,105 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
   font-size: var(--fs-sm);
 }
 
-.pcap .lan-bar .pcap-field {
-  width: 130px;
-  margin-left: 0;
+.pcap .lan-bar .pcap-expr {
+  flex: 1 1 260px;
+  min-width: 200px;
+  height: var(--control-h-sm);
+  padding: 0 8px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font: var(--fs-sm) var(--mono);
 }
 
-.pcap .lan-bar .pcap-field--port {
-  width: 70px;
+.pcap .lan-bar .pcap-expr:disabled {
+  opacity: 0.6;
+}
+
+.pcap-filter-text {
+  max-width: 420px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+}
+
+.pcap-help {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 14px 22px;
+  padding: 10px 12px;
+  background: var(--bg-subtle);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+}
+
+@media (max-width: 900px) {
+  .pcap-help {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.pcap-examples {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 6px;
+  align-content: start;
+}
+
+.pcap-example {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  padding: 5px 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  text-align: left;
+  cursor: pointer;
+}
+
+.pcap-example:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.pcap-example:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.pcap-example code {
+  overflow: hidden;
+  color: var(--text);
+  font: var(--fs-sm) var(--mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pcap-syntax {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+}
+
+.pcap-syntax > div {
+  display: grid;
+  gap: 1px;
+}
+
+.pcap-syntax dt {
+  color: var(--text);
+  font-size: var(--fs-xs);
+}
+
+.pcap-syntax dd {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
 }
 
 .pcap-save {

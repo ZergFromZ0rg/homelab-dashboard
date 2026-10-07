@@ -17,8 +17,27 @@ const POLL_MS = 1000;
 const KEEP = 3000; // packets held in the page
 const SHOWN = 500; // rows drawn
 const DURATIONS = [[30, "30 s"], [60, "1 min"], [180, "3 min"], [300, "5 min"], [600, "10 min"]];
-const PROTOCOLS = ["tcp", "udp", "icmp", "arp", "dns", "tls"];
-const DEFAULTS = { iface: "", duration: 60, host: "", port: "", proto: "", payload: false };
+// Click-to-fill examples for the filter box (tcpdump-style; the agent parses them).
+const EXAMPLES = [
+  ["One host", "host 192.168.1.10"],
+  ["Web traffic", "tcp and (port 80 or port 443)"],
+  ["Everything but SSH", "not port 22"],
+  ["Into Jellyfin", "tcp and dst port 8096"],
+  ["One subnet, no ARP", "net 192.168.1.0/24 and not arp"],
+  ["DNS lookups", "dns"],
+  ["A site over TLS", "tls and sni *.github.com"],
+  ["Big packets", "len > 1000"],
+];
+const SYNTAX = [
+  ["host IP · net CIDR", "src / dst narrow it: dst host 10.0.0.5, src net 192.168.1.0/24"],
+  ["port N · portrange A-B", "tcp / udp narrow it: tcp dst port 8096"],
+  ["tcp udp icmp icmp6 arp ip ip6 dns tls", "a protocol on its own"],
+  ["ether host MAC", "src / dst work here too"],
+  ["len > N · less N · greater N", "packet size in bytes"],
+  ["sni NAME", "a TLS server name; * wildcards: sni *.example.com"],
+  ["and · or · not · ( )", "also && || !  —  and binds tighter than or"],
+];
+const DEFAULTS = { iface: "", duration: 60, expr: "", payload: false };
 const LIVE = new Set(["capturing"]);
 
 const endpoint = (ip, port) => (port ? (ip.includes(":") ? `[${ip}]:${port}` : `${ip}:${port}`) : ip);
@@ -149,6 +168,7 @@ function PacketCapture({ host }) {
   const [job, setJob] = useState(null);
   const [packets, setPackets] = useState([]);
   const [error, setError] = useState("");
+  const [help, setHelp] = useState(false);
   const [view, setView] = useLocalStorage("pcapView", "packets");
   const [filter, setFilter] = useState("");
   // The rows frozen by "Pause list" (null while following live).
@@ -200,10 +220,7 @@ function PacketCapture({ host }) {
     setFrozen(null);
     stick.current = true;
     last.current = 0;
-    const filterBody = {};
-    if (opt.host.trim()) filterBody.host = opt.host.trim();
-    if (String(opt.port).trim()) filterBody.port = opt.port;
-    if (opt.proto) filterBody.proto = opt.proto;
+    const filterBody = opt.expr.trim() ? { expr: opt.expr.trim() } : {};
     try {
       apply(await startCapture(host, {
         iface: opt.iface || ifaces.default || undefined,
@@ -248,7 +265,8 @@ function PacketCapture({ host }) {
 
   const idle = !job || job.state === "idle";
   const now = rate(job?.series || []);
-  const filterText = [opt.host && `host ${opt.host}`, opt.port && `port ${opt.port}`, opt.proto].filter(Boolean).join(", ");
+  const f = job?.filter || {};
+  const filterText = [f.expr, f.host && `host ${f.host}`, f.port && `port ${f.port}`, f.proto].filter(Boolean).join(" · ");
 
   return (
     <div className="lan pcap">
@@ -266,12 +284,20 @@ function PacketCapture({ host }) {
         <select aria-label="Duration" value={opt.duration} disabled={running} onChange={(e) => set({ duration: e.target.value })}>
           {DURATIONS.map(([s, label]) => <option key={s} value={s}>{label}</option>)}
         </select>
-        <input className="lan-filter pcap-field" placeholder="Host IP" aria-label="Only this host" disabled={running} value={opt.host} onChange={(e) => set({ host: e.target.value })} />
-        <input className="lan-filter pcap-field pcap-field--port" placeholder="Port" inputMode="numeric" aria-label="Only this port" disabled={running} value={opt.port} onChange={(e) => set({ port: e.target.value.replace(/\D/g, "") })} />
-        <select aria-label="Protocol" value={opt.proto} disabled={running} onChange={(e) => set({ proto: e.target.value })}>
-          <option value="">Any protocol</option>
-          {PROTOCOLS.map((p) => <option key={p} value={p}>{p.toUpperCase()}</option>)}
-        </select>
+        <input
+          className="pcap-expr"
+          placeholder="Filter — e.g. host 192.168.1.10 and port 443"
+          aria-label="Capture filter expression"
+          spellCheck={false}
+          autoComplete="off"
+          disabled={running}
+          value={opt.expr}
+          onChange={(e) => set({ expr: e.target.value })}
+          onKeyDown={(e) => { if (e.key === "Enter" && !running) start(); }}
+        />
+        <button type="button" className="btn btn--sm btn--ghost" aria-expanded={help} onClick={() => setHelp((h) => !h)} title="Filter syntax and examples">
+          {help ? "Hide help" : "Filter help"}
+        </button>
         <label className="lan-auto" title="Keep the first 64 bytes after the headers too. Off by default, so a capture holds who talked to whom, not what was said.">
           <input type="checkbox" checked={Boolean(opt.payload)} disabled={running} onChange={(e) => set({ payload: e.target.checked })} />
           Include payload
@@ -283,14 +309,32 @@ function PacketCapture({ host }) {
         )}
       </div>
 
+      {help && (
+        <div className="pcap-help">
+          <div className="pcap-examples">
+            {EXAMPLES.map(([label, expr]) => (
+              <button key={expr} type="button" className="pcap-example" disabled={running} onClick={() => set({ expr })} title={expr}>
+                <span>{label}</span>
+                <code>{expr}</code>
+              </button>
+            ))}
+          </div>
+          <dl className="pcap-syntax">
+            {SYNTAX.map(([form, note]) => (
+              <div key={form}><dt className="net-mono">{form}</dt><dd>{note}</dd></div>
+            ))}
+          </dl>
+        </div>
+      )}
+
       {error && <p className="form-error">{error}</p>}
       {job?.error && <p className="form-error">{job.error}</p>}
 
       {idle && !error && (
         <p className="lan-empty">
           Captures packets on {host}'s network for a set time and shows them live — who talked to whom, over what,
-          how much, DNS lookups as they happen. Choose an interface and optionally narrow it to one host, port or
-          protocol, then start. Nothing is written to disk; download the .pcap to keep it.
+          how much, DNS lookups as they happen. Choose an interface and optionally narrow it with a filter such as
+          {" "}<code>host 192.168.1.10 and port 443</code> (see Filter help), then start. Nothing is written to disk; download the .pcap to keep it.
         </p>
       )}
 
@@ -299,7 +343,7 @@ function PacketCapture({ host }) {
           <div className="pcap-stats">
             <div className="pcap-stat">
               <span className={`pcap-state pcap-state--${job.state}`}>{running ? "● capturing" : job.state === "error" ? "failed" : job.state}</span>
-              <span className="net-dim">{job.iface}{filterText ? ` · ${filterText}` : ""}{job.payload ? " · with payload" : ""}</span>
+              <span className="net-dim pcap-filter-text" title={filterText || undefined}>{job.iface}{filterText ? ` · ${filterText}` : ""}{job.payload ? " · with payload" : ""}</span>
             </div>
             <div className="pcap-stat"><strong className="net-mono">{(job.totals?.pkts || 0).toLocaleString()}</strong><span className="net-dim">packets</span></div>
             <div className="pcap-stat"><strong className="net-mono">{formatBytes(job.totals?.bytes || 0)}</strong><span className="net-dim">total</span></div>
