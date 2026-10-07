@@ -15,7 +15,7 @@ import requests
 from fastapi import APIRouter, Header
 from fastapi.responses import JSONResponse
 
-from backend import auth, oui
+from backend import auth, device_names, oui
 from backend.docker import agent_headers
 from backend.hosts import agent_for as _agent
 from backend.registry import registry
@@ -45,6 +45,7 @@ def _call(method: str, host: str, **kwargs) -> JSONResponse:
         body = {"error": f"agent answered {response.status_code}"}
     if isinstance(body, dict) and isinstance(body.get("devices"), list):
         oui.annotate(body["devices"])
+        device_names.annotate(body["devices"])
     return JSONResponse(status_code=response.status_code, content=body)
 
 
@@ -60,6 +61,20 @@ def scan_start(host: str, body: dict | None = None, x_register_token: str | None
 
 
 nodes_router = APIRouter()
+
+
+@nodes_router.get("/api/device-names")
+def list_device_names():
+    return {"names": device_names.names.all()}
+
+
+@nodes_router.put("/api/device-names")
+def set_device_name(payload: dict, x_register_token: str | None = Header(default=None)):
+    auth.check_token(x_register_token)
+    try:
+        return {"names": device_names.names.set(str(payload.get("key", "")), str(payload.get("name", "")))}
+    except ValueError as error:
+        return JSONResponse(status_code=400, content={"error": str(error)})
 
 
 def _identity(item: tuple[str, dict]) -> tuple[str, list, str | None]:

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { fetchNodeAddresses, fetchScan, startScan } from "./lanApi";
+import { fetchDeviceNames, fetchNodeAddresses, fetchScan, saveDeviceName, startScan } from "./lanApi";
 import { hostColor } from "./hostColor";
 import NetworkMap from "./NetworkMap";
 import { classify } from "./topology";
@@ -43,6 +43,61 @@ function Ports({ ip, ports }) {
   );
 }
 
+// The Name cell: what you called it, else its own name, else a dim guess at
+// what it is. Click to rename; blank puts it back.
+function DeviceName({ device, node, custom, onRename }) {
+  const [editing, setEditing] = useState(false);
+  const key = device.mac || device.ip;
+  const commit = (value) => {
+    setEditing(false);
+    if (value.trim() !== (custom || "")) onRename(key, value);
+  };
+  if (editing) {
+    return (
+      <input
+        className="lan-rename"
+        autoFocus
+        defaultValue={custom || ""}
+        placeholder={device.hostname || device.guess?.kind || "Name"}
+        maxLength={60}
+        aria-label={`Name for ${device.ip}`}
+        onBlur={(e) => commit(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur();
+          if (e.key === "Escape") setEditing(false);
+        }}
+      />
+    );
+  }
+  const guess = device.guess;
+  const label = custom || (!node && device.hostname);
+  return (
+    <span className="lan-name">
+      {node ? (
+        <span className="lan-node" style={{ "--host-color": hostColor(node) }} title={device.via === "self" ? `${node} — the host running this scan` : `${node} — one of your nodes`}>
+          <span className="lan-node-dot" />
+          {node}
+          {device.via === "self" && <em>scanner</em>}
+        </span>
+      ) : label ? (
+        <span title={custom && device.hostname ? device.hostname : undefined}>{label}</span>
+      ) : guess ? (
+        <span className="lan-guess" title={`Guess: ${guess.why}`}>{guess.kind}</span>
+      ) : (
+        <span className="net-dim">—</span>
+      )}
+      {!node && label && guess && guess.kind !== label && (
+        <span className="lan-kind" title={`Guess: ${guess.why}`}>{guess.kind}</span>
+      )}
+      {!node && (
+        <button type="button" className="lan-edit" onClick={() => setEditing(true)} title="Rename this device" aria-label={`Rename ${device.ip}`}>
+          ✎
+        </button>
+      )}
+    </span>
+  );
+}
+
 function LanScan({ host }) {
   const [job, setJob] = useState(null);
   const [error, setError] = useState("");
@@ -53,6 +108,7 @@ function LanScan({ host }) {
   // Every device ever seen on this host's LAN, so the map can show the ones
   // that have gone quiet. {host: {key: {ip, mac, vendor, hostname, last}}}
   const [seen, setSeen] = useLocalStorage("lanSeen", {});
+  const [names, setNames] = useState({});
   const [auto, setAuto] = useLocalStorage("lanAuto", false);
   const [known, setKnown] = useLocalStorage("lanKnown", {});
   // What the previous scan of this host saw, held for the scan on screen.
@@ -105,6 +161,24 @@ function LanScan({ host }) {
       alive = false;
     };
   }, []);
+  useEffect(() => {
+    let alive = true;
+    fetchDeviceNames()
+      .then((body) => alive && setNames(body.names || {}))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const customOf = (d) => names[(d.mac || d.ip).toLowerCase()] || null;
+  const rename = useCallback(async (key, value) => {
+    try {
+      const body = await saveDeviceName(key, value);
+      setNames(body.names || {});
+    } catch (e) {
+      setError(e.message);
+    }
+  }, []);
   const byAddress = useMemo(() => {
     const map = new Map();
     for (const [name, addrs] of Object.entries(nodes)) {
@@ -156,10 +230,10 @@ function LanScan({ host }) {
   const devices = useMemo(() => {
     const q = filter.trim().toLowerCase();
     return [...(job?.devices || [])]
-      .filter((d) => !q || `${d.ip} ${d.mac || ""} ${d.vendor || ""} ${d.hostname || ""} ${nodeOf(d) || ""} ${(d.ports || []).map((p) => p.service).join(" ")}`.toLowerCase().includes(q))
+      .filter((d) => !q || `${d.ip} ${d.mac || ""} ${d.vendor || ""} ${d.hostname || ""} ${customOf(d) || ""} ${d.guess?.kind || ""} ${nodeOf(d) || ""} ${(d.ports || []).map((p) => p.service).join(" ")}`.toLowerCase().includes(q))
       .sort((a, b) => ipKey(a.ip) - ipKey(b.ip));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- nodeOf follows byAddress
-  }, [job, filter, byAddress]);
+  }, [job, filter, byAddress, names]);
 
   const isNew = (d) => !firstScan && !baseline.current.has(d.mac || d.ip);
 
@@ -271,15 +345,7 @@ function LanScan({ host }) {
                   {isNew(d) && <span className="chip chip--warn">new</span>}
                 </td>
                 <td>
-                  {node ? (
-                    <span className="lan-node" style={{ "--host-color": hostColor(node) }} title={d.via === "self" ? `${node} — the host running this scan` : `${node} — one of your nodes`}>
-                      <span className="lan-node-dot" />
-                      {node}
-                      {d.via === "self" && <em>scanner</em>}
-                    </span>
-                  ) : (
-                    d.hostname || <span className="net-dim">—</span>
-                  )}
+                  <DeviceName device={d} node={node} custom={customOf(d)} onRename={rename} />
                 </td>
                 <td className="net-mono net-dim">{d.mac || "—"}</td>
                 <td>

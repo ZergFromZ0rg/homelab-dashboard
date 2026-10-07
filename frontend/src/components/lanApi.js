@@ -9,14 +9,14 @@ const url = (host) => `/api/lan/${encodeURIComponent(host)}/scan`;
 
 // A canned scan for /?demo: devices appear over a few seconds.
 const DEMO_DEVICES = [
-  { ip: "192.168.1.1", mac: "f0:9f:c2:11:aa:01", vendor: "Ubiquiti Inc", hostname: "router.lan", ports: [{ port: 80, service: "http" }, { port: 443, service: "https" }, { port: 53, service: "dns" }] },
+  { ip: "192.168.1.1", mac: "f0:9f:c2:11:aa:01", vendor: "Ubiquiti Inc", hostname: "router.lan", guess: { kind: "Network gear", why: "name contains “router”" }, ports: [{ port: 80, service: "http" }, { port: 443, service: "https" }, { port: 53, service: "dns" }] },
   { ip: "192.168.1.10", mac: "d8:5e:d3:42:10:10", vendor: "Giga-Byte Technology Co.,Ltd.", hostname: "bigboy.lan", ports: [{ port: 22, service: "ssh" }, { port: 8096, service: "jellyfin" }, { port: 8123, service: "agent" }], via: "self" },
   { ip: "192.168.1.11", mac: "00:e0:4c:68:00:11", vendor: "Realtek Semiconductor Corp.", hostname: "thinkpad.lan", ports: [{ port: 22, service: "ssh" }, { port: 8081, service: "http" }] },
   { ip: "192.168.1.20", mac: "b8:27:eb:9a:20:20", vendor: "Raspberry Pi Foundation", hostname: "pihole.lan", ports: [{ port: 80, service: "http" }, { port: 53, service: "dns" }] },
-  { ip: "192.168.1.31", mac: "3c:22:fb:7c:31:31", vendor: "Apple, Inc.", hostname: null, ports: [{ port: 62078, service: "ios" }] },
-  { ip: "192.168.1.42", mac: "a4:83:e7:0d:42:42", vendor: "Hewlett Packard", hostname: "printer.lan", ports: [{ port: 631, service: "ipp" }, { port: 9100, service: "9100" }] },
-  { ip: "192.168.1.58", mac: "7c:2f:80:91:58:58", vendor: "Espressif Inc.", hostname: null, ports: [] },
-  { ip: "192.168.1.77", mac: "de:ad:be:ef:77:77", randomized: true, hostname: null, ports: [] },
+  { ip: "192.168.1.31", mac: "3c:22:fb:7c:31:31", vendor: "Apple, Inc.", hostname: null, guess: { kind: "iPhone or iPad", why: "answers on port 62078" }, ports: [{ port: 62078, service: "ios" }] },
+  { ip: "192.168.1.42", mac: "a4:83:e7:0d:42:42", vendor: "Hewlett Packard", hostname: "printer.lan", guess: { kind: "Printer", why: "answers on port 9100" }, ports: [{ port: 631, service: "ipp" }, { port: 9100, service: "9100" }] },
+  { ip: "192.168.1.58", mac: "7c:2f:80:91:58:58", vendor: "Espressif Inc.", hostname: null, guess: { kind: "Smart device", why: "made by Espressif Inc." }, ports: [] },
+  { ip: "192.168.1.77", mac: "de:ad:be:ef:77:77", randomized: true, hostname: null, guess: { kind: "Phone or laptop", why: "uses a private (randomized) address" }, ports: [] },
 ];
 let demoStart = null;
 
@@ -70,4 +70,26 @@ export function fetchNodeAddresses() {
     });
   }
   return fetch("/api/lan-nodes").then(jsonOrThrow);
+}
+
+// Names the user gave devices ({mac-or-ip: name}), set one at a time; a blank
+// name takes it away. /?demo keeps them in memory.
+const demoNames = {};
+
+export function fetchDeviceNames() {
+  if (DEMO) return Promise.resolve({ names: { ...demoNames } });
+  return fetch("/api/device-names").then(jsonOrThrow);
+}
+
+export function saveDeviceName(key, name) {
+  if (DEMO) {
+    if (name.trim()) demoNames[key.toLowerCase()] = name.trim();
+    else delete demoNames[key.toLowerCase()];
+    return Promise.resolve({ names: { ...demoNames } });
+  }
+  return fetch("/api/device-names", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key, name }),
+  }).then(jsonOrThrow);
 }

@@ -9257,4 +9257,28 @@ a.lan-port--web:hover {
 @media (prefers-reduced-motion: reduce) {
   .nmap-node { transition: none; }
   .nmap-node--pulse .nmap-dot { animation: none; }
+/* LAN device names: a guess is dim italic, a rename is one click away. */
+.lan-name { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.lan-guess { color: var(--text-muted); font-style: italic; }
+.lan-kind { color: var(--text-muted); font-size: 0.85em; }
+.lan-edit {
+  padding: 0 2px;
+  color: var(--text-muted);
+  font: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  opacity: 0;
+}
+tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
+@media (hover: none) { .lan-edit { opacity: 0.6; } }
+.lan-rename {
+  width: 100%;
+  min-width: 100px;
+  padding: 1px 4px;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
 }
