@@ -19,6 +19,34 @@ const MAX_LENGTH = 300;
 const MAX_DEPTH = 16;
 const MAC = /^[0-9a-f]{2}(:[0-9a-f]{2}){5}$/i;
 
+// Wildcard match with * only. Iterative, so a pattern like "*a*a*a*a*b" can't
+// send the browser into the exponential backtracking a regular expression built
+// from the same text would.
+export function globMatch(pattern, text) {
+  let p = 0;
+  let t = 0;
+  let star = -1;
+  let mark = 0;
+  while (t < text.length) {
+    if (p < pattern.length && pattern[p] !== "*" && pattern[p] === text[t]) {
+      p += 1;
+      t += 1;
+    } else if (p < pattern.length && pattern[p] === "*") {
+      star = p;
+      p += 1;
+      mark = t;
+    } else if (star !== -1) {
+      p = star + 1;
+      mark += 1;
+      t = mark;
+    } else {
+      return false;
+    }
+  }
+  while (p < pattern.length && pattern[p] === "*") p += 1;
+  return p === pattern.length;
+}
+
 function tokenize(text) {
   const out = [];
   const re = /\s*(&&|\|\||<=|>=|==|[()!<>=]|[^\s()!<>=&|]+)/y;
@@ -239,12 +267,11 @@ class Parser {
     const pattern = this.take().toLowerCase();
     if (!/^[a-z0-9*._-]{1,253}$/.test(pattern)) throw new FilterError(`'${pattern}' isn't a host name`);
     const bare = pattern.startsWith("*.") ? pattern.slice(2) : null; // *.example.com covers example.com too
-    const regex = new RegExp(`^${pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*")}$`);
     const fields = word === "sni" ? ["sni"] : ["sni", "name"];
     return (p) =>
       fields.some((f) => {
         const name = (p[f] || "").toLowerCase();
-        return name && (regex.test(name) || name === bare);
+        return name && (globMatch(pattern, name) || name === bare);
       });
   }
 }

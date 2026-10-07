@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compileFilter, FilterError } from "./captureFilter";
+import { compileFilter, FilterError, globMatch } from "./captureFilter";
 
 const SYN = { proto: "TCP", ip: 4, src: "192.168.1.10", sport: 51000, dst: "192.168.1.1", dport: 443, len: 54, src_mac: "aa:bb:cc:00:00:01", dst_mac: "aa:bb:cc:00:00:02" };
 const DNS = { proto: "UDP", ip: 4, app: "dns", src: "192.168.1.10", sport: 40000, dst: "8.8.8.8", dport: 53, len: 59 };
@@ -67,5 +67,22 @@ describe("display filter", () => {
   ])("rejects %j", (expr, message) => {
     expect(() => compileFilter(expr)).toThrow(FilterError);
     expect(() => compileFilter(expr)).toThrow(message);
+  });
+});
+
+describe("wildcard matching", () => {
+  it.each([
+    ["*.example.com", "plex.example.com", true], ["*.example.com", "example.com", false],
+    ["plex.*", "plex.example.com", true], ["*", "anything", true], ["*", "", true], ["a*c", "abc", true],
+    ["a*c", "abd", false], ["a**c", "ac", true], ["*x.example.com", "plex.example.com", true],
+    ["*z.example.com", "plex.example.com", false], ["abc", "abc", true], ["abc", "abcd", false], ["", "", true],
+  ])("%s ~ %s", (pattern, text, expected) => {
+    expect(globMatch(pattern, text)).toBe(expected);
+  });
+
+  it("does not backtrack catastrophically on a hostile pattern", () => {
+    const started = performance.now();
+    expect(globMatch(`${"*a".repeat(24)}b`, "a".repeat(250))).toBe(false);
+    expect(performance.now() - started).toBeLessThan(250);
   });
 });

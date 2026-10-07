@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchCapture, fetchCaptureInterfaces, pcapUrl, savedPcapUrl, startCapture, stopCapture } from "./captureApi";
 import { compileFilter } from "./captureFilter";
+import { BAD, endpoint, rate } from "./captureUi";
 import { formatBytes } from "./format";
 import Icon from "./Icon";
 import PacketStream from "./PacketStream";
+import { Detail, Flows, Protocols, Throughput } from "./PacketViews";
 import SavedCaptures from "./SavedCaptures";
 import { useLocalStorage } from "./useLocalStorage";
 
@@ -28,15 +30,11 @@ const KEEP = 3000; // packets held in the page
 const SHOWN = 500; // rows drawn
 const DURATIONS = [[30, "30 s"], [60, "1 min"], [180, "3 min"], [300, "5 min"], [600, "10 min"]];
 const PAYLOADS = [["none", "Headers only"], ["64", "First 64 bytes"], ["full", "Full packets"]];
-const DEFAULTS = { iface: "", duration: 60, expr: "", payload: "none", promisc: false };
+// Remembered between visits. Payload and promiscuous are deliberately not:
+// they widen what is recorded, so each capture starts from the careful setting.
+const DEFAULTS = { iface: "", duration: 60, expr: "" };
+const SESSION_DEFAULTS = { payload: "none", promisc: false };
 const LIVE = new Set(["capturing"]);
-const BAD = new Set(["reset", "zero-window"]);
-const ISSUE_NAMES = {
-  retransmit: "Retransmissions", gap: "Gaps (lost or reordered)", "dup-ack": "Duplicate ACKs",
-  "zero-window": "Zero windows", reset: "Resets",
-};
-const ISSUE_WORDS = { retransmit: "retransmit", gap: "gap", "dup-ack": "dupack", "zero-window": "zerowindow", reset: "reset" };
-
 // Click-to-fill examples (tcpdump-style; the agent parses them for the capture
 // filter, this page for the display filter).
 const EXAMPLES = [
@@ -64,161 +62,14 @@ const SYNTAX = [
   ["and · or · not · ( )", "also && || !  —  and binds tighter than or"],
 ];
 
-const flowKey = (f) => `${f.proto}|${f.a}|${f.a_port}|${f.b}|${f.b_port}`;
-const endpoint = (ip, port) => (port ? (ip.includes(":") ? `[${ip}]:${port}` : `${ip}:${port}`) : ip);
-
-function rate(series) {
-  const tail = series.slice(-3);
-  if (!tail.length) return { pkts: 0, bytes: 0 };
-  return {
-    pkts: Math.round(tail.reduce((n, p) => n + p.pkts, 0) / tail.length),
-    bytes: Math.round(tail.reduce((n, p) => n + p.bytes, 0) / tail.length),
-  };
-}
-
-function Throughput({ series }) {
-  const points = series.slice(-120);
-  if (points.length < 2) return <div className="pcap-chart pcap-chart--empty" aria-hidden="true" />;
-  const max = Math.max(...points.map((p) => p.bytes), 1);
-  const step = 100 / points.length;
-  return (
-    <svg className="pcap-chart" viewBox="0 0 100 32" preserveAspectRatio="none" role="img" aria-label="Bytes per second">
-      {points.map((p, i) => {
-        const h = Math.max(0.6, (p.bytes / max) * 30);
-        return <rect key={p.ts} x={i * step} y={32 - h} width={Math.max(step - 0.4, 0.3)} height={h} />;
-      })}
-    </svg>
-  );
-}
-
-function Protocols({ protocols, issues = {}, onShow }) {
-  const rows = Object.entries(protocols).sort((a, b) => b[1].bytes - a[1].bytes);
-  const total = rows.reduce((n, [, v]) => n + v.bytes, 0) || 1;
-  const trouble = Object.entries(issues).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
-  if (!rows.length) return <p className="lan-empty">No traffic yet.</p>;
-  return (
-    <div className="pcap-protos">
-      {trouble.length > 0 && (
-        <div className="pcap-issues">
-          <strong>TCP trouble</strong>
-          {trouble.map(([name, n]) => (
-            <button key={name} type="button" className={`pcap-issue ${BAD.has(name) ? "pcap-issue--bad" : ""}`} onClick={() => onShow(ISSUE_WORDS[name])} title="Show these packets">
-              {n.toLocaleString()} {(ISSUE_NAMES[name] || name).toLowerCase()}
-            </button>
-          ))}
-        </div>
-      )}
-      {rows.map(([name, v]) => (
-        <div key={name} className="pcap-proto-row">
-          <span className={`pcap-proto pcap-proto--${name.toLowerCase().replace(/[^a-z0-9]/g, "")}`}>{name}</span>
-          <span className="pcap-bar"><span style={{ width: `${Math.max(1, (v.bytes / total) * 100)}%` }} /></span>
-          <span className="net-mono pcap-num">{formatBytes(v.bytes)}</span>
-          <span className="net-mono net-dim pcap-num">{v.pkts.toLocaleString()} pkts</span>
-          <span className="net-mono net-dim pcap-num">{Math.round((v.bytes / total) * 100)}%</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function Flows({ flows, onFilter, onFollow }) {
-  if (!flows.length) return <p className="lan-empty">No conversations yet.</p>;
-  return (
-    <table className="net-table lan-table pcap-table">
-      <thead>
-        <tr>
-          <th>Proto</th>
-          <th>Between</th>
-          <th>Server name</th>
-          <th className="pcap-r">Packets</th>
-          <th className="pcap-r">Bytes</th>
-          <th className="pcap-r" title="Packets leaving this host / arriving at it">Out / in</th>
-          <th />
-        </tr>
-      </thead>
-      <tbody>
-        {flows.map((f) => (
-          <tr key={`${f.proto}|${f.a}|${f.a_port}|${f.b}|${f.b_port}`} className="pcap-click" onClick={() => onFilter(f.a)} title={`Show packets involving ${f.a}`}>
-            <td><span className={`pcap-proto pcap-proto--${f.proto.toLowerCase()}`}>{f.proto}</span></td>
-            <td className="net-mono">{endpoint(f.a, f.a_port)} <span className="net-dim">↔</span> {endpoint(f.b, f.b_port)}</td>
-            <td className="pcap-name" title={f.name || undefined}>{f.name || <span className="net-dim">—</span>}</td>
-            <td className="net-mono pcap-r">{f.pkts.toLocaleString()}</td>
-            <td className="net-mono pcap-r">{formatBytes(f.bytes)}</td>
-            <td className="net-mono net-dim pcap-r">
-              {f.out} / {f.in}
-              {Object.keys(f.issues || {}).length > 0 && (
-                <span className="pcap-flow-issues" title={Object.entries(f.issues).map(([k, n]) => `${n} ${ISSUE_NAMES[k] || k}`).join(", ")}> ⚠</span>
-              )}
-            </td>
-            <td className="pcap-r">
-              {f.proto === "TCP" && (
-                <button type="button" className="btn btn--sm btn--ghost" onClick={(e) => { e.stopPropagation(); onFollow(flowKey(f)); }} title="Rebuild this connection's payload">Follow</button>
-              )}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-function HexDump({ hex }) {
-  const rows = [];
-  for (let i = 0; i < hex.length; i += 32) {
-    const chunk = hex.slice(i, i + 32).match(/../g) || [];
-    rows.push({
-      offset: (i / 2).toString(16).padStart(4, "0"),
-      bytes: chunk.join(" "),
-      text: chunk.map((b) => { const c = parseInt(b, 16); return c >= 32 && c < 127 ? String.fromCharCode(c) : "."; }).join(""),
-    });
-  }
-  return (
-    <pre className="pcap-hex">
-      {rows.map((r) => `${r.offset}  ${r.bytes.padEnd(47, " ")}  ${r.text}`).join("\n")}
-    </pre>
-  );
-}
-
-function Detail({ packet, started, onClose, onFollow }) {
-  const rows = [
-    ["Time", `+${(packet.ts - started).toFixed(6)} s`],
-    ["Interface", `${packet.iface} (${packet.dir === "out" ? "leaving this host" : "arriving"})`],
-    ["From", `${endpoint(packet.src, packet.sport)}${packet.src_mac ? `  ·  ${packet.src_mac}` : ""}`],
-    ["To", `${endpoint(packet.dst, packet.dport)}${packet.dst_mac ? `  ·  ${packet.dst_mac}` : ""}`],
-    ["Protocol", `${packet.proto}${packet.svc ? ` · ${packet.svc}` : ""}${packet.ip ? ` · IPv${packet.ip}` : ""}`],
-    ["Length", `${packet.len} bytes on the wire${packet.ttl != null ? `, TTL ${packet.ttl}` : ""}`],
-    ...(packet.seq != null ? [["TCP", `[${packet.flags}] seq ${packet.seq} ack ${packet.ack} win ${packet.win}${packet.plen ? ` · ${packet.plen} bytes of data` : ""}`]] : []),
-    ...(packet.sni ? [["Server name", packet.sni]] : []),
-    ...(packet.name ? [["Name", packet.name]] : []),
-    ...(packet.issues?.length ? [["Problems", packet.issues.map((i) => ISSUE_NAMES[i] || i).join(", ")]] : []),
-    ["Info", packet.info || "—"],
-  ];
-  return (
-    <div className="pcap-detail">
-      <div className="pcap-detail-head">
-        <strong>Packet {packet.n}</strong>
-        {packet.proto === "TCP" && packet.flow && (
-          <button type="button" className="btn btn--sm btn--ghost pcap-follow" onClick={() => onFollow(packet.flow)}>Follow stream</button>
-        )}
-        <button type="button" className="icon-action" onClick={onClose} aria-label="Close packet" title="Close">
-          ×
-        </button>
-      </div>
-      <dl>
-        {rows.map(([k, v]) => (
-          <div key={k}><dt>{k}</dt><dd className="net-mono">{v}</dd></div>
-        ))}
-      </dl>
-      <HexDump hex={packet.hex || ""} />
-    </div>
-  );
-}
-
 function PacketCapture({ host }) {
   const [options, setOptions] = useLocalStorage("pcapOptions", DEFAULTS);
-  const opt = { ...DEFAULTS, ...options };
-  const payload = opt.payload === true ? "64" : opt.payload || "none"; // older saved settings held a boolean
+  const [session, setSession] = useState(SESSION_DEFAULTS);
   const [ifaces, setIfaces] = useState({ default: null, interfaces: [] });
+  // The saved interface may not exist on this host (the setting is shared by all of them).
+  const iface = options.iface === "any" || ifaces.interfaces.includes(options.iface) ? options.iface : "";
+  const opt = { ...DEFAULTS, ...options, ...session, iface };
+  const payload = opt.payload;
   const [job, setJob] = useState(null);
   const [packets, setPackets] = useState([]);
   const [error, setError] = useState("");
@@ -228,27 +79,42 @@ function PacketCapture({ host }) {
   const [stream, setStream] = useState(null); // the flow being followed
   const [view, setView] = useLocalStorage("pcapView", "packets");
   const [filter, setFilter] = useState("");
-  // The rows frozen by "Pause list" (null while following live).
-  const [frozen, setFrozen] = useState(null);
+  // "Pause list" freezes the list at this packet number (null while following live).
+  const [frozenAt, setFrozenAt] = useState(null);
   const [selected, setSelected] = useState(null);
   const last = useRef(0);
+  const seenStart = useRef(null); // when the capture we are holding began
   const live = useRef(true);
   const listRef = useRef(null);
   const stick = useRef(true); // following the newest row until the reader scrolls up
 
-  const apply = useCallback((body) => {
+  // `restarted`: someone started another capture on this host, so its packet
+  // numbering began again and what we hold belongs to the old one — replace it.
+  const apply = useCallback((body, restarted = false) => {
     if (!live.current) return;
     const { packets: fresh = [], ...rest } = body;
     setJob(rest);
+    if (restarted) {
+      last.current = 0;
+      setSelected(null);
+      setStream(null);
+      setFrozenAt(null);
+    }
     if (fresh.length) {
       last.current = Math.max(last.current, ...fresh.map((p) => p.n));
-      setPackets((prev) => [...prev, ...fresh].slice(-KEEP));
+      setPackets((prev) => [...(restarted ? [] : prev), ...fresh].slice(-KEEP));
+    } else if (restarted) {
+      setPackets([]);
     }
   }, []);
 
   const poll = useCallback(async () => {
     try {
-      apply(await fetchCapture(host, last.current));
+      let body = await fetchCapture(host, last.current);
+      const restarted = Boolean(seenStart.current && body.started_at && body.started_at !== seenStart.current);
+      if (restarted) body = await fetchCapture(host, 0);
+      if (body.started_at) seenStart.current = body.started_at;
+      apply(body, restarted);
     } catch (e) {
       if (live.current) setError(e.message);
     }
@@ -268,25 +134,27 @@ function PacketCapture({ host }) {
     return () => clearInterval(timer);
   }, [running, poll]);
 
-  const set = (patch) => setOptions({ ...opt, ...patch });
+  const set = (patch) => setOptions({ ...options, ...patch });
+  const setSessionOption = (patch) => setSession((current) => ({ ...current, ...patch }));
 
   const start = async () => {
     setError("");
     setPackets([]);
     setSelected(null);
-    setFrozen(null);
+    setFrozenAt(null);
     setViewing(null);
     setStream(null);
     stick.current = true;
     last.current = 0;
+    seenStart.current = null;
     const filterBody = opt.expr.trim() ? { expr: opt.expr.trim() } : {};
     try {
       apply(await startCapture(host, {
-        iface: opt.iface || ifaces.default || undefined,
+        iface: iface || ifaces.default || undefined,
         duration: Number(opt.duration),
         filter: filterBody,
         payload,
-        promisc: Boolean(opt.promisc) && opt.iface !== "any",
+        promisc: Boolean(opt.promisc) && iface !== "any",
       }));
     } catch (e) {
       setError(e.message);
@@ -306,7 +174,7 @@ function PacketCapture({ host }) {
     setSavedOpen(false);
     setStream(null);
     setSelected(null);
-    setFrozen(null);
+    setFrozenAt(null);
     setError("");
   };
 
@@ -332,7 +200,11 @@ function PacketCapture({ host }) {
     }
   }, [filter]);
 
-  const visible = useMemo(() => (display.test ? pool.filter(display.test) : pool).slice(-SHOWN), [pool, display]);
+  const paused = frozenAt != null;
+  const visible = useMemo(() => {
+    const list = paused ? pool.filter((p) => p.n <= frozenAt) : pool;
+    return (display.test ? list.filter(display.test) : list).slice(-SHOWN);
+  }, [pool, display, paused, frozenAt]);
   const matchedFlows = useMemo(() => {
     const flows = data?.flows || [];
     if (!display.test) return flows;
@@ -346,8 +218,6 @@ function PacketCapture({ host }) {
 
   // Keep the newest rows in view unless the list is paused or the reader
   // has scrolled up to look at something.
-  const paused = frozen != null;
-  const shown = frozen || visible;
   useEffect(() => {
     const el = listRef.current;
     if (el && stick.current && !paused && !viewing && view === "packets") el.scrollTop = el.scrollHeight;
@@ -374,7 +244,7 @@ function PacketCapture({ host }) {
         ) : (
           <button type="button" className="btn btn--primary" onClick={start}>{!job || job.state === "idle" ? "Start capture" : "Capture again"}</button>
         )}
-        <select aria-label="Interface" value={opt.iface} disabled={running} onChange={(e) => set({ iface: e.target.value })}>
+        <select aria-label="Interface" value={iface} disabled={running} onChange={(e) => set({ iface: e.target.value })}>
           <option value="">{ifaces.default ? `${ifaces.default} (default)` : "Default interface"}</option>
           {ifaces.interfaces.filter((i) => i !== ifaces.default).map((i) => <option key={i} value={i}>{i}</option>)}
           <option value="any">all interfaces (duplicates)</option>
@@ -401,12 +271,12 @@ function PacketCapture({ host }) {
       <div className="lan-bar pcap-options">
         <label className="pcap-option" title="What is kept of each packet. Headers only holds who talked to whom, not what was said. Full packets is what Follow stream needs, and holds the content of unencrypted traffic.">
           Payload
-          <select aria-label="Payload kept" value={payload} disabled={running} onChange={(e) => set({ payload: e.target.value })}>
+          <select aria-label="Payload kept" value={payload} disabled={running} onChange={(e) => setSessionOption({ payload: e.target.value })}>
             {PAYLOADS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
           </select>
         </label>
         <label className="lan-auto" title="Also receive packets addressed to other devices. Only useful when this host sits on a switch mirror (SPAN) port or a hub; on an ordinary port it changes nothing.">
-          <input type="checkbox" checked={Boolean(opt.promisc) && opt.iface !== "any"} disabled={running || opt.iface === "any"} onChange={(e) => set({ promisc: e.target.checked })} />
+          <input type="checkbox" checked={Boolean(opt.promisc) && iface !== "any"} disabled={running || iface === "any"} onChange={(e) => setSessionOption({ promisc: e.target.checked })} />
           Promiscuous
         </label>
         <span className="pcap-spacer" />
@@ -513,7 +383,7 @@ function PacketCapture({ host }) {
                   ))}
                 </div>
                 {view === "packets" && !viewing && (
-                  <button type="button" className="btn btn--sm btn--ghost" onClick={() => setFrozen(paused ? null : visible)} aria-pressed={paused}>
+                  <button type="button" className="btn btn--sm btn--ghost" onClick={() => setFrozenAt(paused ? null : pool[pool.length - 1]?.n ?? 0)} aria-pressed={paused}>
                     {paused ? "Resume list" : "Pause list"}
                   </button>
                 )}
@@ -552,11 +422,14 @@ function PacketCapture({ host }) {
                         </tr>
                       </thead>
                       <tbody>
-                        {shown.map((p) => (
+                        {visible.map((p) => (
                           <tr
                             key={p.n}
                             className={`pcap-click ${selected?.n === p.n ? "pcap-row--selected" : ""} ${p.issues?.length ? (p.issues.some((i) => BAD.has(i)) ? "pcap-row--bad" : "pcap-row--warn") : ""}`}
+                            tabIndex={0}
+                            aria-selected={selected?.n === p.n}
                             onClick={() => setSelected(p)}
+                            onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), setSelected(p))}
                           >
                             <td className="net-mono net-dim pcap-r">{p.n}</td>
                             <td className="net-mono net-dim pcap-r">{(p.ts - started).toFixed(3)}</td>
@@ -571,7 +444,7 @@ function PacketCapture({ host }) {
                         ))}
                       </tbody>
                     </table>
-                    {shown.length === 0 && <p className="lan-empty">{running ? "Waiting for packets…" : filter ? "Nothing in the list matches." : "No packets were captured."}</p>}
+                    {visible.length === 0 && <p className="lan-empty">{running ? "Waiting for packets…" : filter ? "Nothing in the list matches." : "No packets were captured."}</p>}
                   </div>
                   {selected && <Detail packet={selected} started={started} onClose={() => setSelected(null)} onFollow={setStream} />}
                 </div>

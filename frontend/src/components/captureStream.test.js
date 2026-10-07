@@ -68,6 +68,18 @@ describe("follow stream", () => {
     expect(out.gaps).toBe(0);
   });
 
+  it("marks bytes a long packet carried but the capture did not keep, instead of joining the text up", () => {
+    n = 0;
+    const kept = "x".repeat(10);
+    const out = followStream([
+      seg("c", 1, kept, "PA", { plen: 100 }), // 100 bytes on the wire, 10 kept
+      seg("c", 101, "tail", "PA"),
+    ], FLOW);
+    expect(out.chunks.map((c) => c.text ?? (c.short ? `short ${c.short}` : `gap ${c.gap}`))).toEqual([kept, "short 90", "tail"]);
+    expect(out.truncated).toBe(90);
+    expect(out.gaps).toBe(0);
+  });
+
   it("says when the capture kept headers only", () => {
     n = 0;
     const out = followStream([seg("c", 1, "abc", "PA", { hex: "aabb" })], FLOW);

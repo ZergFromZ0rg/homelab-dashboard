@@ -99,19 +99,18 @@ def pcap(host: str, x_register_token: str | None = Header(default=None)):
 
 @router.post("/save")
 def save(host: str, body: dict | None = None, x_register_token: str | None = Header(default=None)):
-    """Copy the agent's current capture (packets, .pcap and all) into the
+    """Copy the agent's current capture (its whole packet list) into the
     dashboard's saved captures."""
     auth.check_token(x_register_token)
     try:
         snapshot = requests.get(
             f"{_agent(host)}/capture", params={"after": 0, "limit": 3000}, headers=agent_headers(), timeout=TIMEOUT
         )
-        refused = _reason(snapshot)
-        if refused:
-            return refused
-        dump = requests.get(f"{_agent(host)}/capture/pcap", headers=agent_headers(), timeout=PCAP_TIMEOUT)
     except requests.RequestException as error:
         return _fail(error)
+    refused = _reason(snapshot)
+    if refused:
+        return refused
     try:
         data = snapshot.json()
     except ValueError:
@@ -119,7 +118,7 @@ def save(host: str, body: dict | None = None, x_register_token: str | None = Hea
     if not isinstance(data, dict) or data.get("state") in (None, "idle"):
         return JSONResponse(status_code=409, content={"error": "there is no capture on this host to save"})
     try:
-        return capture_store.save(host, (body or {}).get("name"), data, dump.content)
+        return capture_store.save(host, (body or {}).get("name"), data)
     except capture_store.StoreError as error:
         return JSONResponse(status_code=409, content={"error": str(error)})
 

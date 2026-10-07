@@ -4,7 +4,8 @@
 //
 // Per direction: segments are ordered by sequence number, retransmitted bytes
 // are dropped, and a hole (a packet the capture missed or sampled out) is
-// reported as a gap instead of being papered over.
+// reported as a gap — and bytes the capture chose not to keep as "not kept" —
+// instead of being papered over.
 
 const CAP_BYTES = 200_000;
 
@@ -61,6 +62,14 @@ function assemble(segments, dir, result) {
     }
     const bytes = hexToBytes(p.hex.slice(offset * 2, (offset + available) * 2)).subarray(skip);
     if (bytes.length) runs.push({ dir, ts: clock, bytes });
+    // The packet carried more than the capture kept (whole packets are cut at
+    // 1600 bytes, and a receive-offloaded frame can be far larger): say so,
+    // rather than letting the next bytes read as if they followed directly.
+    const short = p.plen - Math.max(available, skip);
+    if (short > 0) {
+      result.truncated += short;
+      runs.push({ dir, ts: clock, short });
+    }
   }
   return runs;
 }
@@ -77,7 +86,7 @@ export function followStream(packets, flow) {
   const other = segments.find((p) => !isClient(p));
   const result = {
     client, server: other ? `${other.src}:${other.sport}` : null, chunks: [],
-    bytes: { client: 0, server: 0 }, gaps: 0, missing: 0, headersOnly: 0, segments: 0, capped: false,
+    bytes: { client: 0, server: 0 }, gaps: 0, missing: 0, truncated: 0, headersOnly: 0, segments: 0, capped: false,
   };
 
   const runs = [
@@ -87,8 +96,8 @@ export function followStream(packets, flow) {
 
   let total = 0;
   for (const run of runs) {
-    if (run.gap) {
-      result.chunks.push({ dir: run.dir, gap: run.gap });
+    if (run.gap || run.short) {
+      result.chunks.push({ dir: run.dir, ...(run.gap ? { gap: run.gap } : { short: run.short }) });
       continue;
     }
     if (total + run.bytes.length > CAP_BYTES) {
@@ -99,7 +108,7 @@ export function followStream(packets, flow) {
     result.bytes[run.dir] += run.bytes.length;
     const last = result.chunks[result.chunks.length - 1];
     const text = bytesToText(run.bytes);
-    if (last && last.dir === run.dir && !last.gap) last.text += text;
+    if (last && last.dir === run.dir && last.text !== undefined) last.text += text;
     else result.chunks.push({ dir: run.dir, text, ts: run.ts });
   }
   return result;

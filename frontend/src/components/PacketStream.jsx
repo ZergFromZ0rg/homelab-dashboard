@@ -28,6 +28,11 @@ function PacketStream({ packets, flow, onClose }) {
           <div className="pcap-stream-meta">
             <span className="pcap-stream-key pcap-stream-key--client">client {stream.client}: {formatBytes(stream.bytes.client)}</span>
             {stream.server && <span className="pcap-stream-key pcap-stream-key--server">server {stream.server}: {formatBytes(stream.bytes.server)}</span>}
+            {stream.truncated > 0 && (
+              <span className="pcap-stream-warn" title="Whole packets are kept up to 1600 bytes; larger ones (the network card can merge several into one) lose the rest">
+                {formatBytes(stream.truncated)} not kept
+              </span>
+            )}
             {stream.gaps > 0 && (
               <span className="pcap-stream-warn" title="Packets the capture missed, or that were left out of the list on a busy link">
                 {stream.gaps} gap{stream.gaps === 1 ? "" : "s"} · {formatBytes(stream.missing)} missing
@@ -35,7 +40,7 @@ function PacketStream({ packets, flow, onClose }) {
             )}
           </div>
 
-          {stream.headersOnly > 0 && stream.chunks.every((c) => c.gap) && (
+          {stream.headersOnly > 0 && stream.chunks.every((c) => c.gap || c.short) && (
             <p className="lan-empty">
               This capture kept headers only, so there is no payload to follow. Capture again with
               {" "}<strong>Payload: Full packets</strong>.
@@ -50,6 +55,8 @@ function PacketStream({ packets, flow, onClose }) {
             {stream.chunks.map((c, i) =>
               c.gap ? (
                 <div key={i} className="pcap-stream-gap">— {formatBytes(c.gap)} not captured —</div>
+              ) : c.short ? (
+                <div key={i} className="pcap-stream-gap">— {formatBytes(c.short)} of that packet not kept —</div>
               ) : (
                 <pre key={i} className={`pcap-stream-chunk pcap-stream-chunk--${c.dir}`}>{c.text}</pre>
               )

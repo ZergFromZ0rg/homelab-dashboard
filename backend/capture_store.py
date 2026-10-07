@@ -5,9 +5,10 @@ one starts. "Save" copies the packet list the agent holds (and its .pcap)
 here, so it can be reopened, downloaded or compared later. Saving is always
 an explicit click; nothing is saved by itself.
 
-Per capture, three files named by a random id: ``<id>.meta.json`` (what the
-list shows), ``<id>.json`` (the whole capture as the agent reported it) and
-``<id>.pcap``. A capture holds what it was captured with — headers only
+Per capture, two files named by a random id: ``<id>.meta.json`` (what the
+list shows) and ``<id>.json`` (the whole capture as the agent reported it).
+The ``.pcap`` is built from that JSON when asked for, so there is one copy of
+the packets, not two that could disagree. A capture holds what it was captured with — headers only
 unless the payload option was on — so a saved one is as sensitive as the
 live one was: opening or downloading it is gated and audited.
 
@@ -20,6 +21,7 @@ from __future__ import annotations
 import json
 import re
 import secrets
+import struct
 import threading
 import time
 from pathlib import Path
@@ -58,10 +60,6 @@ def _clean_name(name: str | None, fallback: str) -> str:
     return name or fallback
 
 
-def _size(capture_id: str) -> int:
-    return sum(p.stat().st_size for p in DIR.glob(f"{capture_id}*") if p.is_file())
-
-
 def _total() -> int:
     return sum(p.stat().st_size for p in DIR.glob("*") if p.is_file())
 
@@ -77,7 +75,32 @@ def list_all() -> list[dict]:
     return sorted(out, key=lambda m: m.get("saved_at", 0), reverse=True)
 
 
-def save(host: str, name: str | None, snapshot: dict, pcap: bytes) -> dict:
+def build_pcap(packets: list[dict]) -> bytes:
+    """A classic libpcap file from saved packets: link type Ethernet, or raw IP
+    when every packet came off a tunnel interface. Each record is as short as
+    it was kept — headers only unless the capture kept payload. (The agent
+    builds the live one the same way; keep them in step.)"""
+    raw_ip = bool(packets) and all(p.get("l2", 0) == 0 for p in packets)
+    out = bytearray(struct.pack("<IHHiIII", 0xA1B2C3D4, 2, 4, 0, 0, 65535, 101 if raw_ip else 1))
+    for p in packets:
+        try:
+            data = bytes.fromhex(p.get("hex", ""))
+        except ValueError:
+            continue
+        length = int(p.get("len", len(data)))
+        if not raw_ip and p.get("l2", 0) == 0 and data:
+            # A tunnel frame in a capture that is otherwise Ethernet ("any"):
+            # a placeholder header gives every record the same shape.
+            ethertype = b"\x86\xdd" if data[0] >> 4 == 6 else b"\x08\x00"
+            data = bytes(12) + ethertype + data
+            length += 14
+        stamp = float(p.get("ts", 0))
+        out += struct.pack("<IIII", int(stamp), int((stamp % 1) * 1_000_000), len(data), max(length, len(data)))
+        out += data
+    return bytes(out)
+
+
+def save(host: str, name: str | None, snapshot: dict) -> dict:
     packets = snapshot.get("packets") or []
     if not packets:
         raise StoreError("there are no packets to save")
@@ -86,7 +109,7 @@ def save(host: str, name: str | None, snapshot: dict, pcap: bytes) -> dict:
         DIR.mkdir(parents=True, exist_ok=True)
         if len(list_all()) >= MAX_CAPTURES:
             raise StoreError(f"{MAX_CAPTURES} captures are saved already — delete one first")
-        if _total() + len(body) + len(pcap) > MAX_TOTAL_BYTES:
+        if _total() + len(body) > MAX_TOTAL_BYTES:
             raise StoreError("saved captures are using their full space — delete one first")
         capture_id = secrets.token_hex(6)
         when = time.time()
@@ -106,10 +129,9 @@ def save(host: str, name: str | None, snapshot: dict, pcap: bytes) -> dict:
             "total_packets": totals.get("pkts", len(packets)),
             "bytes": totals.get("bytes", 0),
             "drops": snapshot.get("drops", 0),
-            "size": len(body) + len(pcap),
+            "size": len(body),
         }
         _write(_path(capture_id, ".json"), body)
-        _write(_path(capture_id, ".pcap"), pcap)
         _write(_path(capture_id, ".meta.json"), json.dumps(meta).encode())
     return meta
 
@@ -126,12 +148,10 @@ def read(capture_id: str) -> dict | None:
 
 
 def pcap(capture_id: str) -> tuple[bytes, dict] | None:
-    if not valid_id(capture_id):
+    found = read(capture_id)
+    if not found:
         return None
-    try:
-        return _path(capture_id, ".pcap").read_bytes(), json.loads(_path(capture_id, ".meta.json").read_text())
-    except (OSError, ValueError):
-        return None
+    return build_pcap(found["capture"].get("packets") or []), found["meta"]
 
 
 def rename(capture_id: str, name: str) -> dict | None:
@@ -152,7 +172,7 @@ def delete(capture_id: str) -> bool:
         return False
     with _lock:
         found = False
-        for suffix in (".meta.json", ".json", ".pcap"):
+        for suffix in (".meta.json", ".json"):
             try:
                 _path(capture_id, suffix).unlink()
                 found = True
