@@ -213,12 +213,12 @@ function TrafficByService({ machine, containers = [] }) {
           <div key={r.id} className={`net-svc-row ${r.other ? "net-svc-row--other" : ""} ${r.rx + r.tx < 1 ? "net-svc-row--idle" : ""}`}>
             <span className="net-svc-name" title={r.name}>{r.name}</span>
             <span className="net-svc-cell">
-              <i style={{ width: `${(r.rx / peak) * 100}%` }} className="rx" />
               <b>{formatBytesPerSec(r.rx)}</b>
+              <span className="net-svc-track"><i style={{ width: `${(r.rx / peak) * 100}%` }} className="rx" /></span>
             </span>
             <span className="net-svc-cell">
-              <i style={{ width: `${(r.tx / peak) * 100}%` }} className="tx" />
               <b>{formatBytesPerSec(r.tx)}</b>
+              <span className="net-svc-track"><i style={{ width: `${(r.tx / peak) * 100}%` }} className="tx" /></span>
             </span>
           </div>
         ))}

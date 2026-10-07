@@ -8554,19 +8554,29 @@ a.lan-port--web:hover {
   opacity: 0.45;
 }
 
+/* The rate sits in its own column and the bar runs beside it, so a short bar
+   never ends in the middle of a number. */
 .net-svc-cell {
-  position: relative;
   display: flex;
   align-items: center;
+  gap: 8px;
   height: 20px;
+}
+
+.net-svc-track {
+  position: relative;
+  flex: 1;
+  align-self: stretch;
+  min-width: 0;
 }
 
 .net-svc-cell i {
   position: absolute;
-  inset: 3px auto 3px 0;
+  inset: 5px auto 5px 0;
   min-width: 1px;
+  max-width: 100%;
   border-radius: 2px;
-  opacity: 0.35;
+  opacity: 0.6;
 }
 
 .net-svc-cell i.rx {
@@ -8578,9 +8588,10 @@ a.lan-port--web:hover {
 }
 
 .net-svc-cell b {
-  position: relative;
-  padding-left: 6px;
+  flex: 0 0 64px;
   font: 500 var(--fs-xs) var(--mono);
+  text-align: right;
+  white-space: nowrap;
 }
 
 /* Busiest containers under a node's download / upload. */
