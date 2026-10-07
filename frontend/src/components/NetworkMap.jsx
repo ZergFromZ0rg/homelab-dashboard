@@ -23,7 +23,7 @@ function Node({ d, pos, selected, onSelect }) {
       role="button"
       aria-label={`${shortName(d)} ${d.ip}`}
     >
-      <title>{`${d.hostname || d.node || d.ip} · ${d.ip}${d.vendor ? ` · ${d.vendor}` : ""}${d.gone ? " · not seen this scan" : ""}`}</title>
+      <title>{`${d.custom || d.hostname || d.node || d.guess?.kind || d.ip} · ${d.ip}${d.vendor ? ` · ${d.vendor}` : ""}${d.gone ? " · not seen this scan" : ""}`}</title>
       <circle r={d.node ? 17 : 13} className="nmap-dot" />
       <text y={d.node ? 33 : 29} className="nmap-label">
         {shortName(d).slice(0, 14)}
@@ -35,15 +35,32 @@ function Node({ d, pos, selected, onSelect }) {
   );
 }
 
-function Detail({ d, onClose }) {
+function Detail({ d, onClose, onRename }) {
   return (
     <div className="nmap-detail">
       <div className="nmap-detail-head">
-        <strong>{d.hostname || d.node || d.ip}</strong>
-        <span className="net-dim">{KINDS[d.kind]}</span>
+        <strong>{d.custom || d.hostname || d.node || d.guess?.kind || d.ip}</strong>
+        <span className="net-dim" title={d.guess ? `Guess: ${d.guess.why}` : undefined}>{d.guess?.kind || KINDS[d.kind]}</span>
         <button type="button" className="btn btn--ghost" onClick={onClose} aria-label="Close details">×</button>
       </div>
       <dl>
+        {!d.node && onRename && (
+          <>
+            <dt>Name</dt>
+            <dd>
+              <input
+                key={d.key}
+                className="lan-rename"
+                defaultValue={d.custom || ""}
+                placeholder={d.hostname || d.guess?.kind || "Name this device"}
+                maxLength={60}
+                aria-label={`Name for ${d.ip}`}
+                onBlur={(e) => e.target.value.trim() !== (d.custom || "") && onRename(d.key, e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+              />
+            </dd>
+          </>
+        )}
         <dt>IP</dt>
         <dd className="net-mono">{d.ip}</dd>
         <dt>MAC</dt>
@@ -73,7 +90,7 @@ function Detail({ d, onClose }) {
 }
 
 // devices: [{key, ip, mac, hostname, vendor, ports, kind, node, isNew, gone}]
-export default function NetworkMap({ devices, gateway, subnet, scanning }) {
+export default function NetworkMap({ devices, gateway, subnet, scanning, onRename }) {
   const [selected, setSelected] = useState(null);
   const router = devices.find((d) => d.kind === "router");
   const mapped = useMemo(() => devices.filter((d) => d !== router), [devices, router]);
@@ -157,7 +174,7 @@ export default function NetworkMap({ devices, gateway, subnet, scanning }) {
             </span>
           ))}
         </span>
-        {picked && <Detail d={picked} onClose={() => setSelected(null)} />}
+        {picked && <Detail d={picked} onClose={() => setSelected(null)} onRename={onRename} />}
       </div>
     </div>
   );

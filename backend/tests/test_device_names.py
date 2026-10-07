@@ -16,7 +16,7 @@ def test_ports_then_vendor_then_private():
     assert g(ports=[{"port": 62078, "service": "ios"}], vendor="Apple, Inc.") == "iPhone or iPad"
     assert g(vendor="Apple, Inc.") == "Apple device"
     assert g(vendor="Espressif Inc.") == "Smart device"
-    assert g(randomized=True) == "Phone or laptop"
+    assert g(randomized=True) == "Phone/laptop"
     assert g(vendor="Nobody Ltd") is None
 
 

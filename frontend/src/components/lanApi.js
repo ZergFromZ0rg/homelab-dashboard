@@ -16,7 +16,7 @@ const DEMO_DEVICES = [
   { ip: "192.168.1.31", mac: "3c:22:fb:7c:31:31", vendor: "Apple, Inc.", hostname: null, guess: { kind: "iPhone or iPad", why: "answers on port 62078" }, ports: [{ port: 62078, service: "ios" }] },
   { ip: "192.168.1.42", mac: "a4:83:e7:0d:42:42", vendor: "Hewlett Packard", hostname: "printer.lan", guess: { kind: "Printer", why: "answers on port 9100" }, ports: [{ port: 631, service: "ipp" }, { port: 9100, service: "9100" }] },
   { ip: "192.168.1.58", mac: "7c:2f:80:91:58:58", vendor: "Espressif Inc.", hostname: null, guess: { kind: "Smart device", why: "made by Espressif Inc." }, ports: [] },
-  { ip: "192.168.1.77", mac: "de:ad:be:ef:77:77", randomized: true, hostname: null, guess: { kind: "Phone or laptop", why: "uses a private (randomized) address" }, ports: [] },
+  { ip: "192.168.1.77", mac: "de:ad:be:ef:77:77", randomized: true, hostname: null, guess: { kind: "Phone/laptop", why: "uses a private (randomized) address" }, ports: [] },
 ];
 let demoStart = null;
 

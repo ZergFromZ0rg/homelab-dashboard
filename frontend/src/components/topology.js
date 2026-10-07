@@ -49,7 +49,9 @@ export function classify(d, { gateway = null } = {}) {
 // Short label under a node: the name's first label, else the last two octets.
 export function shortName(d) {
   if (d.node) return d.node;
+  if (d.custom) return d.custom;
   if (d.hostname) return d.hostname.split(".")[0];
+  if (d.guess) return d.guess.kind;
   return d.ip.split(".").slice(-2).join(".");
 }
 

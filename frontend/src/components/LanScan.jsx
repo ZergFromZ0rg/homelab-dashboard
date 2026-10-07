@@ -244,7 +244,7 @@ function LanScan({ host }) {
     const live = devices.map((d) => {
       const node = nodeOf(d);
       const key = d.mac || d.ip;
-      const base = { ...d, key, node, isNew: isNew(d) };
+      const base = { ...d, key, node, custom: customOf(d), isNew: isNew(d) };
       return { ...base, kind: classify(base, { gateway }) };
     });
     if (filter.trim()) return live;
@@ -253,12 +253,12 @@ function LanScan({ host }) {
     const ghosts = Object.entries(seen[host] || {})
       .filter(([key, g]) => !here.has(key) && !ips.has(g.ip))
       .map(([key, g]) => {
-        const base = { ...g, key, ports: null, gone: true, node: byAddress.get(g.ip) || null };
+        const base = { ...g, key, ports: null, gone: true, node: byAddress.get(g.ip) || null, custom: names[key.toLowerCase()] || null };
         return { ...base, kind: classify(base, { gateway }) };
       });
     return [...live, ...ghosts];
     // eslint-disable-next-line react-hooks/exhaustive-deps -- nodeOf follows byAddress
-  }, [devices, gateways, seen, host, filter, byAddress]);
+  }, [devices, gateways, seen, host, filter, byAddress, names]);
 
   const newCount = (job?.devices || []).filter(isNew).length;
   const ownCount = (job?.devices || []).filter((d) => nodeOf(d)).length;
@@ -316,7 +316,7 @@ function LanScan({ host }) {
       )}
 
       {view === "map" && (mapDevices.length > 0 || scanning) && (
-        <NetworkMap devices={mapDevices} gateway={gateways[host]} subnet={job?.subnet} scanning={scanning} />
+        <NetworkMap devices={mapDevices} gateway={gateways[host]} subnet={job?.subnet} scanning={scanning} onRename={rename} />
       )}
 
       {view === "list" && devices.length > 0 && (

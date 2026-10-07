@@ -106,7 +106,7 @@ def guess(device: dict) -> dict | None:
         if any(n in vendor for n in needles):
             return {"kind": kind, "why": f"made by {device.get('vendor')}"}
     if device.get("randomized"):
-        return {"kind": "Phone or laptop", "why": "uses a private (randomized) address"}
+        return {"kind": "Phone/laptop", "why": "uses a private (randomized) address"}
     return None
 
 
