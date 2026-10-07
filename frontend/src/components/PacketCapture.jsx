@@ -34,7 +34,7 @@ const SYNTAX = [
   ["tcp udp icmp icmp6 arp ip ip6 dns tls", "a protocol on its own"],
   ["ether host MAC", "src / dst work here too"],
   ["len > N · less N · greater N", "packet size in bytes"],
-  ["sni NAME", "a TLS server name; * wildcards: sni *.example.com"],
+  ["sni NAME", "a TLS server name; sni *.example.com also matches example.com"],
   ["and · or · not · ( )", "also && || !  —  and binds tighter than or"],
 ];
 const DEFAULTS = { iface: "", duration: 60, expr: "", payload: false };
