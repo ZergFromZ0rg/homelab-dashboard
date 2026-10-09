@@ -34,7 +34,8 @@ export function useCaptureRequest(handler) {
   }, []);
 }
 
-// The Packets view: the container to preselect for this host, once.
+// The container requested for this host, once; null if there is none, it is for
+// another host, or it has gone stale.
 export function takeCaptureTarget(host) {
   if (!fresh(pending) || pending.host !== host) return null;
   const { container } = pending;
@@ -42,9 +43,33 @@ export function takeCaptureTarget(host) {
   return container;
 }
 
+// The Packets view: preselect the requested container, whether the request was
+// waiting when the view mounted or arrives while it is already open (clicking
+// a container row while looking at that host's packets).
+export function useCaptureTarget(host, handler) {
+  const ref = useRef(handler);
+  useEffect(() => {
+    ref.current = handler;
+  }, [handler]);
+  useEffect(() => {
+    const take = () => {
+      const container = takeCaptureTarget(host);
+      if (container) setTimeout(() => ref.current(container), 0);
+    };
+    take();
+    window.addEventListener(REQUEST, take);
+    return () => window.removeEventListener(REQUEST, take);
+  }, [host]);
+}
+
 // App: lets a component far from the tab bar ask to go to a tab.
 export function onNavigateRequest(handler) {
   const listener = (e) => handler(e.detail.target);
   window.addEventListener(NAVIGATE, listener);
   return () => window.removeEventListener(NAVIGATE, listener);
+}
+
+// For tests: forget any waiting request.
+export function resetCaptureRequests() {
+  pending = null;
 }

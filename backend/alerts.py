@@ -528,10 +528,16 @@ def evaluate(
     # while it keeps being sighted and resolves after an hour of quiet, so a
     # one-off is an alert that clears itself rather than one that sticks.
     for finding in findings or []:
-        out[f"netwatch:{finding['host']}:{finding['id']}"] = {
-            "title": f"{finding['host']}: {finding['title']}",
-            "message": finding["message"],
-            "host": finding["host"],
+        try:
+            host, finding_id, title, message = (finding[k] for k in ("host", "id", "title", "message"))
+        except (KeyError, TypeError):
+            continue  # an agent of another version sent something else: skip it, don't take the Overview down
+        if not all(isinstance(v, str) and v for v in (host, finding_id, title, message)):
+            continue  # a None must not become the text "None"
+        out[f"netwatch:{host}:{finding_id}"] = {
+            "title": f"{host}: {title}",
+            "message": message,
+            "host": host,
             "severity": "bad" if finding.get("severity") == "bad" else "warn",
             "hint": finding.get("hint"),
         }

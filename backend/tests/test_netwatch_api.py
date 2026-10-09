@@ -20,11 +20,19 @@ class Reply:
         return self._body
 
 
+@pytest.fixture(autouse=True)
+def clean_cache():
+    """The remembered findings are module state the Overview reads, so one test's
+    leftovers would show up as alerts in unrelated ones."""
+    netwatch_api._latest.clear()
+    yield
+    netwatch_api._latest.clear()
+
+
 @pytest.fixture
 def web(monkeypatch):
     monkeypatch.setattr(registry, "all", lambda: {"box": {"url": "http://agent:8123/"}, "nas": {"url": "http://nas:8123"}})
     monkeypatch.setattr(auth, "API_TOKEN", "")
-    netwatch_api._latest.clear()
     return TestClient(main.app)
 
 
@@ -119,3 +127,24 @@ def test_a_warning_is_a_warning_and_the_overview_lists_it():
 
 def test_the_audit_log_names_the_switch():
     assert audit_log.describe("POST", "/api/netwatch/box") == ("network watch switched", "box")
+
+
+# --- review fixes ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("finding", [
+    {"host": "box"},  # nothing else
+    {"host": "box", "id": "x"},  # no title
+    {"id": "x", "title": "t", "message": "m"},  # no host
+    {"host": "box", "id": "x", "title": None, "message": "m"},
+    "a string", 7, None, ["a", "list"],
+])
+def test_a_malformed_finding_is_skipped_not_fatal(finding):
+    good = {**FINDING, "host": "box"}
+    raw = alerts.evaluate({}, [], findings=[finding, good])  # the Overview and the alert loop both call this
+    assert list(raw) == ["netwatch:box:abc123def4"]
+
+
+def test_an_agent_of_another_version_cannot_feed_the_dashboard_garbage(web, monkeypatch):
+    junk = [{"id": "x"}, {"id": 5, "title": "t", "message": "m"}, "text", {**FINDING}]
+    monkeypatch.setattr(netwatch_api.requests, "get", lambda url, **k: Reply(200, {"enabled": True, "active": junk}))
+    assert [f["id"] for f in netwatch_api.refresh() if f["host"] == "box"] == ["abc123def4"]

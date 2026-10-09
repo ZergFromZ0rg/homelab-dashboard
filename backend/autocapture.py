@@ -18,6 +18,9 @@ What it can and cannot do, so nobody expects more:
 - It is **rate-limited**: a few per host per hour and one per check per ten
   minutes, one at a time per host, and it steps aside for a capture you started.
 - It keeps only the newest few; older automatic captures are dropped, yours never.
+- It **ignores the first couple of minutes after the dashboard starts**: the alert
+  monitor begins with nothing remembered, so every check that is *already* down
+  "fires" again then. That is a restart, not a failure beginning.
 
 Off unless switched on (Network → Watch).
 """
@@ -34,7 +37,7 @@ from urllib.parse import urlsplit
 
 import requests
 
-from backend import audit_log, capture_store
+from backend import alerts, audit_log, capture_store
 from backend.docker import agent_headers
 from backend.env import env_str
 from backend.hosts import agent_for
@@ -45,9 +48,11 @@ FILE = Path(env_str("AUTOCAPTURE_FILE", "/data/autocapture.json"))
 DEFAULTS = {"enabled": False, "duration": 20, "per_host_per_hour": 4, "keep": 10}
 LIMITS = {"duration": (5, 120), "per_host_per_hour": (1, 20), "keep": (1, capture_store.MAX_AUTO)}
 CHECK_COOLDOWN = 600  # seconds before the same check may trigger another
+GRACE = max(120.0, 2 * alerts.INTERVAL_SECONDS)  # after a start, alerts that "fire" are just being rediscovered
 TIMEOUT = 40
 SETTLE = 10  # seconds past the duration to wait for the capture to finish
 
+_started_at = time.time()
 _lock = threading.Lock()
 _recent: dict[str, list[float]] = {}  # host -> when automatic captures started (last hour)
 _last_for_check: dict[str, float] = {}
@@ -56,6 +61,10 @@ _busy: set[str] = set()
 
 class Refused(Exception):
     """Not capturing, and why — logged, never raised to a user."""
+
+
+class NotStarted(Refused):
+    """Refused before anything was recorded, so the attempt costs no budget."""
 
 
 # --- settings ------------------------------------------------------------------------------
@@ -114,9 +123,15 @@ def expression_for(check: dict) -> str | None:
     kind, target = check.get("type"), str(check.get("target") or "")
     host, port = None, None
     if kind in ("http", "keyword"):
-        parts = urlsplit(target if "//" in target else f"//{target}")
-        host = parts.hostname
-        port = parts.port or (443 if parts.scheme == "https" else 80)
+        try:
+            parts = urlsplit(target if "//" in target else f"//{target}")
+            host = parts.hostname
+        except ValueError as error:  # an unbalanced "[" and the like
+            raise Refused(f"can't work out what {target!r} connects to") from error
+        try:
+            port = parts.port or (443 if parts.scheme == "https" else 80)
+        except ValueError:  # a port outside 0-65535: narrow by address only
+            port = None
     elif kind in ("tcp", "tls"):
         host, _, raw_port = target.rpartition(":") if ":" in target else (target, "", "")
         port = int(raw_port) if raw_port.isdigit() else (443 if kind == "tls" else None)
@@ -161,13 +176,26 @@ def _allowed(host: str, key: str, limit: int, now: float) -> None:
 
 def consider(event: dict, checks: list[dict], main_host: str | None, *, now: float | None = None) -> bool:
     """Called for every alert event. Starts a capture in the background for a
-    check that has just gone down or lossy; True if one was started."""
+    check that has just gone down or lossy; True if one was started.
+
+    Never raises: it runs inside the alert loop, where an exception would cost
+    the rest of that cycle's notifications."""
+    try:
+        return _consider(event, checks, main_host, now or time.time())
+    except Exception as error:  # noqa: BLE001 - see above
+        log.warning("auto-capture couldn't consider %s: %s", event.get("key"), error)
+        return False
+
+
+def _consider(event: dict, checks: list[dict], main_host: str | None, now: float) -> bool:
     key = str(event.get("key") or "")
     if event.get("status") != "firing" or not key.startswith("check:") or key.endswith(":slow"):
         return False
     config = settings()
     if not config["enabled"]:
         return False
+    if now - _started_at < GRACE:
+        return False  # a restart rediscovering checks that were already down
     check_id = key.split(":")[1]
     check = next((c for c in checks if c.get("id") == check_id), None)
     if check is None:
@@ -177,7 +205,7 @@ def consider(event: dict, checks: list[dict], main_host: str | None, *, now: flo
         if not host:
             raise Refused("this check runs from the dashboard and its host is unknown — set MAIN_HOST")
         expr = expression_for(check)
-        _allowed(host, key, config["per_host_per_hour"], now or time.time())
+        _allowed(host, key, config["per_host_per_hour"], now)
     except Refused as why:
         log.info("auto-capture skipped for %s: %s", check.get("name"), why)
         return False
@@ -186,6 +214,14 @@ def consider(event: dict, checks: list[dict], main_host: str | None, *, now: flo
         args=(host, f"{event.get('title') or check.get('name')}", key, expr, config),
     ).start()
     return True
+
+
+def _refund(host: str, key: str) -> None:
+    """Give back what an attempt that never recorded anything was charged."""
+    with _lock:
+        if _recent.get(host):
+            _recent[host].pop()
+        _last_for_check.pop(key, None)
 
 
 def run_now(host: str) -> dict:
@@ -204,6 +240,9 @@ def _run(host: str, reason: str, trigger: str, expr: str | None, config: dict) -
         meta = _capture(host, reason, trigger, expr, config)
         log.info("auto-capture on %s kept %s packets (%s)", host, meta["packets"], reason)
         audit_log.record("auto capture", who="system", host=host, detail=f"{reason} · {meta['packets']} packets")
+    except NotStarted as why:
+        _refund(host, trigger)  # it never recorded anything, so the next alert may try again
+        log.info("auto-capture on %s didn't start: %s", host, why)
     except Refused as why:
         log.info("auto-capture on %s skipped: %s", host, why)
     except Exception as error:  # noqa: BLE001 - a background job must say what happened, then end
@@ -217,14 +256,18 @@ def _capture(host: str, reason: str, trigger: str, expr: str | None, config: dic
         try:
             agent = agent_for(host)
         except Exception as error:  # noqa: BLE001 - an unregistered host
-            raise Refused(f"{host} isn't a registered node") from error
+            raise NotStarted(f"{host} isn't a registered node") from error
         body = {"duration": config["duration"], "payload": "none", "promisc": False}
         if expr:
             body["filter"] = {"expr": expr}
-        started = requests.post(f"{agent}/capture", json=body, headers=agent_headers(), timeout=TIMEOUT)
+        try:
+            started = requests.post(f"{agent}/capture", json=body, headers=agent_headers(), timeout=TIMEOUT)
+        except requests.RequestException as error:
+            raise NotStarted(f"couldn't reach {host}'s agent: {error}") from error
         if started.status_code == 400 and "already running" in started.text:
-            raise Refused(f"a capture is already running on {host}")
-        started.raise_for_status()
+            raise NotStarted(f"a capture is already running on {host}")
+        if not started.ok:
+            raise NotStarted(f"{host}'s agent refused ({started.status_code}): {started.text[:200]}")
 
         deadline = time.time() + config["duration"] + SETTLE
         snapshot = {}
@@ -237,7 +280,8 @@ def _capture(host: str, reason: str, trigger: str, expr: str | None, config: dic
         else:
             requests.delete(f"{agent}/capture", headers=agent_headers(), timeout=TIMEOUT)
         if not snapshot.get("packets"):
-            raise Refused("the capture saw no packets")
+            why = f" ({snapshot['error']})" if snapshot.get("error") else ""
+            raise Refused(f"the capture saw no packets{why}")
 
         stamp = time.strftime("%H:%M", time.localtime())
         meta = capture_store.save(host, f"auto: {reason} ({stamp})", snapshot,

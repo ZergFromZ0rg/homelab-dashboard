@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchCapture, fetchCaptureInterfaces, pcapUrl, savedPcapUrl, startCapture, stopCapture } from "./captureApi";
 import { compileFilter } from "./captureFilter";
 import { nameIndex, observedNames } from "./captureNames";
-import { takeCaptureTarget } from "./captureRequest";
+import { useCaptureTarget } from "./captureRequest";
 import { BAD, rate } from "./captureUi";
 import { fetchDeviceNames, fetchNodeAddresses } from "./lanApi";
 import { formatBytes } from "./format";
@@ -67,7 +67,7 @@ const SYNTAX = [
 
 function PacketCapture({ host }) {
   const [options, setOptions] = useLocalStorage("pcapOptions", DEFAULTS);
-  const [session, setSession] = useState(() => ({ ...SESSION_DEFAULTS, container: takeCaptureTarget(host) || "" }));
+  const [session, setSession] = useState(SESSION_DEFAULTS);
   const [ifaces, setIfaces] = useState({ default: null, interfaces: [], containers: [], names: {} });
   // What else the dashboard knows about addresses, for calling them by name.
   const [known, setKnown] = useState({ nodes: {}, gateways: {}, custom: {} });
@@ -150,6 +150,8 @@ function PacketCapture({ host }) {
 
   const set = (patch) => setOptions({ ...options, ...patch });
   const setSessionOption = (patch) => setSession((current) => ({ ...current, ...patch }));
+  // "Capture its traffic" on a container row: preselect that container (not while a capture runs).
+  useCaptureTarget(host, (container) => setSession((current) => (LIVE.has(job?.state) ? current : { ...current, container })));
 
   const start = async () => {
     setError("");

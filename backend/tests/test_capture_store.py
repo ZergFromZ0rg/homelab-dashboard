@@ -1,7 +1,6 @@
 """Saved captures: stored on the data volume, bounded, ids can't escape the
 directory, and every way into the contents is token-gated and audited."""
 
-import json
 import struct
 
 import pytest

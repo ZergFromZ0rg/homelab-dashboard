@@ -1,14 +1,13 @@
 """Automatic capture: what triggers it, what it asks for, what stops it, and
 that it can never leave a host stuck or widen what is recorded."""
 
-import threading
 import time as real_time
 
 import pytest
 import requests
 from fastapi.testclient import TestClient
 
-from backend import audit_log, auth, autocapture, capture_api, capture_store, main
+from backend import audit_log, auth, autocapture, capture_store, main
 from backend.registry import registry
 
 
@@ -47,6 +46,7 @@ def fresh(tmp_path, monkeypatch):
     monkeypatch.setattr(registry, "all", lambda: {"box": {"url": "http://agent:8123"}, "nas": {"url": "http://nas:8123"}})
     monkeypatch.setattr(autocapture, "_address", lambda name: {"nas.lan": "192.168.1.20", "localhost": "127.0.0.1"}.get(name) or (name if name[0].isdigit() else None))
     monkeypatch.setattr(audit_log, "record", lambda *a, **k: None)
+    monkeypatch.setattr(autocapture, "_started_at", 0.0)  # the post-restart grace has its own tests
     autocapture._recent.clear()
     autocapture._last_for_check.clear()
     autocapture._busy.clear()
@@ -179,8 +179,8 @@ class FakeAgent:
     def post(self, url, json=None, **kwargs):
         self.calls.append(("POST", url, json))
         if self.refuse:
-            return type("R", (), {"status_code": 400, "text": self.refuse, "raise_for_status": lambda s: None})()
-        return type("R", (), {"status_code": 200, "text": "", "raise_for_status": lambda s: None})()
+            return type("R", (), {"status_code": 400, "text": self.refuse, "ok": False})()
+        return type("R", (), {"status_code": 200, "text": "", "ok": True})()
 
     def get(self, url, params=None, **kwargs):
         state = self.states.pop(0) if len(self.states) > 1 else self.states[0]
@@ -315,3 +315,85 @@ def test_the_try_it_button_takes_one_capture_now(web, monkeypatch, agent):
 def test_the_audit_log_names_these_actions():
     assert audit_log.describe("PUT", "/api/autocapture")[0] == "automatic capture settings changed"
     assert audit_log.describe("POST", "/api/autocapture/box/test") == ("automatic capture tried", "box")
+
+
+# --- review fixes -------------------------------------------------------------------------------
+
+def test_a_check_with_a_strange_target_never_raises_into_the_alert_loop(monkeypatch, caplog):
+    autocapture.update({"enabled": True})
+    started = []
+    monkeypatch.setattr(autocapture, "_run", lambda *a: started.append(a))
+    for target in ("http://host:99999/x", "http://[::1", "://", "http://a b/", ""):
+        odd = check("http", target, origin="nas")
+        assert autocapture.consider(event(), [odd], "box", now=5000.0) in (True, False)  # whatever it decides, no exception
+        autocapture._busy.clear()
+        autocapture._last_for_check.clear()
+
+
+def test_even_an_unforeseen_failure_inside_it_is_contained(monkeypatch):
+    autocapture.update({"enabled": True})
+    monkeypatch.setattr(autocapture, "expression_for", lambda c: 1 / 0)
+    assert autocapture.consider(event(), [check()], "box") is False  # logged, not raised
+
+
+def test_a_port_out_of_range_narrows_by_address_only_and_a_broken_url_is_refused():
+    assert autocapture.expression_for(check("http", "http://nas.lan:99999/x")) == "host 192.168.1.20"
+    with pytest.raises(autocapture.Refused, match="can't work out"):
+        autocapture.expression_for(check("http", "http://[::1"))
+
+
+def test_alerts_that_fire_just_because_the_dashboard_restarted_are_not_failures_beginning(monkeypatch):
+    autocapture.update({"enabled": True})
+    started = []
+    monkeypatch.setattr(autocapture, "_run", lambda *a: started.append(a))
+    monkeypatch.setattr(autocapture, "_started_at", 10_000.0)
+    assert autocapture.consider(event(), [check()], "box", now=10_000.0 + autocapture.GRACE - 1) is False  # still rediscovering
+    assert autocapture.consider(event(), [check()], "box", now=10_000.0 + autocapture.GRACE + 1) is True  # a real new failure
+    assert autocapture.GRACE >= 120
+
+
+@pytest.mark.parametrize("failure,fragment", [
+    ("busy", "already running"),
+    ("unreachable", "couldn't reach"),
+    ("refused", "refused (401)"),
+    ("unregistered", "isn't a registered node"),
+])
+def test_an_attempt_that_never_recorded_anything_costs_no_budget(monkeypatch, failure, fragment, caplog):
+    host = "ghost" if failure == "unregistered" else "box"
+    autocapture.update({"enabled": True, "per_host_per_hour": 1})
+    now = 100_000.0
+    # The consider() step charges the budget; _run then finds the agent unable to start.
+    autocapture._allowed(host, "check:c1", 1, now)
+    if failure == "busy":
+        monkeypatch.setattr(autocapture.requests, "post", lambda *a, **k: type("R", (), {"status_code": 400, "text": "a capture is already running", "ok": False})())
+    elif failure == "unreachable":
+        monkeypatch.setattr(autocapture.requests, "post", lambda *a, **k: (_ for _ in ()).throw(requests.ConnectionError("down")))
+    elif failure == "refused":
+        monkeypatch.setattr(autocapture.requests, "post", lambda *a, **k: type("R", (), {"status_code": 401, "text": "invalid agent token", "ok": False})())
+    with caplog.at_level("INFO"):
+        autocapture._run(host, "NAS is down", "check:c1", None, autocapture.settings())
+    assert fragment in caplog.text
+    assert autocapture._recent.get(host) == [] and "check:c1" not in autocapture._last_for_check  # refunded
+    autocapture._allowed(host, "check:c1", 1, now + 1)  # so the next alert is allowed to try
+    assert host in autocapture._busy
+
+
+def test_a_capture_that_recorded_nothing_keeps_its_charge(agent):
+    agent.packets = 0
+    autocapture._allowed("box", "check:c1", 4, 100_000.0)
+    autocapture._run("box", "NAS is down", "check:c1", None, autocapture.settings())
+    assert len(autocapture._recent["box"]) == 1 and "check:c1" in autocapture._last_for_check  # it did try; don't hammer
+
+
+def test_an_agent_side_failure_is_named_when_nothing_was_seen(agent, monkeypatch):
+    original = agent.get
+
+    def failing(url, params=None, **kwargs):
+        response = original(url, params, **kwargs)
+        body = response.json()
+        body.update(state="error", error="the capture helper stopped unexpectedly: ImportError", packets=[])
+        return type("R", (), {"json": lambda s: body})()
+
+    monkeypatch.setattr(autocapture.requests, "get", failing)
+    with pytest.raises(autocapture.Refused, match="ImportError"):
+        run()

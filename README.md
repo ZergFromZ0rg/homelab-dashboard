@@ -358,6 +358,17 @@ homelab-agent README.
 
 Per-container throughput totals are already on each container row.
 
+### Packets, network watch and auto-capture
+
+Network → **Packets** records traffic on a host or inside one container and shows
+it live: conversations, protocols, TCP trouble, plain-HTTP/DNS/TLS/DHCP/NTP
+decoded, names instead of addresses, Follow stream, saved captures and a `.pcap`
+for Wireshark. Network → **Watch** adds an opt-in watcher for ARP spoofing and
+rogue DHCP servers, and automatic captures when a service check goes down. All of
+it is off until you ask, headers-only by default, and nothing is written to disk
+until you save. What is kept, the limits, the Docker-logging pitfall, how to run the
+real-socket tests: **[docs/packet-capture.md](docs/packet-capture.md)**.
+
 ## Container history
 
 Expanding a container's row shows its CPU and memory over **6h / 24h /

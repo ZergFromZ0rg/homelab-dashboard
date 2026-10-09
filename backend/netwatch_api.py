@@ -75,7 +75,11 @@ def _active_on(item: tuple[str, dict]) -> list[dict]:
         return []
     if not isinstance(body, dict) or not body.get("enabled"):
         return []
-    return [{**finding, "host": name} for finding in body.get("active") or [] if isinstance(finding, dict)]
+    return [
+        {**finding, "host": name}
+        for finding in body.get("active") or []
+        if isinstance(finding, dict) and all(isinstance(finding.get(k), str) and finding[k] for k in ("id", "title", "message"))
+    ]
 
 
 def refresh() -> list[dict]:
