@@ -47,6 +47,7 @@ from pathlib import Path
 
 DASH_PORT = 18000
 AGENT_PORT = 18123
+PROM_PORT = 19090
 CONTAINER = "verify-autocapture"
 CHECK_ID = "livecheck001"
 CHECK_NAME = "Live test target"
@@ -99,8 +100,11 @@ class FakeAgent:
                 length = int(self.headers.get("Content-Length") or 0)
                 body = json.loads(self.rfile.read(length) or b"{}")
                 self._record(body)
-                if self.path.split("?")[0] == "/capture":
+                path = self.path.split("?")[0]
+                if path == "/capture":
                     return self._send(200, {"state": "capturing"})
+                if path == "/probe":
+                    return self._send(200, outer.probe(body))
                 return self._send(404, {})
 
             def do_DELETE(self):
@@ -110,8 +114,47 @@ class FakeAgent:
         self.server = http.server.ThreadingHTTPServer(("127.0.0.1", AGENT_PORT), Handler)
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
 
+    @staticmethod
+    def probe(spec: dict) -> dict:
+        """What an agent does for a check that runs from it: really try the
+        connection. (Only TCP checks are used here.)"""
+        host, _, port = str(spec.get("target") or "").rpartition(":")
+        started = time.time()
+        try:
+            socket.create_connection((host, int(port)), timeout=float(spec.get("timeout") or 2)).close()
+            return {"ok": True, "ms": round((time.time() - started) * 1000, 1), "detail": "connected", "loss": None, "jitter": None}
+        except OSError as error:
+            return {"ok": False, "ms": None, "detail": f"connection failed: {error.__class__.__name__}", "loss": None, "jitter": None}
+
     def captures_requested(self) -> list[dict]:
         return [r for r in self.requests if r["method"] == "POST" and r["path"] == "/capture"]
+
+    def stop(self) -> None:
+        self.server.shutdown()
+        self.server.server_close()
+
+
+class FakePrometheus:
+    """The alert loop starts every cycle by asking Prometheus about the fleet and
+    abandons the cycle if it can't — so without an answer it never reaches
+    auto-capture at all, and "no capture was requested" would pass for the wrong
+    reason. An empty, successful answer to every query is enough."""
+
+    def __init__(self) -> None:
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *args):
+                pass
+
+            def do_GET(self):
+                raw = json.dumps({"status": "success", "data": {"resultType": "vector", "result": []}}).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(raw)))
+                self.end_headers()
+                self.wfile.write(raw)
+
+        self.server = http.server.ThreadingHTTPServer(("127.0.0.1", PROM_PORT), Handler)
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
 
     def stop(self) -> None:
         self.server.shutdown()
@@ -171,7 +214,7 @@ def start(image: str, directory: Path) -> float:
         "-e", "CHECK_HISTORY_FILE=/data/check_history.json", "-e", "AUTOCAPTURE_FILE=/data/autocapture.json",
         "-e", "CAPTURES_DIR=/data/captures",
         "-e", "ALERT_INTERVAL=2", "-e", "CHECK_FAILURES_BEFORE_DOWN=2", "-e", "AUTOCAPTURE_GRACE=3600",
-        "-e", "PROMETHEUS_URL=http://127.0.0.1:9", "-e", "MAIN_HOST=fake",
+        "-e", f"PROMETHEUS_URL=http://127.0.0.1:{PROM_PORT}", "-e", "MAIN_HOST=fake",
         image, "uvicorn", "backend.main:app", "--host", "127.0.0.1", "--port", str(DASH_PORT),
     )
     began = time.time()
@@ -239,6 +282,7 @@ def scenario_a(image: str, agent: FakeAgent, address: str) -> None:
         verdict(summary["down_since"] is not None and summary["down_since"] < began - 3000,
                 f"its outage start survived the restart (began {int(began - summary['down_since'])}s before the process did)")
         saw = wait_for(lambda: "auto-capture ignoring" in logs(), 30)
+        verdict("alert cycle failed" not in logs(), "the alert loop is running cycles (a failing loop would make the checks below pass for the wrong reason)")
         verdict(saw, "the alert loop fired and auto-capture logged that it is ignoring a restart rediscovering the outage")
         time.sleep(6)  # a few more alert cycles: it must stay quiet
         verdict(len(agent.captures_requested()) == before, "no capture was requested from the agent")
@@ -313,12 +357,13 @@ def main() -> int:
         raise SystemExit(f"no image called {image!r} here — run this on the host that builds the dashboard, or pass --image")
     address = lan_address()
     print(f"image {image}; check target on {address}; fake agent on 127.0.0.1:{AGENT_PORT}")
-    agent = FakeAgent()
+    agent, prometheus = FakeAgent(), FakePrometheus()
     try:
         scenario_a(image, agent, address)
         scenario_b(image, agent, address)
     finally:
         agent.stop()
+        prometheus.stop()
         docker("rm", "-f", CONTAINER, check=False)
     failed = [m for ok, m in results if not ok]
     print(f"\n{len(results) - len(failed)} passed, {len(failed)} failed")
