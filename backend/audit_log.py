@@ -95,6 +95,9 @@ _LABELS = [
     (r"^/api/lan/[^/]+/scan$", lambda m: "network scan"),
     (r"^/api/capture/[^/]+/pcap$", lambda m: "packet capture downloaded"),
     (r"^/api/capture/[^/]+/save$", lambda m: "packet capture saved"),
+    (r"^/api/autocapture/[^/]+/test$", lambda m: "automatic capture tried"),
+    (r"^/api/autocapture$", lambda m: "automatic capture settings changed"),
+    (r"^/api/netwatch/[^/]+$", lambda m: "network watch switched"),
     (r"^/api/captures/[^/]+/pcap$", lambda m: "saved capture downloaded"),
     (r"^/api/captures/[^/]+$", lambda m: "saved capture opened"),
     (r"^/api/capture/[^/]+$", lambda m: "packet capture"),
@@ -120,7 +123,7 @@ _LABELS = [
 ]
 _LABELS = [(re.compile(p), f) for p, f in _LABELS]
 
-_HOST = re.compile(r"^/api/(?:containers|compose|updates|git-updates|files|disk|rebuild|hosts|networks|capture|lan)/([^/]+)")
+_HOST = re.compile(r"^/api/(?:containers|compose|updates|git-updates|files|disk|rebuild|hosts|networks|capture|lan|netwatch|autocapture)/([^/]+)")
 
 
 _WRITES = {  # the same path, changing rather than reading

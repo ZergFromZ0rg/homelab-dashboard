@@ -9906,3 +9906,122 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
   font-size: var(--fs-xs);
   text-align: center;
 }
+
+/* --- Network watch, auto-capture, names -------------------------------- */
+
+.watch {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.watch-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--bg-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.watch-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.watch-head p {
+  margin: 2px 0 0;
+  max-width: 78ch;
+}
+
+.watch-head .btn {
+  flex: none;
+}
+
+.watch-stats {
+  padding-top: 2px;
+}
+
+.watch-options {
+  align-items: center;
+}
+
+.watch-options select {
+  height: var(--control-h-sm);
+  padding: 0 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: var(--fs-sm);
+}
+
+.watch-findings {
+  max-height: 340px;
+  flex: none;
+}
+
+.watch-what {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 260px;
+  white-space: normal;
+}
+
+.watch-message,
+.watch-hint {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  line-height: 1.4;
+}
+
+.watch-hint {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+.watch-level {
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-raised);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+
+.watch-level--bad {
+  background: color-mix(in srgb, var(--offline) 16%, transparent);
+  color: var(--offline);
+}
+
+.watch-level--warn {
+  background: color-mix(in srgb, var(--warning) 16%, transparent);
+  color: var(--warning);
+}
+
+.watch-row--bad td {
+  background: color-mix(in srgb, var(--offline) 7%, transparent);
+}
+
+.pcap-auto {
+  margin-left: 8px;
+  padding: 0 7px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border-radius: var(--radius-pill);
+  color: var(--accent);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+
+.pcap-names {
+  white-space: nowrap;
+}
+
+.pcap-options select,
+.pcap .lan-bar select[aria-label="Capture where"] {
+  max-width: 200px;
+}

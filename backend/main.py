@@ -23,7 +23,7 @@ from backend import passkeys
 from backend import scheduler_api
 from backend import terminal
 from backend import files_api
-from backend import capture_api
+from backend import capture_api, netwatch_api
 from backend import lan_api
 from backend import compose_api
 from backend import updates_api
@@ -60,6 +60,8 @@ app.include_router(files_api.router)
 app.include_router(lan_api.router)
 app.include_router(capture_api.router)
 app.include_router(capture_api.saved_router)
+app.include_router(capture_api.auto_router)
+app.include_router(netwatch_api.router)
 app.include_router(lan_api.nodes_router)
 app.include_router(compose_api.router)
 app.include_router(updates_api.router)
@@ -122,7 +124,7 @@ def _overview(
 
     for key, alert in alerts.evaluate(
         machines, deployment_dumps, containers, check_summaries,
-        volume_backups.store.all(),
+        volume_backups.store.all(), netwatch_api.latest(),
     ).items():
         severity = alerts.severity_of(key, alert)
         issues.append(

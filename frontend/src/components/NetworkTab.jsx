@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import ConnectionsPanel from "./ConnectionsPanel";
 import LanScan from "./LanScan";
+import NetworkWatch from "./NetworkWatch";
 import PacketCapture from "./PacketCapture";
+import { useCaptureRequest } from "./captureRequest";
 import Sparkline from "./Sparkline";
 import { windowPoints } from "./historyWindow";
 import { useSettings } from "./settings";
@@ -477,6 +479,12 @@ function HostNetwork({ host, machine, containers, history, part = "network" }) {
         </section>
       )}
 
+      {part === "watch" && (
+        <section className="overview-card net-fill">
+          <NetworkWatch host={host} />
+        </section>
+      )}
+
       {part === "connections" && (
         <section className="overview-card net-conns net-fill">
           <ConnectionsPanel host={host} defaultOpen />
@@ -492,6 +500,11 @@ function NetworkTab({ machines, containers, checks, connected, history = {} }) {
   const [picked, setPicked] = useLocalStorage("networkHost", null);
   const [section, setSection] = useLocalStorage("networkSection", "network");
   const host = hosts.includes(picked) ? picked : hosts[0];
+  // "Capture this container's traffic" from a container row: open Packets on its host.
+  useCaptureRequest((request) => {
+    setPicked(request.host);
+    setSection("packets");
+  });
   const down = checks.filter(isRootDown).length;
   const perHost = section !== "checks";
 
@@ -500,6 +513,7 @@ function NetworkTab({ machines, containers, checks, connected, history = {} }) {
     ["devices", "Scans", null],
     ["connections", "Connections", null],
     ["packets", "Packets", null],
+    ["watch", "Watch", null],
     ["checks", "Service checks", down ? `${down} down` : checks.length || null],
   ];
 

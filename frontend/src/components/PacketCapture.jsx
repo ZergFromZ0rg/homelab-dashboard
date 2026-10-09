@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchCapture, fetchCaptureInterfaces, pcapUrl, savedPcapUrl, startCapture, stopCapture } from "./captureApi";
 import { compileFilter } from "./captureFilter";
-import { BAD, endpoint, rate } from "./captureUi";
+import { nameIndex, observedNames } from "./captureNames";
+import { takeCaptureTarget } from "./captureRequest";
+import { BAD, rate } from "./captureUi";
+import { fetchDeviceNames, fetchNodeAddresses } from "./lanApi";
 import { formatBytes } from "./format";
 import Icon from "./Icon";
 import PacketStream from "./PacketStream";
-import { Detail, Flows, Protocols, Throughput } from "./PacketViews";
+import { Detail, Endpoint, Flows, Protocols, Throughput } from "./PacketViews";
 import SavedCaptures from "./SavedCaptures";
 import { useLocalStorage } from "./useLocalStorage";
 
@@ -33,7 +36,7 @@ const PAYLOADS = [["none", "Headers only"], ["64", "First 64 bytes"], ["full", "
 // Remembered between visits. Payload and promiscuous are deliberately not:
 // they widen what is recorded, so each capture starts from the careful setting.
 const DEFAULTS = { iface: "", duration: 60, expr: "" };
-const SESSION_DEFAULTS = { payload: "none", promisc: false };
+const SESSION_DEFAULTS = { payload: "none", promisc: false, container: "" };
 const LIVE = new Set(["capturing"]);
 // Click-to-fill examples (tcpdump-style; the agent parses them for the capture
 // filter, this page for the display filter).
@@ -64,10 +67,18 @@ const SYNTAX = [
 
 function PacketCapture({ host }) {
   const [options, setOptions] = useLocalStorage("pcapOptions", DEFAULTS);
-  const [session, setSession] = useState(SESSION_DEFAULTS);
-  const [ifaces, setIfaces] = useState({ default: null, interfaces: [] });
-  // The saved interface may not exist on this host (the setting is shared by all of them).
-  const iface = options.iface === "any" || ifaces.interfaces.includes(options.iface) ? options.iface : "";
+  const [session, setSession] = useState(() => ({ ...SESSION_DEFAULTS, container: takeCaptureTarget(host) || "" }));
+  const [ifaces, setIfaces] = useState({ default: null, interfaces: [], containers: [], names: {} });
+  // What else the dashboard knows about addresses, for calling them by name.
+  const [known, setKnown] = useState({ nodes: {}, gateways: {}, custom: {} });
+  const [showNames, setShowNames] = useLocalStorage("pcapNames", true);
+  const [seen] = useLocalStorage("lanSeen", {});
+  // Inside a container there is just "all" or eth0. On the host the saved
+  // interface may not exist here (the setting is shared by every host).
+  const inContainer = Boolean(session.container);
+  const iface = inContainer
+    ? ["any", "eth0"].includes(options.iface) ? options.iface : "any"
+    : options.iface === "any" || ifaces.interfaces.includes(options.iface) ? options.iface : "";
   const opt = { ...DEFAULTS, ...options, ...session, iface };
   const payload = opt.payload;
   const [job, setJob] = useState(null);
@@ -122,7 +133,10 @@ function PacketCapture({ host }) {
 
   useEffect(() => {
     live.current = true;
-    fetchCaptureInterfaces(host).then((i) => live.current && setIfaces(i)).catch(() => {});
+    fetchCaptureInterfaces(host).then((i) => live.current && setIfaces({ containers: [], names: {}, ...i })).catch(() => {});
+    Promise.all([fetchNodeAddresses().catch(() => ({})), fetchDeviceNames().catch(() => ({}))]).then(([addresses, renamed]) => {
+      if (live.current) setKnown({ nodes: addresses.nodes || {}, gateways: addresses.gateways || {}, custom: renamed.names || {} });
+    });
     poll(); // picks up a capture that is already running
     return () => { live.current = false; };
   }, [host, poll]);
@@ -150,7 +164,8 @@ function PacketCapture({ host }) {
     const filterBody = opt.expr.trim() ? { expr: opt.expr.trim() } : {};
     try {
       apply(await startCapture(host, {
-        iface: iface || ifaces.default || undefined,
+        container: session.container || undefined,
+        iface: inContainer ? iface : iface || ifaces.default || undefined,
         duration: Number(opt.duration),
         filter: filterBody,
         payload,
@@ -200,6 +215,16 @@ function PacketCapture({ host }) {
     }
   }, [filter]);
 
+  // Names for the addresses on screen, from the dashboard, the agent and the capture itself.
+  const names = useMemo(() => nameIndex({
+    nodes: known.nodes,
+    gateway: known.gateways[host],
+    contextNames: ifaces.names,
+    seen: seen[host] || {},
+    custom: known.custom,
+    observed: observedNames(pool, data?.names || {}),
+  }), [known, host, ifaces.names, seen, pool, data?.names]);
+
   const paused = frozenAt != null;
   const visible = useMemo(() => {
     const list = paused ? pool.filter((p) => p.n <= frozenAt) : pool;
@@ -244,11 +269,31 @@ function PacketCapture({ host }) {
         ) : (
           <button type="button" className="btn btn--primary" onClick={start}>{!job || job.state === "idle" ? "Start capture" : "Capture again"}</button>
         )}
-        <select aria-label="Interface" value={iface} disabled={running} onChange={(e) => set({ iface: e.target.value })}>
-          <option value="">{ifaces.default ? `${ifaces.default} (default)` : "Default interface"}</option>
-          {ifaces.interfaces.filter((i) => i !== ifaces.default).map((i) => <option key={i} value={i}>{i}</option>)}
-          <option value="any">all interfaces (duplicates)</option>
+        <select
+          aria-label="Capture where"
+          value={session.container}
+          disabled={running}
+          onChange={(e) => setSessionOption({ container: e.target.value })}
+          title="The host's own network, or the network inside one running container — what it talks to, as it sees it"
+        >
+          <option value="">{host}'s network</option>
+          {session.container && !ifaces.containers.some((c) => c.name === session.container) && (
+            <option value={session.container}>inside {session.container}</option>
+          )}
+          {ifaces.containers.map((c) => <option key={c.name} value={c.name}>inside {c.name}</option>)}
         </select>
+        {inContainer ? (
+          <select aria-label="Interface" value={iface} disabled={running} onChange={(e) => set({ iface: e.target.value })}>
+            <option value="any">all of its interfaces</option>
+            <option value="eth0">eth0</option>
+          </select>
+        ) : (
+          <select aria-label="Interface" value={iface} disabled={running} onChange={(e) => set({ iface: e.target.value })}>
+            <option value="">{ifaces.default ? `${ifaces.default} (default)` : "Default interface"}</option>
+            {ifaces.interfaces.filter((i) => i !== ifaces.default).map((i) => <option key={i} value={i}>{i}</option>)}
+            <option value="any">all interfaces (duplicates)</option>
+          </select>
+        )}
         <select aria-label="Duration" value={opt.duration} disabled={running} onChange={(e) => set({ duration: e.target.value })}>
           {DURATIONS.map(([s, label]) => <option key={s} value={s}>{label}</option>)}
         </select>
@@ -345,7 +390,7 @@ function PacketCapture({ host }) {
             <div className="pcap-stat">
               <span className={`pcap-state pcap-state--${data.state}`}>{!viewing && running ? "● capturing" : data.state === "error" ? "failed" : data.state}</span>
               <span className="net-dim pcap-filter-text" title={filterText || undefined}>
-                {data.iface}{filterText ? ` · ${filterText}` : ""}
+                {data.container ? `inside ${data.container} · ` : ""}{data.iface}{filterText ? ` · ${filterText}` : ""}
                 {data.payload && data.payload !== "none" ? ` · ${data.payload === "full" ? "full packets" : "64 B payload"}` : ""}
                 {data.promisc ? " · promiscuous" : ""}
               </span>
@@ -387,6 +432,10 @@ function PacketCapture({ host }) {
                     {paused ? "Resume list" : "Pause list"}
                   </button>
                 )}
+                <label className="lan-auto pcap-names" title="Call addresses by name where one is known: your own names, nodes, containers, LAN scan names, and names seen in this capture. Nothing is looked up on the network.">
+                  <input type="checkbox" checked={Boolean(showNames)} onChange={(e) => setShowNames(e.target.checked)} />
+                  Names
+                </label>
                 <div className="pcap-display">
                   <input
                     className={`pcap-expr pcap-expr--display ${filter.trim() && display.error ? "pcap-expr--text" : ""}`}
@@ -433,8 +482,8 @@ function PacketCapture({ host }) {
                           >
                             <td className="net-mono net-dim pcap-r">{p.n}</td>
                             <td className="net-mono net-dim pcap-r">{(p.ts - started).toFixed(3)}</td>
-                            <td className="net-mono">{endpoint(p.src, p.sport)}</td>
-                            <td className="net-mono">{endpoint(p.dst, p.dport)}</td>
+                            <td className="net-mono"><Endpoint names={names} show={showNames} ip={p.src} port={p.sport} /></td>
+                            <td className="net-mono"><Endpoint names={names} show={showNames} ip={p.dst} port={p.dport} /></td>
                             <td><span className={`pcap-proto pcap-proto--${(p.app || p.proto).toLowerCase().replace(/[^a-z0-9]/g, "")}`}>{p.app ? p.app.toUpperCase() : p.proto}</span></td>
                             <td className="net-mono pcap-r">{p.len}</td>
                             <td className="pcap-info" title={p.info}>
@@ -446,7 +495,7 @@ function PacketCapture({ host }) {
                     </table>
                     {visible.length === 0 && <p className="lan-empty">{running ? "Waiting for packets…" : filter ? "Nothing in the list matches." : "No packets were captured."}</p>}
                   </div>
-                  {selected && <Detail packet={selected} started={started} onClose={() => setSelected(null)} onFollow={setStream} />}
+                  {selected && <Detail packet={selected} started={started} names={names} onClose={() => setSelected(null)} onFollow={setStream} />}
                 </div>
               )}
 
@@ -454,6 +503,8 @@ function PacketCapture({ host }) {
                 <div className="lan-scroll">
                   <Flows
                     flows={matchedFlows}
+                    names={names}
+                    showNames={showNames}
                     onFilter={(ip) => { setFilter(`host ${ip}`); setView("packets"); }}
                     onFollow={setStream}
                   />

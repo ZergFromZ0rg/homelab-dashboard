@@ -96,6 +96,9 @@ function SavedCaptures({ host, canSave, onOpen }) {
                   ) : (
                     <button type="button" className="pcap-linkish" onClick={() => open(c.id)} title="Open in the packet viewer">{c.name}</button>
                   )}
+                  {c.auto && (
+                    <span className="pcap-auto" title={`Taken automatically: ${c.reason || "an alert fired"}. Only the newest few are kept.`}>auto</span>
+                  )}
                 </td>
                 <td className="net-mono net-dim">{c.host}</td>
                 <td className="net-dim" title={new Date(c.saved_at * 1000).toLocaleString()}>{formatWhen(c.saved_at)}</td>

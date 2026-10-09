@@ -13,12 +13,13 @@ import requests
 from fastapi import APIRouter, Header
 from fastapi.responses import JSONResponse, Response
 
-from backend import auth, capture_store
+from backend import auth, autocapture, capture_store
 from backend.docker import agent_headers
 from backend.hosts import agent_for as _agent
 
 router = APIRouter(prefix="/api/capture/{host}")
 saved_router = APIRouter(prefix="/api/captures")
+auto_router = APIRouter(prefix="/api/autocapture")
 
 TIMEOUT = 40  # starting reads the host's interfaces through a helper container
 PCAP_TIMEOUT = 30
@@ -165,3 +166,31 @@ def saved_rename(capture_id: str, body: dict, x_register_token: str | None = Hea
 def saved_delete(capture_id: str, x_register_token: str | None = Header(default=None)):
     auth.check_token(x_register_token)
     return {"deleted": True} if capture_store.delete(capture_id) else _missing()
+
+
+# --- automatic capture when an alert fires ----------------------------------------------
+
+@auto_router.get("")
+def auto_settings():
+    return autocapture.settings()
+
+
+@auto_router.put("")
+def auto_update(body: dict, x_register_token: str | None = Header(default=None)):
+    auth.check_token(x_register_token)
+    try:
+        return autocapture.update(body)
+    except ValueError as error:
+        return JSONResponse(status_code=400, content={"error": str(error)})
+
+
+@auto_router.post("/{host}/test")
+def auto_test(host: str, x_register_token: str | None = Header(default=None)):
+    """Take one automatic capture now, on this host, to see it work."""
+    auth.check_token(x_register_token)
+    try:
+        return autocapture.run_now(host)
+    except autocapture.Refused as why:
+        return JSONResponse(status_code=409, content={"error": str(why)})
+    except requests.RequestException as error:
+        return _fail(error)

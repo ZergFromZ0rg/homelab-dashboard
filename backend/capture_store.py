@@ -14,6 +14,11 @@ live one was: opening or downloading it is gated and audited.
 
 Bounded: a few dozen captures and a total size cap. When full, saving is
 refused with a message rather than quietly deleting an older one.
+
+The exception is captures the dashboard took by itself when an alert fired
+(``auto``): nobody chose to keep those, so only the newest few are kept and the
+older ones are dropped to make room. They never count against the number you
+may save by hand, and they are never deleted in place of one you saved.
 """
 
 from __future__ import annotations
@@ -29,7 +34,8 @@ from pathlib import Path
 from backend.env import env_str
 
 DIR = Path(env_str("CAPTURES_DIR", "/data/captures"))
-MAX_CAPTURES = 30
+MAX_CAPTURES = 30  # saved by hand
+MAX_AUTO = 30  # a hard stop on automatic ones, whatever the setting says
 MAX_TOTAL_BYTES = 200 * 1024 * 1024
 MAX_NAME = 80
 
@@ -100,14 +106,15 @@ def build_pcap(packets: list[dict]) -> bytes:
     return bytes(out)
 
 
-def save(host: str, name: str | None, snapshot: dict) -> dict:
+def save(host: str, name: str | None, snapshot: dict, auto: dict | None = None) -> dict:
     packets = snapshot.get("packets") or []
     if not packets:
         raise StoreError("there are no packets to save")
     body = json.dumps(snapshot, separators=(",", ":")).encode()
     with _lock:
         DIR.mkdir(parents=True, exist_ok=True)
-        if len(list_all()) >= MAX_CAPTURES:
+        by_hand = [m for m in list_all() if not m.get("auto")]
+        if not auto and len(by_hand) >= MAX_CAPTURES:
             raise StoreError(f"{MAX_CAPTURES} captures are saved already — delete one first")
         if _total() + len(body) > MAX_TOTAL_BYTES:
             raise StoreError("saved captures are using their full space — delete one first")
@@ -131,9 +138,23 @@ def save(host: str, name: str | None, snapshot: dict) -> dict:
             "drops": snapshot.get("drops", 0),
             "size": len(body),
         }
+        if auto:
+            meta["auto"] = True
+            meta["reason"] = str(auto.get("reason") or "")[:200]
+            meta["trigger"] = str(auto.get("trigger") or "")[:80]
         _write(_path(capture_id, ".json"), body)
         _write(_path(capture_id, ".meta.json"), json.dumps(meta).encode())
     return meta
+
+
+def prune_auto(keep: int) -> int:
+    """Drop the oldest automatic captures beyond ``keep``. Returns how many."""
+    keep = max(0, min(keep, MAX_AUTO))
+    automatic = [m for m in list_all() if m.get("auto")]  # newest first
+    dropped = 0
+    for meta in automatic[keep:]:
+        dropped += delete(meta["id"])
+    return dropped
 
 
 def read(capture_id: str) -> dict | None:

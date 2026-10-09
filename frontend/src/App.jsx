@@ -8,6 +8,7 @@ import FilesTab from "./components/FilesTab";
 import TerminalTab from "./components/TerminalTab";
 import SimpleHome from "./components/SimpleHome";
 import { requestFocus, requestSection } from "./components/focusRequest";
+import { onNavigateRequest } from "./components/captureRequest";
 import SiteSettings from "./components/SiteSettings";
 import SettingsDrawer from "./components/SettingsDrawer";
 import TerminalDock from "./components/TerminalDock";
@@ -481,6 +482,12 @@ function App() {
     if (target === "files" && host) setFilesTarget({ host, path, n: Date.now() });
   };
   const openSettingsFor = useCallback((host, container) => setSettingsFor({ host, container }), []);
+  // A component far from the tab bar can ask to go to a tab (a container row's "capture its traffic").
+  const goTo = useRef(navigate);
+  useEffect(() => {
+    goTo.current = navigate;
+  });
+  useEffect(() => onNavigateRequest((target) => goTo.current(target)), []);
 
   return (
     <SettingsProvider>

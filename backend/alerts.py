@@ -14,6 +14,9 @@ Rules (all thresholds are env-tunable):
 - a host's configuration backup is failing or has gone stale
 - a service check (HTTP / TCP / DNS probe) is down
 - a scheduler-managed deployment goes ``failed`` or ``node_offline``
+- a host's network watch (opt-in) saw something wrong on the LAN: the gateway's
+  address changed hands, an address is claimed by two devices, or a second
+  DHCP server is answering
 
 ``AlertMonitor.poll`` is the pure state machine — feed it successive fleet
 snapshots and it returns only the *transitions* (fired / resolved). The
@@ -85,11 +88,12 @@ class AlertMonitor:
         containers: dict[str, list] | None = None,
         checks: list[dict] | None = None,
         backups: list[dict] | None = None,
+        findings: list[dict] | None = None,
         *,
         now: float | None = None,
     ) -> list[dict]:
         now = now or time.time()
-        raw = evaluate(machines, deployments, containers, checks, backups, now=now)
+        raw = evaluate(machines, deployments, containers, checks, backups, findings, now=now)
 
         # Debounce resource alerts: they only count as "breaching" once
         # they've been seen ``breach_cycles`` checks running.
@@ -482,6 +486,7 @@ def evaluate(
     containers: dict[str, list] | None = None,
     checks: list[dict] | None = None,
     backups: list[dict] | None = None,
+    findings: list[dict] | None = None,
     *,
     now: float | None = None,
 ) -> dict[str, dict]:
@@ -518,6 +523,18 @@ def evaluate(
 
         if state in ("failing", "stale", "corrupt"):
             out[f"backup:{job['id']}"] = _backup_alert(job, state, now)
+
+    # What a host's network watch has seen lately. Each finding stays raised
+    # while it keeps being sighted and resolves after an hour of quiet, so a
+    # one-off is an alert that clears itself rather than one that sticks.
+    for finding in findings or []:
+        out[f"netwatch:{finding['host']}:{finding['id']}"] = {
+            "title": f"{finding['host']}: {finding['title']}",
+            "message": finding["message"],
+            "host": finding["host"],
+            "severity": "bad" if finding.get("severity") == "bad" else "warn",
+            "hint": finding.get("hint"),
+        }
 
     for record in deployments:
         status = record.get("status")

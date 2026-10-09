@@ -44,6 +44,7 @@ const DEMO_FLOWS = [
   ["ICMP", "192.168.1.10", 0, "192.168.1.1", 0, null, "echo request"],
   ["ARP", "192.168.1.42", 0, "192.168.1.1", 0, null, "who has 192.168.1.1? tell 192.168.1.42"],
 ];
+const DEMO_DNS = { "140.82.121.4": "github.com", "104.18.32.7": "api.github.com" };
 let demo = null;
 let demoSaved = [];
 
@@ -88,6 +89,7 @@ function demoSnapshot(after = 0) {
   return {
     state: demo.stopped ? "stopped" : done ? "done" : "capturing",
     iface: demo.iface, filter: demo.filter, payload: demo.payload, promisc: demo.promisc, duration: demo.duration,
+    container: demo.container, names: DEMO_DNS,
     started_at: demo.startedAt / 1000, finished_at: done ? demo.startedAt / 1000 + seconds : null,
     error: null, totals: { pkts: count, bytes }, protocols, flows, series, packets, last: count, unlisted: 0,
     drops: count > 200 ? 3 : 0, issues,
@@ -100,7 +102,17 @@ export function fetchCapture(host, after = 0) {
 }
 
 export function fetchCaptureInterfaces(host) {
-  if (DEMO) return Promise.resolve({ default: "eth0", interfaces: ["eth0", "docker0", "tailscale0"] });
+  if (DEMO) {
+    return Promise.resolve({
+      default: "eth0", interfaces: ["eth0", "docker0", "tailscale0"], host: "bigboy",
+      containers: [
+        { name: "jellyfin", ips: ["172.18.0.2"] },
+        { name: "nextcloud", ips: ["172.18.0.3"] },
+        { name: "qbittorrent", ips: ["172.18.0.4"] },
+      ],
+      names: { "172.18.0.2": "jellyfin", "172.18.0.4": "qbittorrent", "192.168.1.10": "bigboy" },
+    });
+  }
   return fetch(url(host, "/interfaces")).then(jsonOrThrow);
 }
 
@@ -109,7 +121,7 @@ export function startCapture(host, options) {
     demo = {
       startedAt: Date.now(), duration: options.duration, iface: options.iface || "eth0",
       filter: options.filter || {}, payload: options.payload || "none", promisc: Boolean(options.promisc),
-      stopped: false,
+      container: options.container || null, stopped: false,
     };
     return Promise.resolve(demoSnapshot());
   }
@@ -140,7 +152,7 @@ export function saveCapture(host, name) {
     const id = Math.random().toString(16).slice(2, 14).padEnd(12, "0");
     const meta = {
       id, name: name || `${host} demo`, host, saved_at: Date.now() / 1000, iface: snap.iface, filter: snap.filter,
-      payload: snap.payload, promisc: snap.promisc, packets: snap.packets.length, total_packets: snap.totals.pkts,
+      payload: snap.payload, promisc: snap.promisc, container: snap.container, packets: snap.packets.length, total_packets: snap.totals.pkts,
       bytes: snap.totals.bytes, drops: snap.drops, size: snap.packets.length * 400,
     };
     demoSaved = [{ meta, capture: snap }, ...demoSaved];

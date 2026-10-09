@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 
-from backend import audit_log, nightly_updates, notify
+from backend import audit_log, autocapture, netwatch_api, nightly_updates, notify
 import time
 
 import requests
@@ -32,6 +32,7 @@ from backend.docker import (
 )
 from backend import activity, container_history, live_history
 from backend import volume_backups
+from backend.hosts import MAIN_HOST_OVERRIDE, detect_main_host
 from backend.log import scheduler as sched_log, system as system_log
 from backend.models import (
     DeploymentRecord,
@@ -730,11 +731,16 @@ async def _alert_loop() -> None:
         try:
             _, machines, containers, _, _ = await asyncio.to_thread(_build_fleet)
             dumps = [d.model_dump() for d in deployments.all()]
+            check_summaries = checks.service.summaries()
+            findings = await asyncio.to_thread(netwatch_api.refresh)
             events = alert_monitor.poll(
-                machines, dumps, containers, checks.service.summaries(),
-                volume_backups.store.all(),
+                machines, dumps, containers, check_summaries,
+                volume_backups.store.all(), findings,
             )
             cycles += 1
+            main_host = MAIN_HOST_OVERRIDE or detect_main_host(
+                {host: {"containers": items} for host, items in containers.items()}
+            )
 
             for event in events:
                 level = sched_log.warning if event["status"] == "firing" else sched_log.info
@@ -743,6 +749,8 @@ async def _alert_loop() -> None:
                 if alerts.enabled():
                     await asyncio.to_thread(alerts.post, event)
                 await asyncio.to_thread(notify.alert, event)
+                # A check that just went down: capture the failing traffic while it is still failing.
+                await asyncio.to_thread(autocapture.consider, event, check_summaries, main_host)
 
             if cycles >= alerts.BREACH_CYCLES:
                 alert_history.sweep(alert_monitor.firing_keys())

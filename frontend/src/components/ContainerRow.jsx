@@ -10,6 +10,7 @@ import RebuildButton, { RebuildNote } from "./RebuildButton";
 import { useRebuild } from "./useRebuild";
 import { useSettings } from "./settings";
 import { hostColor } from "./hostColor";
+import { requestContainerCapture } from "./captureRequest";
 import { useTerminal } from "./terminalContext";
 import { useUpdates } from "./updatesContext";
 
@@ -287,6 +288,13 @@ function ContainerRow({
               onClick={() =>
                 terminal.open({ host, target: "logs", container: container.id, name: container.name })
               }
+            />
+          )}
+          {running && (
+            <IconButton
+              icon="packets"
+              label="Capture its network traffic (Network → Packets)"
+              onClick={() => requestContainerCapture(host, container.name)}
             />
           )}
           <IconButton

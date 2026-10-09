@@ -1,5 +1,17 @@
 import { BAD, DIRECTION, ISSUE_NAMES, ISSUE_WORDS, endpoint, flowKey } from "./captureUi";
+import { label } from "./captureNames";
 import { formatBytes } from "./format";
+
+// An address as the reader should see it: its name where one is known (with the
+// address and where the name came from on hover), the plain address where not.
+export function Endpoint({ names, ip, port, show }) {
+  const found = show ? names.get((ip || "").toLowerCase()) : null;
+  return (
+    <span title={found ? `${found.name} · ${endpoint(ip, port)} · ${found.kind}` : undefined}>
+      {label(names, ip, port, { names: show })}
+    </span>
+  );
+}
 
 // The read-only pieces of the packet viewer: the throughput chart, protocol and
 // conversation tables, and one packet's detail and hex. State lives in
@@ -50,7 +62,7 @@ export function Protocols({ protocols, issues = {}, onShow }) {
   );
 }
 
-export function Flows({ flows, onFilter, onFollow }) {
+export function Flows({ flows, names, showNames, onFilter, onFollow }) {
   if (!flows.length) return <p className="lan-empty">No conversations yet.</p>;
   return (
     <table className="net-table lan-table pcap-table">
@@ -76,7 +88,10 @@ export function Flows({ flows, onFilter, onFollow }) {
             title={`Show packets involving ${f.a}`}
           >
             <td><span className={`pcap-proto pcap-proto--${f.proto.toLowerCase()}`}>{f.proto}</span></td>
-            <td className="net-mono">{endpoint(f.a, f.a_port)} <span className="net-dim">↔</span> {endpoint(f.b, f.b_port)}</td>
+            <td className="net-mono">
+              <Endpoint names={names} show={showNames} ip={f.a} port={f.a_port} /> <span className="net-dim">↔</span>{" "}
+              <Endpoint names={names} show={showNames} ip={f.b} port={f.b_port} />
+            </td>
             <td className="pcap-name" title={f.name || undefined}>{f.name || <span className="net-dim">—</span>}</td>
             <td className="net-mono pcap-r">{f.pkts.toLocaleString()}</td>
             <td className="net-mono pcap-r">{formatBytes(f.bytes)}</td>
@@ -115,12 +130,18 @@ export function HexDump({ hex }) {
   );
 }
 
-export function Detail({ packet, started, onClose, onFollow }) {
+export function Detail({ packet, started, names, onClose, onFollow }) {
+  // "jellyfin (172.18.0.2:8096) · mac" — the name and the address, both, here.
+  const who = (ip, port, mac) => {
+    const found = names.get((ip || "").toLowerCase());
+    const address = endpoint(ip, port);
+    return `${found ? `${found.name} (${address})` : address}${mac ? `  ·  ${mac}` : ""}`;
+  };
   const rows = [
     ["Time", `+${(packet.ts - started).toFixed(6)} s`],
     ["Interface", `${packet.iface} (${DIRECTION[packet.dir] || "arriving"})`],
-    ["From", `${endpoint(packet.src, packet.sport)}${packet.src_mac ? `  ·  ${packet.src_mac}` : ""}`],
-    ["To", `${endpoint(packet.dst, packet.dport)}${packet.dst_mac ? `  ·  ${packet.dst_mac}` : ""}`],
+    ["From", who(packet.src, packet.sport, packet.src_mac)],
+    ["To", who(packet.dst, packet.dport, packet.dst_mac)],
     ["Protocol", `${packet.proto}${packet.svc ? ` · ${packet.svc}` : ""}${packet.ip ? ` · IPv${packet.ip}` : ""}`],
     ["Length", `${packet.len} bytes on the wire${packet.ttl != null ? `, TTL ${packet.ttl}` : ""}`],
     ...(packet.seq != null ? [["TCP", `[${packet.flags}] seq ${packet.seq} ack ${packet.ack} win ${packet.win}${packet.plen ? ` · ${packet.plen} bytes of data` : ""}`]] : []),
