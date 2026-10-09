@@ -34,3 +34,31 @@ def _isolated_history_settings(tmp_path, monkeypatch):
     from backend import history_settings
 
     monkeypatch.setattr(history_settings, "FILE", tmp_path / "history.json")
+
+
+@pytest.fixture(autouse=True)
+def _isolated_capture_features(tmp_path, monkeypatch):
+    """Saved captures and auto-capture settings on temp paths, and the in-memory
+    registries the capture features keep emptied after *every* test.
+
+    These are module-level, so one test's leftovers used to surface as alerts in
+    unrelated Overview tests — far from the test that caused it. Doing it here, for
+    all tests, means a test can't leak them whether or not it remembers to clean up.
+    Only modules already imported are touched; nothing is imported for the purpose.
+    """
+    import sys
+
+    store = sys.modules.get("backend.capture_store")
+    auto = sys.modules.get("backend.autocapture")
+    watch = sys.modules.get("backend.netwatch_api")
+    if store:
+        monkeypatch.setattr(store, "DIR", tmp_path / "captures")
+    if auto:
+        monkeypatch.setattr(auto, "FILE", tmp_path / "autocapture.json")
+    yield
+    if watch:
+        watch._latest.clear()
+    if auto:
+        auto._busy.clear()
+        auto._recent.clear()
+        auto._last_for_check.clear()

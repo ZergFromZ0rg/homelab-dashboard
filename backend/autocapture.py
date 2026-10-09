@@ -18,9 +18,12 @@ What it can and cannot do, so nobody expects more:
 - It is **rate-limited**: a few per host per hour and one per check per ten
   minutes, one at a time per host, and it steps aside for a capture you started.
 - It keeps only the newest few; older automatic captures are dropped, yours never.
-- It **ignores the first couple of minutes after the dashboard starts**: the alert
-  monitor begins with nothing remembered, so every check that is *already* down
-  "fires" again then. That is a restart, not a failure beginning.
+- It **ignores an outage that began before the dashboard started**. The alert
+  monitor begins with nothing remembered, so every check that was *already* down
+  "fires" again after a restart; that is a restart rediscovering it, not a failure
+  beginning. The test is the check's own persisted ``down_since``, so a check that
+  goes down *after* the restart is captured even a minute in. (Packet-loss alerts
+  have no such record, so those are ignored for ``GRACE`` seconds after a start.)
 
 Off unless switched on (Network → Watch).
 """
@@ -39,7 +42,7 @@ import requests
 
 from backend import alerts, audit_log, capture_store
 from backend.docker import agent_headers
-from backend.env import env_str
+from backend.env import env_float, env_str
 from backend.hosts import agent_for
 from backend.jsonstore import write_json_atomic
 from backend.log import system as log
@@ -48,7 +51,14 @@ FILE = Path(env_str("AUTOCAPTURE_FILE", "/data/autocapture.json"))
 DEFAULTS = {"enabled": False, "duration": 20, "per_host_per_hour": 4, "keep": 10}
 LIMITS = {"duration": (5, 120), "per_host_per_hour": (1, 20), "keep": (1, capture_store.MAX_AUTO)}
 CHECK_COOLDOWN = 600  # seconds before the same check may trigger another
-GRACE = max(120.0, 2 * alerts.INTERVAL_SECONDS)  # after a start, alerts that "fire" are just being rediscovered
+
+
+def grace_seconds() -> float:
+    """Packet-loss alerts carry no outage start to compare, so after a start they
+    are ignored for this long instead (the monitor rediscovers them within a cycle
+    or two). Read when needed, so it can be set by the environment."""
+    return env_float("AUTOCAPTURE_GRACE", max(120.0, 2 * alerts.INTERVAL_SECONDS))
+
 TIMEOUT = 40
 SETTLE = 10  # seconds past the duration to wait for the capture to finish
 
@@ -194,12 +204,21 @@ def _consider(event: dict, checks: list[dict], main_host: str | None, now: float
     config = settings()
     if not config["enabled"]:
         return False
-    if now - _started_at < GRACE:
-        return False  # a restart rediscovering checks that were already down
     check_id = key.split(":")[1]
     check = next((c for c in checks if c.get("id") == check_id), None)
     if check is None:
         return False
+    if key.endswith(":loss"):
+        if now - _started_at < grace_seconds():
+            log.info("auto-capture ignoring %s: the dashboard started %ds ago, so this loss alert is a restart rediscovering it",
+                     check.get("name"), now - _started_at)
+            return False
+    else:
+        since = check.get("down_since")  # persisted with the check's history, so a restart keeps it
+        if since is not None and since < _started_at:
+            log.info("auto-capture ignoring %s: that outage began %ds before the dashboard started, so this alert is a restart rediscovering it",
+                     check.get("name"), _started_at - since)
+            return False
     try:
         host = host_for(check, main_host)
         if not host:

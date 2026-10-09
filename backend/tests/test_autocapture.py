@@ -342,14 +342,53 @@ def test_a_port_out_of_range_narrows_by_address_only_and_a_broken_url_is_refused
         autocapture.expression_for(check("http", "http://[::1"))
 
 
-def test_alerts_that_fire_just_because_the_dashboard_restarted_are_not_failures_beginning(monkeypatch):
+@pytest.fixture
+def restarted(monkeypatch):
+    """A dashboard that started at t=10000, with auto-capture on and the capture stubbed."""
     autocapture.update({"enabled": True})
     started = []
     monkeypatch.setattr(autocapture, "_run", lambda *a: started.append(a))
     monkeypatch.setattr(autocapture, "_started_at", 10_000.0)
-    assert autocapture.consider(event(), [check()], "box", now=10_000.0 + autocapture.GRACE - 1) is False  # still rediscovering
-    assert autocapture.consider(event(), [check()], "box", now=10_000.0 + autocapture.GRACE + 1) is True  # a real new failure
-    assert autocapture.GRACE >= 120
+    return started
+
+
+def test_an_outage_that_began_before_the_restart_is_a_restart_rediscovering_it(restarted):
+    old = {**check(), "down_since": 10_000.0 - 3600}  # down for an hour, then the dashboard restarted
+    assert autocapture.consider(event(), [old], "box", now=10_000.0 + 61) is False
+    assert autocapture.consider(event(), [old], "box", now=10_000.0 + 86_400) is False  # and that stays true: it is still that outage
+    assert restarted == []
+
+
+def test_an_outage_that_begins_after_the_restart_is_captured_even_a_minute_in(restarted):
+    fresh = {**check(), "down_since": 10_000.0 + 40}  # went down 40 s after the dashboard started
+    assert autocapture.consider(event(), [fresh], "box", now=10_000.0 + 70) is True
+    assert len(restarted) == 1  # no blanket "just started" window: it is judged by when the outage began
+
+
+def test_a_check_with_no_recorded_outage_start_is_not_ignored(restarted):
+    assert autocapture.consider(event(), [{**check(), "down_since": None}], "box", now=10_000.0 + 5) is True
+
+
+def test_the_ignored_outage_is_logged_with_how_long_before_the_restart_it_began(restarted, caplog):
+    old = {**check(), "down_since": 10_000.0 - 90}
+    with caplog.at_level("INFO"):
+        autocapture.consider(event(), [old], "box", now=10_000.0 + 61)
+    assert "began 90s before the dashboard started" in caplog.text
+
+
+def test_loss_alerts_have_no_outage_so_they_are_ignored_for_a_while_after_a_start(restarted, caplog):
+    lossy = check("ping", "192.168.1.1")
+    with caplog.at_level("INFO"):
+        assert autocapture.consider(event("check:c1:loss"), [lossy], "box", now=10_000.0 + autocapture.grace_seconds() - 1) is False
+    assert "loss alert is a restart rediscovering it" in caplog.text
+    assert autocapture.consider(event("check:c1:loss"), [lossy], "box", now=10_000.0 + autocapture.grace_seconds() + 1) is True
+
+
+def test_the_loss_window_defaults_to_two_alert_cycles_and_can_be_set_by_the_environment(monkeypatch):
+    monkeypatch.delenv("AUTOCAPTURE_GRACE", raising=False)
+    assert autocapture.grace_seconds() >= 120
+    monkeypatch.setenv("AUTOCAPTURE_GRACE", "7")
+    assert autocapture.grace_seconds() == 7.0
 
 
 @pytest.mark.parametrize("failure,fragment", [

@@ -1363,3 +1363,41 @@ def test_summary_averages_loss_and_jitter_over_the_raw_window(tmp_path):
     assert summary["loss_pct_3h"] == 20.0 and summary["jitter_ms_3h"] == 0.4 and summary["count"] == 5
     # past the window it ages out
     assert service.summary(spec, t + 4 * 3600)["loss_pct_3h"] is None
+
+
+# --- when an outage began (what auto-capture compares to the dashboard's own start) --------
+
+
+def test_an_outage_knows_when_it_began_and_that_survives_a_restart(tmp_path):
+    first = make_service(tmp_path)
+    spec = add(first)
+    began = time.time() - 300
+    first.record(spec["id"], Result(False, None, "refused"), began)
+    first.record(spec["id"], Result(False, None, "refused"), began + 60)  # the second failure is what makes it an outage
+    assert first.summary(spec, time.time())["down_since"] == pytest.approx(began)
+    first.persist()
+
+    second = make_service(tmp_path)  # the dashboard restarted while it was still down
+    restored = second.summary(spec, time.time())
+    assert restored["status"] == "down"
+    assert restored["down_since"] == pytest.approx(began)  # not "now": the outage didn't start at the restart
+
+
+def test_a_check_that_is_up_has_no_outage_start_and_neither_does_one_that_recovered(tmp_path):
+    service = make_service(tmp_path)
+    spec = add(service)
+    now = time.time()
+    service.record(spec["id"], Result(True, 10.0, "ok"), now - 200)
+    assert service.summary(spec, now)["down_since"] is None
+    service.record(spec["id"], Result(False, None, "refused"), now - 150)
+    service.record(spec["id"], Result(False, None, "refused"), now - 100)
+    assert service.summary(spec, now)["down_since"] == pytest.approx(now - 150)
+    service.record(spec["id"], Result(True, 10.0, "ok"), now - 50)
+    assert service.summary(spec, now)["down_since"] is None
+
+
+def test_one_failed_probe_is_not_yet_an_outage(tmp_path):
+    service = make_service(tmp_path)
+    spec = add(service)
+    service.record(spec["id"], Result(False, None, "timeout"), time.time() - 10)
+    assert service.summary(spec, time.time())["down_since"] is None

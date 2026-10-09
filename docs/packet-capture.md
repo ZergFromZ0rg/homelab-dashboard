@@ -179,9 +179,12 @@ under Saved captures, marked **auto**.
 - At most 4 per host per hour, one per check per 10 minutes, one at a time per host;
   it steps aside for a capture you started, and an attempt that never recorded
   anything is not counted.
-- It ignores the first couple of minutes after the dashboard starts: the alert
+- It ignores an outage that **began before the dashboard started**: the alert
   monitor begins with nothing remembered, so checks that were *already* down "fire"
-  again then.
+  again after a restart. The test is the check's own persisted `down_since`, so a
+  check that goes down *after* a restart is captured even a minute in. Packet-loss
+  alerts have no such record and are ignored for `AUTOCAPTURE_GRACE` seconds after
+  a start (default: two alert cycles, at least 120).
 - Only the newest few (default 10) are kept; older automatic captures are dropped,
   yours never are. *Try it on <host>* takes one now.
 
@@ -215,6 +218,13 @@ docker run --rm --cap-add NET_RAW -v "$PWD":/src -w /src homelab-agent \
 They found a real bug the first time they ran: the loopback interface delivers each
 packet twice, which doubled every count and made the second copy of every data
 packet read as a retransmission.
+
+The restart rule of auto-capture is proven on a real server process by
+`scripts/verify_autocapture_live.py`: it starts a throwaway container of the real
+dashboard image (its own empty data volume, so no login and no real data, plus a
+fake agent) and checks both cases — an outage that predates the restart is ignored,
+one that begins after it is captured. Run it on the Docker host that builds the
+dashboard: `python3 scripts/verify_autocapture_live.py`.
 
 ## For maintainers
 
