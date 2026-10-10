@@ -89,11 +89,12 @@ class AlertMonitor:
         checks: list[dict] | None = None,
         backups: list[dict] | None = None,
         findings: list[dict] | None = None,
+        network: dict[str, dict] | None = None,
         *,
         now: float | None = None,
     ) -> list[dict]:
         now = now or time.time()
-        raw = evaluate(machines, deployments, containers, checks, backups, findings, now=now)
+        raw = evaluate(machines, deployments, containers, checks, backups, findings, network, now=now)
 
         # Debounce resource alerts: they only count as "breaching" once
         # they've been seen ``breach_cycles`` checks running.
@@ -487,6 +488,7 @@ def evaluate(
     checks: list[dict] | None = None,
     backups: list[dict] | None = None,
     findings: list[dict] | None = None,
+    network: dict[str, dict] | None = None,
     *,
     now: float | None = None,
 ) -> dict[str, dict]:
@@ -541,6 +543,9 @@ def evaluate(
             "severity": "bad" if finding.get("severity") == "bad" else "warn",
             "hint": finding.get("hint"),
         }
+
+    # Pi-hole and the devices on the network, already worked out as alerts.
+    out.update(network or {})
 
     for record in deployments:
         status = record.get("status")

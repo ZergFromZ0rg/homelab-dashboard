@@ -40,7 +40,7 @@ MAX_BODY = 32 * 1024
 # (file contents, passwords, compose text) is never written.
 TARGET_KEYS = ("path", "container", "containers", "name", "host", "hosts", "app",
                "target", "service", "project", "network", "id", "overwrite", "pull", "iface",
-               "payload", "promisc")
+               "payload", "promisc", "domain", "group", "minutes", "enabled")
 
 # Reads worth a line: they hand over file contents, logs or settings.
 READS = [
@@ -98,6 +98,11 @@ _LABELS = [
     (r"^/api/autocapture/[^/]+/test$", lambda m: "automatic capture tried"),
     (r"^/api/autocapture$", lambda m: "automatic capture settings changed"),
     (r"^/api/netwatch/[^/]+$", lambda m: "network watch switched"),
+    (r"^/api/pihole/blocking$", lambda m: "Pi-hole blocking changed"),
+    (r"^/api/pihole/allow", lambda m: "Pi-hole domain allow list changed"),
+    (r"^/api/pihole/devices/[^/]+/group$", lambda m: "device group changed"),
+    (r"^/api/pihole/devices/[^/]+/known$", lambda m: "device marked known"),
+    (r"^/api/pihole/devices/[^/]+$", lambda m: "device labelled"),
     (r"^/api/captures/[^/]+/pcap$", lambda m: "saved capture downloaded"),
     (r"^/api/captures/[^/]+$", lambda m: "saved capture opened"),
     (r"^/api/capture/[^/]+$", lambda m: "packet capture"),

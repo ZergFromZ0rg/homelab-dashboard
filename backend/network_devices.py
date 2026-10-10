@@ -116,6 +116,7 @@ def merge(inputs: dict, names: dict[str, str], meta: dict[str, dict], now: float
             "first_seen": device.get("first_seen"), "last_seen": last_query,
             "queries_24h": total, "blocked_24h": blocked_n, "block_rate": rate,
             "groups": [g for g in group_names if g],
+            "group_ids": list((client or {}).get("groups") or []),
             "ghost": ghost,
         })
     out.sort(key=lambda r: (r["kind"] != "server", r["name"].lower()))

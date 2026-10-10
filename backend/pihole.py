@@ -1,10 +1,13 @@
-"""Read-only Pi-hole collector.
+"""Pi-hole collector, plus the few changes the dashboard can make to it.
 
 Logs in once with an app password, reuses the session id until it expires
 (Pi-hole caps concurrent sessions, so never one login per request), and
 caches the last good answers. The browser and the agent read the cache;
 neither talks to Pi-hole. A failed poll keeps the previous data and flags it
 stale, so a collector problem is not mistaken for a network problem.
+
+Changes are a short list, each one a button somebody clicks: pause or resume
+blocking, move a device between groups, allow or un-allow a domain.
 
 Configured by ``PIHOLE_URL`` and ``PIHOLE_APP_PASSWORD`` (server-side only).
 """
@@ -28,7 +31,21 @@ STALE_AFTER = 3 * FAST_SECONDS
 
 
 class PiholeError(Exception):
-    pass
+    """``status`` is Pi-hole's HTTP status when it answered, else None."""
+
+    def __init__(self, message: str, status: int | None = None):
+        super().__init__(message)
+        self.status = status
+
+
+# Query statuses that mean "Pi-hole refused to answer".
+BLOCKED = {
+    "GRAVITY", "REGEX", "DENYLIST", "GRAVITY_CNAME", "REGEX_CNAME", "DENYLIST_CNAME",
+    "EXTERNAL_BLOCKED_IP", "EXTERNAL_BLOCKED_NULL", "EXTERNAL_BLOCKED_NXRA",
+}
+DETAIL_QUERIES = 1000  # how much of the query log one device's detail reads
+DETAIL_TTL = 20.0
+CLIENT_HISTORY_TTL = 120.0
 
 
 class Pihole:
@@ -37,13 +54,18 @@ class Pihole:
         self.password = password or env_str("PIHOLE_APP_PASSWORD")
         self._sid: str | None = None
         self._sid_until = 0.0
-        self._lock = threading.Lock()
+        self._lock = threading.Lock()  # the cached state below
+        self._io = threading.Lock()  # one request on the shared session at a time
         self._data: dict = {}
         self._devices: list[dict] = []
         self._extras: dict = {}  # clients (comments, groups), static leases, per-client counts
         self._devices_at = 0.0
         self._ok_at = 0.0
         self._error: str | None = None
+        self._fail_since: float | None = None  # start of the current outage, if any
+        self._history: list[tuple[float, int, int]] = []  # (bucket start, total, blocked), 10 min each
+        self._detail_cache: dict[str, tuple[float, dict]] = {}
+        self._client_history: tuple[float, dict] | None = None
 
     @property
     def configured(self) -> bool:
@@ -66,15 +88,15 @@ class Pihole:
         # Renew a minute early rather than ride the session to its last second.
         self._sid_until = time.time() + max(60, float(session.get("validity") or 300)) - 60
 
-    def get(self, path: str, **params) -> dict:
-        """One authenticated GET on the shared session; logs in again on 401."""
-        with self._lock:
+    def request(self, method: str, path: str, params: dict | None = None, body: dict | None = None) -> dict:
+        """One authenticated request on the shared session; logs in again on 401."""
+        with self._io:
             for attempt in (0, 1):
                 if not self._sid or time.time() >= self._sid_until:
                     self._login()
                 try:
-                    response = requests.get(
-                        f"{self.url}{path}", params=params or None,
+                    response = requests.request(
+                        method, f"{self.url}{path}", params=params or None, json=body,
                         headers={"sid": self._sid}, timeout=TIMEOUT,
                     )
                 except requests.RequestException as error:
@@ -83,13 +105,18 @@ class Pihole:
                     self._sid = None
                     continue
                 if not response.ok:
-                    raise PiholeError(f"Pi-hole answered {response.status_code} for {path}")
+                    raise PiholeError(_reason(response, path), response.status_code)
+                if response.status_code == 204:
+                    return {}
                 try:
-                    body = response.json()
+                    parsed = response.json()
                 except ValueError as error:
                     raise PiholeError(f"Pi-hole sent something unreadable for {path}") from error
-                return body if isinstance(body, dict) else {}
+                return parsed if isinstance(parsed, dict) else {}
         raise PiholeError("Pi-hole kept refusing the session")
+
+    def get(self, path: str, **params) -> dict:
+        return self.request("GET", path, params)
 
     # --- polling ---------------------------------------------------------------
 
@@ -105,6 +132,7 @@ class Pihole:
                 if str(error) != self._error:
                     log.warning("pihole: %s", error)
                 self._error = str(error)
+                self._fail_since = self._fail_since or time.time()
             return
         queries = summary.get("queries") or {}
         data = {
@@ -137,11 +165,13 @@ class Pihole:
             self._data = data
             self._ok_at = time.time()
             self._error = None
+            self._fail_since = None
 
     def poll_devices(self) -> None:
         try:
             devices = self.get("/api/network/devices", max_devices=100).get("devices") or []
             extras = self._poll_extras()
+            history = self.get("/api/history").get("history") or []
         except PiholeError as error:
             with self._lock:
                 self._error = str(error)
@@ -162,6 +192,10 @@ class Pihole:
         with self._lock:
             self._devices = rows
             self._extras = extras
+            self._history = [
+                (h["timestamp"], h.get("total") or 0, h.get("blocked") or 0)
+                for h in history if isinstance(h, dict) and "timestamp" in h
+            ]
             self._devices_at = time.time()
 
     def _poll_extras(self) -> dict:
@@ -232,6 +266,111 @@ class Pihole:
                 "leases_total": len(self._data.get("leases") or []),
             }
 
+    def history(self) -> list[tuple[float, int, int]]:
+        with self._lock:
+            return list(self._history)
+
+    def down_for(self, now: float | None = None) -> float | None:
+        """Seconds Pi-hole has been unreachable, or None while it answers."""
+        with self._lock:
+            return None if self._fail_since is None else (now or time.time()) - self._fail_since
+
+    # --- one device, on demand -------------------------------------------------
+
+    def device_detail(self, ip: str) -> dict:
+        """What one address has been up to: its query rate through the day,
+        what it asked for most, what got blocked, and the latest queries.
+        Reads the query log, the heaviest endpoint, so only when a device is
+        opened, and cached for a few seconds."""
+        now = time.time()
+        with self._lock:
+            hit = self._detail_cache.get(ip)
+            if hit and now - hit[0] < DETAIL_TTL:
+                return hit[1]
+        queries = self.get("/api/queries", client_ip=ip, length=DETAIL_QUERIES).get("queries") or []
+        asked: dict[str, int] = {}
+        refused: dict[str, int] = {}
+        recent = []
+        for q in queries:
+            if not isinstance(q, dict) or not q.get("domain"):
+                continue
+            blocked = q.get("status") in BLOCKED
+            asked[q["domain"]] = asked.get(q["domain"], 0) + 1
+            if blocked:
+                refused[q["domain"]] = refused.get(q["domain"], 0) + 1
+            recent.append({
+                "time": q.get("time"), "domain": q["domain"], "type": q.get("type"),
+                "status": q.get("status"), "blocked": blocked,
+            })
+        recent.sort(key=lambda r: r["time"] or 0, reverse=True)
+
+        def top(counts: dict[str, int]) -> list[dict]:
+            return [{"domain": d, "count": c} for d, c in sorted(counts.items(), key=lambda kv: -kv[1])[:10]]
+
+        detail = {
+            "ip": ip,
+            "sample": len(recent),
+            "blocked_sample": sum(1 for r in recent if r["blocked"]),
+            "top_blocked": top(refused),
+            "top_domains": top(asked),
+            "recent": recent[:40],
+            "series": self._series(ip),
+        }
+        with self._lock:
+            self._detail_cache[ip] = (now, detail)
+            if len(self._detail_cache) > 50:
+                self._detail_cache.pop(next(iter(self._detail_cache)))
+        return detail
+
+    def _series(self, ip: str) -> list[dict]:
+        """Queries per 10 minutes for one address over the last day. Pi-hole
+        names its eight busiest addresses and lumps the rest as "others", so a
+        quiet device has no line of its own: an empty list, not a guess."""
+        now = time.time()
+        with self._lock:
+            cached = self._client_history
+        if not cached or now - cached[0] > CLIENT_HISTORY_TTL:
+            try:
+                cached = (now, self.get("/api/history/clients"))
+            except PiholeError:
+                cached = cached or (now, {})
+            with self._lock:
+                self._client_history = cached
+        rows = (cached[1].get("history") or [])
+        if not any(ip in (r.get("data") or {}) for r in rows[-3:]):
+            return []
+        return [{"t": r["timestamp"], "v": (r.get("data") or {}).get(ip, 0)} for r in rows if "timestamp" in r]
+
+    # --- changes ---------------------------------------------------------------
+
+    def set_blocking(self, enabled: bool, seconds: int | None = None) -> dict:
+        """Turn blocking on, or off — for ``seconds`` if given, else until turned back on."""
+        body = {"blocking": bool(enabled), "timer": int(seconds) if (seconds and not enabled) else None}
+        result = self.request("POST", "/api/dns/blocking", body=body)
+        self.poll_fast()
+        return result
+
+    def set_client_groups(self, mac: str, groups: list[int]) -> None:
+        """Put a device in these groups. A device Pi-hole has no client entry for
+        gets one; the comment you already gave it is kept."""
+        mac = mac.lower()
+        current = self.get("/api/clients").get("clients") or []
+        entry = next((c for c in current if (c.get("client") or "").lower() == mac), None)
+        if entry:
+            self.request("PUT", f"/api/clients/{entry['client']}", body={"comment": entry.get("comment") or "", "groups": groups})
+        else:
+            self.request("POST", "/api/clients", body={"client": mac.upper(), "comment": "", "groups": groups})
+        with self._lock:
+            self._devices_at = 0.0  # re-read clients on the next refresh
+
+    def allow_domain(self, domain: str, comment: str = "") -> None:
+        self.request("POST", "/api/domains/allow/exact", body={
+            "domain": domain, "comment": comment or "allowed from the dashboard", "groups": [0], "enabled": True,
+        })
+
+    def unallow_domain(self, domain: str) -> None:
+        self.request("DELETE", f"/api/domains/allow/exact/{domain}")
+
     def devices(self) -> list[dict]:
         with self._lock:
             return list(self._devices)
@@ -245,6 +384,16 @@ class Pihole:
                 "extras": dict(self._extras),
                 "updated_at": self._devices_at or None,
             }
+
+
+def _reason(response, path: str) -> str:
+    """Pi-hole's own explanation when it gave one: {"error": {"message": ...}}."""
+    try:
+        error = response.json().get("error") or {}
+        message = error.get("message") if isinstance(error, dict) else None
+    except (ValueError, AttributeError):
+        message = None
+    return f"Pi-hole refused: {message}" if message else f"Pi-hole answered {response.status_code} for {path}"
 
 
 _PARTS = ("core", "web", "ftl", "docker")

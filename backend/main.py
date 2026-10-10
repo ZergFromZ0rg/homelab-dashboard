@@ -25,7 +25,7 @@ from backend import terminal
 from backend import files_api
 from backend import capture_api, netwatch_api
 from backend import lan_api
-from backend import pihole, pihole_api
+from backend import pihole, pihole_alerts, pihole_api
 from backend import compose_api
 from backend import updates_api
 from backend import git_updates_api
@@ -85,6 +85,9 @@ def _recommendation(key: str, host: str | None) -> str:
     if parts[0] == "deploy":
         return "Redeploy the failed workload, or open its logs (the lines icon on its row)."
 
+    if parts[0] == "network":
+        return ""  # these carry their own hint
+
     if parts[0] == "container":
         name = parts[2] if len(parts) > 2 else "the container"
         kind = parts[3] if len(parts) > 3 else ""
@@ -127,7 +130,7 @@ def _overview(
 
     for key, alert in alerts.evaluate(
         machines, deployment_dumps, containers, check_summaries,
-        volume_backups.store.all(), netwatch_api.latest(),
+        volume_backups.store.all(), netwatch_api.latest(), pihole_alerts.current(),
     ).items():
         severity = alerts.severity_of(key, alert)
         issues.append(

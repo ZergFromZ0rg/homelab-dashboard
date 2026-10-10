@@ -10326,3 +10326,144 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
 @media (max-width: 640px) {
   .dev-search { width: 100%; }
 }
+
+/* Pi-hole: pause control and device detail */
+.pihole-block {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.pihole-paused {
+  color: var(--warning);
+  font-size: var(--fs-sm, 0.85rem);
+  font-variant-numeric: tabular-nums;
+}
+
+.dev-layout {
+  display: block;
+  min-height: 0;
+}
+
+.dev-layout--open .dev-scroll {
+  max-height: 40vh;
+}
+
+.dev-row--new td:first-child {
+  box-shadow: inset 2px 0 0 var(--warning);
+}
+
+.dd {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.dd-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dd-facts {
+  font-size: var(--fs-xs);
+}
+
+.dd-section h4 {
+  margin: 0 0 4px;
+  font-size: var(--fs-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.dd-section p {
+  margin: 0;
+}
+
+.dd-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: var(--fs-sm, 0.85rem);
+}
+
+.dd-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dd-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-sm, 0.85rem);
+}
+
+.dd-recent {
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.dd-domain {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dd-blocked .dd-domain {
+  color: var(--warning);
+}
+
+.dd-allow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.dd-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dd-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (min-width: 1100px) {
+  .dev-layout--open {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    gap: 12px;
+    align-items: start;
+  }
+
+  .dev-layout--open .dev-scroll {
+    max-height: none;
+  }
+
+  .dev-layout--open .dd {
+    margin-top: 0;
+  }
+}

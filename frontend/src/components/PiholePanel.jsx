@@ -1,5 +1,6 @@
+import { useCallback, useEffect, useState } from "react";
 import { fetchPihole, piholeState } from "./piholeApi";
-import { usePolled } from "./usePolled";
+import BlockingControl from "./BlockingControl";
 import { useNow } from "./useNow";
 import { formatAge, formatDuration } from "./format";
 import Stat from "./Stat";
@@ -25,7 +26,7 @@ function Health({ snapshot, now }) {
     <div className="pihole-health">
       <div className="pihole-health-row">
         <span>Blocking</span>
-        <strong>{blocking?.enabled ? "On" : blocking?.state || "—"}</strong>
+        <strong>{blocking?.enabled ? "On" : blocking ? "Paused" : "—"}</strong>
       </div>
       <div className="pihole-health-row">
         <span>Uptime</span>
@@ -52,10 +53,26 @@ function Health({ snapshot, now }) {
 }
 
 function PiholePanel() {
-  const { data: snapshot, error, loading } = usePolled(fetchPihole, "pihole", POLL_MS);
-  const now = useNow(15000);
+  const [snapshot, setSnapshot] = useState(null);
+  const [error, setError] = useState("");
+  const now = useNow(1000);
 
-  if (loading) return <p className="lan-empty">Loading…</p>;
+  const load = useCallback(async () => {
+    try {
+      setSnapshot(await fetchPihole());
+      setError("");
+    } catch (e) {
+      setError(e.message);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+    const timer = setInterval(load, POLL_MS);
+    return () => clearInterval(timer);
+  }, [load]);
+
+  if (!snapshot && !error) return <p className="lan-empty">Loading…</p>;
   if (!snapshot) return <p className="lan-empty">Couldn't ask the dashboard about Pi-hole: {error}</p>;
 
   const state = piholeState(snapshot);
@@ -79,6 +96,9 @@ function PiholePanel() {
         <span className={`pihole-state pihole-state--${tone}`}>{label}</span>
         {snapshot.error && <span className="pihole-error" title={snapshot.error}>{snapshot.error}</span>}
         {state !== "up" && summary && <span className="net-dim">Showing the last numbers it returned.</span>}
+        {snapshot.blocking && state !== "down" && (
+          <BlockingControl snapshot={snapshot} now={now} onChange={setSnapshot} />
+        )}
       </div>
 
       {summary ? (

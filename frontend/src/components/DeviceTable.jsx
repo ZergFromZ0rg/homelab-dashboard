@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
-import { fetchDevices, saveDevice } from "./piholeApi";
+import { fetchDevices } from "./piholeApi";
+import DeviceDetail from "./DeviceDetail";
 import { FILTERS, filterDevices, hiddenCount } from "./deviceFilter";
 import { formatAge } from "./format";
 import { useLocalStorage } from "./useLocalStorage";
 
-// Every device Pi-hole has seen, one row per MAC. Click a row to name it,
-// set its kind and add notes; those live here, not in Pi-hole. Servers are
-// pinned at the top. Amber marks what you haven't identified yet.
+// Every device Pi-hole has seen, one row per MAC. Click a row to open it:
+// its day, what it asks for and what gets blocked, and the controls — name,
+// kind, notes (kept here, not in Pi-hole) and its blocking group. Servers
+// are pinned at the top. Amber marks what you haven't identified yet.
 
 const POLL_MS = 30000;
 const SOURCES = {
@@ -18,67 +20,12 @@ const SOURCES = {
   mac: "no name known",
 };
 
-function Editor({ device, kinds, onSave, onCancel }) {
-  const [name, setName] = useState(device.label);
-  const [kind, setKind] = useState(device.kind_source === "label" ? device.kind : "");
-  const [notes, setNotes] = useState(device.notes);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-
-  const submit = async (e) => {
-    e.preventDefault();
-    setBusy(true);
-    setError("");
-    try {
-      await onSave(device.mac, { name, kind, notes });
-    } catch (err) {
-      setError(err.message);
-      setBusy(false);
-    }
-  };
-
-  return (
-    <tr className="dev-editor">
-      <td colSpan={8}>
-        <form className="dev-form" onSubmit={submit}>
-          <input
-            className="deploy-input"
-            value={name}
-            maxLength={60}
-            autoFocus
-            placeholder={`Name (now: ${device.name})`}
-            aria-label={`Name for ${device.mac}`}
-            onChange={(e) => setName(e.target.value)}
-          />
-          <select className="deploy-input" value={kind} aria-label="Kind" onChange={(e) => setKind(e.target.value)}>
-            <option value="">Kind: {device.kind} (automatic)</option>
-            {kinds.map((k) => (
-              <option key={k} value={k}>{k}</option>
-            ))}
-          </select>
-          <input
-            className="deploy-input dev-notes"
-            value={notes}
-            maxLength={300}
-            placeholder="Notes"
-            aria-label="Notes"
-            onChange={(e) => setNotes(e.target.value)}
-          />
-          <button type="submit" className="btn btn--sm" disabled={busy}>Save</button>
-          <button type="button" className="btn btn--sm btn--ghost" onClick={onCancel}>Cancel</button>
-          {error && <span className="dev-error">{error}</span>}
-        </form>
-      </td>
-    </tr>
-  );
-}
-
 function Row({ device, open, onToggle }) {
   const online = device.online;
   const dot = online === true ? "ok" : "off";
   const unidentified = device.kind === "unknown";
   return (
-    <tr className={`dev-row ${open ? "dev-row--open" : ""}`} onClick={onToggle}>
+    <tr className={`dev-row ${open ? "dev-row--open" : ""} ${device.new ? "dev-row--new" : ""}`} onClick={onToggle} aria-selected={open}>
       <td>
         <span
           className={`status-dot status-dot--${dot}`}
@@ -88,6 +35,7 @@ function Row({ device, open, onToggle }) {
       <td>
         <span className="dev-name" title={`Named from: ${SOURCES[device.name_source] || device.name_source}`}>{device.name}</span>
         {device.notes && <span className="dev-note" title={device.notes}> · {device.notes}</span>}
+        {device.new && <span className="dev-tag dev-tag--warn" title="Joined the network recently and nobody has named it yet">new</span>}
         {device.private_mac && (
           <span className="dev-tag dev-tag--warn" title="Uses a private (randomized) address, so it can't be identified by its maker">private MAC</span>
         )}
@@ -132,17 +80,12 @@ function DeviceTable() {
     return () => clearInterval(timer);
   }, [load]);
 
-  const save = async (mac, fields) => {
-    await saveDevice(mac, fields);
-    setOpen(null);
-    await load();
-  };
-
   if (!data) return <p className="lan-empty">{error ? `Couldn't load devices: ${error}` : "Loading devices…"}</p>;
 
   const all = data.devices || [];
   const shown = filterDevices(all, { filter, showHidden, query });
   const hidden = hiddenCount(all);
+  const openRow = open ? all.find((d) => d.mac === open) : null;
 
   return (
     <div className="dev">
@@ -170,34 +113,44 @@ function DeviceTable() {
         {error && <span className="dev-error">Showing the last list ({error})</span>}
       </div>
 
-      {shown.length === 0 ? (
-        <p className="lan-empty">{all.length ? "No device matches." : "Pi-hole hasn't seen any devices yet."}</p>
-      ) : (
-        <div className="lan-scroll">
-          <table className="net-table lan-table dev-table">
-            <thead>
-              <tr>
-                <th aria-label="State" />
-                <th>Name</th>
-                <th>Kind</th>
-                <th>Address</th>
-                <th>Maker</th>
-                <th className="pcap-r" title="DNS queries from this device today">Queries</th>
-                <th className="pcap-r" title="Share of those Pi-hole blocked">Blocked</th>
-                <th>Last seen</th>
-              </tr>
-            </thead>
-            <tbody>
-              {shown.flatMap((d) => [
-                <Row key={d.mac} device={d} open={open === d.mac} onToggle={() => setOpen(open === d.mac ? null : d.mac)} />,
-                open === d.mac && (
-                  <Editor key={`${d.mac}-edit`} device={d} kinds={data.kinds || []} onSave={save} onCancel={() => setOpen(null)} />
-                ),
-              ])}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <div className={`dev-layout ${openRow ? "dev-layout--open" : ""}`}>
+        {shown.length === 0 ? (
+          <p className="lan-empty">{all.length ? "No device matches." : "Pi-hole hasn't seen any devices yet."}</p>
+        ) : (
+          <div className="lan-scroll dev-scroll">
+            <table className="net-table lan-table dev-table">
+              <thead>
+                <tr>
+                  <th aria-label="State" />
+                  <th>Name</th>
+                  <th>Kind</th>
+                  <th>Address</th>
+                  <th>Maker</th>
+                  <th className="pcap-r" title="DNS queries from this device today">Queries</th>
+                  <th className="pcap-r" title="Share of those Pi-hole blocked">Blocked</th>
+                  <th>Last seen</th>
+                </tr>
+              </thead>
+              <tbody>
+                {shown.map((d) => (
+                  <Row key={d.mac} device={d} open={open === d.mac} onToggle={() => setOpen(open === d.mac ? null : d.mac)} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {openRow && (
+          <DeviceDetail
+            key={openRow.mac}
+            mac={openRow.mac}
+            row={openRow}
+            kinds={data.kinds || []}
+            groups={data.groups || []}
+            onClose={() => setOpen(null)}
+            onSaved={load}
+          />
+        )}
+      </div>
     </div>
   );
 }

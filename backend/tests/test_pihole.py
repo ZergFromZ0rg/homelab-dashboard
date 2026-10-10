@@ -1,10 +1,11 @@
 """The Pi-hole collector: one shared session, re-login on 401, last good data
 kept (and flagged stale) through a failure, nothing sent when unconfigured."""
 
+import pytest
 import requests
 from fastapi.testclient import TestClient
 
-from backend import main, pihole
+from backend import auth, main, pihole
 
 
 class Reply:
@@ -38,8 +39,20 @@ ROUTES = {"/api/clients": CLIENTS, "/api/groups": GROUPS, "/api/config/dhcp": DH
           "/api/info/ftl": FTL, "/api/info/version": VERSION, "/api/network/devices": DEVICES}
 
 
+QUERIES = {"queries": [
+    {"time": 30, "domain": "ads.example.com", "type": "A", "status": "GRAVITY"},
+    {"time": 20, "domain": "ads.example.com", "type": "A", "status": "GRAVITY"},
+    {"time": 10, "domain": "apple.com", "type": "A", "status": "FORWARDED"},
+    {"time": 5, "domain": "apple.com", "type": "AAAA", "status": "CACHE"},
+    {"time": 1, "domain": "track.example.net", "type": "A", "status": "REGEX"},
+]}
+CLIENT_HISTORY = {"history": [{"timestamp": 100, "data": {"192.168.0.211": 4, "others": 1}},
+                              {"timestamp": 700, "data": {"192.168.0.211": 9, "others": 2}}]}
+
+
 class Fake:
-    """Stands in for requests: counts logins, can reject a session once or go dark."""
+    """Stands in for requests: counts logins, can reject a session once or go dark,
+    and writes down every change it was asked to make."""
 
     def __init__(self, monkeypatch):
         self.logins = 0
@@ -47,8 +60,10 @@ class Fake:
         self.reject_next = False
         self.down = False
         self.password_ok = True
+        self.writes = []
+        self.fail_write = None  # (status, message)
         monkeypatch.setattr(pihole.requests, "post", self.post)
-        monkeypatch.setattr(pihole.requests, "get", self.get)
+        monkeypatch.setattr(pihole.requests, "request", self.request)
 
     def post(self, url, json=None, timeout=None):
         if self.down:
@@ -58,16 +73,27 @@ class Fake:
             return Reply(200, {"session": {"valid": False, "sid": None}})
         return Reply(200, {"session": {"valid": True, "sid": f"sid{self.logins}", "validity": 1800}})
 
-    def get(self, url, params=None, headers=None, timeout=None):
+    def request(self, method, url, params=None, json=None, headers=None, timeout=None):
         if self.down:
             raise requests.ConnectionError("refused")
+        path = url.split("8053")[1]
+        if method != "GET":
+            self.writes.append((method, path, json))
+            if self.fail_write:
+                return Reply(self.fail_write[0], {"error": {"message": self.fail_write[1]}})
+            return Reply(204 if method == "DELETE" else 200, None if method == "DELETE" else {"ok": True})
         self.gets += 1
         if self.reject_next:
             self.reject_next = False
             return Reply(401, {})
-        path = url.split("8053")[1]
         if path == "/api/stats/top_clients":
             return Reply(200, TOP_BLOCKED if (params or {}).get("blocked") else TOP)
+        if path == "/api/queries":
+            return Reply(200, QUERIES)
+        if path == "/api/history/clients":
+            return Reply(200, CLIENT_HISTORY)
+        if path == "/api/history":
+            return Reply(200, {"history": [{"timestamp": 100, "total": 10, "blocked": 1}]})
         return Reply(200, ROUTES[path])
 
 
@@ -152,3 +178,161 @@ def test_routes_serve_the_cache(monkeypatch):
     row = next(d for d in body["devices"] if d["mac"] == "aa:bb:cc:00:00:01")
     assert row["name"] == "Dad's phone"
     assert row["kind"] == "personal"
+
+
+# --- detail and changes ------------------------------------------------------------
+
+
+def test_device_detail_counts_what_was_asked_and_refused(monkeypatch):
+    collector, fake = make(monkeypatch)
+    detail = collector.device_detail("192.168.0.211")
+    assert detail["sample"] == 5 and detail["blocked_sample"] == 3
+    assert detail["top_blocked"][0] == {"domain": "ads.example.com", "count": 2}
+    assert detail["top_domains"][0]["count"] == 2
+    assert detail["recent"][0]["domain"] == "ads.example.com" and detail["recent"][0]["blocked"] is True
+    assert detail["recent"][-1]["domain"] == "track.example.net"  # the oldest comes last
+    assert detail["series"] == [{"t": 100, "v": 4}, {"t": 700, "v": 9}]
+    reads = fake.gets
+    collector.device_detail("192.168.0.211")
+    assert fake.gets == reads  # cached: the query log isn't read twice in a few seconds
+
+
+def test_a_quiet_device_has_no_series_of_its_own(monkeypatch):
+    collector, _ = make(monkeypatch)
+    assert collector.device_detail("192.168.0.99")["series"] == []
+
+
+def test_pause_and_resume_blocking(monkeypatch):
+    collector, fake = make(monkeypatch)
+    collector.set_blocking(False, 300)
+    collector.set_blocking(True)
+    assert fake.writes[0] == ("POST", "/api/dns/blocking", {"blocking": False, "timer": 300})
+    assert fake.writes[1] == ("POST", "/api/dns/blocking", {"blocking": True, "timer": None})
+
+
+def test_new_client_entry_for_a_device_pihole_has_not_registered(monkeypatch):
+    collector, fake = make(monkeypatch)
+    collector.set_client_groups("aa:bb:cc:00:00:09", [0])
+    assert fake.writes == [("POST", "/api/clients", {"client": "AA:BB:CC:00:00:09", "comment": "", "groups": [0]})]
+
+
+def test_existing_client_keeps_its_comment_when_regrouped(monkeypatch):
+    collector, fake = make(monkeypatch)
+    collector.set_client_groups("aa:bb:cc:00:00:01", [3])
+    assert fake.writes == [("PUT", "/api/clients/AA:BB:CC:00:00:01", {"comment": "Dad's phone", "groups": [3]})]
+
+
+def test_allow_and_unallow(monkeypatch):
+    collector, fake = make(monkeypatch)
+    collector.allow_domain("ads.example.com")
+    collector.unallow_domain("ads.example.com")
+    assert fake.writes[0][:2] == ("POST", "/api/domains/allow/exact")
+    assert fake.writes[0][2]["domain"] == "ads.example.com" and fake.writes[0][2]["groups"] == [0]
+    assert fake.writes[1][:2] == ("DELETE", "/api/domains/allow/exact/ads.example.com")
+
+
+def test_pihole_refusals_come_through_in_its_words(monkeypatch):
+    collector, fake = make(monkeypatch)
+    fake.fail_write = (400, "Item already present")
+    with pytest.raises(pihole.PiholeError, match="Item already present") as raised:
+        collector.allow_domain("ads.example.com")
+    assert raised.value.status == 400
+
+
+def test_outage_clock_starts_on_first_failure_and_clears(monkeypatch):
+    collector, fake = make(monkeypatch)
+    assert collector.down_for() is None
+    fake.down = True
+    collector.refresh()
+    first = collector._fail_since
+    collector.refresh()
+    assert collector._fail_since == first and collector.down_for() is not None
+    fake.down = False
+    collector.refresh()
+    assert collector.down_for() is None
+
+
+# --- routes ------------------------------------------------------------------------
+
+
+@pytest.fixture
+def api(monkeypatch, tmp_path):
+    from backend import device_meta, device_names, pihole_alerts
+
+    monkeypatch.setattr(auth, "API_TOKEN", "")
+    monkeypatch.setattr(device_names, "names", device_names.NameStore(tmp_path / "n.json"))
+    monkeypatch.setattr(device_meta, "meta", device_meta.MetaStore(tmp_path / "m.json"))
+    monkeypatch.setattr(pihole_alerts, "known", pihole_alerts.KnownStore(tmp_path / "k.json"))
+    collector, fake = make(monkeypatch)
+    collector.refresh()
+    monkeypatch.setattr(pihole, "collector", collector)
+    web = TestClient(main.app)
+    web.fake = fake
+    web.collector = collector
+    return web
+
+
+def test_blocking_route_validates_and_calls_through(api):
+    assert api.post("/api/pihole/blocking", json={"enabled": False, "minutes": 5}).status_code == 200
+    assert api.fake.writes[-1] == ("POST", "/api/dns/blocking", {"blocking": False, "timer": 300})
+    assert api.post("/api/pihole/blocking", json={"enabled": True}).status_code == 200
+    assert api.fake.writes[-1][2] == {"blocking": True, "timer": None}
+    assert api.post("/api/pihole/blocking", json={"enabled": False, "minutes": 0}).status_code == 400
+    assert api.post("/api/pihole/blocking", json={"enabled": False, "minutes": 99999}).status_code == 400
+    assert api.post("/api/pihole/blocking", json={"enabled": False, "minutes": "soon"}).status_code == 400
+
+
+def test_changes_need_the_gate_but_reads_do_not(api, monkeypatch):
+    monkeypatch.setattr(auth, "API_TOKEN", "secret")
+    assert api.get("/api/pihole").status_code == 200
+    assert api.get("/api/pihole/devices").status_code == 200
+    for method, path, body in (
+        ("post", "/api/pihole/blocking", {"enabled": False}),
+        ("post", "/api/pihole/allow", {"domain": "example.com"}),
+        ("delete", "/api/pihole/allow/example.com", None),
+        ("put", "/api/pihole/devices/aa:bb:cc:00:00:01/group", {"group": 0}),
+        ("put", "/api/pihole/devices/aa:bb:cc:00:00:01", {"name": "x"}),
+        ("post", "/api/pihole/devices/aa:bb:cc:00:00:01/known", None),
+    ):
+        assert getattr(api, method)(path, **({"json": body} if body is not None else {})).status_code == 401, path
+    assert not api.fake.writes
+    ok = api.post("/api/pihole/allow", json={"domain": "example.com"}, headers={"X-Register-Token": "secret"})
+    assert ok.status_code == 200
+
+
+def test_allow_cleans_and_refuses_what_is_not_a_domain(api):
+    assert api.post("/api/pihole/allow", json={"domain": " ADS.Example.com. "}).json()["domain"] == "ads.example.com"
+    for bad in ("", "nodots", "has space.com", "a/b.com", "evil.com/../x", "-bad.com"):
+        assert api.post("/api/pihole/allow", json={"domain": bad}).status_code == 400, bad
+    assert api.delete("/api/pihole/allow/..%2Fconfig").status_code in (400, 404)
+    assert len([w for w in api.fake.writes if w[0] == "POST"]) == 1
+
+
+def test_pihole_errors_reach_the_ui_as_a_message(api):
+    api.fake.fail_write = (400, "Item already present")
+    reply = api.post("/api/pihole/allow", json={"domain": "ads.example.com"})
+    assert reply.status_code == 502 and "Item already present" in reply.json()["error"]
+
+
+def test_unconfigured_changes_say_so(monkeypatch):
+    monkeypatch.setattr(auth, "API_TOKEN", "")
+    monkeypatch.setattr(pihole, "collector", pihole.Pihole("", ""))
+    reply = TestClient(main.app).post("/api/pihole/blocking", json={"enabled": True})
+    assert reply.status_code == 503
+
+
+def test_group_route_checks_the_group(api):
+    mac = "aa:bb:cc:00:00:01"
+    assert api.put(f"/api/pihole/devices/{mac}/group", json={"group": 99}).status_code == 400
+    assert api.put(f"/api/pihole/devices/{mac}/group", json={"group": "x"}).status_code == 400
+    assert api.put(f"/api/pihole/devices/{mac}/group", json={"group": 0}).status_code == 200
+    assert api.fake.writes[-1] == ("PUT", "/api/clients/AA:BB:CC:00:00:01", {"comment": "Dad's phone", "groups": [0]})
+
+
+def test_device_detail_route(api):
+    body = api.get("/api/pihole/devices/aa:bb:cc:00:00:01").json()
+    assert body["device"]["name"] == "Dad's phone"
+    assert body["detail"]["top_blocked"][0]["domain"] == "ads.example.com"
+    assert api.get("/api/pihole/devices/00:00:00:00:00:00").status_code == 404
+    listing = api.get("/api/pihole/devices").json()
+    assert {"id": 3, "name": "personal"} in listing["groups"]
