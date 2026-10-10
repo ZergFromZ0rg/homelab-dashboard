@@ -1,4 +1,4 @@
-// Which devices the table shows. Pi-hole's own rows and long-gone devices are
+// Which devices the table shows. Devices not seen for a week are
 // hidden by default (a count says how many); a search matches anything you'd
 // recognise a device by.
 

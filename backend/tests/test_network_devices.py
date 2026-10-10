@@ -74,7 +74,13 @@ def test_static_leases_make_servers_even_without_dns_traffic():
 
 def test_pihole_own_rows_never_become_devices():
     assert not [m for m in rows() if m.startswith("ip-")]
-    assert rows()["5c:ff:35:08:84:ee"]["ghost"] == "own"
+    assert rows()["5c:ff:35:08:84:ee"]["ghost"] == ""  # a server, so it is listed
+
+
+def test_only_reservations_count_as_static():
+    r = rows(leases=[])  # every lease lapsed: the phone is away, not "static"
+    assert r[PHONE]["ip_type"] == "dynamic"
+    assert r[BIGBOY]["ip_type"] == "static-lease"
 
 
 def test_kind_label_wins_then_group():

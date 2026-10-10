@@ -99,7 +99,7 @@ function Row({ device, open, onToggle }) {
       </td>
       <td className="net-mono">
         {device.ip || "—"}
-        {device.ip_type !== "dynamic" && <span className="dev-tag" title={device.ip_type === "static-lease" ? "Reserved in Pi-hole" : "Set on the device itself"}>static</span>}
+        {device.ip_type !== "dynamic" && <span className="dev-tag" title="Reserved in Pi-hole">static</span>}
       </td>
       <td className="net-dim">{device.vendor || "—"}</td>
       <td className="pcap-r net-mono">{device.queries_24h != null ? device.queries_24h.toLocaleString() : "—"}</td>
@@ -162,7 +162,7 @@ function DeviceTable() {
           onChange={(e) => setQuery(e.target.value)}
         />
         {hidden > 0 && (
-          <label className="deploy-check" title="Pi-hole's own entries and devices not seen for a week">
+          <label className="deploy-check" title="Devices not seen for a week">
             <input type="checkbox" checked={showHidden} onChange={(e) => setShowHidden(e.target.checked)} />
             Show {hidden} hidden
           </label>

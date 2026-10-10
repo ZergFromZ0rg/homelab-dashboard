@@ -46,7 +46,8 @@ def merge(inputs: dict, names: dict[str, str], meta: dict[str, dict], now: float
             # traffic, with no hardware address behind it.
             ip = (device["ips"][0]["ip"] if device.get("ips") else "")
             if ip in static_by_ip and static_by_ip[ip]["mac"] not in rows:
-                rows[static_by_ip[ip]["mac"]] = {"_device": {**device, "mac": static_by_ip[ip]["mac"]}, "_ghost": "own"}
+                # the thinkpad asks DNS as "ip-192.168.0.132"; it keeps its real MAC
+                rows[static_by_ip[ip]["mac"]] = {"_device": {**device, "mac": static_by_ip[ip]["mac"]}}
             continue
         rows[mac] = {"_device": device}
     for mac, entry in static.items():
@@ -91,22 +92,19 @@ def merge(inputs: dict, names: dict[str, str], meta: dict[str, dict], now: float
         last_query = device.get("last_query")
         recent = last_query is not None and now - last_query < ONLINE_WINDOW
         leased = bool(lease and (lease.get("expires") or 0) > now)
-        if entry:
-            ip_type = "static-lease"
-        elif lease:
-            ip_type = "dynamic"
-        else:
-            ip_type = "static-host"
+        # Only a reservation is known to be static; anything else may be a
+        # phone whose lease lapsed while it was away.
+        ip_type = "static-lease" if entry else "dynamic"
         if not device:
             online = None  # never asked DNS: can't tell from here
         else:
-            online = recent and (leased or ip_type != "dynamic")
+            online = recent and (leased or ip_type == "static-lease")
 
         total, blocked_n = queries.get(ip), blocked.get(ip)
         rate = round(100 * blocked_n / total, 1) if total and blocked_n is not None else (0.0 if total else None)
         seen = last_query or 0
-        ghost = row.get("_ghost")
-        if not ghost and device and not leased and not entry and now - seen > GHOST_AFTER:
+        ghost = ""
+        if device and not leased and not entry and now - seen > GHOST_AFTER:
             ghost = "stale"
 
         out.append({
@@ -118,7 +116,7 @@ def merge(inputs: dict, names: dict[str, str], meta: dict[str, dict], now: float
             "first_seen": device.get("first_seen"), "last_seen": last_query,
             "queries_24h": total, "blocked_24h": blocked_n, "block_rate": rate,
             "groups": [g for g in group_names if g],
-            "ghost": ghost or "",
+            "ghost": ghost,
         })
     out.sort(key=lambda r: (r["kind"] != "server", r["name"].lower()))
     return out
