@@ -326,7 +326,7 @@ class Pihole:
             "blocked_sample": sum(1 for r in recent if r["blocked"]),
             "top_blocked": top(refused),
             "top_domains": top(asked),
-            "recent": recent[:40],
+            "recent": recent[:50],
             "series": self._series(ip),
         }
         with self._lock:

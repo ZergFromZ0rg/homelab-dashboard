@@ -26,6 +26,16 @@ STEP_UP = env_str("PASSKEY_STEP_UP").lower() in ("1", "true", "yes", "on")
 API_TOKEN = env_str("API_TOKEN") or env_str("REGISTER_TOKEN")
 
 
+# A credential that can do exactly one thing: read the Pi-hole metrics, so
+# Prometheus can scrape them. Separate from API_TOKEN, which can change things.
+METRICS_TOKEN = env_str("METRICS_TOKEN")
+METRICS_PATH = "/api/pihole/metrics"
+
+
+def metrics_token_matches(supplied: str | None) -> bool:
+    return bool(METRICS_TOKEN and supplied) and hmac.compare_digest(supplied.encode(), METRICS_TOKEN.encode())
+
+
 # Set by the SessionGate for a request carrying a valid session cookie.
 # Contextvars follow the request into sync routes' worker threads.
 session_ok: ContextVar[bool] = ContextVar("session_ok", default=False)

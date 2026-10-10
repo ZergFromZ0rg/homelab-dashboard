@@ -66,6 +66,9 @@ services:
       # Pi-hole collector (read-only). Leave unset to skip it.
       PIHOLE_URL: ${PIHOLE_URL:-}
       PIHOLE_APP_PASSWORD: ${PIHOLE_APP_PASSWORD:-}
+      # Bearer token that lets Prometheus scrape /api/pihole/metrics and
+      # nothing else. Leave unset to keep the metrics behind sign-in.
+      METRICS_TOKEN: ${METRICS_TOKEN:-}
       # Switch ports from Prometheus (needs the snmp_exporter job). All optional.
       SWITCH_JOB: ${SWITCH_JOB:-}
       SWITCH_UPLINK_PORT: ${SWITCH_UPLINK_PORT:-}

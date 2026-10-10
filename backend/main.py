@@ -27,6 +27,7 @@ from backend import capture_api, netwatch_api
 from backend import lan_api
 from backend import network_alerts, pihole, pihole_api, switch, switch_api
 from backend import compose_api
+from backend import network_export_api
 from backend import updates_api
 from backend import git_updates_api
 from backend import volume_backup_api
@@ -62,6 +63,7 @@ app.include_router(terminal.router)
 app.include_router(files_api.router)
 app.include_router(lan_api.router)
 app.include_router(pihole_api.router)
+app.include_router(network_export_api.router)
 app.include_router(switch_api.router)
 app.include_router(capture_api.router)
 app.include_router(capture_api.saved_router)

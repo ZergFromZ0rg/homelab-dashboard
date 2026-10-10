@@ -326,6 +326,8 @@ class SessionGate:
                 return await self.app(scope, receive, send)
             finally:
                 auth.token_ok.reset(marker)
+        if self._scrape(scope, method):
+            return await self.app(scope, receive, send)
         if (
             (scope["type"] == "http" and method == "OPTIONS")
             or _open_path(method, scope["path"])
@@ -354,6 +356,17 @@ class SessionGate:
             if name == passkeys.SESSION_COOKIE:
                 return value if passkeys.store.check_session(value) else None
         return None
+
+    @staticmethod
+    def _scrape(scope, method: str) -> bool:
+        """Prometheus reading the Pi-hole metrics: that one GET, with the bearer
+        token made for it. It sets neither session_ok nor token_ok, so it can't
+        pass any gate a changing route checks."""
+        if scope["type"] != "http" or method != "GET" or scope["path"] != auth.METRICS_PATH:
+            return False
+        headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope["headers"]}
+        scheme, _, credentials = headers.get("authorization", "").partition(" ")
+        return scheme.lower() == "bearer" and auth.metrics_token_matches(credentials.strip())
 
     @staticmethod
     def _token(scope) -> bool:
