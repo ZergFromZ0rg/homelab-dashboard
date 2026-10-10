@@ -3,6 +3,7 @@ import ConnectionsPanel from "./ConnectionsPanel";
 import LanScan from "./LanScan";
 import NetworkWatch from "./NetworkWatch";
 import PacketCapture from "./PacketCapture";
+import PiholePanel from "./PiholePanel";
 import { useCaptureRequest } from "./captureRequest";
 import Sparkline from "./Sparkline";
 import { windowPoints } from "./historyWindow";
@@ -506,7 +507,7 @@ function NetworkTab({ machines, containers, checks, connected, history = {} }) {
     setSection("packets");
   });
   const down = checks.filter(isRootDown).length;
-  const perHost = section !== "checks";
+  const perHost = section !== "checks" && section !== "dns";
 
   const sections = [
     ["network", "Host network", null],
@@ -514,6 +515,7 @@ function NetworkTab({ machines, containers, checks, connected, history = {} }) {
     ["connections", "Connections", null],
     ["packets", "Packets", null],
     ["watch", "Watch", null],
+    ["dns", "DNS", null],
     ["checks", "Service checks", down ? `${down} down` : checks.length || null],
   ];
 
@@ -570,6 +572,14 @@ function NetworkTab({ machines, containers, checks, connected, history = {} }) {
             history={history[host]}
             part={section}
           />
+        </div>
+      )}
+
+      {section === "dns" && (
+        <div className="fit-pane">
+          <section className="overview-card net-fill">
+            <PiholePanel />
+          </section>
         </div>
       )}
 

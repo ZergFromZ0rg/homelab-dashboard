@@ -25,6 +25,7 @@ from backend import terminal
 from backend import files_api
 from backend import capture_api, netwatch_api
 from backend import lan_api
+from backend import pihole, pihole_api
 from backend import compose_api
 from backend import updates_api
 from backend import git_updates_api
@@ -41,6 +42,7 @@ async def lifespan(_: FastAPI):
     tasks = scheduler_api.spawn_loops()
     tasks.append(asyncio.create_task(checks.service.run_forever()))
     tasks.append(asyncio.create_task(volume_backup_api.run_forever()))
+    tasks.append(asyncio.create_task(pihole.run_forever()))
     try:
         yield
     finally:
@@ -58,6 +60,7 @@ app.include_router(volume_backup_api.router)
 app.include_router(terminal.router)
 app.include_router(files_api.router)
 app.include_router(lan_api.router)
+app.include_router(pihole_api.router)
 app.include_router(capture_api.router)
 app.include_router(capture_api.saved_router)
 app.include_router(capture_api.auto_router)

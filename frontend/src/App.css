@@ -10160,3 +10160,87 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
   .pbar--indeterminate > span { animation-duration: 3.6s; }
   .pbar > span { transition: none; }
 }
+
+/* Pi-hole (Network > DNS) */
+.pihole {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pihole-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pihole-state {
+  font-size: var(--fs-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pihole-state--ok { color: var(--ok, #3fb950); }
+.pihole-state--warn { color: var(--warn, #d29922); }
+.pihole-state--bad { color: var(--bad, #f85149); }
+
+.pihole-error {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pihole-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px 14px;
+}
+
+.pihole-tiles div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pihole-tiles span {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pihole-tiles strong {
+  font-size: var(--fs-lg, 1.25rem);
+  font-weight: 600;
+}
+
+.pihole-tiles small {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+}
+
+.pihole-health {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+}
+
+.pihole-health-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-sm, 0.85rem);
+}
+
+.pihole-health-row span { color: var(--text-muted); }
+.pihole-health-row strong { font-weight: 500; text-align: right; overflow: hidden; text-overflow: ellipsis; }
+.pihole-health-row--warn strong { color: var(--warn, #d29922); }
+
+@media (max-width: 640px) {
+  .pihole-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
