@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 
-from backend import audit_log, autocapture, netwatch_api, nightly_updates, notify, pihole_alerts
+from backend import audit_log, autocapture, netwatch_api, network_alerts, nightly_updates, notify
 import time
 
 import requests
@@ -736,7 +736,7 @@ async def _alert_loop() -> None:
             events = alert_monitor.poll(
                 machines, dumps, containers, check_summaries,
                 volume_backups.store.all(), findings,
-                await asyncio.to_thread(pihole_alerts.current),
+                await asyncio.to_thread(network_alerts.current),
             )
             cycles += 1
             main_host = MAIN_HOST_OVERRIDE or detect_main_host(

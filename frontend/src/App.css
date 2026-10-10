@@ -10467,3 +10467,53 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
     margin-top: 0;
   }
 }
+
+/* Switch */
+.sw {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sw-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sw-state {
+  font-size: var(--fs-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sw-state--ok { color: var(--ok, #3fb950); }
+.sw-state--warn { color: var(--warn, #d29922); }
+.sw-state--bad { color: var(--bad, #f85149); }
+
+.sw-error {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sw-speed--warn,
+.sw-errors--warn { color: var(--warning); }
+.sw-speed--bad { color: var(--bad, #f85149); }
+
+.sw tbody .status-dot {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.sw-row--down td:not(:first-child) { color: var(--text-muted); }
+
+.net-table th small {
+  font-size: inherit;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}

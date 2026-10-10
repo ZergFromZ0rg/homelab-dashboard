@@ -25,7 +25,7 @@ from backend import terminal
 from backend import files_api
 from backend import capture_api, netwatch_api
 from backend import lan_api
-from backend import pihole, pihole_alerts, pihole_api
+from backend import network_alerts, pihole, pihole_api, switch, switch_api
 from backend import compose_api
 from backend import updates_api
 from backend import git_updates_api
@@ -43,6 +43,7 @@ async def lifespan(_: FastAPI):
     tasks.append(asyncio.create_task(checks.service.run_forever()))
     tasks.append(asyncio.create_task(volume_backup_api.run_forever()))
     tasks.append(asyncio.create_task(pihole.run_forever()))
+    tasks.append(asyncio.create_task(switch.run_forever()))
     try:
         yield
     finally:
@@ -61,6 +62,7 @@ app.include_router(terminal.router)
 app.include_router(files_api.router)
 app.include_router(lan_api.router)
 app.include_router(pihole_api.router)
+app.include_router(switch_api.router)
 app.include_router(capture_api.router)
 app.include_router(capture_api.saved_router)
 app.include_router(capture_api.auto_router)
@@ -130,7 +132,7 @@ def _overview(
 
     for key, alert in alerts.evaluate(
         machines, deployment_dumps, containers, check_summaries,
-        volume_backups.store.all(), netwatch_api.latest(), pihole_alerts.current(),
+        volume_backups.store.all(), netwatch_api.latest(), network_alerts.current(),
     ).items():
         severity = alerts.severity_of(key, alert)
         issues.append(

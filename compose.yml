@@ -66,6 +66,11 @@ services:
       # Pi-hole collector (read-only). Leave unset to skip it.
       PIHOLE_URL: ${PIHOLE_URL:-}
       PIHOLE_APP_PASSWORD: ${PIHOLE_APP_PASSWORD:-}
+      # Switch ports from Prometheus (needs the snmp_exporter job). All optional.
+      SWITCH_JOB: ${SWITCH_JOB:-}
+      SWITCH_UPLINK_PORT: ${SWITCH_UPLINK_PORT:-}
+      SWITCH_ERRORS_PER_15M: ${SWITCH_ERRORS_PER_15M:-}
+      SWITCH_UPLINK_PERCENT: ${SWITCH_UPLINK_PERCENT:-}
     volumes:
       - dashboard-data:/data
     # Lets the backend send unprivileged ICMP echo (Ping checks) without

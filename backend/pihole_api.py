@@ -8,7 +8,7 @@ import time
 from fastapi import APIRouter, Header
 from fastapi.responses import JSONResponse
 
-from backend import auth, device_meta, device_names, network_devices, pihole, pihole_alerts
+from backend import auth, device_meta, device_names, network_devices, pihole, pihole_alerts, switch
 
 router = APIRouter(prefix="/api/pihole")
 
@@ -36,6 +36,7 @@ def _rows() -> tuple[list[dict], dict]:
     fresh = pihole_alerts.known.new()
     for row in rows:
         row["new"] = row["mac"] in fresh
+    switch.attach_ports(rows, switch.monitor.snapshot())
     return rows, inputs
 
 

@@ -17,6 +17,7 @@ restart forgets nothing.
 
 from __future__ import annotations
 
+import asyncio
 import re
 import threading
 import time
@@ -72,7 +73,8 @@ def _fetch(now: float) -> dict:
     if not up:
         return {"state": "unconfigured"}
     online = _number(up[0]) == 1
-    quiet = prometheus.query(f"min_over_time(up{{{sel}}}[{NOTICE}])")
+    # The best "up" in the window is 0 only if every scrape in it failed.
+    quiet = prometheus.query(f"max_over_time(up{{{sel}}}[{NOTICE}])")
     down_for_notice = bool(quiet) and _number(quiet[0]) == 0
 
     status = _by_index(f"ifOperStatus{{{sel}}}")
@@ -132,22 +134,31 @@ def _fetch(now: float) -> dict:
 
 
 class Switch:
+    """``refresh`` asks Prometheus (a background loop calls it); ``snapshot``
+    only reads what the last refresh found, so the event loop never waits on
+    a network call."""
+
     def __init__(self):
-        self._lock = threading.Lock()  # also holds the herd: one fetch, everybody reads it
+        self._lock = threading.Lock()
         self._data: dict | None = None
-        self._tried_at = 0.0
         self._error: str | None = None
 
-    def snapshot(self, now: float | None = None) -> dict:
-        now = now or time.time()
+    def refresh(self, now: float | None = None) -> None:
+        try:
+            data, error = _fetch(now or time.time()), None
+        except (requests.RequestException, ValueError, KeyError, TypeError) as failure:
+            data, error = None, f"Prometheus: {failure}"
         with self._lock:
-            if now - self._tried_at >= CACHE_SECONDS:
-                self._tried_at = now
-                try:
-                    self._data, self._error = _fetch(now), None
-                except (requests.RequestException, ValueError, KeyError, TypeError) as error:
-                    self._error = f"Prometheus: {error}"
+            if error is None:
+                self._data, self._error = data, None
+            else:
+                self._error = error
+
+    def snapshot(self) -> dict:
+        with self._lock:
             data, error = self._data, self._error
+        if data is None and error is None:
+            return {"state": "loading", "ports": [], "reachable": True, "stale": False, "error": None}
         if error is None:
             return {**data, "reachable": True, "stale": False, "error": None}
         # Prometheus can't be asked: keep the last answer, marked, rather than
@@ -241,3 +252,9 @@ def evaluate(snapshot: dict) -> dict[str, dict]:
 
 def alerts() -> dict[str, dict]:
     return evaluate(monitor.snapshot())
+
+
+async def run_forever() -> None:
+    while True:
+        await asyncio.to_thread(monitor.refresh)
+        await asyncio.sleep(CACHE_SECONDS)

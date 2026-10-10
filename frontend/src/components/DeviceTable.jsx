@@ -3,6 +3,7 @@ import { fetchDevices } from "./piholeApi";
 import DeviceDetail from "./DeviceDetail";
 import { FILTERS, filterDevices, hiddenCount } from "./deviceFilter";
 import { formatAge } from "./format";
+import { formatLinkSpeed, speedHint, speedTone } from "./switchApi";
 import { useLocalStorage } from "./useLocalStorage";
 
 // Every device Pi-hole has seen, one row per MAC. Click a row to open it:
@@ -36,6 +37,14 @@ function Row({ device, open, onToggle }) {
         <span className="dev-name" title={`Named from: ${SOURCES[device.name_source] || device.name_source}`}>{device.name}</span>
         {device.notes && <span className="dev-note" title={device.notes}> · {device.notes}</span>}
         {device.new && <span className="dev-tag dev-tag--warn" title="Joined the network recently and nobody has named it yet">new</span>}
+        {device.port && (
+          <span
+            className={`dev-tag ${speedTone(device.port) === "bad" ? "dev-tag--warn" : ""}`}
+            title={`Switch port ${device.port.port}${device.port.up ? "" : " (no link)"}. ${speedHint(device.port)}`}
+          >
+            {device.port.port} · {device.port.up ? formatLinkSpeed(device.port.speed_mbps) : "down"}
+          </span>
+        )}
         {device.private_mac && (
           <span className="dev-tag dev-tag--warn" title="Uses a private (randomized) address, so it can't be identified by its maker">private MAC</span>
         )}
