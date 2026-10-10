@@ -48,7 +48,7 @@ TICK_SECONDS = env_float("VOLUME_BACKUP_TICK", 60)
 # A backup runs in a helper container and is polled, not waited on.
 START_TIMEOUT = 15
 POLL_TIMEOUT = 10
-POLL_SECONDS = env_float("VOLUME_BACKUP_POLL", 10)
+POLL_SECONDS = env_float("VOLUME_BACKUP_POLL", 3)
 
 # Long enough for a big volume over a slow link, short enough that a job
 # wedged forever eventually reports something.
@@ -263,6 +263,20 @@ class BackupJobStore:
             for job in self._jobs:
                 if job["id"] == job_id:
                     job["running"] = running
+                    if not running:
+                        job.pop("progress", None)
+                    return
+
+    def set_progress(self, job_id: str, progress: dict | None) -> None:
+        """What the agent says a running copy has done so far. Kept in
+        memory only — it means nothing once the run is over."""
+        with self._lock:
+            for job in self._jobs:
+                if job["id"] == job_id:
+                    if progress:
+                        job["progress"] = progress
+                    else:
+                        job.pop("progress", None)
                     return
 
 
@@ -594,7 +608,7 @@ def start_backup(nodes: dict, job: dict) -> dict:
 
 
 def wait_for(nodes: dict, job: dict, agent_job_id: str,
-             *, sleep=time.sleep, now=time.time) -> dict:
+             *, sleep=time.sleep, now=time.time, jobs: BackupJobStore | None = None) -> dict:
     """Poll the agent until its job stops running.
 
     A backup is minutes to hours of work behind a request that returned in
@@ -623,6 +637,8 @@ def wait_for(nodes: dict, job: dict, agent_job_id: str,
 
         if state.get("state") != "running":
             return state
+
+        (jobs or store).set_progress(job["id"], state.get("progress"))
 
         if now() - started > MAX_RUN_SECONDS:
             raise BackupError(
@@ -664,7 +680,7 @@ def run_job(nodes: dict, job: dict, *, jobs: BackupJobStore | None = None,
 
             raise
 
-        finished = wait_for(nodes, job, started["id"], sleep=sleep, now=now)
+        finished = wait_for(nodes, job, started["id"], sleep=sleep, now=now, jobs=jobs)
 
         if finished.get("state") != "succeeded":
             raise BackupError(

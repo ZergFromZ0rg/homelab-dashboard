@@ -3,6 +3,7 @@ import BackupForm from "./BackupForm";
 import { deleteArchives, fetchBackupArchives, runBackup, verifyArchive } from "./backupsApi";
 import { formatAge, formatBytes } from "./format";
 import { hostColor } from "./hostColor";
+import ProgressBar from "./ProgressBar";
 import { IconButton } from "./Icon";
 
 // One backup job: what it copies, where to, when it last worked, and what
@@ -355,6 +356,16 @@ function BackupCard({ job, hosts, defaultDestHost, now, onChanged, onDelete, sho
           />
         </span>
       </div>
+
+      {job.running && (
+        <ProgressBar
+          className="pbar-wrap--row"
+          percent={job.progress?.percent}
+          label={job.progress?.scanning ? "Measuring…" : job.progress ? `Copying · ${job.progress.files ?? 0} files` : "Starting…"}
+          done={job.progress?.done}
+          total={job.progress?.total}
+        />
+      )}
 
       {showLocation && <Location job={job} onOpenFolder={onOpenFolder} />}
 

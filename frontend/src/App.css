@@ -10089,3 +10089,74 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
 .pcap .lan-bar select[aria-label="Capture where"] {
   max-width: 200px;
 }
+
+/* ProgressBar: a thin bar with its words beside it. */
+.pbar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  font-size: var(--fs-sm);
+}
+
+.pbar {
+  position: relative;
+  flex: 1 1 120px;
+  min-width: 80px;
+  height: 6px;
+  overflow: hidden;
+  background: var(--bg-subtle);
+  border-radius: 3px;
+}
+
+.pbar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: inherit;
+  transition: width 0.6s var(--ease);
+}
+
+.pbar--indeterminate > span {
+  width: 35%;
+  animation: pbar-slide 1.2s ease-in-out infinite;
+}
+
+@keyframes pbar-slide {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(300%); }
+}
+
+.pbar-text {
+  display: inline-flex;
+  gap: 8px;
+  align-items: baseline;
+  flex: 0 1 auto;
+  min-width: 0;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.pbar-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 34ch;
+}
+
+.pbar-text strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.pbar-bytes {
+  font-variant-numeric: tabular-nums;
+}
+
+.pbar-wrap--row {
+  padding: 4px 12px 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pbar--indeterminate > span { animation-duration: 3.6s; }
+  .pbar > span { transition: none; }
+}

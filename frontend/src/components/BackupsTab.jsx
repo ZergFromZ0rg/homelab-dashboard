@@ -13,6 +13,7 @@ import { useFitHeight } from "./useFitHeight";
 // /ws payload is already the hot path for every 2-second tick.
 
 const POLL_MS = 15000;
+const RUNNING_POLL_MS = 3000;
 const ORDER = { failing: 0, stale: 1, pending: 2, running: 3, ok: 4, paused: 5 };
 
 function Fact({ label, value, sub, bad }) {
@@ -39,6 +40,8 @@ function BackupsTab({ machines, connected, showLocation = false, onOpenFolder })
   const [error, setError] = useState(null);
   const [loaded, setLoaded] = useState(false);
 
+  const running = (data.backups || []).some((b) => b.running);
+
   const load = useCallback(
     () =>
       fetchBackups()
@@ -53,9 +56,10 @@ function BackupsTab({ machines, connected, showLocation = false, onOpenFolder })
 
   useEffect(() => {
     load();
-    const timer = setInterval(load, POLL_MS);
+    // Fast while a copy is under way, so its bar moves.
+    const timer = setInterval(load, running ? RUNNING_POLL_MS : POLL_MS);
     return () => clearInterval(timer);
-  }, [load]);
+  }, [load, running]);
 
   const hosts = Object.keys(machines).sort();
   const jobs = [...(data.backups || [])].sort(

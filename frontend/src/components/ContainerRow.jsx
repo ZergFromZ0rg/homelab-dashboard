@@ -193,7 +193,7 @@ function ContainerRow({
                     }
                   }}
                 >
-                  {updating ? "updating…" : "update"}
+                  {updating ? (hostJob.progress?.percent != null ? `updating ${Math.round(hostJob.progress.percent)}%` : "updating…") : "update"}
                 </button>
               )}
               {container.deployed_by === "homelab-dashboard" && (

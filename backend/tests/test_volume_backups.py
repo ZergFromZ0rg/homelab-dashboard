@@ -363,6 +363,25 @@ def test_watching_survives_an_agent_restarting_briefly(monkeypatch, jobs):
     assert vb.wait_for(NODES, job, "abc", sleep=lambda _: None)["state"] == "succeeded"
 
 
+def test_watching_publishes_the_agents_progress_while_it_runs(monkeypatch, jobs):
+    job = jobs.add(a_job())
+    answers = iter([
+        {"state": "running", "progress": {"done": 50, "total": 200, "percent": 25.0}},
+        {"state": "succeeded"},
+    ])
+    monkeypatch.setattr(vb, "_call", lambda *a, **k: next(answers))
+    seen = []
+
+    def sleep(_):
+        seen.append(jobs.get(job["id"]).get("progress"))
+
+    vb.wait_for(NODES, job, "abc", sleep=sleep, jobs=jobs)
+
+    assert seen == [{"done": 50, "total": 200, "percent": 25.0}]
+    jobs.mark_running(job["id"], False)
+    assert "progress" not in jobs.get(job["id"])
+
+
 def test_watching_gives_up_after_three_misses(monkeypatch, jobs):
     job = jobs.add(a_job())
 

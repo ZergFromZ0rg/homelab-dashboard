@@ -11,6 +11,7 @@ import { hostColor } from "./hostColor";
 import { useFitHeight } from "./useFitHeight";
 import { useSettings } from "./settings";
 import Icon from "./Icon";
+import ProgressBar from "./ProgressBar";
 import { useTerminal } from "./terminalContext";
 import GitUpdates from "./GitUpdates";
 
@@ -204,6 +205,16 @@ function HostGroup({
           />
         </div>
       </div>
+
+      {jobBusy && (
+        <ProgressBar
+          className="pbar-wrap--row"
+          percent={job.progress?.percent}
+          label={job.progress?.phase ? `${job.progress.phase[0].toUpperCase()}${job.progress.phase.slice(1)}` : "Starting…"}
+          done={job.progress?.bytes_done}
+          total={job.progress?.bytes_total}
+        />
+      )}
 
       {job && !jobBusy && (
         <UpdateResult job={job} onDismiss={() => updates.dismiss(host)} />
