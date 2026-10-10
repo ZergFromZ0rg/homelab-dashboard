@@ -45,6 +45,9 @@ QUERIES = {"queries": [
     {"time": 10, "domain": "apple.com", "type": "A", "status": "FORWARDED"},
     {"time": 5, "domain": "apple.com", "type": "AAAA", "status": "CACHE"},
     {"time": 1, "domain": "track.example.net", "type": "A", "status": "REGEX"},
+    {"time": 40, "domain": "mask.icloud.com", "type": "A", "status": "SPECIAL_DOMAIN"},
+    {"time": 41, "domain": "mask.icloud.com", "type": "A", "status": "SPECIAL_DOMAIN"},
+    {"time": 42, "domain": "mask.icloud.com", "type": "A", "status": "SPECIAL_DOMAIN"},
 ]}
 CLIENT_HISTORY = {"history": [{"timestamp": 100, "data": {"192.168.0.211": 4, "others": 1}},
                               {"timestamp": 700, "data": {"192.168.0.211": 9, "others": 2}}]}
@@ -186,11 +189,14 @@ def test_routes_serve_the_cache(monkeypatch):
 def test_device_detail_counts_what_was_asked_and_refused(monkeypatch):
     collector, fake = make(monkeypatch)
     detail = collector.device_detail("192.168.0.211")
-    assert detail["sample"] == 5 and detail["blocked_sample"] == 3
-    assert detail["top_blocked"][0] == {"domain": "ads.example.com", "count": 2}
-    assert detail["top_domains"][0]["count"] == 2
-    assert detail["recent"][0]["domain"] == "ads.example.com" and detail["recent"][0]["blocked"] is True
+    assert detail["sample"] == 8 and detail["blocked_sample"] == 6 and detail["since"] == 1
+    # Pi-hole counts special domains as blocked, so the detail does too
+    assert detail["top_blocked"][0] == {"domain": "mask.icloud.com", "count": 3, "allowable": False}
+    assert detail["top_blocked"][1] == {"domain": "ads.example.com", "count": 2, "allowable": True}
+    assert detail["top_domains"][0]["count"] == 3
+    assert detail["recent"][0]["domain"] == "mask.icloud.com" and detail["recent"][0]["allowable"] is False
     assert detail["recent"][-1]["domain"] == "track.example.net"  # the oldest comes last
+    assert [r["allowable"] for r in detail["recent"] if r["domain"] == "ads.example.com"] == [True, True]
     assert detail["series"] == [{"t": 100, "v": 4}, {"t": 700, "v": 9}]
     reads = fake.gets
     collector.device_detail("192.168.0.211")
@@ -332,7 +338,7 @@ def test_group_route_checks_the_group(api):
 def test_device_detail_route(api):
     body = api.get("/api/pihole/devices/aa:bb:cc:00:00:01").json()
     assert body["device"]["name"] == "Dad's phone"
-    assert body["detail"]["top_blocked"][0]["domain"] == "ads.example.com"
+    assert [d["domain"] for d in body["detail"]["top_blocked"]][:2] == ["mask.icloud.com", "ads.example.com"]
     assert api.get("/api/pihole/devices/00:00:00:00:00:00").status_code == 404
     listing = api.get("/api/pihole/devices").json()
     assert {"id": 3, "name": "personal"} in listing["groups"]

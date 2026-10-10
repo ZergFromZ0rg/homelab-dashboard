@@ -38,11 +38,17 @@ class PiholeError(Exception):
         self.status = status
 
 
-# Query statuses that mean "Pi-hole refused to answer".
+# Query statuses that mean "Pi-hole refused to answer" — the ones its own
+# "blocked" counters add up. SPECIAL_DOMAIN is the surprising one: names Pi-hole
+# refuses on purpose (iCloud Private Relay, Firefox's canary domain,
+# _dns.resolver.arpa) are most of a typical household's "blocked".
 BLOCKED = {
     "GRAVITY", "REGEX", "DENYLIST", "GRAVITY_CNAME", "REGEX_CNAME", "DENYLIST_CNAME",
-    "EXTERNAL_BLOCKED_IP", "EXTERNAL_BLOCKED_NULL", "EXTERNAL_BLOCKED_NXRA",
+    "EXTERNAL_BLOCKED_IP", "EXTERNAL_BLOCKED_NULL", "EXTERNAL_BLOCKED_NXRA", "SPECIAL_DOMAIN",
 }
+# Of those, the ones the allow list can lift. A special domain is switched by a
+# setting, not a list, so offering "Allow" for it would do nothing.
+ALLOWABLE = BLOCKED - {"SPECIAL_DOMAIN", "EXTERNAL_BLOCKED_IP", "EXTERNAL_BLOCKED_NULL", "EXTERNAL_BLOCKED_NXRA"}
 DETAIL_QUERIES = 1000  # how much of the query log one device's detail reads
 DETAIL_TTL = 20.0
 CLIENT_HISTORY_TTL = 120.0
@@ -290,6 +296,7 @@ class Pihole:
         queries = self.get("/api/queries", client_ip=ip, length=DETAIL_QUERIES).get("queries") or []
         asked: dict[str, int] = {}
         refused: dict[str, int] = {}
+        liftable: dict[str, bool] = {}
         recent = []
         for q in queries:
             if not isinstance(q, dict) or not q.get("domain"):
@@ -298,18 +305,24 @@ class Pihole:
             asked[q["domain"]] = asked.get(q["domain"], 0) + 1
             if blocked:
                 refused[q["domain"]] = refused.get(q["domain"], 0) + 1
+                liftable[q["domain"]] = q.get("status") in ALLOWABLE
             recent.append({
                 "time": q.get("time"), "domain": q["domain"], "type": q.get("type"),
                 "status": q.get("status"), "blocked": blocked,
+                "allowable": blocked and q.get("status") in ALLOWABLE,
             })
         recent.sort(key=lambda r: r["time"] or 0, reverse=True)
 
         def top(counts: dict[str, int]) -> list[dict]:
-            return [{"domain": d, "count": c} for d, c in sorted(counts.items(), key=lambda kv: -kv[1])[:10]]
+            return [
+                {"domain": d, "count": c, "allowable": liftable.get(d, False)}
+                for d, c in sorted(counts.items(), key=lambda kv: -kv[1])[:10]
+            ]
 
         detail = {
             "ip": ip,
             "sample": len(recent),
+            "since": min((r["time"] for r in recent if r["time"]), default=None),
             "blocked_sample": sum(1 for r in recent if r["blocked"]),
             "top_blocked": top(refused),
             "top_domains": top(asked),

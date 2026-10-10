@@ -1,12 +1,22 @@
 import { useCallback, useEffect, useState } from "react";
 import Sparkline from "./Sparkline";
 import { allowDomain, fetchDeviceDetail, markKnown, saveDevice, setDeviceGroup, unallowDomain } from "./piholeApi";
-import { formatWhen } from "./format";
+import { formatDuration, formatWhen } from "./format";
 
 // One device, opened from the table: its day as a line, what it asks for and
 // what gets refused, the latest queries, and the buttons that change things.
 // Allowing a domain is for every device, so it asks first and can be undone.
 
+
+// "Special" domains (iCloud Private Relay, Firefox's canary domain) are refused
+// on purpose by a Pi-hole setting; the allow list can't lift them.
+function Special() {
+  return (
+    <span className="net-dim" title="Pi-hole refuses this on purpose (for example iCloud Private Relay). The allow list doesn't change it; it's a setting in Pi-hole.">
+      special
+    </span>
+  );
+}
 
 function Allow({ domain }) {
   const [state, setState] = useState("idle"); // idle | ask | busy | done
@@ -199,7 +209,12 @@ function DeviceDetail({ mac, row, kinds, groups, onClose, onSaved }) {
       {detail && (
         <>
           <section className="dd-section">
-            <h4>Most blocked <span className="net-dim">· of its last {detail.sample} queries</span></h4>
+            <h4>
+              Most blocked{" "}
+              <span className="net-dim">
+                · its last {detail.sample} queries{detail.since ? `, ${formatDuration(Date.now() / 1000 - detail.since)}` : ""}
+              </span>
+            </h4>
             {detail.top_blocked.length === 0 ? (
               <p className="net-dim">Nothing blocked.</p>
             ) : (
@@ -208,7 +223,7 @@ function DeviceDetail({ mac, row, kinds, groups, onClose, onSaved }) {
                   <li key={d.domain}>
                     <span className="dd-domain" title={d.domain}>{d.domain}</span>
                     <span className="net-mono net-dim">{d.count}×</span>
-                    <Allow domain={d.domain} />
+                    {d.allowable ? <Allow domain={d.domain} /> : <Special />}
                   </li>
                 ))}
               </ul>
@@ -222,7 +237,7 @@ function DeviceDetail({ mac, row, kinds, groups, onClose, onSaved }) {
                 <li key={`${q.time}-${i}`} className={q.blocked ? "dd-blocked" : ""}>
                   <span className="net-mono net-dim">{formatWhen(q.time)}</span>
                   <span className="dd-domain" title={`${q.domain} · ${q.status}`}>{q.domain}</span>
-                  {q.blocked ? <Allow domain={q.domain} /> : <span className="net-dim">{q.status?.toLowerCase()}</span>}
+                  {q.allowable ? <Allow domain={q.domain} /> : q.blocked ? <Special /> : <span className="net-dim">{q.status?.toLowerCase().replace("_", " ")}</span>}
                 </li>
               ))}
             </ul>
