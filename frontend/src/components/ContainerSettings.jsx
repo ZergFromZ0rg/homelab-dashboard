@@ -455,12 +455,13 @@ function ContainerSettings({ host, container, onClose }) {
             <button type="button" className="btn btn--sm" disabled={!dirty || running} onClick={() => { setText(file.content); setReview(null); }}>
               Discard
             </button>
-            <button type="button" className="btn btn--sm" disabled={!dirty || checking || running} onClick={check}>
+            <button type="button" className="btn btn--sm" aria-busy={checking || undefined} disabled={!dirty || checking || running} onClick={check}>
               {checking ? "Checking…" : "Review changes"}
             </button>
             <button
               type="button"
               className="btn btn--sm btn--primary"
+              aria-busy={running || undefined}
               disabled={Boolean(cantApply) || !dirty || running}
               title={cantApply || "Save, recreate, watch — and roll back if it doesn't come up"}
               onClick={apply}

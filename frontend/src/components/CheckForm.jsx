@@ -384,7 +384,7 @@ function CheckForm({ check, onSubmit, onCancel, others = [], groups = [], hosts 
       {error && <p className="cred-error">{error}</p>}
 
       <div className="check-form-actions">
-        <button type="submit" className="btn" disabled={busy}>
+        <button type="submit" className="btn" disabled={busy} aria-busy={busy || undefined}>
           {busy ? "Saving…" : check ? "Save changes" : "Add check"}
         </button>
         <button type="button" className="btn btn--ghost" onClick={onCancel}>

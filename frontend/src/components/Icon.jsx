@@ -158,16 +158,20 @@ function Icon({ name, size = 16 }) {
 
 // A square ghost button holding one icon. `label` is both the tooltip and
 // the accessible name, since there's no visible text.
-export function IconButton({ icon, label, danger, active, className = "", ...props }) {
+// `working` shows a spinner in place of the icon while the button's action
+// is being carried out (see [aria-busy] in App.css) and blocks a second click.
+export function IconButton({ icon, label, danger, active, working, className = "", ...props }) {
   return (
     <button
       type="button"
       className={`icon-action ${danger ? "icon-action--danger" : ""} ${
         active ? "icon-action--active" : ""
       } ${className}`}
-      title={label}
+      title={working ? `${label} — working…` : label}
       aria-label={label}
+      aria-busy={working || undefined}
       {...props}
+      disabled={props.disabled || working}
     >
       <Icon name={icon} />
     </button>

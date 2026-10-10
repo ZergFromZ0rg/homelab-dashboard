@@ -268,7 +268,7 @@ function LanScan({ host }) {
   return (
     <div className="lan">
       <div className="lan-bar">
-        <button type="button" className="btn btn--primary" onClick={scan} disabled={scanning}>
+        <button type="button" className="btn btn--primary" onClick={scan} disabled={scanning} aria-busy={scanning || undefined}>
           {scanning ? "Scanning…" : idle ? "Scan the network" : "Scan again"}
         </button>
         <label className="lan-auto" title="Scan again every minute while this page is open">

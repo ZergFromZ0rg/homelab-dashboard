@@ -179,6 +179,7 @@ function HostSettings({ host, defaultOpen = false, open: openProp, onToggle }) {
               <button
                 type="button"
                 className="btn"
+                aria-busy={busy || undefined}
                 disabled={!dirty || busy}
                 onClick={save}
               >

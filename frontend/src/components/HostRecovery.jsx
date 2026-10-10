@@ -329,6 +329,7 @@ function HostRecovery({ host, defaultOpen = false, open: openProp, onToggle }) {
                       <button
                         type="button"
                         className="btn btn--primary"
+                        aria-busy={busy || undefined}
                         disabled={busy || !destHost || !chosen?.size}
                         onClick={protect}
                       >

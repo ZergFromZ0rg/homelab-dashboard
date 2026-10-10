@@ -51,7 +51,7 @@ function FleetUpdate({ machines }) {
   else if (result) note = <span className="stat-note">{result.started} updating{result.failed ? `, ${result.failed} failed` : ""}</span>;
   else if (stale.length) {
     note = (
-      <button type="button" className="stat-action" disabled={busy} onClick={run} title={`Behind: ${stale.join(", ")}`}>
+      <button type="button" className="stat-action" disabled={busy} aria-busy={busy || undefined} onClick={run} title={`Behind: ${stale.join(", ")}`}>
         {busy ? "starting…" : `update ${stale.length}`}
       </button>
     );

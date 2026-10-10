@@ -500,7 +500,8 @@ function DiskExplorer({ host, start = "~", onClose }) {
                     {writable && e.kind !== "mount" && (
                       <IconButton
                         icon="trash"
-                        label={busy === e.path ? "Working…" : `Delete ${e.name}`}
+                        label={`Delete ${e.name}`}
+                        working={busy === e.path}
                         danger
                         disabled={Boolean(busy) || e.pending}
                         onClick={() => remove(e)}

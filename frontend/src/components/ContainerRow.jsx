@@ -177,6 +177,7 @@ function ContainerRow({
                 <button
                   type="button"
                   className="chip chip--accent chip--button"
+                  aria-busy={updating || undefined}
                   disabled={!update?.can_update || Boolean(hostJob && hostJob.state !== "done" && hostJob.state !== "rolled_back" && hostJob.state !== "failed")}
                   title={
                     updating
@@ -339,21 +340,24 @@ function ContainerRow({
               {running ? (
                 <IconButton
                   icon="stop"
-                  label="Stop"
+                  label="Stopping…"
+                  working={action === "stop"}
                   disabled={busy}
                   onClick={() => confirmControl("Stop")}
                 />
               ) : (
                 <IconButton
                   icon="play"
-                  label="Start"
+                  label="Starting…"
+                  working={action === "start"}
                   disabled={busy}
                   onClick={() => onControl(host, container.id, "start")}
                 />
               )}
               <IconButton
                 icon="refresh"
-                label="Restart"
+                label="Restarting…"
+                working={action === "restart"}
                 disabled={busy}
                 onClick={() => confirmControl("Restart")}
               />

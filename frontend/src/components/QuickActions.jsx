@@ -72,14 +72,16 @@ function QaRow({ t, busy, onControl, showLink, showLiveActivity, staleAge }) {
       <span className="qa-btns">
         <IconButton
           icon={running ? "stop" : "play"}
-          label={busy ? "Working…" : primary}
-          disabled={busy}
+          label={primary}
+          working={busy === primary.toLowerCase()}
+          disabled={Boolean(busy)}
           onClick={() => act(primary)}
         />
         <IconButton
           icon="refresh"
           label="Restart"
-          disabled={busy}
+          working={busy === "restart"}
+          disabled={Boolean(busy)}
           onClick={() => act("Restart")}
         />
       </span>
@@ -135,7 +137,7 @@ function QuickActions({ pins, containers, machines, onControl }) {
               <QaRow
                 key={`${t.host}-${t.id}`}
                 t={t}
-                busy={Boolean(onControl.pending[`${t.host}-${t.id}`])}
+                busy={onControl.pending[`${t.host}-${t.id}`] || null}
                 onControl={onControl}
                 showLink={quickActionLinks}
                 showLiveActivity={showLiveActivity}

@@ -7,8 +7,7 @@ function RebuildButton({ rebuild }) {
     <IconButton
       icon="hammer"
       label={rebuild.running ? "Rebuilding…" : rebuild.title}
-      disabled={rebuild.running}
-      className={rebuild.running ? "icon-action--busy" : ""}
+      working={rebuild.running}
       onClick={rebuild.run}
     />
   );

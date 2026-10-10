@@ -260,7 +260,8 @@ function ContainerTable({ containers, onControl }) {
           <tbody>
             {rows.map((c) => {
               const up = c.status === "running";
-              const busy = Boolean(onControl.pending[`${c.host}-${c.id}`]);
+              const pendingAct = onControl.pending[`${c.host}-${c.id}`];
+              const busy = Boolean(pendingAct);
               const url = containerUrl(c.host, c.ports);
               return (
                 <tr key={`${c.host}-${c.id}`} className={up ? "" : "sh-row--off"}>
@@ -282,11 +283,12 @@ function ContainerTable({ containers, onControl }) {
                   <td className="sh-actions">
                     <IconButton
                       icon={up ? "stop" : "play"}
-                      label={busy ? "Working…" : up ? "Stop" : "Start"}
+                      label={up ? "Stop" : "Start"}
+                      working={pendingAct === (up ? "stop" : "start")}
                       disabled={busy}
                       onClick={() => act(c, up ? "Stop" : "Start")}
                     />
-                    <IconButton icon="refresh" label="Restart" disabled={busy} onClick={() => act(c, "Restart")} />
+                    <IconButton icon="refresh" label="Restart" working={pendingAct === "restart"} disabled={busy} onClick={() => act(c, "Restart")} />
                   </td>
                 </tr>
               );

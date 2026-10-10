@@ -128,6 +128,7 @@ function Archives({ job, now, onClose }) {
                 <button
                   type="button"
                   className="btn btn--sm btn--ghost"
+                  aria-busy={checked[archive.name]?.pending || undefined}
                   disabled={checked[archive.name]?.pending}
                   onClick={() => check(archive.name)}
                 >
@@ -323,7 +324,7 @@ function BackupCard({ job, hosts, defaultDestHost, now, onChanged, onDelete, sho
           <IconButton
             icon="refresh"
             label={job.running ? "Running…" : "Back up now"}
-            disabled={busy || job.running}
+            working={busy || job.running}
             onClick={run}
           />
           <IconButton

@@ -185,6 +185,7 @@ function HostGroup({
               type="button"
               className="btn btn--sm"
               disabled={jobBusy}
+              aria-busy={jobBusy || undefined}
               title={`Newer images for ${updatable.map((c) => c.name).join(", ")} — pull, recreate, roll back any that don't come up`}
               onClick={() => {
                 if (window.confirm(`Update ${updatable.length} container${updatable.length === 1 ? "" : "s"} on ${host}? Each is recreated with its newer image.`)) {

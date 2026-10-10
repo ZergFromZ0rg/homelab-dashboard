@@ -23,7 +23,7 @@ function Services({ host }) {
   const [rows, setRows] = useState(null);
   const [q, setQ] = useState("");
   const [journal, setJournal] = useState(null);
-  const [busy, setBusy] = useState(null);
+  const [busy, setBusy] = useState(null); // { unit, action }
   const [error, setError] = useState("");
 
   const load = useCallback(
@@ -36,7 +36,7 @@ function Services({ host }) {
 
   const act = async (unit, action) => {
     if (action !== "start" && !window.confirm(`${action} ${unit} on ${host}?`)) return;
-    setBusy(unit);
+    setBusy({ unit, action });
     setError("");
     try {
       const result = await change(`${base(host)}/services/${encodeURIComponent(unit)}/${action}`);
@@ -90,18 +90,22 @@ function Services({ host }) {
             <span className="hsys-sub">{r.sub}</span>
             <span className="hsys-actions">
               <button type="button" onClick={() => showJournal(r.unit)}>journal</button>
-              {r.active === "active" ? (
-                <>
-                  <button type="button" disabled={busy === r.unit} onClick={() => act(r.unit, "restart")}>restart</button>
-                  {!r.protected && (
-                    <button type="button" disabled={busy === r.unit} onClick={() => act(r.unit, "stop")}>stop</button>
-                  )}
-                </>
-              ) : (
-                <button type="button" disabled={busy === r.unit} onClick={() => act(r.unit, r.active === "failed" ? "restart" : "start")}>
-                  {r.active === "failed" ? "restart" : "start"}
-                </button>
-              )}
+              {(() => {
+                const mine = busy?.unit === r.unit ? busy.action : null;
+                const btn = (action, label) => (
+                  <button type="button" disabled={busy?.unit === r.unit} aria-busy={mine === action || undefined} onClick={() => act(r.unit, action)}>
+                    {mine === action ? ({ restart: "restarting…", stop: "stopping…", start: "starting…" })[action] : label}
+                  </button>
+                );
+                return r.active === "active" ? (
+                  <>
+                    {btn("restart", "restart")}
+                    {!r.protected && btn("stop", "stop")}
+                  </>
+                ) : (
+                  btn(r.active === "failed" ? "restart" : "start", r.active === "failed" ? "restart" : "start")
+                );
+              })()}
             </span>
             {journal?.unit === r.unit && <pre className="hsys-journal">{journal.text}</pre>}
           </li>
@@ -247,10 +251,10 @@ function OsUpdates({ host, facts, autoCheck = false }) {
           {facts.os_updates != null && `${facts.os_updates} pending${facts.security_updates ? `, ${facts.security_updates} security` : ""}`}
           {facts.reboot_required && " · reboot needed"}
         </span>
-        <button type="button" className="btn btn--sm" disabled={checking || upgrading} onClick={check}>
+        <button type="button" className="btn btn--sm" aria-busy={checking || undefined} disabled={checking || upgrading} onClick={check}>
           {checking ? "Checking…" : "Check now"}
         </button>
-        <button type="button" className="btn btn--sm btn--primary" disabled={upgrading || !(list?.length || facts.os_updates)} onClick={install}>
+        <button type="button" className="btn btn--sm btn--primary" aria-busy={upgrading || undefined} disabled={upgrading || !(list?.length || facts.os_updates)} onClick={install}>
           {upgrading ? "Installing…" : "Install"}
         </button>
       </div>

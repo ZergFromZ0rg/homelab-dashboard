@@ -95,6 +95,7 @@ function RebalancePanel({ deployments }) {
             <button
               type="button"
               disabled={busyId === s.deployment_id}
+              aria-busy={busyId === s.deployment_id || undefined}
               onClick={() => move(s)}
             >
               {busyId === s.deployment_id ? "Moving…" : `Move to ${s.to_node}`}
