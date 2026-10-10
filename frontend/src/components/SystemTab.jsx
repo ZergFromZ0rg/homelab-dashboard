@@ -144,7 +144,7 @@ function SystemTab({ machines, connected }) {
         {tab === "updates" && m.terminal && <OsUpdates key={host} host={host} facts={m.host_facts} />}
         {tab === "services" && m.terminal && <Services key={host} host={host} />}
         {tab === "journal" && m.terminal && <Journal key={host} host={host} />}
-        {tab === "power" && m.terminal && <Power key={host} host={host} />}
+        {tab === "power" && m.terminal && <Power key={host} host={host} machine={m} />}
         {tab === "recover" && <HostRecovery key={`r-${host}`} host={host} defaultOpen />}
         {tab === "settings" && <HostSettings key={`s-${host}`} host={host} defaultOpen />}
       </div>

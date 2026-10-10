@@ -281,8 +281,30 @@ function OsUpdates({ host, facts, autoCheck = false }) {
   );
 }
 
-function Power({ host }) {
+// After a power action, follow the machine itself: waiting for it to go
+// down, down, back up (a reboot) — read from the same online/uptime the cards
+// already poll, so the Power panel shows it happening instead of a promise.
+function Power({ host, machine }) {
   const [note, setNote] = useState(null);
+  const [run, setRun] = useState(null); // { action, since, baseUptime, sawDown, backAt }
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    if (!run) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [run]);
+
+  const online = machine?.online;
+  const uptime = machine?.uptime;
+  useEffect(() => {
+    if (!run) return;
+    const rebooted = uptime != null && run.baseUptime != null && uptime < run.baseUptime - 5;
+    if (!online && !run.sawDown) setRun((r) => r && { ...r, sawDown: true });
+    else if (run.action === "reboot" && run.sawDown && online && !run.backAt) setRun((r) => r && { ...r, backAt: Date.now() });
+    else if (run.action === "reboot" && rebooted && !run.backAt) setRun((r) => r && { ...r, sawDown: true, backAt: Date.now() });
+  }, [online, uptime, run]);
+
   const act = async (action) => {
     const word = action === "reboot" ? "reboot" : "power off";
     const typed = window.prompt(`${word[0].toUpperCase()}${word.slice(1)} ${host}? Everything on it stops${action === "poweroff" ? ", and it stays off until someone presses its power button" : ""}.\n\nType the host name to confirm:`);
@@ -290,16 +312,38 @@ function Power({ host }) {
     if (typed.trim() !== host) return setNote({ tone: "bad", text: "The name didn't match — nothing happened." });
     try {
       await change(`${base(host)}/power`, { action });
-      setNote({ tone: "ok", text: `${host} will ${word} in a few seconds.` });
+      setNote(null);
+      setNow(Date.now());
+      setRun({ action, since: Date.now(), baseUptime: uptime ?? null, sawDown: false, backAt: null });
     } catch (e) {
+      setRun(null);
       setNote({ tone: "bad", text: e.message });
     }
   };
+
+  let status = null;
+  if (run) {
+    const secs = Math.max(0, Math.round(((run.backAt || now) - run.since) / 1000));
+    const word = run.action === "reboot" ? "reboot" : "power off";
+    if (run.backAt) status = { tone: "ok", text: `${host} is back online after ${secs}s.`, done: true };
+    else if (run.sawDown && run.action === "poweroff") status = { tone: "ok", text: `${host} is off.`, done: true };
+    else if (run.sawDown) status = { tone: "wait", text: `${host} is down, waiting for it to come back… ${secs}s` };
+    else if (secs > 120) status = { tone: "bad", text: `${host} hasn't gone down after ${secs}s — the ${word} may not have started.`, done: true };
+    else status = { tone: "wait", text: `${host} will ${word} in a few seconds… ${secs}s` };
+  }
+
   return (
     <div className="hsys-block hsys-power">
       <h4>Power</h4>
-      <button type="button" className="btn btn--sm" onClick={() => act("reboot")}>Reboot</button>
-      <button type="button" className="btn btn--sm btn--danger" onClick={() => act("poweroff")}>Power off</button>
+      <button type="button" className="btn btn--sm" disabled={run && !status.done} onClick={() => act("reboot")}>Reboot</button>
+      <button type="button" className="btn btn--sm btn--danger" disabled={run && !status.done} onClick={() => act("poweroff")}>Power off</button>
+      {status && (
+        <span className={status.tone === "bad" ? "form-error" : status.tone === "ok" ? "hsys-ok" : "hsys-ok hsys-wait"}>
+          {status.tone === "wait" && <span className="hsys-spin" aria-hidden="true" />}
+          {status.text}
+        </span>
+      )}
+      {status?.done && <button type="button" className="btn btn--sm" onClick={() => setRun(null)}>Dismiss</button>}
       {note && <span className={note.tone === "ok" ? "hsys-ok" : "form-error"}>{note.text}</span>}
     </div>
   );
@@ -321,7 +365,7 @@ export function HostSystemPanels({ host, machine, autoCheckUpdates = false, tabb
     services: <Services host={host} />,
     journal: <Journal host={host} />,
     updates: <OsUpdates host={host} facts={facts} autoCheck={autoCheckUpdates} />,
-    power: <Power host={host} />,
+    power: <Power host={host} machine={machine} />,
   };
 
   if (!tabbed) {

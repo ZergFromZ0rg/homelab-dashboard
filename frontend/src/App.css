@@ -6434,6 +6434,30 @@ textarea {
   font-size: var(--fs-sm);
 }
 
+.hsys-wait {
+  color: var(--warning);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hsys-spin {
+  width: 10px;
+  height: 10px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: hsys-spin 0.8s linear infinite;
+}
+
+@keyframes hsys-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hsys-spin { animation: none; }
+}
+
 .conn-count--bad {
   color: var(--offline);
 }
