@@ -29,7 +29,12 @@ VERSION = {"version": {"core": {"local": {"version": "v6.4"}, "remote": {"versio
                        "docker": {"local": "2026.09.0", "remote": "2026.09.0"}}}
 DEVICES = {"devices": [{"hwaddr": "AA:BB:CC:00:00:01", "macVendor": "Apple", "firstSeen": 1, "lastQuery": 2,
                         "numQueries": 7, "ips": [{"ip": "192.168.0.211", "name": "phone.lan", "lastSeen": 3}]}]}
-ROUTES = {"/api/stats/summary": SUMMARY, "/api/dhcp/leases": LEASES, "/api/dns/blocking": BLOCKING,
+CLIENTS = {"clients": [{"client": "AA:BB:CC:00:00:01", "name": "phone.lan", "comment": "Dad's phone", "groups": [3]}]}
+GROUPS = {"groups": [{"id": 0, "name": "Default"}, {"id": 3, "name": "personal"}]}
+DHCP_CONFIG = {"config": {"dhcp": {"hosts": ["74:56:3c:98:7b:21,192.168.0.246,bigboy"]}}}
+TOP = {"clients": [{"name": "phone.lan", "ip": "192.168.0.211", "count": 50}]}
+TOP_BLOCKED = {"clients": [{"name": "phone.lan", "ip": "192.168.0.211", "count": 5}]}
+ROUTES = {"/api/clients": CLIENTS, "/api/groups": GROUPS, "/api/config/dhcp": DHCP_CONFIG, "/api/stats/summary": SUMMARY, "/api/dhcp/leases": LEASES, "/api/dns/blocking": BLOCKING,
           "/api/info/ftl": FTL, "/api/info/version": VERSION, "/api/network/devices": DEVICES}
 
 
@@ -60,7 +65,10 @@ class Fake:
         if self.reject_next:
             self.reject_next = False
             return Reply(401, {})
-        return Reply(200, ROUTES[url.split("8053")[1]])
+        path = url.split("8053")[1]
+        if path == "/api/stats/top_clients":
+            return Reply(200, TOP_BLOCKED if (params or {}).get("blocked") else TOP)
+        return Reply(200, ROUTES[path])
 
 
 def make(monkeypatch):
@@ -90,6 +98,11 @@ def test_poll_builds_the_overview_and_logs_in_once(monkeypatch):
     assert snap["health"]["versions"]["docker"] == "2026.09.0"
     assert snap["devices_total"] == 1 and snap["leases_total"] == 1
     assert collector.devices()[0]["ips"][0]["name"] == "phone.lan"
+    extras = collector.device_inputs()["extras"]
+    assert extras["clients"]["aa:bb:cc:00:00:01"]["comment"] == "Dad's phone"
+    assert extras["groups"][3] == "personal"
+    assert extras["static"] == [{"mac": "74:56:3c:98:7b:21", "ip": "192.168.0.246", "name": "bigboy"}]
+    assert extras["queries"]["192.168.0.211"] == 50 and extras["blocked"]["192.168.0.211"] == 5
     assert "app-pass" not in str(snap)
 
 
@@ -135,4 +148,7 @@ def test_routes_serve_the_cache(monkeypatch):
     monkeypatch.setattr(pihole, "collector", collector)
     web = TestClient(main.app)
     assert web.get("/api/pihole").json()["summary"]["blocked"] == 8
-    assert web.get("/api/pihole/devices").json()["devices"][0]["mac"] == "aa:bb:cc:00:00:01"
+    body = web.get("/api/pihole/devices").json()
+    row = next(d for d in body["devices"] if d["mac"] == "aa:bb:cc:00:00:01")
+    assert row["name"] == "Dad's phone"
+    assert row["kind"] == "personal"

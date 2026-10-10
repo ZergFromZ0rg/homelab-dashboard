@@ -10244,3 +10244,85 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
 @media (max-width: 640px) {
   .pihole-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* Pi-hole device table */
+.status-dot--off {
+  background: var(--text-faint);
+}
+
+.dev {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+
+.dev-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.dev-search {
+  width: 200px;
+}
+
+.dev-row {
+  cursor: pointer;
+}
+
+.dev-row .status-dot {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.dev-row:hover td,
+.dev-row--open td {
+  background: var(--surface-2, rgba(127, 127, 127, 0.08));
+}
+
+.dev-note {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+}
+
+.dev-tag {
+  margin-left: 6px;
+  padding: 0 5px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+}
+
+.dev-tag--warn,
+.dev-kind--warn {
+  color: var(--warning);
+  border-color: var(--warning);
+}
+
+.dev-kind--warn {
+  border: 0;
+}
+
+.dev-form {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.dev-notes {
+  flex: 1 1 200px;
+}
+
+.dev-error {
+  color: var(--offline);
+  font-size: var(--fs-xs);
+}
+
+@media (max-width: 640px) {
+  .dev-search { width: 100%; }
+}

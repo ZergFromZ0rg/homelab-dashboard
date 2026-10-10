@@ -3,6 +3,7 @@ import { usePolled } from "./usePolled";
 import { useNow } from "./useNow";
 import { formatAge, formatDuration } from "./format";
 import Stat from "./Stat";
+import DeviceTable from "./DeviceTable";
 
 // Pi-hole, network-wide: four numbers and a health card. Everything comes
 // from the dashboard's cache; when Pi-hole can't be reached the last good
@@ -96,6 +97,7 @@ function PiholePanel() {
       )}
 
       {summary && <Health snapshot={snapshot} now={now} />}
+      {summary && <DeviceTable />}
     </div>
   );
 }

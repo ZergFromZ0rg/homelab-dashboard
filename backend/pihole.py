@@ -40,6 +40,7 @@ class Pihole:
         self._lock = threading.Lock()
         self._data: dict = {}
         self._devices: list[dict] = []
+        self._extras: dict = {}  # clients (comments, groups), static leases, per-client counts
         self._devices_at = 0.0
         self._ok_at = 0.0
         self._error: str | None = None
@@ -140,6 +141,7 @@ class Pihole:
     def poll_devices(self) -> None:
         try:
             devices = self.get("/api/network/devices", max_devices=100).get("devices") or []
+            extras = self._poll_extras()
         except PiholeError as error:
             with self._lock:
                 self._error = str(error)
@@ -159,7 +161,49 @@ class Pihole:
             })
         with self._lock:
             self._devices = rows
+            self._extras = extras
             self._devices_at = time.time()
+
+    def _poll_extras(self) -> dict:
+        """What the device table needs beyond the device list: the comments and
+        groups you gave clients in Pi-hole, your static leases, and how much
+        each address asked and was blocked. Each is best-effort — a Pi-hole
+        without one of them just leaves that column empty."""
+        extras: dict = {"clients": {}, "groups": {}, "static": [], "queries": {}, "blocked": {}}
+
+        def best_effort(fn):
+            try:
+                fn()
+            except PiholeError as error:
+                log.info("pihole: some device details unavailable (%s)", error)
+
+        def clients():
+            for client in self.get("/api/clients").get("clients") or []:
+                if isinstance(client, dict) and client.get("client"):
+                    extras["clients"][client["client"].lower()] = {
+                        "comment": client.get("comment") or "", "groups": client.get("groups") or [],
+                    }
+            for group in self.get("/api/groups").get("groups") or []:
+                if isinstance(group, dict) and "id" in group:
+                    extras["groups"][group["id"]] = group.get("name") or ""
+
+        def static_leases():
+            dhcp = (self.get("/api/config/dhcp").get("config") or {}).get("dhcp") or {}
+            for entry in dhcp.get("hosts") or []:
+                mac, _, rest = str(entry).partition(",")
+                ip, _, name = rest.partition(",")
+                if mac and ip:
+                    extras["static"].append({"mac": mac.strip().lower(), "ip": ip.strip(), "name": name.strip()})
+
+        def counts():
+            for key, params in (("queries", {}), ("blocked", {"blocked": "true"})):
+                for client in self.get("/api/stats/top_clients", count=200, **params).get("clients") or []:
+                    if isinstance(client, dict) and client.get("ip"):
+                        extras[key][client["ip"]] = client.get("count") or 0
+
+        for fn in (clients, static_leases, counts):
+            best_effort(fn)
+        return extras
 
     def refresh(self) -> None:
         """Poll what is due. Blocking: call it from a thread."""
@@ -191,6 +235,16 @@ class Pihole:
     def devices(self) -> list[dict]:
         with self._lock:
             return list(self._devices)
+
+    def device_inputs(self) -> dict:
+        """Everything the device table merges, copied under the lock."""
+        with self._lock:
+            return {
+                "devices": list(self._devices),
+                "leases": list(self._data.get("leases") or []),
+                "extras": dict(self._extras),
+                "updated_at": self._devices_at or None,
+            }
 
 
 _PARTS = ("core", "web", "ftl", "docker")
