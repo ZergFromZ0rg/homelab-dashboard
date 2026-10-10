@@ -72,6 +72,21 @@ Import) and pick your Prometheus. It shows Pi-hole up/paused, the blocked
 share, devices online, the busiest and most-blocked devices, and how long ago
 Pi-hole last answered.
 
+## A device that is usually online and isn't
+
+Once a minute the dashboard notes which devices are online. A week of that says
+how reliable each one is. A device that was online in at least 80% of the hours
+it has been watched, and has now been missing for 45 minutes and longer than any
+gap in its own record, raises "<name> is offline" (Overview, ntfy, and the
+agent's `network_alerts`). It needs three days of watching first, so it starts
+speaking up three days after this ships; a device that sleeps half the day never
+qualifies.
+
+"Online" is recent DNS queries plus a live lease. A device too quiet to be seen
+reliably never reaches 80%, and a machine that runs the agent already has the
+host-offline alert. While Pi-hole itself is unreachable nobody is sampled, so
+its outage doesn't look like every device leaving.
+
 ## Tools for an agent
 
 `GET /api/agent/tools` lists four read-only tools in the shape tool-calling
@@ -84,7 +99,7 @@ the rest of the API.
 | `network_summary` | Is Pi-hole up, is blocking on, queries and blocked share in 24 h, devices known/online/new, open alerts |
 | `network_devices` | Every device with name, kind, IP, online, vendor, queries and blocked share, first/last seen, switch port. Filter `?online=true` or `?kind=server` |
 | `network_device?device=firestick` | One device by name or MAC, with its latest 50 queries and the domains blocked most. Says so if the name matches several |
-| `network_alerts` | Pi-hole unreachable, unnamed new device, blocking far above usual, and the switch's alerts |
+| `network_alerts` | Pi-hole unreachable, unnamed new device, a device that is usually online and isn't, blocking far above usual, and the switch's alerts |
 
 The agent sees exactly what the dashboard shows. It can't pause blocking, allow
 a domain or move a device to a group: those stay buttons you click.

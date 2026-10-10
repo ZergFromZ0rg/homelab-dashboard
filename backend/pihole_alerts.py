@@ -14,6 +14,7 @@ import threading
 import time
 from pathlib import Path
 
+from backend import presence
 from backend.env import env_float, env_str
 from backend.jsonstore import read_json, write_json_atomic
 
@@ -109,7 +110,7 @@ def block_spike(history: list[tuple[float, int, int]]) -> dict | None:
 
 
 def evaluate(*, down_for: float | None, error: str | None, rows: list[dict], new: dict[str, float],
-             history: list[tuple[float, int, int]]) -> dict[str, dict]:
+             history: list[tuple[float, int, int]], gone: list[dict] | None = None) -> dict[str, dict]:
     out: dict[str, dict] = {}
 
     if down_for is not None and down_for >= DOWN_AFTER:
@@ -133,6 +134,15 @@ def evaluate(*, down_for: float | None, error: str | None, rows: list[dict], new
             "hint": "Open Network → DNS, click the device and name it, or mark it known.",
         }
 
+    for device in gone or []:
+        out[f"network:offline:{device['mac'].replace(':', '')}"] = {
+            "title": f"{device['name']} is offline",
+            "message": f"Usually online ({device['percent']}% of the last {device['days']} days), "
+                       f"but not seen for {_span(device['away_seconds'])}.",
+            "severity": "warn",
+            "hint": "Check its power and Wi-Fi.",
+        }
+
     spike = block_spike(history)
     if spike:
         out["network:block-spike"] = {
@@ -144,6 +154,14 @@ def evaluate(*, down_for: float | None, error: str | None, rows: list[dict], new
             "debounce": True,
         }
     return out
+
+
+def _span(seconds: float) -> str:
+    minutes = round(seconds / 60)
+    if minutes < 90:
+        return f"{minutes} min"
+    hours = minutes / 60
+    return f"{round(hours)} h" if hours < 48 else f"{round(hours / 24)} days"
 
 
 _cache: tuple[float, dict] | None = None
@@ -167,9 +185,14 @@ def current(now: float | None = None) -> dict[str, dict]:
     rows = network_devices.merge(inputs, device_names.names.all(), device_meta.meta.all(), now)
     known.observe(rows, now)
     snap = collector.snapshot()
+    down_for = collector.down_for(now)
+    # While Pi-hole's own data is old, every device would look like it left.
+    trusted = down_for is None and bool(snap.get("reachable")) and not snap.get("stale")
+    presence.store.observe(rows, now, trusted)
     result = evaluate(
-        down_for=collector.down_for(now), error=snap.get("error"),
+        down_for=down_for, error=snap.get("error"),
         rows=rows, new=known.new(), history=collector.history(),
+        gone=presence.store.gone(rows, now) if trusted else [],
     )
     with _cache_lock:
         _cache = (now, result)

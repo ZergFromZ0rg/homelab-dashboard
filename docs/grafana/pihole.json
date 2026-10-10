@@ -437,7 +437,7 @@
     {
       "id": 8,
       "type": "bargauge",
-      "title": "Most blocked devices, share of their queries",
+      "title": "Most blocked devices, share of their queries (20+ queries)",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
@@ -454,7 +454,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "topk(10, pihole_device_blocked_24h / pihole_device_queries_24h)",
+          "expr": "topk(10, pihole_device_blocked_24h / pihole_device_queries_24h and pihole_device_queries_24h >= 20)",
           "refId": "A",
           "legendFormat": "{{name}}",
           "instant": true,
