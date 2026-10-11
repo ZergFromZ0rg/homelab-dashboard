@@ -343,34 +343,3 @@ def test_device_detail_route(api):
     listing = api.get("/api/pihole/devices").json()
     assert {"id": 3, "name": "personal"} in listing["groups"]
 
-
-class TestPublishWebPort:
-    """Pi-hole is on the host network: no published ports, so the container
-    list has no link until PIHOLE_URL supplies one."""
-
-    def link(self, monkeypatch, container, url="http://192.168.0.132:8053"):
-        monkeypatch.setattr(pihole.collector, "url", url)
-        pihole.publish_web_port(container)
-        return container
-
-    def test_host_network_pihole_gets_its_web_port_and_admin_path(self, monkeypatch):
-        c = self.link(monkeypatch, {"image": "pihole/pihole:2026.09.0", "ports": {}})
-        assert c["ports"] == {"8053/tcp": ["8053"]}
-        assert c["web_path"] == "/admin/"
-
-    def test_other_images_are_left_alone(self, monkeypatch):
-        c = self.link(monkeypatch, {"image": "grafana/grafana:latest", "ports": {}})
-        assert c["ports"] == {} and "web_path" not in c
-
-    def test_published_ports_are_not_overridden(self, monkeypatch):
-        c = self.link(monkeypatch, {"image": "pihole/pihole:latest", "ports": {"80/tcp": ["8080"]}})
-        assert c["ports"] == {"80/tcp": ["8080"]} and "web_path" not in c
-
-    def test_registry_prefixed_and_digest_images_match(self, monkeypatch):
-        for image in ("ghcr.io/pi-hole/docker-pi-hole:2026.09.0", "pihole/pihole@sha256:abc", "localhost:5000/pihole/pihole"):
-            assert self.link(monkeypatch, {"image": image, "ports": {}})["ports"], image
-
-    def test_unset_or_https_url_gives_no_link(self, monkeypatch):
-        for url in ("", "https://pi.example:8443"):
-            c = self.link(monkeypatch, {"image": "pihole/pihole", "ports": {}}, url=url)
-            assert c["ports"] == {} and "web_path" not in c

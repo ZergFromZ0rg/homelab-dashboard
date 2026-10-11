@@ -17,7 +17,6 @@ from __future__ import annotations
 import asyncio
 import threading
 import time
-from urllib.parse import urlparse
 
 import requests
 
@@ -430,34 +429,6 @@ def _outdated(part) -> bool:
 
 
 collector = Pihole()
-
-
-def _is_pihole_image(image: str) -> bool:
-    repo = image.split("@")[0]
-    if ":" in repo.rsplit("/", 1)[-1]:
-        repo = repo.rsplit(":", 1)[0]
-    return repo.endswith(("pihole/pihole", "pi-hole/pihole", "pi-hole/docker-pi-hole"))
-
-
-def publish_web_port(container: dict) -> None:
-    """Give Pi-hole's own container the link to its web UI.
-
-    Pi-hole runs on the host network, so Docker publishes no ports and the
-    container list has nothing to link to. ``PIHOLE_URL`` already says which
-    port the UI answers on, and its root returns 403, so the link goes to
-    ``/admin/``. Only http: a link is built as ``http://host:port``.
-    """
-    if container.get("ports") or not _is_pihole_image(container.get("image") or ""):
-        return
-    parsed = urlparse(collector.url)
-    if parsed.scheme != "http":
-        return
-    try:
-        port = parsed.port or 80
-    except ValueError:
-        return
-    container["ports"] = {f"{port}/tcp": [str(port)]}
-    container["web_path"] = "/admin/"
 
 
 async def run_forever() -> None:

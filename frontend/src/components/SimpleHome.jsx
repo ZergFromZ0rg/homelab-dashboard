@@ -7,7 +7,7 @@ import { Meter } from "./HostSummary";
 import { IconButton } from "./Icon";
 import TodoList from "./TodoList";
 import WeatherCard from "./WeatherCard";
-import { containerUrl } from "./containerLink";
+import { containerLink, linkProblem } from "./containerLink";
 import { diskLabel } from "./diskLabel";
 import { formatBytes } from "./format";
 import { hostColor } from "./hostColor";
@@ -137,7 +137,7 @@ function AppGrid({ pins, containers, onSetPins }) {
     <div className="sh-apps-wrap">
       <div className={`sh-apps ${editing ? "sh-apps--editing" : ""}`} ref={row}>
         {apps.map((c) => {
-          const url = containerUrl(c.host, c.ports, c.web_path);
+          const url = containerLink(c.host, c);
           const running = c.status === "running";
           const tile = (
             <>
@@ -146,7 +146,8 @@ function AppGrid({ pins, containers, onSetPins }) {
               <span className="sh-app-name">{c.name}</span>
             </>
           );
-          const title = `${c.name} on ${c.host}${running ? "" : ` — ${c.status}`}${url ? ` · ${url}` : ""}`;
+          const problem = url ? linkProblem(c.host, c) : null;
+          const title = `${c.name} on ${c.host}${running ? "" : ` — ${c.status}`}${url ? ` · ${url}` : ""}${problem ? ` — ${problem}` : ""}`;
           const cls = `sh-app ${running ? "" : "sh-app--off"}`;
           const key = `${c.host}/${c.id}`;
           if (editing) {
@@ -261,14 +262,14 @@ function ContainerTable({ containers, onControl }) {
               const up = c.status === "running";
               const pendingAct = onControl.pending[`${c.host}-${c.id}`];
               const busy = Boolean(pendingAct);
-              const url = containerUrl(c.host, c.ports, c.web_path);
+              const url = containerLink(c.host, c);
               return (
                 <tr key={`${c.host}-${c.id}`} className={up ? "" : "sh-row--off"}>
                   <td>
                     <span className="sh-name">
                       <span className={`status-dot status-dot--${up ? "ok" : "bad"}`} title={c.status} />
                       {url ? (
-                        <a href={url} target="_blank" rel="noopener noreferrer" title={`Open ${url}`}>
+                        <a href={url} target="_blank" rel="noopener noreferrer" title={`Open ${url}${linkProblem(c.host, c) ? ` — ${linkProblem(c.host, c)}` : ""}`}>
                           {c.name}
                         </a>
                       ) : (

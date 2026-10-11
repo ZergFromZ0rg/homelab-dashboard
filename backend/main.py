@@ -276,7 +276,6 @@ async def _build_update() -> dict:
     )
 
     live_credentials = personal_api.service_activity_credentials.all()
-    main_host = MAIN_HOST_OVERRIDE or detect_main_host(agent_data)
 
     # Sampling happens in the reconcile loop (always on); here we
     # just read the rolling series back for the payload.
@@ -288,11 +287,6 @@ async def _build_update() -> dict:
             container["heartbeat"] = live_history.container_heartbeat(
                 host, container["id"]
             )
-
-            # PIHOLE_URL points at the dashboard's own box in practice, so
-            # only that host's Pi-hole gets the link.
-            if main_host is None or host == main_host:
-                pihole.publish_web_port(container)
 
             # A handful of apps (qBittorrent, Jellyfin, ...) can say
             # whether they're actively in use right now. Only the
@@ -310,6 +304,8 @@ async def _build_update() -> dict:
 
             if live:
                 container["live_activity"] = live
+
+    main_host = MAIN_HOST_OVERRIDE or detect_main_host(agent_data)
 
     deployments.reconcile(containers, offline_hosts)
 

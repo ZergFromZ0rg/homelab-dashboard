@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { containerUrl } from "./containerLink";
+import { containerLink } from "./containerLink";
 import { hostColor } from "./hostColor";
 import { useTerminal } from "./terminalContext";
 import { useUpdates } from "./updatesContext";
@@ -48,7 +48,7 @@ function buildItems({ tabs, machines, containers, go, openSettings, terminal, up
       const running = c.status === "running";
       const k = { host, rank: 2, keywords: `container ${c.image ?? ""} ${c.compose_project ?? ""}` };
       add("container", c.name, `${host} · ${c.status}`, () => go({ tab: "containers", container: c.name }), k);
-      const url = containerUrl(host, c.ports, c.web_path);
+      const url = containerLink(host, c);
       if (url) add("container", `Open ${c.name}`, url, () => window.open(url, "_blank", "noopener"), { ...k, rank: 3, keywords: `${k.keywords} web ui browser` });
       if (running && terminal?.available(host)) {
         add("container", `Shell in ${c.name}`, host, () => terminal.open({ host, target: "container", container: c.id, name: c.name }), { ...k, rank: 4, keywords: `${k.keywords} terminal exec console` });

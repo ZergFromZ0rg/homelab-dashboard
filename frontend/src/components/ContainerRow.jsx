@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState } from "react";
-import { containerUrl } from "./containerLink";
+import { containerLink, linkProblem } from "./containerLink";
 import AppIcon from "./AppIcon";
 import Icon, { IconButton } from "./Icon";
 import { needsAttention } from "./containerSort";
@@ -103,7 +103,8 @@ function ContainerRow({
   const network = stats?.network;
   const blockIo = stats?.block_io;
 
-  const url = containerUrl(host, container.ports, container.web_path);
+  const url = containerLink(host, container);
+  const urlProblem = url ? linkProblem(host, container) : null;
   const cpuPercent = stats?.cpu_percent;
   const ramPercent = memory?.percent;
   // A container with no memory cap reports limit_bytes 0 and, with it,
@@ -153,9 +154,10 @@ function ContainerRow({
                   href={url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  title={`Open ${url}`}
+                  title={urlProblem ? `Open ${url} — ${urlProblem}` : `Open ${url}`}
                 >
                   {container.name}
+                  {urlProblem && <span className="link-warn" aria-hidden="true">!</span>}
                 </a>
               ) : (
                 <strong>{container.name}</strong>

@@ -1195,3 +1195,10 @@ textarea.deploy-input {
 .personal-grid {
   gap: 12px;
 }
+
+/* A container link the agent found refusing the browser's request. */
+.link-warn {
+  margin-left: 5px;
+  font-weight: 700;
+  color: var(--warning);
+}

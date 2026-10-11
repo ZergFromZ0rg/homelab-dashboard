@@ -1,5 +1,5 @@
 import { pinKey } from "./containerPins";
-import { containerUrl } from "./containerLink";
+import { containerLink } from "./containerLink";
 import { formatBytes } from "./format";
 import { useSettings } from "./settings";
 import { hostColor } from "./hostColor";
@@ -14,7 +14,7 @@ function QaRow({ t, busy, onControl, showLink, showLiveActivity, staleAge }) {
   const primary = running ? "Stop" : "Start";
   const cpu = t.stats?.cpu_percent;
   const ram = t.stats?.memory?.used_bytes;
-  const url = showLink ? containerUrl(t.host, t.ports, t.web_path) : null;
+  const url = showLink ? containerLink(t.host, t) : null;
   const live = showLiveActivity ? t.live_activity : null;
 
   const act = (verb) => {

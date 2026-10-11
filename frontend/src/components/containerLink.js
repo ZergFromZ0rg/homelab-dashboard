@@ -23,11 +23,36 @@ export function firstHostPort(ports) {
   return ports[preferred || tcpKeys[0]][0];
 }
 
-// `path` is for apps whose web UI isn't at "/" (Pi-hole's root answers 403;
-// the backend sends `web_path` for it).
-export function containerUrl(host, ports, path = "") {
+export function containerUrl(host, ports) {
   const port = firstHostPort(ports);
-  return port ? `http://${host}:${port}${path || ""}` : null;
+  return port ? `http://${host}:${port}` : null;
+}
+
+// Where to send the browser for a container. The agent connects to each
+// container's ports itself and says which one is a web UI, over which
+// scheme, and at what path (`web`, or null when it has none). An agent
+// that doesn't send the key (older, or hasn't probed yet) falls back to
+// guessing from the published ports.
+export function containerLink(host, container) {
+  if (!container) return null;
+  if (container.web !== undefined) {
+    const web = container.web;
+    if (!web) return null;
+    const path = web.path && web.path !== "/" ? web.path : "";
+    return `${web.scheme}://${host}:${web.port}${path}`;
+  }
+  return containerUrl(host, container.ports);
+}
+
+// Why a link may not work from a browser, or null. Only the agent can tell:
+// it asks the way a browser will.
+export function linkProblem(host, container) {
+  const web = container?.web;
+  if (!web || web.ok) return null;
+  if (web.host_rejected) {
+    return `Answers by address but refuses the name "${host}" — add it to the app's allowed hosts`;
+  }
+  return `Answered ${web.status}`;
 }
 
 // Letter-avatar tints. No green, red or amber: those mean up / down /
