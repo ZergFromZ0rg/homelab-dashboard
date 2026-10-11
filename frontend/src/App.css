@@ -607,7 +607,7 @@ select.deploy-input[multiple] {
   flex-direction: column;
   max-height: 300px;
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
 }
 
 .activity-feed::-webkit-scrollbar {
@@ -1109,7 +1109,7 @@ select.deploy-input[multiple] {
   flex-direction: column;
   max-height: 300px;
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
 }
 
 .alert-history::-webkit-scrollbar {
@@ -4267,7 +4267,7 @@ textarea {
 .ov-panel .overview-card-body {
   flex: 1;
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
   padding: 6px 8px 8px;
 }
 
@@ -7267,7 +7267,6 @@ button.mb-item:disabled { cursor: default; }
   overflow-x: auto;
   scroll-snap-type: x proximity;
   scroll-behavior: smooth;
-  overscroll-behavior-x: contain;
   scrollbar-width: none;
 }
 
@@ -8025,13 +8024,14 @@ html.ov-snap {
   min-height: 0;
 }
 
+/* No overscroll-behavior-x here (or on .sh-apps): swiping past the last
+   server is the browser's back/forward gesture, which `contain` would eat. */
 .ovw-track {
   display: flex;
   flex: 1;
   min-height: 0;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
-  overscroll-behavior-x: contain;
   scrollbar-width: none;
 }
 

@@ -27,6 +27,7 @@ import { DEMO, demoSnapshot } from "./demoData";
 import { AUTH_REQUIRED_EVENT } from "./components/apiAuth";
 import ModeSelector from "./components/ModeSelector";
 import { useModeSelector } from "./components/viewMode";
+import { parseHash, useNavHistory } from "./components/navHistory";
 import MorningBriefing from "./components/MorningBriefing";
 import { isRootDown } from "./components/checkStatus";
 
@@ -357,7 +358,10 @@ function App() {
   } = useDashboardSocket();
 
   const { getMode, setMode } = useModeSelector();
-  const [viewMode, setViewMode] = useState(getMode);
+  // The address names the view (#/advanced/containers), so a reload or a
+  // bookmark opens it; with none, the saved mode's Overview.
+  const [opened] = useState(() => parseHash(window.location.hash));
+  const [viewMode, setViewMode] = useState(() => opened?.mode ?? getMode());
 
   useEffect(() => {
     const handleModeChange = () => setViewMode(getMode());
@@ -373,16 +377,7 @@ function App() {
     };
   }, [getMode]);
 
-  const [activeTab, setActiveTab] = useState("overview");
-  // A new view starts at its top; keeping the old scroll offset dropped you
-  // mid-page (or past the end) of a tab you hadn't read yet.
-  const view = viewMode === "simple" ? "simple" : activeTab;
-  const lastView = useRef(view);
-  useEffect(() => {
-    if (lastView.current === view) return;
-    lastView.current = view;
-    window.scrollTo({ top: 0 });
-  }, [view]);
+  const [activeTab, setActiveTab] = useState(opened?.tab ?? "overview");
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Container settings opened from the palette (rows open their own).
   const [settingsFor, setSettingsFor] = useState(null);
@@ -449,6 +444,18 @@ function App() {
   // A tab that doesn't exist in this mode (Network after leaving God) shows
   // the Overview instead.
   const shownTab = tabValues.includes(activeTab) ? activeTab : "overview";
+
+  // Every view you reach is a history entry: swipe or ⌘[ goes back to the
+  // last one (also back across a mode switch), ⌘] forward again. Going back
+  // shows that view without saving its mode as the preference.
+  useNavHistory({
+    mode: viewMode,
+    tab: viewMode === "simple" ? null : shownTab,
+    onPop: ({ mode, tab }) => {
+      setViewMode(mode);
+      if (tab) setActiveTab(tab);
+    },
+  });
 
   // Anything that says "go look at X" (Attention → View, Quick actions →
   // Containers) funnels through here.
