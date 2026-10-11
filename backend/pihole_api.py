@@ -8,7 +8,7 @@ import time
 from fastapi import APIRouter, Header
 from fastapi.responses import JSONResponse
 
-from backend import auth, device_meta, device_names, network_devices, pihole, pihole_alerts, switch
+from backend import auth, device_meta, device_names, network_devices, pihole, pihole_alerts, pihole_history, switch
 
 router = APIRouter(prefix="/api/pihole")
 
@@ -43,6 +43,20 @@ def _rows() -> tuple[list[dict], dict]:
 @router.get("")
 def overview():
     return pihole.collector.snapshot()
+
+
+@router.get("/history")
+def history(range: str = "24h"):
+    """DNS over hours to months, from Pi-hole's long-term database."""
+    if range not in pihole_history.RANGES:
+        return _fail(f"range must be one of: {', '.join(pihole_history.RANGE_KEYS)}")
+
+    def read():
+        rows, _ = _rows()
+        names = {r["ip"]: r["name"] for r in rows if r.get("ip")}
+        return pihole_history.get(pihole.collector, range, names=names)
+
+    return _guard(read)
 
 
 @router.get("/devices")

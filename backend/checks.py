@@ -93,15 +93,16 @@ WORKERS = max(1, int(env_float("CHECK_WORKERS", 16)))
 RAW_WINDOW_SECONDS = 3 * 3600
 RAW_MAX_SAMPLES = RAW_WINDOW_SECONDS // MIN_INTERVAL
 BUCKET_SECONDS = 3600
-BUCKET_RETENTION_SECONDS = 30 * 86400
+BUCKET_RETENTION_SECONDS = 90 * 86400
 RECENT_POINTS = 40
-PERSIST_EVERY_SECONDS = 60
+# Ninety days of hourly buckets is a few MB of JSON; a graceful shutdown still saves at once.
+PERSIST_EVERY_SECONDS = 300
 MAX_KEYWORD_LENGTH = 200
 KEYWORD_MODES = ("present", "absent")
 
 
 # Latency histogram bin edges (ms), roughly log-spaced. Percentiles are read
-# back from per-hour counts of these bins, so they stay cheap to keep for 30
+# back from per-hour counts of these bins, so they stay cheap to keep for 90
 # days and are accurate to within one bin.
 LATENCY_EDGES = (
     0.5, 1, 2, 3, 5, 8, 12, 20, 30, 50, 80, 120, 200, 300, 500, 800,
@@ -119,6 +120,7 @@ RANGES = {
     "24h": (24 * 3600, 3600, False),
     "7d": (7 * 86400, 2 * 3600, False),
     "30d": (30 * 86400, 8 * 3600, False),
+    "90d": (90 * 86400, 12 * 3600, False),
 }
 
 _HOST_RE = re.compile(r"^[A-Za-z0-9]([A-Za-z0-9._-]{0,251}[A-Za-z0-9])?$")
@@ -490,6 +492,8 @@ class _State:
     buckets: dict = field(default_factory=dict)
     # hour start -> per-bin counts of successful latencies
     hist: dict = field(default_factory=dict)
+    # hour start -> [multi-echo pings, loss_sum %, loss_max %, jitter samples, jitter_sum ms]
+    qbuckets: dict = field(default_factory=dict)
     # downtime episodes, oldest first: {"start", "end" (None = ongoing), "detail"}
     incidents: list = field(default_factory=list)
     streak: int = 0
@@ -517,6 +521,31 @@ def _link_quality(quality, now: float) -> tuple[float | None, float | None]:
     return (
         round(sum(q[1] for q in rows) / len(rows), 1),
         round(sum(jitters) / len(jitters), 2) if jitters else None,
+    )
+
+
+def _add_quality(bucket: list, loss: float, jitter: float | None) -> None:
+    bucket[0] += 1
+    bucket[1] += loss
+    bucket[2] = max(bucket[2], loss)
+    if jitter is not None:
+        bucket[3] += 1
+        bucket[4] += jitter
+
+
+def _merge_quality(into: list, other: list) -> None:
+    into[0] += other[0]
+    into[1] += other[1]
+    into[2] = max(into[2], other[2])
+    into[3] += other[3]
+    into[4] += other[4]
+
+
+def _quality_avg(bucket: list) -> tuple[float | None, float | None]:
+    """(loss %, jitter ms) averaged over a quality bucket."""
+    return (
+        round(bucket[1] / bucket[0], 1) if bucket[0] else None,
+        round(bucket[4] / bucket[3], 2) if bucket[3] else None,
     )
 
 
@@ -666,15 +695,18 @@ class CheckService:
             state.probe_error = None
 
             state.samples.append((now, result.ok, result.ms, result.detail))
+            hour = int(now // BUCKET_SECONDS) * BUCKET_SECONDS
             if result.loss is not None:
                 state.quality.append((now, result.loss, result.jitter))
-            hour = int(now // BUCKET_SECONDS) * BUCKET_SECONDS
+                _add_quality(state.qbuckets.setdefault(hour, [0, 0.0, 0.0, 0, 0.0]), result.loss, result.jitter)
             _add(state.buckets.setdefault(hour, [0, 0, 0.0, 0, 0.0]), result.ok, result.ms)
             if result.ok and result.ms is not None:
                 _add_hist(state.hist.setdefault(hour, [0] * HIST_BINS), result.ms)
             for old in [h for h in state.buckets if h < now - BUCKET_RETENTION_SECONDS]:
                 del state.buckets[old]
                 state.hist.pop(old, None)
+            for old in [h for h in state.qbuckets if h < now - BUCKET_RETENTION_SECONDS]:
+                del state.qbuckets[old]
 
             if result.ok and slow_ms is not None and result.ms is not None and result.ms > slow_ms:
                 state.slow_streak += 1
@@ -726,6 +758,13 @@ class CheckService:
                 count += bucket[3]
                 total += bucket[2]
         return None if count == 0 else round(total / count, 1)
+
+    def _quality(self, state: _State, now: float, window: float) -> tuple[float | None, float | None]:
+        merged = [0, 0.0, 0.0, 0, 0.0]
+        for hour, bucket in state.qbuckets.items():
+            if hour + BUCKET_SECONDS > now - window:
+                _merge_quality(merged, bucket)
+        return _quality_avg(merged)
 
     def _window_hist(self, state: _State, now: float, window: float) -> list:
         merged = [0] * HIST_BINS
@@ -802,6 +841,7 @@ class CheckService:
             cause = self._root_cause(spec, specs) if status == "down" else None
 
             loss_pct, jitter_ms = _link_quality(state.quality, now)
+            loss_day, jitter_day = self._quality(state, now, 86400)
             day_hist = self._window_hist(state, now, 86400)
             day_max = self._max_ms(state, now, 86400)
             recent = [
@@ -822,6 +862,8 @@ class CheckService:
                 "lossy": spec.get("max_loss") is not None and state.loss_streak >= FAILURES_BEFORE_DOWN,
                 "loss_pct_3h": loss_pct,
                 "jitter_ms_3h": jitter_ms,
+                "loss_pct_24h": loss_day,
+                "jitter_ms_24h": jitter_day,
                 "status": status,
                 "probe_error": state.probe_error,
                 "suppressed_by": None if cause is None else {"id": cause["id"], "name": cause["name"]},
@@ -863,6 +905,7 @@ class CheckService:
         slots = {t: [0, 0, 0.0, 0, 0.0] for t in range(start, end, width)}
         hists = {t: [0] * HIST_BINS for t in slots}
         raw_ms: dict = {t: [] for t in slots}
+        quality = {t: [0, 0.0, 0.0, 0, 0.0] for t in slots}
 
         with self._lock:
             state = self._states.get(check_id) or _State()
@@ -874,13 +917,26 @@ class CheckService:
                         _add(slots[slot], ok, ms)
                         if ok and ms is not None:
                             raw_ms[slot].append(ms)
+                for t, loss, jitter in state.quality:
+                    slot = int(t // width) * width
+                    if slot in quality:
+                        _add_quality(quality[slot], loss, jitter)
             else:
+                for hour, bucket in state.qbuckets.items():
+                    slot = int(hour // width) * width
+                    if slot in quality:
+                        _merge_quality(quality[slot], bucket)
                 for hour, bucket in state.buckets.items():
                     slot = int(hour // width) * width
                     if slot in slots:
                         _merge(slots[slot], bucket)
                         for i, c in enumerate(state.hist.get(hour, ())):
                             hists[slot][i] += c
+
+            whole_quality = [0, 0.0, 0.0, 0, 0.0]
+            for q in quality.values():
+                _merge_quality(whole_quality, q)
+            loss, jitter = _quality_avg(whole_quality)
 
             uptime = self._uptime(state, now, window)
             whole = self._window_hist(state, now, window)
@@ -905,6 +961,9 @@ class CheckService:
                 "ms_max": round(b[4], 1) if b[3] else None,
                 "ms_p50": point_pct(t, 0.5) if b[3] else None,
                 "ms_p95": point_pct(t, 0.95) if b[3] else None,
+                "loss_avg": _quality_avg(quality[t])[0],
+                "loss_max": round(quality[t][2], 1) if quality[t][0] else None,
+                "jitter_avg": _quality_avg(quality[t])[1],
             }
             for t, b in slots.items()
         ]
@@ -912,6 +971,9 @@ class CheckService:
             "range": range_key,
             "bucket_seconds": width,
             "uptime": uptime,
+            # Only a ping that sends several echoes measures loss and jitter.
+            "loss": loss,
+            "jitter": jitter,
             "p50": p50,
             "p95": p95,
             "points": points,
@@ -932,6 +994,7 @@ class CheckService:
                     ],
                     "buckets": {str(h): b for h, b in state.buckets.items()},
                     "hist": {str(h): c for h, c in state.hist.items()},
+                    "quality_buckets": {str(h): q for h, q in state.qbuckets.items()},
                     "incidents": state.incidents,
                     "streak": state.streak,
                     "slow_streak": state.slow_streak,
@@ -970,6 +1033,9 @@ class CheckService:
                 for hour, counts in (saved.get("hist") or {}).items():
                     if now - int(hour) < BUCKET_RETENTION_SECONDS and len(counts) == HIST_BINS:
                         state.hist[int(hour)] = [int(c) for c in counts]
+                for hour, q in (saved.get("quality_buckets") or {}).items():
+                    if now - int(hour) < BUCKET_RETENTION_SECONDS and len(q) == 5:
+                        state.qbuckets[int(hour)] = [int(q[0]), float(q[1]), float(q[2]), int(q[3]), float(q[4])]
                 for inc in saved.get("incidents") or []:
                     state.incidents.append({
                         "start": float(inc["start"]),

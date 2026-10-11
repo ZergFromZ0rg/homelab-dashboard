@@ -1,5 +1,5 @@
 import { useState } from "react";
-import Sparkline from "./Sparkline";
+import TimeChart from "./TimeChart";
 import { IncidentRows } from "./CheckIncidents";
 import { fetchCheckHistory } from "./checksApi";
 import { formatLatency } from "./format";
@@ -11,7 +11,11 @@ const RANGES = [
   { value: "24h", label: "24 h" },
   { value: "7d", label: "7 d" },
   { value: "30d", label: "30 d" },
+  { value: "90d", label: "90 d" },
 ];
+
+const percent = (v, terse) => (terse ? `${Math.round(v)}%` : `${v.toFixed(v < 10 ? 1 : 0)}%`);
+const milliseconds = (v, terse) => (terse ? `${Math.round(v)}` : formatLatency(v));
 
 function barState(point) {
   if (point.n === 0) return "empty";
@@ -45,9 +49,8 @@ function CheckHistory({ check }) {
     30_000
   );
 
-  const latency = data?.points
-    .filter((p) => p.ms_avg != null)
-    .map((p) => ({ v: p.ms_avg }));
+  // Loss and jitter exist only for a ping that sends several echoes.
+  const lossy = data?.points.some((p) => p.loss_avg != null);
   const peak = data ? Math.max(0, ...data.points.map((p) => p.ms_max ?? 0)) : 0;
 
   return (
@@ -72,6 +75,8 @@ function CheckHistory({ check }) {
             {data.p50 != null && ` · p50 ${formatLatency(data.p50)}`}
             {data.p95 != null && ` · p95 ${formatLatency(data.p95)}`}
             {peak > 0 && ` · peak ${formatLatency(peak)}`}
+            {data.loss != null && ` · ${data.loss}% loss`}
+            {data.jitter != null && ` · ${data.jitter} ms jitter`}
           </span>
         )}
       </div>
@@ -93,17 +98,11 @@ function CheckHistory({ check }) {
             </div>
           </div>
 
-          {latency.length > 1 ? (
-            <>
-              <Sparkline points={latency} variant="rx" height={44} />
-              <div className="sparkline-axis">
-                <span>{RANGES.find((r) => r.value === range).label} ago</span>
-                <span>now</span>
-              </div>
-            </>
-          ) : (
-            <p className="overview-empty">Not enough successful checks yet to draw latency.</p>
-          )}
+          <div className="ccharts-body check-charts">
+            <TimeChart label="Latency (average)" points={data.points} valueKey="ms_avg" format={milliseconds} tone="cpu" emptyText="Not enough successful checks yet to draw latency." />
+            {lossy && <TimeChart label="Packet loss (average)" points={data.points} valueKey="loss_avg" format={percent} tone="temp" emptyText="No loss data in this range." />}
+            {lossy && <TimeChart label="Jitter (average)" points={data.points} valueKey="jitter_avg" format={milliseconds} tone="ram" emptyText="No jitter data in this range." />}
+          </div>
 
           {data.incidents?.length > 0 && (
             <IncidentRows incidents={data.incidents.slice(0, 6)} now={now} showName={false} />

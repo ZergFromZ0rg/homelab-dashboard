@@ -1401,3 +1401,84 @@ def test_one_failed_probe_is_not_yet_an_outage(tmp_path):
     spec = add(service)
     service.record(spec["id"], Result(False, None, "timeout"), time.time() - 10)
     assert service.summary(spec, time.time())["down_since"] is None
+
+
+# --- loss and jitter over weeks -------------------------------------------------
+
+
+def lossy(service, spec, t, loss, jitter=3.0, ms=12.0):
+    service.record(spec["id"], Result(True, ms, "ok", loss=loss, jitter=jitter), t)
+
+
+def test_loss_and_jitter_are_kept_per_hour_not_just_for_three_hours(tmp_path):
+    service = make_service(tmp_path)
+    spec = add(service, type="ping", target="1.1.1.1", count=5)
+    now = 10_000_000.0
+    lossy(service, spec, now - 5 * 86400, 20.0, 8.0)
+    lossy(service, spec, now - 5 * 86400 + 60, 0.0, 2.0)
+    history = service.history(spec["id"], "7d", now)
+    scored = [p for p in history["points"] if p["loss_avg"] is not None]
+    assert len(scored) == 1
+    assert scored[0]["loss_avg"] == 10.0 and scored[0]["loss_max"] == 20.0 and scored[0]["jitter_avg"] == 5.0
+    assert history["loss"] == 10.0 and history["jitter"] == 5.0
+
+
+def test_a_slot_with_no_multi_echo_ping_has_no_loss_not_zero_loss(tmp_path):
+    service = make_service(tmp_path)
+    spec = add(service)  # an http check never measures loss
+    service.record(spec["id"], Result(True, 30.0, "ok"), 10_000_000.0 - 100)
+    history = service.history(spec["id"], "24h", 10_000_000.0)
+    assert history["loss"] is None and all(p["loss_avg"] is None for p in history["points"])
+
+
+def test_the_three_hour_view_reads_loss_from_the_raw_samples(tmp_path):
+    service = make_service(tmp_path)
+    spec = add(service, type="ping", target="1.1.1.1", count=5)
+    now = 10_000_000.0
+    lossy(service, spec, now - 600, 40.0, 9.0)
+    history = service.history(spec["id"], "3h", now)
+    assert [p["loss_avg"] for p in history["points"] if p["loss_avg"] is not None] == [40.0]
+
+
+def test_ninety_days_is_a_range_and_the_summary_carries_a_days_loss(tmp_path):
+    service = make_service(tmp_path)
+    spec = add(service, type="ping", target="1.1.1.1", count=5)
+    now = time.time()
+    lossy(service, spec, now - 3600, 10.0, 4.0)
+    assert len(service.history(spec["id"], "90d", now)["points"]) == 180
+    summary = service.summaries(now)[0]
+    assert summary["loss_pct_24h"] == 10.0 and summary["jitter_ms_24h"] == 4.0
+
+
+def test_buckets_older_than_ninety_days_are_dropped_and_newer_ones_kept(tmp_path):
+    service = make_service(tmp_path)
+    spec = add(service, type="ping", target="1.1.1.1", count=5)
+    now = 50_000_000.0
+    lossy(service, spec, now - 89 * 86400, 5.0)
+    lossy(service, spec, now - 91 * 86400, 5.0)
+    lossy(service, spec, now, 1.0)  # recording prunes the old ones
+    assert all(h >= now - checks.BUCKET_RETENTION_SECONDS for h in service._states[spec["id"]].qbuckets)
+    assert len(service._states[spec["id"]].qbuckets) == 2
+
+
+def test_loss_history_survives_a_restart(tmp_path):
+    first = make_service(tmp_path)
+    spec = add(first, type="ping", target="1.1.1.1", count=5)
+    now = time.time()
+    lossy(first, spec, now - 7200, 25.0, 6.0)
+    first.persist()
+    again = make_service(tmp_path)
+    history = again.history(spec["id"], "24h", now)
+    assert history["loss"] == 25.0 and history["jitter"] == 6.0
+
+
+def test_an_old_history_file_without_loss_buckets_still_loads(tmp_path):
+    first = make_service(tmp_path)
+    spec = add(first)
+    first.record(spec["id"], Result(True, 10.0, "ok"), time.time())
+    first.persist()
+    data = json.loads((tmp_path / "history.json").read_text())
+    for saved in data["checks"].values():
+        saved.pop("quality_buckets", None)  # as written before this existed
+    (tmp_path / "history.json").write_text(json.dumps(data))
+    assert make_service(tmp_path).history(spec["id"], "24h")["loss"] is None

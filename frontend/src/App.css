@@ -10726,3 +10726,68 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
 .dh-table td:nth-child(2) {
   white-space: normal;
 }
+
+/* DNS history */
+.dns-hist {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.dns-hist .ccharts-head {
+  margin-bottom: 0;
+}
+
+.dns-hist-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.dns-hist-totals strong {
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: var(--fs-md);
+}
+
+.dns-tops {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px 20px;
+}
+
+.dh-head--flush {
+  padding: 0 0 4px;
+  border-top: 0;
+}
+
+.dh-name {
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dh-bar {
+  width: 70px;
+}
+
+.dh-bar > span {
+  display: block;
+  height: 4px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+.dns-view {
+  margin-left: auto;
+}
+
+.check-charts {
+  margin-top: 8px;
+}

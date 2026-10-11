@@ -450,7 +450,7 @@ export function demoRebalance() {
   return { suggestions: [], checked_at: now(), auto: false };
 }
 
-const RANGE_SHAPE = { "3h": [36, 300], "24h": [24, 3600], "7d": [84, 7200], "30d": [90, 28800] };
+const RANGE_SHAPE = { "3h": [36, 300], "24h": [24, 3600], "7d": [84, 7200], "30d": [90, 28800], "90d": [180, 43200] };
 
 // Mirrors GET /api/checks/{id}/history.
 export function demoCheckHistory(id, range) {
@@ -464,13 +464,21 @@ export function demoCheckHistory(id, range) {
     const partial = down && i === count - Math.max(1, Math.round(count * 0.06)) - 1;
     const n = per;
     const up = bad ? 0 : partial ? Math.round(n / 2) : n;
-    const base = id === "k2" ? 2 : id === "k3" ? 19 : 40;
+    const base = id === "k2" ? 2 : id === "k8" ? 1.1 : id === "k3" ? 19 : 40;
     const ms = up ? Math.round((base + Math.sin(i / 4) * base * 0.3 + (i % 5)) * 10) / 10 : null;
     return {
       t: end - (count - i) * width, n, up, ms_avg: ms,
       ms_max: ms ? Math.round(ms * 1.8 * 10) / 10 : null,
       ms_p50: ms ? Math.round(ms * 0.95 * 10) / 10 : null,
       ms_p95: ms ? Math.round(ms * 1.5 * 10) / 10 : null,
+      // Only a ping that sends several echoes measures these; the Gateway check (k8) does.
+      ...(id === "k8" && up
+        ? {
+            loss_avg: Math.max(0, Math.round((Math.sin(i / 6) * 2 + (i % 17 === 0 ? 9 : 0.4)) * 10) / 10),
+            loss_max: Math.round((i % 17 === 0 ? 20 : 2) * 10) / 10,
+            jitter_avg: Math.round((1.2 + Math.abs(Math.sin(i / 5)) * 2.5) * 100) / 100,
+          }
+        : { loss_avg: null, loss_max: null, jitter_avg: null }),
     };
   });
 
@@ -484,6 +492,8 @@ export function demoCheckHistory(id, range) {
     uptime: Math.round((10000 * ups) / total) / 100,
     p50: avg == null ? null : Math.round(avg * 0.95 * 10) / 10,
     p95: avg == null ? null : Math.round(avg * 1.6 * 10) / 10,
+    loss: id === "k8" ? 1.1 : null,
+    jitter: id === "k8" ? 2.3 : null,
     points,
     incidents: demoIncidents().filter((i) => i.check_id === id),
   };

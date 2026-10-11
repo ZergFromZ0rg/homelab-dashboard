@@ -5,6 +5,8 @@ import { useNow } from "./useNow";
 import { formatAge, formatDuration } from "./format";
 import Stat from "./Stat";
 import DeviceTable from "./DeviceTable";
+import PiholeHistory from "./PiholeHistory";
+import { useLocalStorage } from "./useLocalStorage";
 
 // Pi-hole, network-wide: four numbers and a health card. Everything comes
 // from the dashboard's cache; when Pi-hole can't be reached the last good
@@ -55,6 +57,7 @@ function Health({ snapshot, now }) {
 function PiholePanel({ readOnly = false }) {
   const [snapshot, setSnapshot] = useState(null);
   const [error, setError] = useState("");
+  const [view, setView] = useLocalStorage("dnsView", "devices");
   const now = useNow(1000);
 
   const load = useCallback(async () => {
@@ -99,6 +102,15 @@ function PiholePanel({ readOnly = false }) {
         {snapshot.blocking && state !== "down" && !readOnly && (
           <BlockingControl snapshot={snapshot} now={now} onChange={setSnapshot} />
         )}
+        {summary && (
+          <div className="segmented segmented--sm dns-view" role="group" aria-label="DNS view">
+            {[["devices", "Devices"], ["history", "History"]].map(([id, label]) => (
+              <button key={id} type="button" className={view === id ? "active" : ""} aria-pressed={view === id} onClick={() => setView(id)}>
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {summary ? (
@@ -116,8 +128,9 @@ function PiholePanel({ readOnly = false }) {
         <p className="lan-empty">No numbers yet — waiting for the first successful poll.</p>
       )}
 
-      {summary && <Health snapshot={snapshot} now={now} />}
-      {summary && <DeviceTable readOnly={readOnly} />}
+      {summary && view === "history" && <PiholeHistory />}
+      {summary && view !== "history" && <Health snapshot={snapshot} now={now} />}
+      {summary && view !== "history" && <DeviceTable readOnly={readOnly} />}
     </div>
   );
 }
