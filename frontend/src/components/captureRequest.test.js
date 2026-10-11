@@ -21,13 +21,13 @@ describe("capture requests from a container row", () => {
     expect(takeCaptureTarget("bigboy")).toBeNull();
   });
 
-  it("asks the app to open the Network tab, and tells anyone listening", () => {
+  it("asks the app to open Packets (a God tool), and tells anyone listening", () => {
     const navigate = vi.fn();
     const heard = vi.fn();
     window.addEventListener("homelab:navigate", (e) => navigate(e.detail.target));
     window.addEventListener("homelab:capture-request", (e) => heard(e.detail.container));
     requestContainerCapture("bigboy", "qbittorrent");
-    expect(navigate).toHaveBeenCalledWith("network");
+    expect(navigate).toHaveBeenCalledWith("packets");
     expect(heard).toHaveBeenCalledWith("qbittorrent");
   });
 

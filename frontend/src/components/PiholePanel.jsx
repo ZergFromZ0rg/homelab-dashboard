@@ -52,7 +52,7 @@ function Health({ snapshot, now }) {
   );
 }
 
-function PiholePanel() {
+function PiholePanel({ readOnly = false }) {
   const [snapshot, setSnapshot] = useState(null);
   const [error, setError] = useState("");
   const now = useNow(1000);
@@ -96,7 +96,7 @@ function PiholePanel() {
         <span className={`pihole-state pihole-state--${tone}`}>{label}</span>
         {snapshot.error && <span className="pihole-error" title={snapshot.error}>{snapshot.error}</span>}
         {state !== "up" && summary && <span className="net-dim">Showing the last numbers it returned.</span>}
-        {snapshot.blocking && state !== "down" && (
+        {snapshot.blocking && state !== "down" && !readOnly && (
           <BlockingControl snapshot={snapshot} now={now} onChange={setSnapshot} />
         )}
       </div>
@@ -117,7 +117,7 @@ function PiholePanel() {
       )}
 
       {summary && <Health snapshot={snapshot} now={now} />}
-      {summary && <DeviceTable />}
+      {summary && <DeviceTable readOnly={readOnly} />}
     </div>
   );
 }

@@ -71,13 +71,19 @@ modes is fewer tabs:
   same data as the rest of the page (`backend/morning.py`, on the `/ws`
   tick and at `/api/morning`), no LLM. Opening any section switches to
   Advanced.
-- **Advanced** — four tabs: **Overview** (servers included), **Containers**,
+- **Advanced** — five tabs: **Overview** (servers included), **Containers**,
   **Files** (the file browser as a page: pick a server, jump to home, `/`
-  or a disk), **Backups**. Each server card still has System / Settings / If this host
+  or a disk), **Backups**, and a look-only **Network** (**Checks** — what is
+  answering and how it has been; **DNS** — Pi-hole and the devices it has
+  seen; **Switch** — port state and traffic; **Host network** — traffic,
+  interfaces and published ports). Nothing on it changes anything: no
+  pausing blocking, editing checks or Docker networks. Each server card still has System / Settings / If this host
   died folded under it.
 - **God** — Advanced plus control of the machines themselves:
-  - **Network** — interfaces, Docker networks, published ports,
-    connections, service checks;
+  - **Network** in full — the same four, plus Scans, Connections, Packets and
+    Watch, per-service traffic, Docker networks, and every control (add, edit,
+    pause or delete checks, pause blocking, allow a domain, regroup or label a
+    device);
   - **System** — one server at a time with everything open: hardware
     (OS, kernel, CPU, cores, RAM, GPUs, uptime, agent commit), disks with
     fill forecasts, systemd services, the journal, OS updates, reboot /

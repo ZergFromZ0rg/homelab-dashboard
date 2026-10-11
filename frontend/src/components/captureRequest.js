@@ -10,7 +10,7 @@ let pending = null;
 
 export function requestContainerCapture(host, container) {
   pending = { host, container, at: Date.now() };
-  window.dispatchEvent(new CustomEvent(NAVIGATE, { detail: { target: "network" } }));
+  window.dispatchEvent(new CustomEvent(NAVIGATE, { detail: { target: "packets" } }));
   window.dispatchEvent(new CustomEvent(REQUEST, { detail: pending }));
 }
 

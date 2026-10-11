@@ -15,6 +15,7 @@ import { formatBytesPerSec } from "./format";
 import { hostColor } from "./hostColor";
 import { isRootDown } from "./checkStatus";
 import { useLocalStorage } from "./useLocalStorage";
+import { networkSections, pickSection, PER_HOST } from "./networkSections";
 import { useFitHeight } from "./useFitHeight";
 import { createNetwork, fetchNetworks, removeNetwork, setMembership } from "./networksApi";
 
@@ -249,7 +250,7 @@ function InterfaceTrend({ series, direction, windowMinutes }) {
   );
 }
 
-function HostNetwork({ host, machine, containers, history, part = "network" }) {
+function HostNetwork({ host, machine, containers, history, part = "network", essential = false }) {
   const {
     settings: { graphWindowMinutes: windowMinutes },
   } = useSettings();
@@ -299,7 +300,7 @@ function HostNetwork({ host, machine, containers, history, part = "network" }) {
   const userNets = nets.filter((n) => !n.builtin).length;
 
   return (
-    <div className="net-host" style={{ "--host-color": hostColor(host) }}>
+    <div className={`net-host ${essential ? "net-host--essential" : ""}`} style={{ "--host-color": hostColor(host) }}>
 
       {part === "network" && (
       <>
@@ -324,7 +325,7 @@ function HostNetwork({ host, machine, containers, history, part = "network" }) {
           </div>
         ))}
       </div>
-      <TrafficByService machine={machine} containers={containers} />
+      {!essential && <TrafficByService machine={machine} containers={containers} />}
       </div>
       <div className="net-grid">
         <div className="net-col">
@@ -417,6 +418,7 @@ function HostNetwork({ host, machine, containers, history, part = "network" }) {
           </section>
         </div>
 
+        {!essential && (
         <section className="overview-card net-networks">
           <div className="overview-card-head">
             <h2>Docker networks</h2>
@@ -465,6 +467,7 @@ function HostNetwork({ host, machine, containers, history, part = "network" }) {
             </div>
           )}
         </section>
+        )}
       </div>
       </>
       )}
@@ -496,30 +499,27 @@ function HostNetwork({ host, machine, containers, history, part = "network" }) {
   );
 }
 
-function NetworkTab({ machines, containers, checks, connected, history = {} }) {
+// `essential` is Advanced's Network tab: the answers to "is it up, who is on it,
+// how busy is it", look-only. God has the rest: scans, connections, packet
+// capture, the watch, per-service traffic, Docker networks, and every control.
+function NetworkTab({ machines, containers, checks, connected, history = {}, essential = false }) {
   const fit = useFitHeight();
   const hosts = Object.keys(machines).sort();
   const [picked, setPicked] = useLocalStorage("networkHost", null);
-  const [section, setSection] = useLocalStorage("networkSection", "network");
+  const [saved, setSection] = useLocalStorage(essential ? "networkSectionEssential" : "networkSection", essential ? "checks" : "network");
   const host = hosts.includes(picked) ? picked : hosts[0];
   // "Capture this container's traffic" from a container row: open Packets on its host.
   useCaptureRequest((request) => {
+    if (essential) return; // Packets is God's; the app switches mode for the request
     setPicked(request.host);
     setSection("packets");
   });
   const down = checks.filter(isRootDown).length;
-  const perHost = !["checks", "dns", "switch"].includes(section);
+  const checksBadge = down ? `${down} down` : checks.length || null;
 
-  const sections = [
-    ["network", "Host network", null],
-    ["devices", "Scans", null],
-    ["connections", "Connections", null],
-    ["packets", "Packets", null],
-    ["watch", "Watch", null],
-    ["dns", "DNS", null],
-    ["switch", "Switch", null],
-    ["checks", "Service checks", down ? `${down} down` : checks.length || null],
-  ];
+  const sections = networkSections(essential, checksBadge);
+  const section = pickSection(sections, saved);
+  const perHost = PER_HOST.includes(section);
 
   return (
     <section className="network-tab fit-page" ref={fit}>
@@ -573,6 +573,7 @@ function NetworkTab({ machines, containers, checks, connected, history = {} }) {
             containers={containers[host]}
             history={history[host]}
             part={section}
+            essential={essential}
           />
         </div>
       )}
@@ -580,7 +581,7 @@ function NetworkTab({ machines, containers, checks, connected, history = {} }) {
       {section === "dns" && (
         <div className="fit-pane">
           <section className="overview-card net-fill">
-            <PiholePanel />
+            <PiholePanel readOnly={essential} />
           </section>
         </div>
       )}
@@ -599,6 +600,7 @@ function NetworkTab({ machines, containers, checks, connected, history = {} }) {
             checks={checks}
             connected={connected}
             hosts={hosts.filter((h) => machines[h]?.agent_reachable != null)}
+            essential={essential}
           />
         </div>
       )}

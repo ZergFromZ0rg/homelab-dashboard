@@ -22,7 +22,10 @@ function Fact({ label, value, sub, bad }) {
 
 // Is each thing actually answering? HTTP / TCP / DNS probes run from the
 // dashboard backend on a schedule, with latency and uptime history.
-function ServicesTab({ checks, connected, hosts = [] }) {
+// `essential` is the look-only version (Advanced): what is up and how it has
+// been, without adding, editing, pausing or deleting, the latency matrix or
+// the suggestions. God keeps all of that.
+function ServicesTab({ checks, connected, hosts = [], essential = false }) {
   const now = useNow(1000).getTime() / 1000;
   const [adding, setAdding] = useState(false);
   const [showIncidents, setShowIncidents] = useState(false);
@@ -81,15 +84,15 @@ function ServicesTab({ checks, connected, hosts = [] }) {
 
       {showIncidents && <CheckIncidents now={now} />}
 
-      <LatencyMatrix />
+      {!essential && <LatencyMatrix />}
 
-      <CheckSuggestions />
+      {!essential && <CheckSuggestions />}
 
       <div className="services-head">
         <h2 title="Probes run from the dashboard every minute (by default) and turn red after two failures in a row.">
           Service checks
         </h2>
-        {!adding && (
+        {!adding && !essential && (
           <button type="button" className="btn" onClick={() => setAdding(true)}>
             + Add check
           </button>
@@ -115,7 +118,9 @@ function ServicesTab({ checks, connected, hosts = [] }) {
         <div className="empty-state">
           {connected === false
             ? "Connecting…"
-            : "No checks yet. Add one to see whether Jellyfin, your router, DNS or the internet are actually answering."}
+            : essential
+              ? "No checks yet. They are added in God mode."
+              : "No checks yet. Add one to see whether Jellyfin, your router, DNS or the internet are actually answering."}
         </div>
       ) : (
         <div className="checks-table">
@@ -157,6 +162,7 @@ function ServicesTab({ checks, connected, hosts = [] }) {
                       all={checks}
                       groups={groupNames}
                       hosts={hosts}
+                      readOnly={essential}
                     />
                   ))}
               </div>

@@ -7262,7 +7262,8 @@ button.mb-item:disabled { cursor: default; }
 .sh-apps {
   display: flex;
   gap: 8px;
-  padding: 4px 0 4px 2px;
+  padding: 6px 0 4px 2px;
+  margin-top: -6px;
   overflow-x: auto;
   scroll-snap-type: x proximity;
   scroll-behavior: smooth;
@@ -7581,15 +7582,6 @@ a.sh-app:hover {
 
 .sh-table tr:not(:hover) .sh-actions {
   opacity: 0.25;
-}
-
-.sh-table-foot {
-  display: flex;
-  justify-content: space-between;
-  padding: 5px 12px;
-  border-top: 1px solid var(--border);
-  color: var(--text-muted);
-  font-size: var(--fs-xs);
 }
 
 /* Servers: a block per host — name, uptime and temperature, then meters. */
@@ -8848,6 +8840,41 @@ a.lan-port--web:hover {
     flex: 0 0 auto;
     min-height: 0;
     overflow-y: visible;
+  }
+}
+
+/* Advanced's Host network (no per-service table, no Docker networks): traffic
+   across the top, interfaces and published ports side by side. */
+.net-host--essential .net-top {
+  grid-template-columns: 1fr;
+}
+
+.net-host--essential .net-top .net-traffic {
+  flex-direction: row;
+}
+
+.net-host--essential .net-top .net-trend {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.net-host--essential .net-grid {
+  grid-template-columns: 1fr;
+}
+
+.network-tab .net-host--essential .net-col {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+}
+
+@media (max-width: 1000px) {
+  .net-host--essential .net-top .net-traffic {
+    flex-direction: column;
+  }
+
+  .network-tab .net-host--essential .net-col {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -10270,6 +10297,14 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
 
 .dev-row {
   cursor: pointer;
+}
+
+.dev-row--static {
+  cursor: default;
+}
+
+.dev-row--static:hover td {
+  background: transparent;
 }
 
 .dev-row .status-dot {

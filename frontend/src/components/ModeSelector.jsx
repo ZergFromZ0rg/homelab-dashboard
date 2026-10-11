@@ -2,8 +2,8 @@ import { useEffect } from "react";
 
 const MODES = [
   { value: "simple", label: "Simple", key: "1", title: "Briefing, overview and personal on one page" },
-  { value: "advanced", label: "Advanced", key: "2", title: "Overview with every server, Containers, Files, Backups" },
-  { value: "god", label: "God", key: "3", title: "Advanced plus Network, System, Terminal and shells" },
+  { value: "advanced", label: "Advanced", key: "2", title: "Overview with every server, Containers, Files, Backups, and a look-only Network" },
+  { value: "god", label: "God", key: "3", title: "Advanced plus the full Network tools, System, Terminal and shells" },
 ];
 
 // Three equal segments and one thumb that slides between them (CSS moves

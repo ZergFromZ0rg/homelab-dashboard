@@ -37,7 +37,7 @@ function Uptime({ value }) {
 // in ServicesTab): what it is, how it's answering now, the recent trend,
 // uptime over 24h / 7d / 30d, and icon actions. Longer-range charts open
 // underneath.
-function CheckCard({ check, now, depth = 0, all = [], groups = [], hosts = [] }) {
+function CheckCard({ check, now, depth = 0, all = [], groups = [], hosts = [], readOnly = false }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -183,24 +183,28 @@ function CheckCard({ check, now, depth = 0, all = [], groups = [], hosts = [] })
             aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
           />
-          <IconButton
-            icon={check.paused ? "play" : "pause"}
-            label={check.paused ? "Resume" : "Pause"}
-            disabled={busy}
-            onClick={() => act(() => updateCheck(check.id, { paused: !check.paused }))}
-          />
-          <IconButton icon="edit" label="Edit" disabled={busy} onClick={() => setEditing(true)} />
-          <IconButton
-            icon="trash"
-            label="Delete"
-            danger
-            disabled={busy}
-            onClick={() => {
-              if (window.confirm(`Delete the check "${check.name}" and its history?`)) {
-                act(() => deleteCheck(check.id));
-              }
-            }}
-          />
+          {!readOnly && (
+            <>
+              <IconButton
+                icon={check.paused ? "play" : "pause"}
+                label={check.paused ? "Resume" : "Pause"}
+                disabled={busy}
+                onClick={() => act(() => updateCheck(check.id, { paused: !check.paused }))}
+              />
+              <IconButton icon="edit" label="Edit" disabled={busy} onClick={() => setEditing(true)} />
+              <IconButton
+                icon="trash"
+                label="Delete"
+                danger
+                disabled={busy}
+                onClick={() => {
+                  if (window.confirm(`Delete the check "${check.name}" and its history?`)) {
+                    act(() => deleteCheck(check.id));
+                  }
+                }}
+              />
+            </>
+          )}
         </span>
       </div>
 

@@ -222,7 +222,6 @@ function ContainerTable({ containers, onControl }) {
 
   const all = allContainers(containers);
   const running = all.filter((c) => c.status === "running");
-  const mem = running.reduce((n, c) => n + (c.stats?.memory?.used_bytes || 0), 0);
 
   const act = (c, verb) => {
     if (window.confirm(`${verb} ${c.name} on ${c.host}?`)) {
@@ -302,13 +301,6 @@ function ContainerTable({ containers, onControl }) {
             )}
           </tbody>
         </table>
-      </div>
-      <div className="sh-table-foot">
-        <span>
-          {all.length} containers · {running.length} running
-          {all.length - running.length > 0 ? ` · ${all.length - running.length} stopped` : ""}
-        </span>
-        <span title="Memory used by the running containers, all hosts added together">{formatBytes(mem)} RAM</span>
       </div>
     </Card>
   );

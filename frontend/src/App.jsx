@@ -406,10 +406,12 @@ function App() {
 
 
   // Simple has no tabs (briefing, overview, personal on one page).
-  // Advanced: the fleet (Overview — servers included), Containers, Backups.
-  // God adds control of the machines themselves: Network, System (services,
-  // updates, power, agent settings, hardware) and Terminal, plus shells. Deploy has no tab: placement lives on in
-  // the API for the AI to drive.
+  // Advanced: the fleet (Overview — servers included), Containers, Files,
+  // Backups and a look-only Network (checks, DNS, switch, host traffic).
+  // God adds control of the machines themselves: the full Network (scans,
+  // packets, Docker networks, every control), System (services, updates,
+  // power, agent settings, hardware) and Terminal, plus shells. Deploy has no
+  // tab: placement lives on in the API for the AI to drive.
   const tabs = [
     {
       value: "overview",
@@ -425,14 +427,14 @@ function App() {
       count: backups?.total || null,
       tone: backups?.attention ? "bad" : undefined,
     },
+    {
+      value: "network",
+      label: "Network",
+      count: checks.length || null,
+      tone: checks.some(isRootDown) ? "bad" : checks.some((c) => c.status === "degraded") ? "warn" : undefined,
+    },
     ...(viewMode === "god"
       ? [
-          {
-            value: "network",
-            label: "Network",
-            count: checks.length || null,
-            tone: checks.some(isRootDown) ? "bad" : checks.some((c) => c.status === "degraded") ? "warn" : undefined,
-          },
           {
             value: "system",
             label: "System",
@@ -473,8 +475,9 @@ function App() {
     }
     // Old section names land where their content lives now.
     if (target === "personal") return setMode("simple");
-    const tab = target === "servers" || target === "deploy" ? "overview" : target;
-    if (["network", "system", "terminal"].includes(tab) && viewMode !== "god") setMode("god");
+    // Packet capture is God's; the rest of Network is open from Advanced.
+    const tab = target === "servers" || target === "deploy" ? "overview" : target === "packets" ? "network" : target;
+    if ((["system", "terminal"].includes(tab) || target === "packets") && viewMode !== "god") setMode("god");
     else if (viewMode === "simple") setMode("advanced");
     setActiveTab(tab);
     if (target === "servers" && host) requestFocus(host, action);
@@ -591,6 +594,8 @@ function App() {
 
             {shownTab === "network" && (
               <NetworkTab
+                key={viewMode === "god" ? "full" : "essential"}
+                essential={viewMode !== "god"}
                 machines={machines}
                 containers={containers}
                 checks={checks}
