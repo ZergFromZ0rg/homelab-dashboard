@@ -75,6 +75,9 @@ services:
       SWITCH_ERRORS_PER_15M: ${SWITCH_ERRORS_PER_15M:-}
       SWITCH_UPLINK_PERCENT: ${SWITCH_UPLINK_PERCENT:-}
       SPEEDTEST_EVERY_HOURS: ${SPEEDTEST_EVERY_HOURS:-}
+      # The router's internet counters over UPnP. Both optional: the router is found from the hosts' gateway.
+      ROUTER_IP: ${ROUTER_IP:-}
+      WAN_UPNP_URL: ${WAN_UPNP_URL:-}
     volumes:
       - dashboard-data:/data
     # Lets the backend send unprivileged ICMP echo (Ping checks) without

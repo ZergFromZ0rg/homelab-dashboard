@@ -32,16 +32,40 @@ port's description on the switch, the same as Network → Switch. The router's r
 as the internet: down is what the house downloads, up what it uploads. Rows are ordered by what
 they moved in 24 hours, the router first.
 
-**Limit:** only traffic that crosses the switch is counted. A phone or TV on the router's own Wi-Fi
-reaches the internet through the router's own routing, never through the switch, so its traffic
-is not in this table at all; only what passes between it and the wired devices is. The router's
-row is tagged *router link* and is not counted in the share column. The scheduled speed test
-decides whether the line is busy from the same port, so it can't see Wi-Fi-only use either.
+## The router's own counters (the Internet row)
 
-To check on your network: start a large download on a phone over Wi-Fi and watch *In use now*.
-If it doesn't move, that traffic bypasses the switch. Seeing those devices needs a source that
-sees them (a router or firewall that reports per-client traffic), or Wi-Fi moved onto an
-access point plugged into the switch, so that it crosses a port that can be mirrored.
+Most routers with UPnP on answer a few read-only questions about their WAN side without a
+login: is the link up, how fast, what is the public address, and how many bytes have crossed it.
+The dashboard reads the byte counters every 15 seconds (`backend/wan.py`) and keeps ten-minute
+buckets for 90 days, so the totals are exact sums, not guessed from rates.
+
+**Why it matters:** a phone or TV on the router's own Wi-Fi is routed straight out of the router and
+never touches a switch port. Measured here: 46 MB downloaded in two minutes, 0.3 MB of it to
+anything on the switch. The switch alone makes the household look like it barely uses the
+internet; the router's counters count all of it.
+
+- **Internet** row: the router's counters (down, up, trend, totals), tagged *router WAN*.
+- **Not on the switch** row, tagged *derived*: the router's download minus what it passed to the
+  switch. That is the Wi-Fi devices and anything else on the router itself, not measured
+  directly. Upload is not shown: LAN traffic to Wi-Fi devices crosses the same switch port, so
+  the two can't be told apart and it isn't guessed. Its total is withheld until the router has
+  been counted for the whole range.
+- The speed test's "line is busy" check and the *Internet now* tile use these counters, so
+  Wi-Fi-only use is seen too.
+- Alerts: *the router's internet link is down* (the dashboard can still reach the router, so
+  this tells a dead modem or cable from an unreachable website) and *internet link is nearly
+  full* (90% for ten minutes).
+- Counters are 32-bit and wrap every ~4 GB; a counter that drops by more than a wrap could
+  explain is a reboot. If the router's UPnP is off, the Internet row falls back to the switch's
+  router port, tagged *router link*.
+
+Nothing is changed on the router: only UPnP "Get" calls to its own address, found by asking
+the default gateway. `ROUTER_IP` and `WAN_UPNP_URL` override discovery; `WAN_FILE`,
+`WAN_FULL_PERCENT` tune the rest.
+
+**Still not possible:** per-device bandwidth for the Wi-Fi devices. The router's counters are
+totals; telling the devices apart needs a router or firewall that reports per client (OPNsense
+later), or the Wi-Fi moved onto an access point on the switch.
 
 The range picker (2 h, 24 h, 7 d, 30 d) sets the trend's length and the totals' window (never under a day);
 longer ranges are fetched when asked for and kept for 90 seconds. The trend and the totals are two Prometheus questions asked once a minute

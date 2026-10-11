@@ -25,7 +25,7 @@ from pathlib import Path
 
 import requests
 
-from backend import switch
+from backend import switch, wan
 from backend.env import env_float, env_str
 from backend.jsonstore import read_json, write_json_atomic
 from backend.log import system as log
@@ -153,7 +153,23 @@ def uplink_usage(snapshot: dict) -> float | None:
     return None
 
 
+def line_usage(snapshot: dict) -> float | None:
+    """How much of the internet link is in use, 0 to 1. The router's own counters
+    when it has them (they include Wi-Fi, which never crosses the switch), else the
+    switch's router port."""
+    rx, tx = wan.monitor.rate(60)
+    link = wan.monitor.snapshot().get("link_mbps")
+    if rx is not None and tx is not None and link:
+        return max(rx, tx) / (link * 1e6)
+    return uplink_usage(snapshot)
+
+
 def uplink_speed(snapshot: dict) -> int | None:
+    """The internet link's speed: what the router says its internet port runs at, else
+    what the switch negotiated with the router."""
+    reported = wan.monitor.snapshot().get("link_mbps")
+    if reported:
+        return reported
     for port in snapshot.get("ports") or []:
         if port["name"].lower() == switch.UPLINK and port["up"]:
             return port.get("speed_mbps")
@@ -165,7 +181,7 @@ class SpeedTest:
         self.path = Path(path or SPEEDTEST_FILE)
         self._measure = measure_fn or measure
         self._clock = clock
-        self._busy = busy_fn or (lambda: (uplink_usage(switch.monitor.snapshot()) or 0) > BUSY_AT)
+        self._busy = busy_fn or (lambda: (line_usage(switch.monitor.snapshot()) or 0) > BUSY_AT)
         self._lock = threading.Lock()
         self._running = False
         self._started = clock()

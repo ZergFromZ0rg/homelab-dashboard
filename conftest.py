@@ -85,3 +85,15 @@ def _isolated_gpu_history(tmp_path, monkeypatch):
     gpu_history.reset()
     yield
     gpu_history.reset()
+
+
+@pytest.fixture(autouse=True)
+def _isolated_wan(tmp_path, monkeypatch):
+    """A router collector on a temp file that cannot reach any router, so no test
+    polls the network or leaves counters behind."""
+    from backend import wan
+
+    def refuse():
+        raise wan.WanError("no router in tests")
+
+    monkeypatch.setattr(wan, "monitor", wan.Wan(tmp_path / "wan.json", connect=refuse))

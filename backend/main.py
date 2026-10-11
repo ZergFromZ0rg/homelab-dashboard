@@ -25,7 +25,7 @@ from backend import terminal
 from backend import files_api
 from backend import capture_api, netwatch_api
 from backend import lan_api
-from backend import bandwidth, bandwidth_api, history_api, network_alerts, pihole, pihole_api, speedtest, switch, switch_api
+from backend import bandwidth, bandwidth_api, history_api, network_alerts, pihole, pihole_api, speedtest, switch, switch_api, wan
 from backend import compose_api
 from backend import network_export_api
 from backend import updates_api
@@ -47,6 +47,7 @@ async def lifespan(_: FastAPI):
     tasks.append(asyncio.create_task(switch.run_forever()))
     tasks.append(asyncio.create_task(bandwidth.run_forever()))
     tasks.append(asyncio.create_task(speedtest.run_forever()))
+    tasks.append(asyncio.create_task(wan.run_forever()))
     try:
         yield
     finally:
@@ -54,6 +55,7 @@ async def lifespan(_: FastAPI):
             task.cancel()
         # Save check history so a restart doesn't lose the last minute.
         checks.service.persist()
+        wan.monitor.save()
 
 
 app = FastAPI(lifespan=lifespan)

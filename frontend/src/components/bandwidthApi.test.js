@@ -36,6 +36,15 @@ describe("orderDevices", () => {
     expect(orderDevices(rows).map((d) => d.name)).toEqual(["router", "busy", "quiet"]);
   });
 
+  it("puts the derived row after the devices, whatever it moved", () => {
+    const rows = [
+      device(10000, "Not on the switch", { derived: true, down_24h: 99e9 }),
+      device(2, "bigboy", { down_24h: 1e6 }),
+      device(0, "Internet", { uplink: true, down_24h: 1 }),
+    ];
+    expect(orderDevices(rows).map((d) => d.name)).toEqual(["Internet", "bigboy", "Not on the switch"]);
+  });
+
   it("falls back to port order when nothing has a total yet", () => {
     const rows = [device(3, "c", { down_24h: null }), device(2, "b", { down_24h: null })];
     expect(orderDevices(rows).map((d) => d.name)).toEqual(["b", "c"]);
@@ -62,6 +71,12 @@ describe("shareOfDay", () => {
 
   it("is nothing for the uplink, which is the sum of the rest and more", () => {
     expect(shareOfDay(rows[0], rows)).toBeNull();
+  });
+
+  it("is nothing for the derived row either, and it does not count towards anyone else's share", () => {
+    const withDerived = [...rows, device(10000, "Not on the switch", { derived: true, down_24h: 50e9 })];
+    expect(shareOfDay(withDerived[3], withDerived)).toBeNull();
+    expect(shareOfDay(withDerived[1], withDerived)).toBe(0.75);
   });
 
   it("is nothing before any totals exist", () => {

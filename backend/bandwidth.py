@@ -24,7 +24,7 @@ import time
 
 import requests
 
-from backend import prometheus, switch
+from backend import prometheus, switch, wan
 from backend.log import system as log
 
 # range -> (seconds shown, step, window the totals are summed over). The totals
@@ -34,6 +34,7 @@ RANGES = {
     "24h": (86400, 300, "24h"),
     "7d": (7 * 86400, 1800, "7d"),
     "30d": (30 * 86400, 7200, "30d"),
+    "90d": (90 * 86400, 21600, "90d"),
 }
 DEFAULT_RANGE = "2h"
 SPAN, STEP, _ = RANGES[DEFAULT_RANGE]
@@ -74,6 +75,47 @@ def _fetch(now: float, range_key: str = DEFAULT_RANGE) -> dict[str, dict]:
             "up": up.get(index, []),
         }
     return out
+
+
+def _trend_points(points: list[dict], key: str) -> list[dict]:
+    return [{"t": p["t"], "v": p[key]} for p in points]
+
+
+def _with_wan(rows: list[dict], range_key: str) -> tuple[list[dict], dict | None]:
+    """Put the router's own counters in as the Internet row.
+
+    The router port on the switch only carries what the wired devices send and
+    receive. A phone on the router's Wi-Fi is routed straight out of the router and
+    never touches the switch, so the switch alone makes the household look like it
+    barely uses the internet. The router's WAN counters count all of it. The
+    difference between the two (the download that did not go to anything on the
+    switch) is shown as its own row, marked derived."""
+    snap = wan.monitor.snapshot(range_key if range_key in wan.RANGES else "24h")
+    if snap["state"] == "unavailable" or snap["rx_bps"] is None:
+        return rows, None
+    uplink = next((r for r in rows if r["uplink"]), None)
+    window = 86400 if snap["totals_window"] == "24h" else wan.RANGES[range_key][0]
+    complete = snap["covers_seconds"] >= 0.98 * window  # the router's counters are only read from the day they were first read
+    internet = {
+        "index": 0, "name": "Internet", "port": "WAN", "labelled": True, "up": snap["state"] == "up",
+        "speed_mbps": snap["link_mbps"], "uplink": True, "wan": True, "derived": False,
+        "down_bps": snap["rx_bps"], "up_bps": snap["tx_bps"],
+        "down_24h": snap["rx_bytes"], "up_24h": snap["tx_bytes"],
+        "down_trend": _trend_points(snap["trend"], "rx"), "up_trend": _trend_points(snap["trend"], "tx"),
+        "totals_partial": not complete, "covers_seconds": snap["covers_seconds"],
+    }
+    out = [r for r in rows if not r["uplink"]]
+    out.append(internet)
+    if uplink is not None:
+        # what the router sent the switch is what reached the wired devices
+        other = max(0, snap["rx_bps"] - uplink["down_bps"])
+        total = None if not complete or uplink["down_24h"] is None else max(0, snap["rx_bytes"] - uplink["down_24h"])
+        out.append({
+            "index": 10_000, "name": "Not on the switch", "port": "", "labelled": True, "up": True, "speed_mbps": None,
+            "uplink": False, "wan": False, "derived": True, "down_bps": other, "up_bps": None,
+            "down_24h": total, "up_24h": None, "down_trend": [], "up_trend": [],
+        })
+    return out, {k: snap[k] for k in ("state", "link_mbps", "address", "kind", "rx_bps", "tx_bps", "covers_seconds")}
 
 
 class Bandwidth:
@@ -133,10 +175,12 @@ class Bandwidth:
                 "down_trend": down_trend,
                 "up_trend": up_trend,
             })
+        rows, internet = _with_wan(rows, range_key)
         return {
             "state": base.get("state", "loading"),
             "reachable": base.get("reachable", True),
             "devices": rows,
+            "wan": internet,
             "range": range_key,
             "totals_window": RANGES[range_key][2],
             "history_at": at or None,

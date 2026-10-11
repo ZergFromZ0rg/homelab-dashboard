@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import Sparkline from "./Sparkline";
 import { IconButton } from "./Icon";
 import { useNow } from "./useNow";
-import { formatAge, formatLatency } from "./format";
+import { formatAge, formatDuration, formatLatency } from "./format";
 import { BANDWIDTH_RANGES, fetchBandwidth, formatMoved, formatRate, orderDevices, shareOfDay } from "./bandwidthApi";
 import { useLocalStorage } from "./useLocalStorage";
 import { fetchSpeedtest, history, latestQuiet, runSpeedtest, scheduleLabel, setSpeedtestSchedule } from "./speedtestApi";
@@ -114,8 +114,10 @@ function Internet({ speed, setSpeed, uplink, readOnly, now }) {
           <strong>{last ? formatLatency(last.ping_ms) : "—"}</strong>
           <small>{last ? `± ${formatLatency(last.jitter_ms)}` : ""}</small>
         </div>
-        <div title={`What crosses the router's switch port right now${link ? `, of its ${link} Mbps link` : ""}. Wi-Fi devices on the router itself mostly don't cross it.`}>
-          <span>In use now</span>
+        <div title={uplink?.wan
+          ? `The router's own counters for its internet link${link ? `, of its ${link} Mbps` : ""}: everything, Wi-Fi included.`
+          : `What crosses the router's switch port right now${link ? `, of its ${link} Mbps link` : ""}. Wi-Fi devices on the router itself mostly don't cross it, so this is not the whole household.`}>
+          <span>{uplink?.wan ? "Internet now" : "In use now"}</span>
           <strong>{uplink ? `${formatRate(uplink.down_bps)} ↓` : "—"}</strong>
           <small>{uplink ? `${formatRate(uplink.up_bps)} ↑${link ? ` · of ${link}M` : ""}` : ""}</small>
         </div>
@@ -126,6 +128,9 @@ function Internet({ speed, setSpeed, uplink, readOnly, now }) {
 
 function Device({ device, devices }) {
   const share = shareOfDay(device, devices);
+  const partial = device.totals_partial
+    ? `The router's counters have been read for ${formatDuration(device.covers_seconds)} so far, so this total covers that long, not the whole range.`
+    : undefined;
   return (
     <tr className={device.up ? "" : "sw-row--down"}>
       <td>
@@ -133,12 +138,28 @@ function Device({ device, devices }) {
       </td>
       <td>
         <span className="dev-name">{device.name}</span>
-        {device.uplink && (
+        {device.wan && (
           <span
             className="dev-tag"
-            title="The router's side of the link: the internet traffic of the devices above, plus what passes between them and the router's Wi-Fi devices. A Wi-Fi device's own internet traffic normally goes straight out of the router and never crosses the switch, so it is not counted here."
+            title="The router's own counters for its internet connection: everything going out or coming in, Wi-Fi devices included. The switch can't see Wi-Fi devices, because they are routed out of the router and never touch it."
+          >
+            router WAN
+          </span>
+        )}
+        {device.uplink && !device.wan && (
+          <span
+            className="dev-tag"
+            title="The router's side of the switch: the internet traffic of the devices above, plus what passes between them and the router's Wi-Fi devices. A Wi-Fi device's own internet traffic goes straight out of the router and never crosses the switch, so it is not counted here."
           >
             router link
+          </span>
+        )}
+        {device.derived && (
+          <span
+            className="dev-tag"
+            title="The router's internet download minus what it passed to the switch: Wi-Fi devices and anything else on the router itself. Not measured directly. Upload isn't shown: LAN traffic to Wi-Fi devices crosses the same port, so the two can't be told apart."
+          >
+            derived
           </span>
         )}
         {!device.labelled && (
@@ -151,8 +172,8 @@ function Device({ device, devices }) {
       <td className="bw-spark"><Sparkline points={device.down_trend} variant="rx" height={16} /></td>
       <td className="pcap-r net-mono">{device.up ? formatRate(device.up_bps) : "—"}</td>
       <td className="bw-spark"><Sparkline points={device.up_trend} variant="tx" height={16} /></td>
-      <td className="pcap-r net-mono">{formatMoved(device.down_24h)}</td>
-      <td className="pcap-r net-mono">{formatMoved(device.up_24h)}</td>
+      <td className="pcap-r net-mono" title={partial}>{formatMoved(device.down_24h)}</td>
+      <td className="pcap-r net-mono" title={partial}>{formatMoved(device.up_24h)}</td>
       <td className="bw-share" title={share != null ? `${Math.round(share * 100)}% of what the devices moved in 24 hours` : undefined}>
         {share != null && (
           <>

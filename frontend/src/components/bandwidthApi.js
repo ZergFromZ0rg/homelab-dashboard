@@ -23,6 +23,8 @@ const demoDevice = (index, name, over = {}) => ({
   up: true,
   speed_mbps: 1000,
   uplink: false,
+  wan: false,
+  derived: false,
   down_bps: 0,
   up_bps: 0,
   down_24h: 0,
@@ -35,10 +37,13 @@ const demoDevice = (index, name, over = {}) => ({
 const DEMO_SNAPSHOT = {
   state: "up",
   reachable: true,
+  wan: { state: "up", link_mbps: 100, address: "203.0.113.7", kind: "Ethernet", rx_bps: 21.4e6, tx_bps: 3.9e6, covers_seconds: 9 * 86400 },
   devices: [
-    demoDevice(1, "router", {
+    demoDevice(0, "Internet", {
+      port: "WAN",
       speed_mbps: 100,
       uplink: true,
+      wan: true,
       down_bps: 21.4e6,
       up_bps: 3.9e6,
       down_24h: 61e9,
@@ -63,17 +68,18 @@ const DEMO_SNAPSHOT = {
       up_trend: demoTrend(0.4e6, 0.3e6, 9),
     }),
     demoDevice(4, "g4", { labelled: false, down_bps: 0.05e6, up_bps: 0.02e6, down_24h: 0.4e9, up_24h: 0.1e9, down_trend: demoTrend(0.05e6, 0.03e6, 4), up_trend: demoTrend(0.02e6, 0.01e6, 6) }),
+    demoDevice(10000, "Not on the switch", { port: "", speed_mbps: null, derived: true, down_bps: 18.1e6, up_bps: null, down_24h: 41e9, up_24h: null }),
   ],
 };
 
-export const BANDWIDTH_RANGES = ["2h", "24h", "7d", "30d"];
+export const BANDWIDTH_RANGES = ["2h", "24h", "7d", "30d", "90d"];
 
 // Past two hours the trend is longer and the totals follow it (a week's trend
 // with a day's total would be two different questions in one row).
 export function fetchBandwidth(range = "2h") {
   if (DEMO) {
-    const scale = { "2h": 1, "24h": 1, "7d": 7, "30d": 30 }[range] ?? 1;
-    const devices = DEMO_SNAPSHOT.devices.map((d) => ({ ...d, down_24h: d.down_24h * scale, up_24h: d.up_24h * scale }));
+    const scale = { "2h": 1, "24h": 1, "7d": 7, "30d": 30, "90d": 90 }[range] ?? 1;
+    const devices = DEMO_SNAPSHOT.devices.map((d) => ({ ...d, down_24h: d.down_24h == null ? null : d.down_24h * scale, up_24h: d.up_24h == null ? null : d.up_24h * scale }));
     return Promise.resolve({ ...DEMO_SNAPSHOT, devices, range, totals_window: range === "2h" ? "24h" : range, updated_at: Date.now() / 1000 });
   }
   return fetch(`/api/bandwidth?range=${encodeURIComponent(range)}`).then(jsonOrThrow);
@@ -94,22 +100,24 @@ export function formatMoved(bytes) {
   return bytes == null ? "—" : formatBytes(bytes);
 }
 
-// The order of the table: the uplink first (everything runs through it), then
-// the devices by what they moved today, so the top of the list is who used the
-// most. The order follows a day's total, not this second's rate, so rows don't
-// jump around between polls. A device with no total yet sorts by port.
+// The order of the table: the internet first (everything runs through it), the
+// devices by what they moved today so the top of the list is who used the most,
+// and the derived "not on the switch" row last. The order follows a day's total,
+// not this second's rate, so rows don't jump around between polls. A device with
+// no total yet sorts by port.
 export function orderDevices(devices) {
   const moved = (d) => (d.down_24h ?? 0) + (d.up_24h ?? 0);
-  return [...devices].sort((a, b) => {
-    if (a.uplink !== b.uplink) return a.uplink ? -1 : 1;
-    return moved(b) - moved(a) || a.index - b.index;
-  });
+  const place = (d) => (d.uplink ? 0 : d.derived ? 2 : 1);
+  return [...devices].sort((a, b) => place(a) - place(b) || moved(b) - moved(a) || a.index - b.index);
 }
 
-// Share of what all the devices moved in 24 hours (the uplink excluded: it is
-// the sum of the others plus the internet, so counting it would double everything).
+// Share of what the devices on the switch moved in 24 hours. The internet row and
+// the derived one are left out: they are not devices on the switch, and counting
+// the internet would double everything.
+const counted = (d) => !d.uplink && !d.derived;
+
 export function shareOfDay(device, devices) {
-  const total = devices.filter((d) => !d.uplink).reduce((sum, d) => sum + (d.down_24h ?? 0) + (d.up_24h ?? 0), 0);
+  const total = devices.filter(counted).reduce((sum, d) => sum + (d.down_24h ?? 0) + (d.up_24h ?? 0), 0);
   const mine = (device.down_24h ?? 0) + (device.up_24h ?? 0);
-  return total > 0 && !device.uplink ? mine / total : null;
+  return total > 0 && counted(device) ? mine / total : null;
 }

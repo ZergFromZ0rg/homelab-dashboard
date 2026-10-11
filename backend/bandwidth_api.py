@@ -6,7 +6,7 @@ import threading
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from backend import bandwidth, speedtest, switch
+from backend import bandwidth, speedtest, switch, wan
 
 router = APIRouter(prefix="/api")
 
@@ -19,6 +19,15 @@ class Schedule(BaseModel):
 def devices(range: str = bandwidth.DEFAULT_RANGE):
     try:
         return bandwidth.monitor.snapshot(range_key=range)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+@router.get("/wan")
+def internet(range: str = wan.DEFAULT_RANGE):
+    """The router's own view of the internet link: state, speed, address, usage."""
+    try:
+        return wan.monitor.snapshot(range)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
 
