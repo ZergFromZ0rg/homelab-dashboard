@@ -34,6 +34,7 @@ import threading
 import time
 import xml.etree.ElementTree as ET
 from collections import Counter, deque
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
@@ -113,7 +114,7 @@ def _ssdp(ip: str) -> str | None:
         "ST: urn:schemas-upnp-org:device:InternetGatewayDevice:1", "", "",
     ]).encode()
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.settimeout(TIMEOUT)
+    sock.settimeout(2)
     try:
         sock.sendto(message, (ip, 1900))
         data, _ = sock.recvfrom(4096)
@@ -123,6 +124,39 @@ def _ssdp(ip: str) -> str | None:
         sock.close()
     match = re.search(rb"(?im)^location:\s*(\S+)", data)
     return match.group(1).decode("ascii", "replace") if match else None
+
+
+# Where routers usually serve their UPnP description. SSDP is the proper way to
+# find it, but a router answers from a different UDP port than it was asked on, and
+# Docker's address translation drops that reply, so from inside a container the
+# direct, unicast ask can come back empty even though the router is listening.
+COMMON_DESCRIPTIONS = tuple(
+    (port, path)
+    for port in (49152, 5000, 52869, 49153, 2869, 1900, 8000, 37215)
+    for path in ("InternetGatewayDevice.xml", "rootDesc.xml", "picsdesc.xml", "igd.xml")
+)
+PROBE_TIMEOUT = 1.5
+
+
+def _is_gateway_description(url: str) -> bool:
+    try:
+        response = requests.get(url, timeout=PROBE_TIMEOUT, stream=True)
+        if not response.ok:
+            return False
+        head = response.raw.read(65536, decode_content=True)
+        response.close()
+    except requests.RequestException:
+        return False
+    return b"InternetGatewayDevice" in head
+
+
+def _probe(ip: str) -> str | None:
+    urls = [f"http://{ip}:{port}/{path}" for port, path in COMMON_DESCRIPTIONS]
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        for url, found in zip(urls, pool.map(_is_gateway_description, urls)):
+            if found:
+                return url
+    return None
 
 
 def _services(xml: str, base: str) -> dict[str, str]:
@@ -151,7 +185,7 @@ class Router:
         self.controls: dict[str, str] = {}
 
     def discover(self) -> None:
-        location = self.description or _ssdp(self.ip)
+        location = self.description or _ssdp(self.ip) or _probe(self.ip)
         if not location:
             raise WanError(f"{self.ip} doesn't answer UPnP (it may be off in the router's settings)")
         # Only ever talk to the router itself, wherever a reply says to look.

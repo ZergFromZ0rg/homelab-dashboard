@@ -238,8 +238,48 @@ def test_a_control_url_on_another_machine_is_dropped(monkeypatch):
 
 def test_a_router_that_does_not_answer_says_so(monkeypatch):
     monkeypatch.setattr(wan, "_ssdp", lambda ip: None)
+    monkeypatch.setattr(wan, "_probe", lambda ip: None)
     with pytest.raises(WanError, match="doesn't answer UPnP"):
         wan.Router("192.168.0.1").discover()
+
+
+def test_when_discovery_is_swallowed_by_docker_the_usual_addresses_are_tried(monkeypatch):
+    """From inside a container the router's SSDP reply (from another port) is dropped by NAT."""
+    monkeypatch.setattr(wan, "_ssdp", lambda ip: None)
+    monkeypatch.setattr(wan, "_is_gateway_description", lambda url: url == "http://192.168.0.1:49152/InternetGatewayDevice.xml")
+    monkeypatch.setattr(wan, "_text", lambda url: DESCRIPTION)
+    router = wan.Router("192.168.0.1")
+    router.discover()
+    assert router.controls["common"].startswith("http://192.168.0.1:49152/")
+
+
+def test_the_probe_only_ever_asks_the_router_itself(monkeypatch):
+    asked = []
+    monkeypatch.setattr(wan, "_is_gateway_description", lambda url: asked.append(url) or False)
+    assert wan._probe("192.168.0.1") is None
+    assert asked and all(u.startswith("http://192.168.0.1:") for u in asked)
+
+
+def test_only_a_gateway_description_counts_as_one(monkeypatch):
+    class Body:
+        def __init__(self, data):
+            self.data = data
+        def read(self, n, decode_content=True):
+            return self.data
+
+    class Resp:
+        ok = True
+        def __init__(self, data):
+            self.raw = Body(data)
+        def close(self):
+            pass
+
+    monkeypatch.setattr(wan.requests, "get", lambda *a, **k: Resp(b"<root>...InternetGatewayDevice...</root>"))
+    assert wan._is_gateway_description("http://192.168.0.1:49152/x.xml") is True
+    monkeypatch.setattr(wan.requests, "get", lambda *a, **k: Resp(b"<html>a router login page</html>"))
+    assert wan._is_gateway_description("http://192.168.0.1:49152/x.xml") is False
+    monkeypatch.setattr(wan.requests, "get", lambda *a, **k: (_ for _ in ()).throw(wan.requests.ConnectionError("refused")))
+    assert wan._is_gateway_description("http://192.168.0.1:49152/x.xml") is False
 
 
 class Reply:
