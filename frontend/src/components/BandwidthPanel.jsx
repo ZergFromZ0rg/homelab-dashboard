@@ -114,7 +114,7 @@ function Internet({ speed, setSpeed, uplink, readOnly, now }) {
           <strong>{last ? formatLatency(last.ping_ms) : "—"}</strong>
           <small>{last ? `± ${formatLatency(last.jitter_ms)}` : ""}</small>
         </div>
-        <div title={link ? `What crosses the router's switch port right now, of its ${link} Mbps link` : "What crosses the router's switch port right now"}>
+        <div title={`What crosses the router's switch port right now${link ? `, of its ${link} Mbps link` : ""}. Wi-Fi devices on the router itself mostly don't cross it.`}>
           <span>In use now</span>
           <strong>{uplink ? `${formatRate(uplink.down_bps)} ↓` : "—"}</strong>
           <small>{uplink ? `${formatRate(uplink.up_bps)} ↑${link ? ` · of ${link}M` : ""}` : ""}</small>
@@ -136,9 +136,9 @@ function Device({ device, devices }) {
         {device.uplink && (
           <span
             className="dev-tag"
-            title="Everything that reaches the network through the router (Wi-Fi phones and TVs, and the internet itself) is counted here as one. The switch can't tell those devices apart."
+            title="The router's side of the link: the internet traffic of the devices above, plus what passes between them and the router's Wi-Fi devices. A Wi-Fi device's own internet traffic normally goes straight out of the router and never crosses the switch, so it is not counted here."
           >
-            + all behind it
+            router link
           </span>
         )}
         {!device.labelled && (

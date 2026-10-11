@@ -32,11 +32,16 @@ port's description on the switch, the same as Network → Switch. The router's r
 as the internet: down is what the house downloads, up what it uploads. Rows are ordered by what
 they moved in 24 hours, the router first.
 
-**Limit:** anything that reaches the network through the router (Wi-Fi phones, TVs) is one
-port. The router's row is tagged *+ all behind it* and is not counted in the share column,
-since it is the sum of the others plus the internet. Splitting those apart needs a source
-that sees them individually (a router that reports per-client traffic, or a mirror port on
-the switch feeding a sniffer).
+**Limit:** only traffic that crosses the switch is counted. A phone or TV on the router's own Wi-Fi
+reaches the internet through the router's own routing, never through the switch, so its traffic
+is not in this table at all; only what passes between it and the wired devices is. The router's
+row is tagged *router link* and is not counted in the share column. The scheduled speed test
+decides whether the line is busy from the same port, so it can't see Wi-Fi-only use either.
+
+To check on your network: start a large download on a phone over Wi-Fi and watch *In use now*.
+If it doesn't move, that traffic bypasses the switch. Seeing those devices needs a source that
+sees them (a router or firewall that reports per-client traffic), or Wi-Fi moved onto an
+access point plugged into the switch, so that it crosses a port that can be mirrored.
 
 The range picker (2 h, 24 h, 7 d, 30 d) sets the trend's length and the totals' window (never under a day);
 longer ranges are fetched when asked for and kept for 90 seconds. The trend and the totals are two Prometheus questions asked once a minute
