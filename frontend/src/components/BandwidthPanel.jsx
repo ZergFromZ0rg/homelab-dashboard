@@ -3,7 +3,8 @@ import Sparkline from "./Sparkline";
 import { IconButton } from "./Icon";
 import { useNow } from "./useNow";
 import { formatAge, formatLatency } from "./format";
-import { fetchBandwidth, formatMoved, formatRate, orderDevices, shareOfDay } from "./bandwidthApi";
+import { BANDWIDTH_RANGES, fetchBandwidth, formatMoved, formatRate, orderDevices, shareOfDay } from "./bandwidthApi";
+import { useLocalStorage } from "./useLocalStorage";
 import { fetchSpeedtest, history, latestQuiet, runSpeedtest, scheduleLabel, setSpeedtestSchedule } from "./speedtestApi";
 
 // Bandwidth: how fast the internet is (a test the dashboard runs on a schedule)
@@ -164,7 +165,7 @@ function Device({ device, devices }) {
   );
 }
 
-function Devices({ snapshot }) {
+function Devices({ snapshot, range, setRange }) {
   if (snapshot.state === "unconfigured") {
     return (
       <p className="lan-empty">
@@ -174,10 +175,22 @@ function Devices({ snapshot }) {
     );
   }
   const devices = orderDevices(snapshot.devices || []);
+  const window = snapshot.totals_window || "24h";
   if (devices.length === 0) {
     return <p className="lan-empty">{snapshot.state === "loading" ? "Loading…" : "The switch isn't reporting any ports right now."}</p>;
   }
   return (
+    <>
+    <div className="bw-range">
+      <div className="segmented segmented--sm" role="group" aria-label="Trend range">
+        {BANDWIDTH_RANGES.map((r) => (
+          <button key={r} type="button" className={range === r ? "active" : ""} aria-pressed={range === r} onClick={() => setRange(r)}>
+            {r}
+          </button>
+        ))}
+      </div>
+      <span className="net-dim">trend and totals over the range; totals are never under a day</span>
+    </div>
     <div className="lan-scroll">
       <table className="net-table lan-table bw-table">
         <thead>
@@ -188,9 +201,9 @@ function Devices({ snapshot }) {
             <th aria-label="Download, last 2 hours" />
             <th className="pcap-r" title="Traffic the device is sending to the switch (for the router: to the internet)">Up</th>
             <th aria-label="Upload, last 2 hours" />
-            <th className="pcap-r" title="Moved to the device in the last 24 hours">Down 24h</th>
-            <th className="pcap-r" title="Moved from the device in the last 24 hours">Up 24h</th>
-            <th title="Share of everything the devices moved in 24 hours">Share</th>
+            <th className="pcap-r" title={`Moved to the device in the last ${window}`}>Down {window}</th>
+            <th className="pcap-r" title={`Moved from the device in the last ${window}`}>Up {window}</th>
+            <th title={`Share of everything the devices moved in ${window}`}>Share</th>
           </tr>
         </thead>
         <tbody>
@@ -200,12 +213,16 @@ function Devices({ snapshot }) {
         </tbody>
       </table>
     </div>
+    </>
   );
 }
 
 function BandwidthPanel({ readOnly = false }) {
   const [speed, setSpeed, speedError] = usePoll(fetchSpeedtest, POLL_MS);
-  const [bandwidth, , bandwidthError] = usePoll(fetchBandwidth, POLL_MS);
+  const [range, setRange] = useLocalStorage("bandwidthRange", "2h");
+  const chosen = BANDWIDTH_RANGES.includes(range) ? range : "2h";
+  const fetchRange = useCallback(() => fetchBandwidth(chosen), [chosen]);
+  const [bandwidth, , bandwidthError] = usePoll(fetchRange, POLL_MS);
   const now = useNow(15000);
   const testing = speed?.running;
 
@@ -232,7 +249,7 @@ function BandwidthPanel({ readOnly = false }) {
   return (
     <div className="bw">
       {speed && <Internet speed={speed} setSpeed={setSpeed} uplink={uplink} readOnly={readOnly} now={now} />}
-      {bandwidth ? <Devices snapshot={bandwidth} /> : <p className="lan-empty">{bandwidthError || "Loading…"}</p>}
+      {bandwidth ? <Devices snapshot={bandwidth} range={chosen} setRange={setRange} /> : <p className="lan-empty">{bandwidthError || "Loading…"}</p>}
     </div>
   );
 }

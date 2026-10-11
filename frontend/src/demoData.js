@@ -161,6 +161,7 @@ function machine(o) {
     terminal: true,
     host_facts: o.hostFacts ?? { package_manager: "apt", os_updates: 12, security_updates: 3, reboot_required: false, failed_units: [] },
     gpu: o.gpu ?? { available: false, count: 0, devices: [] },
+    disk_health: o.diskHealth ?? null,
     backup: o.backup ?? { state: "not_configured" },
     agent_version: o.agentVersion ?? {
       state: "current",
@@ -555,29 +556,69 @@ function fullSnapshot() {
             power_draw_w: 58,
             power_limit_w: 100,
             fan_percent: 42,
+            core_clock_mhz: 1740,
+            memory_clock_mhz: 3000,
           },
         ],
       },
+      diskHealth: {
+        checked_at: Date.now() / 1000 - 12 * 60,
+        error: null,
+        disks: [
+          { device: "/dev/nvme0", model: "KINGSTON SNV3S1000G", kind: "nvme", size_gb: 1000, health: "ok", reasons: [], temperature_c: 28, power_on_hours: 6940, wear_percent: 7, standby: false },
+          { device: "/dev/sda", model: "ST1000DM010-2EP102", kind: "hdd", size_gb: 1000, health: "warn", reasons: ["8 sectors already remapped"], temperature_c: 31, power_on_hours: 18106, wear_percent: null, standby: false },
+        ],
+      },
     }),
-    // An AMD card: read from /sys/class/drm, which needs no runtime, so
-    // it reports a vendor and a temperature and nothing else.
+    // An AMD card: read from /sys/class/drm, which needs no runtime. amdgpu
+    // reports load, VRAM, clocks, power and fan on its own.
     thinkpad: machine({
       gpu: {
         available: true,
-        count: 1,
+        count: 2,
         devices: [
           {
             vendor: "amd",
-            name: "AMD GPU 1002:1636",
-            device_id: "0x1636",
+            name: "AMD Radeon RX 6600/6600 XT/6600M",
+            device_id: "0x73ff",
+            pci_id: "1002:73FF",
+            driver: "amdgpu",
+            utilization_percent: 23,
+            memory_used_mb: 2048,
+            memory_total_mb: 8192,
+            temperature_c: 52,
+            hotspot_temp_c: 61,
+            memory_temp_c: 58,
+            power_draw_w: 64,
+            power_limit_w: 132,
+            fan_percent: 40,
+            fan_rpm: 1450,
+            core_clock_mhz: 2100,
+            memory_clock_mhz: 1750,
+          },
+          {
+            // An old Intel iGPU: the kernel gives nothing but a name.
+            vendor: "intel",
+            name: "Intel Core Processor Integrated Graphics Controller",
+            device_id: "0x0046",
+            pci_id: "8086:0046",
+            driver: "i915",
+            limited: "The i915 driver doesn't report load, clocks or temperature for this GPU.",
             utilization_percent: null,
             memory_used_mb: null,
             memory_total_mb: null,
-            temperature_c: 44,
+            temperature_c: null,
             power_draw_w: null,
             power_limit_w: null,
             fan_percent: null,
           },
+        ],
+      },
+      diskHealth: {
+        checked_at: Date.now() / 1000 - 4 * 60,
+        error: null,
+        disks: [
+          { device: "/dev/sda", model: "Patriot P210 128GB", kind: "ssd", size_gb: 128, health: "ok", reasons: [], temperature_c: 41, power_on_hours: 210, wear_percent: null, standby: false },
         ],
       },
       model: "Intel Core i7-8550U",

@@ -27,15 +27,24 @@ import requests
 from backend import prometheus, switch
 from backend.log import system as log
 
-SPAN = 2 * 3600
-STEP = 60
+# range -> (seconds shown, step, window the totals are summed over). The totals
+# are never shorter than a day: "what did it move in 2 hours" is not a total anyone asks for.
+RANGES = {
+    "2h": (2 * 3600, 60, "24h"),
+    "24h": (86400, 300, "24h"),
+    "7d": (7 * 86400, 1800, "7d"),
+    "30d": (30 * 86400, 7200, "30d"),
+}
+DEFAULT_RANGE = "2h"
+SPAN, STEP, _ = RANGES[DEFAULT_RANGE]
 REFRESH_SECONDS = 60
+RANGE_TTL = 90  # other ranges are fetched when asked for and kept this long
 
 
-def _series(promql: str, start: float, end: float) -> dict[str, list[dict]]:
+def _series(promql: str, start: float, end: float, step: int) -> dict[str, list[dict]]:
     """ifIndex -> [{t, v}] for a range query."""
     out: dict[str, list[dict]] = {}
-    for result in prometheus.query_range(promql, start, end, STEP):
+    for result in prometheus.query_range(promql, start, end, step):
         index = (result.get("metric") or {}).get("ifIndex")
         if index is None:
             continue
@@ -43,15 +52,19 @@ def _series(promql: str, start: float, end: float) -> dict[str, list[dict]]:
     return out
 
 
-def _fetch(now: float) -> dict[str, dict]:
-    """ifIndex -> {down_24h, up_24h, down, up}: bytes moved in 24 h and the
-    trend in bits/s, all from the device's side (down = to the device)."""
+def _fetch(now: float, range_key: str = DEFAULT_RANGE) -> dict[str, dict]:
+    """ifIndex -> {down_24h, up_24h, down, up}: bytes moved over the totals window
+    and the trend in bits/s, all from the device's side (down = to the device).
+    (The totals keep their ``_24h`` names whatever the window; the response says which.)"""
+    span, step, window = RANGES[range_key]
     sel = f'job="{switch.JOB}"'
+    # A point is the average over its whole step, not the sample that landed on it.
+    rate = f"{max(step, 120)}s"
     # The switch counts from its own side: "out" is what it sends the device.
-    down_day = switch._by_index(f"increase(ifHCOutOctets{{{sel}}}[24h])")
-    up_day = switch._by_index(f"increase(ifHCInOctets{{{sel}}}[24h])")
-    down = _series(f"rate(ifHCOutOctets{{{sel}}}[2m]) * 8", now - SPAN, now)
-    up = _series(f"rate(ifHCInOctets{{{sel}}}[2m]) * 8", now - SPAN, now)
+    down_day = switch._by_index(f"increase(ifHCOutOctets{{{sel}}}[{window}])")
+    up_day = switch._by_index(f"increase(ifHCInOctets{{{sel}}}[{window}])")
+    down = _series(f"rate(ifHCOutOctets{{{sel}}}[{rate}]) * 8", now - span, now, step)
+    up = _series(f"rate(ifHCInOctets{{{sel}}}[{rate}]) * 8", now - span, now, step)
     out: dict[str, dict] = {}
     for index in set(down_day) | set(up_day) | set(down) | set(up):
         out[index] = {
@@ -66,24 +79,31 @@ def _fetch(now: float) -> dict[str, dict]:
 class Bandwidth:
     def __init__(self):
         self._lock = threading.Lock()
-        self._by_index: dict[str, dict] | None = None
-        self._at = 0.0
+        self._cache: dict[str, tuple[float, dict[str, dict]]] = {}
 
-    def refresh(self, now: float | None = None) -> None:
+    def refresh(self, now: float | None = None, range_key: str = DEFAULT_RANGE) -> None:
         now = now or time.time()
         try:
-            data = _fetch(now)
+            data = _fetch(now, range_key)
         except (requests.RequestException, ValueError, KeyError, TypeError) as failure:
             log.warning("bandwidth history unavailable: %s", failure)
             return  # keep the last answer; the live rates still come from the switch cache
         with self._lock:
-            self._by_index, self._at = data, now
+            self._cache[range_key] = (now, data)
 
-    def snapshot(self, ports_snapshot: dict | None = None) -> dict:
-        """The switch's ports with their totals and trends attached."""
-        base = ports_snapshot if ports_snapshot is not None else switch.monitor.snapshot()
+    def snapshot(self, ports_snapshot: dict | None = None, range_key: str = DEFAULT_RANGE) -> dict:
+        """The switch's ports with their totals and trends attached. The default
+        range is kept fresh in the background; any other is fetched when first
+        asked for and then reused for ``RANGE_TTL`` seconds."""
+        if range_key not in RANGES:
+            raise ValueError(f"range must be one of: {', '.join(RANGES)}")
         with self._lock:
-            history, at = self._by_index, self._at
+            at, history = self._cache.get(range_key, (0.0, None))
+        if range_key != DEFAULT_RANGE and time.time() - at > RANGE_TTL:
+            self.refresh(range_key=range_key)
+            with self._lock:
+                at, history = self._cache.get(range_key, (at, history))
+        base = ports_snapshot if ports_snapshot is not None else switch.monitor.snapshot()
         rows = []
         for port in base.get("ports") or []:
             extra = (history or {}).get(str(port["index"])) or {}
@@ -117,6 +137,8 @@ class Bandwidth:
             "state": base.get("state", "loading"),
             "reachable": base.get("reachable", True),
             "devices": rows,
+            "range": range_key,
+            "totals_window": RANGES[range_key][2],
             "history_at": at or None,
             "updated_at": base.get("updated_at"),
         }

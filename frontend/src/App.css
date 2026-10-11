@@ -10667,3 +10667,62 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
     display: none;
   }
 }
+
+/* A GPU the kernel driver says nothing about, and the SMART table's own notes. */
+.gpu-limited {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+}
+
+.sv-health td:nth-child(2) {
+  white-space: normal;
+}
+
+/* History */
+.hist .ccharts-head {
+  margin-bottom: 12px;
+}
+
+.hist-body {
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px 20px;
+}
+
+.hist-warn {
+  color: var(--warning);
+  font-size: var(--fs-xs);
+}
+
+.tchart-svg--temp {
+  color: var(--warning);
+}
+
+.system-pane .hist {
+  max-height: calc(var(--fit-h, 100vh) - 190px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.bw-range {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.dh-head {
+  padding: 14px 14px 4px;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dh-table td:nth-child(2) {
+  white-space: normal;
+}

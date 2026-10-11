@@ -68,7 +68,7 @@ function timeLabel(seconds, spanSeconds) {
   return d.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
-function TimeChart({ label, points, valueKey, format, tone = "cpu", max, base = 10 }) {
+function TimeChart({ label, points, valueKey, format, tone = "cpu", max, base = 10, emptyText }) {
   const [ref, width] = useElementWidth();
   const [cursor, setCursor] = useState(null);
 
@@ -81,7 +81,7 @@ function TimeChart({ label, points, valueKey, format, tone = "cpu", max, base = 
           <span className="tchart-label">{label}</span>
         </div>
         <p className="tchart-empty">
-          Not enough history yet — this fills in as the container runs.
+          {emptyText || "Not enough history yet — this fills in as the container runs."}
         </p>
       </div>
     );

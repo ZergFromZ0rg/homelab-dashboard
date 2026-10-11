@@ -207,3 +207,36 @@ def test_container_and_backup_alerts_resolve_when_fixed():
     assert keys(mon.poll({"nuc": machine()}, [], {"nuc": [container()]})) == {
         ("container:nuc:nextcloud:unhealthy", "resolved")
     }
+
+
+def disk(health, device="/dev/sda", model="ST1000DM010", reasons=()):
+    return {"device": device, "model": model, "health": health, "reasons": list(reasons)}
+
+
+def test_a_failing_drive_is_a_bad_alert_that_says_what_the_drive_reported():
+    mon = AlertMonitor(breach_cycles=2)
+    m = machine(disk_health={"disks": [disk("bad", reasons=["3 sectors waiting to be remapped (unreadable now)"])]})
+    (event,) = mon.poll({"bigboy": m}, [])
+    assert event["key"] == "host:bigboy:smart:/dev/sda" and event["status"] == "firing"
+    assert event["severity"] == "bad" and "may be failing" in event["title"]
+    assert "3 sectors waiting" in event["message"]
+
+
+def test_warning_signs_are_a_warn_and_a_healthy_or_unknown_drive_says_nothing():
+    mon = AlertMonitor(breach_cycles=2)
+    disks = [disk("warn", reasons=["8 sectors already remapped"]), disk("ok", "/dev/nvme0"), disk("unknown", "/dev/sdb")]
+    events = mon.poll({"bigboy": machine(disk_health={"disks": disks})}, [])
+    assert [(e["key"], e["severity"]) for e in events] == [("host:bigboy:smart:/dev/sda", "warn")]
+
+
+def test_the_drive_alert_resolves_when_the_drive_is_gone_or_better():
+    mon = AlertMonitor(breach_cycles=2)
+    mon.poll({"bigboy": machine(disk_health={"disks": [disk("bad", reasons=["x"])]})}, [])
+    events = mon.poll({"bigboy": machine(disk_health={"disks": []})}, [])
+    assert keys(events) == {("host:bigboy:smart:/dev/sda", "resolved")}
+
+
+def test_no_disk_health_at_all_is_not_an_alert():
+    mon = AlertMonitor(breach_cycles=2)
+    assert mon.poll({"nuc": machine(disk_health=None)}, []) == []
+    assert mon.poll({"nuc": machine()}, []) == []

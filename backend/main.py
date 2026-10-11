@@ -25,7 +25,7 @@ from backend import terminal
 from backend import files_api
 from backend import capture_api, netwatch_api
 from backend import lan_api
-from backend import bandwidth, bandwidth_api, network_alerts, pihole, pihole_api, speedtest, switch, switch_api
+from backend import bandwidth, bandwidth_api, history_api, network_alerts, pihole, pihole_api, speedtest, switch, switch_api
 from backend import compose_api
 from backend import network_export_api
 from backend import updates_api
@@ -68,6 +68,7 @@ app.include_router(pihole_api.router)
 app.include_router(network_export_api.router)
 app.include_router(switch_api.router)
 app.include_router(bandwidth_api.router)
+app.include_router(history_api.router)
 app.include_router(capture_api.router)
 app.include_router(capture_api.saved_router)
 app.include_router(capture_api.auto_router)
@@ -114,6 +115,7 @@ def _recommendation(key: str, host: str | None) -> str:
         "temp": f"{where} is running hot — check its fans, dust and airflow.",
         "gpu-temp": f"{where}'s GPU is running hot — check its fan and case airflow.",
         "disk": f"Free space on {where} — clear old logs and images (docker system prune) or extend the volume.",
+        "smart": f"Back up what's on that disk now, then replace it: {where}'s System tab → Storage lists what the drive reported.",
         "diskfull": f"{where} is filling up — find what's growing (docker system df, du -sh) before it hits 100%.",
         "backup": f"Check homelab-agent's logs on {where} and its BACKUP_REPO / GITHUB_TOKEN settings.",
         "services": f"Open {where}'s Services panel on the Servers tab — read the failed unit's journal, then restart it.",

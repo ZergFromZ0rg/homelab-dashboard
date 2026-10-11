@@ -1,4 +1,6 @@
 import { Journal, OsUpdates, Power, Services } from "./HostSystem";
+import DiskHealth from "./DiskHealth";
+import HostHistory from "./HostHistory";
 import HostSettings from "./HostSettings";
 import HostRecovery from "./HostRecovery";
 import HostShellButton from "./HostShellButton";
@@ -42,6 +44,7 @@ function SystemTab({ machines, connected }) {
   const needsControl = ["updates", "services", "journal", "power"];
   const tabs = [
     ["disks", "Disks", disksCount(m), null],
+    ["history", "History", null, null],
     ["updates", "OS updates", facts?.os_updates || null, facts?.security_updates ? "warn" : null],
     ["services", "Services", failed || null, "bad"],
     ["journal", "Journal", null, null],
@@ -138,8 +141,10 @@ function SystemTab({ machines, connected }) {
                 )}
               </tbody>
             </table>
+            <DiskHealth health={m.disk_health} wide />
           </div>
         )}
+        {tab === "history" && <HostHistory key={`h-${host}`} host={host} />}
         {needsControl.includes(tab) && !m.terminal && <p className="mb-empty">Not available — host control is off.</p>}
         {tab === "updates" && m.terminal && <OsUpdates key={host} host={host} facts={m.host_facts} />}
         {tab === "services" && m.terminal && <Services key={host} host={host} />}

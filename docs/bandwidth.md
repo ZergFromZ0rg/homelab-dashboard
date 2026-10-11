@@ -38,6 +38,7 @@ since it is the sum of the others plus the internet. Splitting those apart needs
 that sees them individually (a router that reports per-client traffic, or a mirror port on
 the switch feeding a sniffer).
 
-The trend and the 24-hour totals are two Prometheus questions asked once a minute
+The range picker (2 h, 24 h, 7 d, 30 d) sets the trend's length and the totals' window (never under a day);
+longer ranges are fetched when asked for and kept for 90 seconds. The trend and the totals are two Prometheus questions asked once a minute
 (`backend/bandwidth.py`); the live rates come from the switch cache. If Prometheus can't be
 asked, the last totals stay and the rates keep moving.

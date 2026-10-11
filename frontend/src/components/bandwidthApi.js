@@ -66,9 +66,17 @@ const DEMO_SNAPSHOT = {
   ],
 };
 
-export function fetchBandwidth() {
-  if (DEMO) return Promise.resolve({ ...DEMO_SNAPSHOT, updated_at: Date.now() / 1000 });
-  return fetch("/api/bandwidth").then(jsonOrThrow);
+export const BANDWIDTH_RANGES = ["2h", "24h", "7d", "30d"];
+
+// Past two hours the trend is longer and the totals follow it (a week's trend
+// with a day's total would be two different questions in one row).
+export function fetchBandwidth(range = "2h") {
+  if (DEMO) {
+    const scale = { "2h": 1, "24h": 1, "7d": 7, "30d": 30 }[range] ?? 1;
+    const devices = DEMO_SNAPSHOT.devices.map((d) => ({ ...d, down_24h: d.down_24h * scale, up_24h: d.up_24h * scale }));
+    return Promise.resolve({ ...DEMO_SNAPSHOT, devices, range, totals_window: range === "2h" ? "24h" : range, updated_at: Date.now() / 1000 });
+  }
+  return fetch(`/api/bandwidth?range=${encodeURIComponent(range)}`).then(jsonOrThrow);
 }
 
 // A rate in bits/s with its own unit: "11.4 Mbps", "84 kbps", "0". Devices span

@@ -30,7 +30,7 @@ from backend.docker import (
     remove_container,
     remove_stack,
 )
-from backend import activity, container_history, live_history
+from backend import activity, container_history, gpu_history, live_history
 from backend import volume_backups
 from backend.hosts import MAIN_HOST_OVERRIDE, detect_main_host
 from backend.log import scheduler as sched_log, system as system_log
@@ -93,6 +93,7 @@ def merge_agent_snapshot(
         machines[host]["agent_version"] = data.get("agent_version")
         machines[host]["terminal"] = bool(data.get("terminal"))
         machines[host]["host_facts"] = data.get("host_facts")
+        machines[host]["disk_health"] = data.get("disk_health")
         machines[host]["agent_reachable"] = reachable
         machines[host]["agent_stale_age"] = data.get("stale_age")
         containers[host] = data.get("containers", [])
@@ -636,6 +637,7 @@ async def _reconcile_loop() -> None:
             deployments.reconcile(containers, offline_hosts)
             live_history.record_fleet(machines, containers)
             container_history.record(containers)
+            gpu_history.record(machines)
             activity.observe(
                 machines, containers, [d.model_dump() for d in deployments.all()]
             )

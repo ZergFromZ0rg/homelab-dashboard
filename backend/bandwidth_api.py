@@ -16,8 +16,11 @@ class Schedule(BaseModel):
 
 
 @router.get("/bandwidth")
-def devices():
-    return bandwidth.monitor.snapshot()
+def devices(range: str = bandwidth.DEFAULT_RANGE):
+    try:
+        return bandwidth.monitor.snapshot(range_key=range)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
 
 
 @router.get("/speedtest")

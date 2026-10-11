@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import DiskExplorer from "./DiskExplorer";
 import HostRecovery from "./HostRecovery";
 import { formatUptime, gpuDevices } from "./machineInfo";
+import DiskHealth from "./DiskHealth";
 import HostSystem from "./HostSystem";
 import Sparkline from "./Sparkline";
 import Stat from "./Stat";
@@ -45,10 +46,13 @@ function pciMatch(name) {
 function GpuDevice({ gpu, index, total, stale, history, windowMinutes }) {
   const match = pciMatch(gpu.name);
   const gpuName = (match?.[1] || gpu.name || "Detected GPU").trim();
-  const pciId = match?.[2];
+  const pciId = gpu.pci_id || match?.[2];
   // History is only sampled for the first device (see
   // backend/live_history.py) — later devices get stats but no sparkline.
   const showHistory = index === 0;
+  const clock = gpu.core_clock_mhz != null
+    ? `${gpu.core_clock_mhz}${gpu.core_clock_max_mhz ? ` / ${gpu.core_clock_max_mhz}` : ""} MHz`
+    : null;
 
   return (
     <div className="gpu-stats">
@@ -59,11 +63,19 @@ function GpuDevice({ gpu, index, total, stale, history, windowMinutes }) {
         value={gpuName}
       >
         {pciId && <small>{pciId.toUpperCase()}</small>}
-        {gpu.vendor && <small>{gpu.vendor.toUpperCase()}</small>}
+        {gpu.vendor && <small>{gpu.vendor.toUpperCase()}{gpu.driver ? ` · ${gpu.driver}` : ""}</small>}
       </Stat>
 
       {gpu.utilization_percent != null && (
         <Stat label="UTILIZATION" value={`${gpu.utilization_percent}%`} />
+      )}
+
+      {gpu.active_percent != null && (
+        <Stat
+          label="ACTIVE"
+          value={`${gpu.active_percent}%`}
+          title="Share of time the GPU was out of its idle (RC6) state. Intel doesn't report engine load through sysfs, so this is activity, not utilization."
+        />
       )}
 
       {(gpu.memory_used_mb != null || gpu.memory_total_mb != null) && (
@@ -75,8 +87,23 @@ function GpuDevice({ gpu, index, total, stale, history, windowMinutes }) {
         />
       )}
 
+      {clock && (
+        <Stat
+          label="CLOCK"
+          value={clock}
+          title={gpu.memory_clock_mhz != null ? `Memory clock ${gpu.memory_clock_mhz} MHz` : undefined}
+        />
+      )}
+
       {gpu.temperature_c != null && (
-        <Stat label="GPU TEMP" value={`${gpu.temperature_c}°C`}>
+        <Stat
+          label="GPU TEMP"
+          value={`${gpu.temperature_c}°C`}
+          title={[
+            gpu.hotspot_temp_c != null && `Hotspot ${gpu.hotspot_temp_c}°C`,
+            gpu.memory_temp_c != null && `Memory ${gpu.memory_temp_c}°C`,
+          ].filter(Boolean).join(" · ") || undefined}
+        >
           {showHistory && (
             <Sparkline
               points={history?.gpu_temperature}
@@ -94,7 +121,12 @@ function GpuDevice({ gpu, index, total, stale, history, windowMinutes }) {
         />
       )}
 
-      {gpu.fan_percent != null && <Stat label="FAN" value={`${gpu.fan_percent}%`} />}
+      {gpu.fan_percent != null && (
+        <Stat label="FAN" value={`${gpu.fan_percent}%`} title={gpu.fan_rpm != null ? `${gpu.fan_rpm} rpm` : undefined} />
+      )}
+
+      {/* A card whose driver says nothing: not a quiet GPU, so say so. */}
+      {gpu.limited && <p className="gpu-limited">{gpu.limited}</p>}
     </div>
   );
 }
@@ -415,6 +447,8 @@ function MachineVitals({ host, machine, history, containers = [], explore, onExp
               </tbody>
             </table>
           )}
+
+          <DiskHealth health={machine.disk_health} />
         </Section>
 
         <Section title="Network & system">

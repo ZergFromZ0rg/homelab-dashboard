@@ -270,6 +270,19 @@ def _host_alerts(name: str, m: dict) -> dict[str, dict]:
                 "debounce": True,
             }
 
+    # A drive's own SMART verdict (the agent reads it; see homelab-agent smart.py).
+    for disk in (m.get("disk_health") or {}).get("disks") or []:
+        health, device = disk.get("health"), disk.get("device") or "?"
+        if health not in ("bad", "warn"):
+            continue
+        model = disk.get("model") or device
+        out[f"host:{name}:smart:{device}"] = {
+            "title": f"{name}: {model} " + ("may be failing" if health == "bad" else "has warning signs"),
+            "message": f"{device} on {name} ({model}): " + "; ".join(disk.get("reasons") or ["see System → Storage"]),
+            "host": name,
+            "severity": health,
+        }
+
     for fs in m.get("filesystems") or []:
         mount = fs.get("mountpoint") or fs.get("device") or "?"
         used = fs.get("used_percent")

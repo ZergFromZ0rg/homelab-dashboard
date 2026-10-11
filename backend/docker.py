@@ -62,6 +62,7 @@ def get_host_data(host, base_url):
             "terminal": bool(data.get("terminal")),
             # Not data["host"]: that is the host's name.
             "host_facts": data.get("host_facts") if isinstance(data.get("host_facts"), dict) else None,
+            "disk_health": data.get("disk_health") if isinstance(data.get("disk_health"), dict) else None,
         }
         _LAST_GOOD[host] = {**snapshot, "at": time.time()}
         return host, snapshot
@@ -81,6 +82,7 @@ def get_host_data(host, base_url):
                 "agent_version": cached.get("agent_version"),
                 "terminal": cached.get("terminal", False),
                 "host_facts": cached.get("host_facts"),
+                "disk_health": cached.get("disk_health"),
                 "reachable": True,
                 "stale": True,
                 "stale_age": round(now - cached["at"], 1),

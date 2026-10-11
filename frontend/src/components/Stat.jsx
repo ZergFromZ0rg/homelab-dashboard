@@ -4,9 +4,9 @@
 // label/value typography come from the parent's CSS
 // (.container-stats-grid, .network-stats, .gpu-stats, ...), which targets
 // the plain `div > span`/`strong` this renders.
-function Stat({ label, value, children }) {
+function Stat({ label, value, title, children }) {
   return (
-    <div>
+    <div title={title}>
       <span>{label}</span>
       <strong>{value}</strong>
       {children}

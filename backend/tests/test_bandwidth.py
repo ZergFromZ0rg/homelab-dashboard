@@ -25,10 +25,16 @@ PORTS = {
 }
 
 
+asked: list = []
+
+
 def fake_prometheus(monkeypatch, fail=None):
+    asked.clear()
+
     def query(promql):
         if fail:
             raise fail
+        asked.append(promql)
         if promql.startswith("increase(ifHCOutOctets"):  # to the device
             return [{"metric": labels(1), "value": [0, "9e9"]}, {"metric": labels(2), "value": [0, "5e8"]}]
         if promql.startswith("increase(ifHCInOctets"):  # from the device
@@ -38,7 +44,7 @@ def fake_prometheus(monkeypatch, fail=None):
     def query_range(promql, start, end, step):
         if fail:
             raise fail
-        assert end - start == bandwidth.SPAN and step == bandwidth.STEP
+        asked.append((promql, end - start, step))
         values = [[1000, "1000"], [1060, "NaN"], [1120, "3000"]]
         index = 2 if "Out" in promql else 1  # a distinguishable series per direction
         return [{"metric": labels(index), "values": values}]
@@ -112,3 +118,39 @@ def test_the_route_serves_the_cache(monkeypatch):
     monkeypatch.setattr(switch.monitor, "snapshot", lambda: PORTS)
     body = TestClient(main.app).get("/api/bandwidth").json()
     assert [d["name"] for d in body["devices"]] == ["router", "Bigboy", "g4"]
+
+
+def test_a_longer_range_widens_the_trend_the_step_and_the_totals_window(monkeypatch):
+    fake_prometheus(monkeypatch)
+    monitor = bandwidth.Bandwidth()
+    snap = monitor.snapshot(PORTS, "7d")
+    assert snap["range"] == "7d" and snap["totals_window"] == "7d"
+    ranges = [a for a in asked if isinstance(a, tuple)]
+    assert ranges and all(span == 7 * 86400 and step == 1800 for _, span, step in ranges)
+    assert all("[1800s]" in promql for promql, _, _ in ranges)  # averaged over the step, not sampled at it
+    assert any(isinstance(a, str) and "[7d]" in a for a in asked)
+    assert rows(snap)["Bigboy"]["up_24h"] == 6e10
+
+
+def test_the_default_range_is_a_day_of_totals_with_two_hours_of_trend(monkeypatch):
+    fake_prometheus(monkeypatch)
+    monitor = bandwidth.Bandwidth()
+    monitor.refresh(2000.0)
+    snap = monitor.snapshot(PORTS)
+    assert (snap["range"], snap["totals_window"]) == ("2h", "24h")
+    assert all(span == 2 * 3600 and step == 60 for _, span, step in [a for a in asked if isinstance(a, tuple)])
+
+
+def test_a_range_already_fetched_is_reused_not_asked_again(monkeypatch):
+    fake_prometheus(monkeypatch)
+    monitor = bandwidth.Bandwidth()
+    monitor.snapshot(PORTS, "30d")
+    first = len(asked)
+    monitor.snapshot(PORTS, "30d")
+    assert len(asked) == first
+
+
+def test_an_unknown_range_is_a_400(monkeypatch):
+    fake_prometheus(monkeypatch)
+    monkeypatch.setattr(switch.monitor, "snapshot", lambda: PORTS)
+    assert TestClient(main.app).get("/api/bandwidth?range=1y").status_code == 400

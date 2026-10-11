@@ -74,3 +74,14 @@ def _isolated_speedtest(tmp_path, monkeypatch):
         raise speedtest.SpeedTestError("no network in tests")
 
     monkeypatch.setattr(speedtest, "test", speedtest.SpeedTest(tmp_path / "speedtest.json", measure_fn=refuse))
+
+
+@pytest.fixture(autouse=True)
+def _isolated_gpu_history(tmp_path, monkeypatch):
+    """GPU history on a temp file, emptied before and after every test."""
+    from backend import gpu_history
+
+    monkeypatch.setattr(gpu_history, "FILE", tmp_path / "gpu-history.json")
+    gpu_history.reset()
+    yield
+    gpu_history.reset()
