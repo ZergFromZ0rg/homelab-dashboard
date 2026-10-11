@@ -1,14 +1,16 @@
 // The Network tab's sections per mode.
 //
 // Advanced gets the essentials, look-only: what is answering, who is on the
-// network, the switch, and the host's traffic. God gets everything: scans,
-// connections, packet capture and the watch as well, plus the controls.
+// network, how fast it is and who uses it, the switch, and the host's traffic.
+// God gets everything: scans, connections, packet capture and the watch as
+// well, plus the controls.
 
 export function networkSections(essential, checksBadge) {
   if (essential) {
     return [
       ["checks", "Checks", checksBadge],
       ["dns", "DNS", null],
+      ["bandwidth", "Bandwidth", null],
       ["switch", "Switch", null],
       ["network", "Host network", null],
     ];
@@ -20,6 +22,7 @@ export function networkSections(essential, checksBadge) {
     ["packets", "Packets", null],
     ["watch", "Watch", null],
     ["dns", "DNS", null],
+    ["bandwidth", "Bandwidth", null],
     ["switch", "Switch", null],
     ["checks", "Service checks", checksBadge],
   ];

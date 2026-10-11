@@ -1,8 +1,8 @@
 """Everything on the network worth an alert: Pi-hole and the devices on it,
-and the switch and its ports."""
+the switch and its ports, and the internet's speed."""
 
-from backend import pihole_alerts, switch
+from backend import pihole_alerts, speedtest, switch
 
 
 def current() -> dict[str, dict]:
-    return {**pihole_alerts.current(), **switch.alerts()}
+    return {**pihole_alerts.current(), **switch.alerts(), **speedtest.alerts()}

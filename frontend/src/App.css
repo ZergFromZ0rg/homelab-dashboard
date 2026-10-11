@@ -10552,3 +10552,118 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
   letter-spacing: 0;
   text-transform: none;
 }
+
+/* Bandwidth */
+.net-fill .bw {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.bw-net {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bw-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.bw-state {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.bw-state--bad {
+  overflow: hidden;
+  color: var(--bad, #f85149);
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.bw-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.bw-controls select {
+  padding: 3px 6px;
+  font: var(--fs-sm) var(--sans);
+  color: var(--text);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.bw-controls .icon-action {
+  width: 26px;
+  height: 26px;
+}
+
+.bw-tiles .sparkline-wrap {
+  max-width: 220px;
+}
+
+.bw-table th {
+  white-space: nowrap;
+}
+
+.bw-table td {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.bw-spark {
+  width: 20%;
+  min-width: 70px;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+.bw-spark .sparkline-wrap {
+  margin-top: 0;
+}
+
+.bw-share {
+  width: 110px;
+}
+
+.bw-share > * {
+  vertical-align: middle;
+}
+
+.bw-bar {
+  display: inline-block;
+  width: 56px;
+  height: 5px;
+  margin-right: 8px;
+  overflow: hidden;
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.bw-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+@media (max-width: 640px) {
+  .bw-spark,
+  .bw-share {
+    display: none;
+  }
+}

@@ -5,12 +5,12 @@ const ids = (sections) => sections.map(([id]) => id);
 
 describe("networkSections", () => {
   it("gives Advanced the essentials and nothing that scans, captures or watches", () => {
-    expect(ids(networkSections(true, null))).toEqual(["checks", "dns", "switch", "network"]);
+    expect(ids(networkSections(true, null))).toEqual(["checks", "dns", "bandwidth", "switch", "network"]);
   });
 
   it("gives God everything", () => {
     const god = ids(networkSections(false, null));
-    for (const id of ["network", "devices", "connections", "packets", "watch", "dns", "switch", "checks"]) {
+    for (const id of ["network", "devices", "connections", "packets", "watch", "dns", "bandwidth", "switch", "checks"]) {
       expect(god).toContain(id);
     }
   });

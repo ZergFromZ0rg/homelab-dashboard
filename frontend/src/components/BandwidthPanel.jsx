@@ -1,0 +1,240 @@
+import { useCallback, useEffect, useState } from "react";
+import Sparkline from "./Sparkline";
+import { IconButton } from "./Icon";
+import { useNow } from "./useNow";
+import { formatAge, formatLatency } from "./format";
+import { fetchBandwidth, formatMoved, formatRate, orderDevices, shareOfDay } from "./bandwidthApi";
+import { fetchSpeedtest, history, latestQuiet, runSpeedtest, scheduleLabel, setSpeedtestSchedule } from "./speedtestApi";
+
+// Bandwidth: how fast the internet is (a test the dashboard runs on a schedule)
+// and who is using the network (each switch port is a device meter). Wi-Fi
+// devices sit behind the router, so they are one row, the router's, and say so.
+
+const POLL_MS = 15000;
+const TESTING_POLL_MS = 2000;
+
+function usePoll(fetcher, intervalMs) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState("");
+  const load = useCallback(async () => {
+    try {
+      setData(await fetcher());
+      setError("");
+    } catch (e) {
+      setError(e.message);
+    }
+  }, [fetcher]);
+  useEffect(() => {
+    const first = setTimeout(load, 0);
+    const timer = setInterval(load, intervalMs);
+    return () => {
+      clearTimeout(first);
+      clearInterval(timer);
+    };
+  }, [load, intervalMs]);
+  return [data, setData, error];
+}
+
+const mbps = (value) => (value == null ? "—" : `${value >= 100 ? Math.round(value) : value.toFixed(1)} Mbps`);
+
+function Internet({ speed, setSpeed, uplink, readOnly, now }) {
+  const [problem, setProblem] = useState("");
+  const results = speed.results || [];
+  const last = latestQuiet(results) || results[results.length - 1];
+  const age = last ? formatAge(now.getTime() / 1000 - last.at) : null;
+  const link = speed.link_mbps;
+
+  const act = async (action) => {
+    try {
+      setSpeed(await action());
+      setProblem("");
+    } catch (e) {
+      setProblem(e.message);
+    }
+  };
+
+  const error = problem || (speed.error ? speed.error.message : "");
+  const downHint = link && last && last.down_mbps >= link * 0.9
+    ? `Measured by the dashboard's host. The router's switch port runs at ${link} Mbps, so a faster line would still read about this.`
+    : "Measured by the dashboard's host, against Cloudflare.";
+
+  return (
+    <div className="bw-net">
+      <div className="bw-head">
+        <span className={`status-dot status-dot--${speed.running ? "warn" : error ? "bad" : "ok"}`} />
+        <strong>Internet</strong>
+        {speed.running ? (
+          <span className="bw-state">Testing…</span>
+        ) : error ? (
+          <span className="bw-state bw-state--bad" title={error}>{error}</span>
+        ) : last ? (
+          <span className="net-dim" title={new Date(last.at * 1000).toLocaleString()}>
+            tested {age}
+            {last.busy && <span className="dev-tag dev-tag--warn" title="The line was in use during this test, so it reads low. It is left out of what counts as usual.">line busy</span>}
+          </span>
+        ) : (
+          <span className="net-dim">the first test runs a minute after the dashboard starts</span>
+        )}
+        {!readOnly && (
+          <span className="bw-controls">
+            <select
+              aria-label="Test schedule"
+              value={speed.every_hours}
+              title="How often a test runs. A test waits while the line is in use."
+              onChange={(e) => act(() => setSpeedtestSchedule(Number(e.target.value)))}
+            >
+              {speed.choices.map((h) => (
+                <option key={h} value={h}>{scheduleLabel(h)}</option>
+              ))}
+            </select>
+            <IconButton
+              icon="play"
+              label="Test now"
+              working={speed.running}
+              onClick={() => act(runSpeedtest)}
+            />
+          </span>
+        )}
+      </div>
+
+      <div className="pihole-tiles bw-tiles">
+        <div title={downHint}>
+          <span>Download</span>
+          <strong>{last ? mbps(last.down_mbps) : "—"}</strong>
+          <Sparkline points={history(results, "down_mbps")} variant="rx" height={16} />
+        </div>
+        <div title="Measured by the dashboard's host, against Cloudflare.">
+          <span>Upload</span>
+          <strong>{last ? mbps(last.up_mbps) : "—"}</strong>
+          <Sparkline points={history(results, "up_mbps")} variant="tx" height={16} />
+        </div>
+        <div title="Round trip to Cloudflare, and how much it varies from one echo to the next">
+          <span>Latency</span>
+          <strong>{last ? formatLatency(last.ping_ms) : "—"}</strong>
+          <small>{last ? `± ${formatLatency(last.jitter_ms)}` : ""}</small>
+        </div>
+        <div title={link ? `What crosses the router's switch port right now, of its ${link} Mbps link` : "What crosses the router's switch port right now"}>
+          <span>In use now</span>
+          <strong>{uplink ? `${formatRate(uplink.down_bps)} ↓` : "—"}</strong>
+          <small>{uplink ? `${formatRate(uplink.up_bps)} ↑${link ? ` · of ${link}M` : ""}` : ""}</small>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Device({ device, devices }) {
+  const share = shareOfDay(device, devices);
+  return (
+    <tr className={device.up ? "" : "sw-row--down"}>
+      <td>
+        <span className={`status-dot status-dot--${device.up ? "ok" : "bad"}`} title={device.up ? "Link up" : "No link"} />
+      </td>
+      <td>
+        <span className="dev-name">{device.name}</span>
+        {device.uplink && (
+          <span
+            className="dev-tag"
+            title="Everything that reaches the network through the router (Wi-Fi phones and TVs, and the internet itself) is counted here as one. The switch can't tell those devices apart."
+          >
+            + all behind it
+          </span>
+        )}
+        {!device.labelled && (
+          <span className="dev-tag dev-tag--warn" title="Something is plugged in but the port has no description on the switch (Switching → Ports → Description)">
+            no label
+          </span>
+        )}
+      </td>
+      <td className="pcap-r net-mono">{device.up ? formatRate(device.down_bps) : "—"}</td>
+      <td className="bw-spark"><Sparkline points={device.down_trend} variant="rx" height={16} /></td>
+      <td className="pcap-r net-mono">{device.up ? formatRate(device.up_bps) : "—"}</td>
+      <td className="bw-spark"><Sparkline points={device.up_trend} variant="tx" height={16} /></td>
+      <td className="pcap-r net-mono">{formatMoved(device.down_24h)}</td>
+      <td className="pcap-r net-mono">{formatMoved(device.up_24h)}</td>
+      <td className="bw-share" title={share != null ? `${Math.round(share * 100)}% of what the devices moved in 24 hours` : undefined}>
+        {share != null && (
+          <>
+            <span className="bw-bar"><span style={{ width: `${Math.max(2, Math.round(share * 100))}%` }} /></span>
+            <span className="net-mono net-dim">{Math.round(share * 100)}%</span>
+          </>
+        )}
+      </td>
+    </tr>
+  );
+}
+
+function Devices({ snapshot }) {
+  if (snapshot.state === "unconfigured") {
+    return (
+      <p className="lan-empty">
+        Bandwidth by device reads the switch. Set it up under Network → Switch first (Prometheus needs a job named{" "}
+        <code>switch</code>).
+      </p>
+    );
+  }
+  const devices = orderDevices(snapshot.devices || []);
+  if (devices.length === 0) {
+    return <p className="lan-empty">{snapshot.state === "loading" ? "Loading…" : "The switch isn't reporting any ports right now."}</p>;
+  }
+  return (
+    <div className="lan-scroll">
+      <table className="net-table lan-table bw-table">
+        <thead>
+          <tr>
+            <th aria-label="Link" />
+            <th>Device</th>
+            <th className="pcap-r" title="Traffic the switch is sending to the device (for the router: from the internet)">Down</th>
+            <th aria-label="Download, last 2 hours" />
+            <th className="pcap-r" title="Traffic the device is sending to the switch (for the router: to the internet)">Up</th>
+            <th aria-label="Upload, last 2 hours" />
+            <th className="pcap-r" title="Moved to the device in the last 24 hours">Down 24h</th>
+            <th className="pcap-r" title="Moved from the device in the last 24 hours">Up 24h</th>
+            <th title="Share of everything the devices moved in 24 hours">Share</th>
+          </tr>
+        </thead>
+        <tbody>
+          {devices.map((device) => (
+            <Device key={device.index} device={device} devices={devices} />
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function BandwidthPanel({ readOnly = false }) {
+  const [speed, setSpeed, speedError] = usePoll(fetchSpeedtest, POLL_MS);
+  const [bandwidth, , bandwidthError] = usePoll(fetchBandwidth, POLL_MS);
+  const now = useNow(15000);
+  const testing = speed?.running;
+
+  // A running test is polled closely so its result lands as soon as it's done.
+  useEffect(() => {
+    if (!testing) return undefined;
+    const timer = setInterval(async () => {
+      try {
+        setSpeed(await fetchSpeedtest());
+      } catch {
+        /* the slow poll will report it */
+      }
+    }, TESTING_POLL_MS);
+    return () => clearInterval(timer);
+  }, [testing, setSpeed]);
+
+  if (!speed && !bandwidth) {
+    const error = speedError || bandwidthError;
+    return <p className="lan-empty">{error ? `Couldn't ask the dashboard about bandwidth: ${error}` : "Loading…"}</p>;
+  }
+
+  const uplink = (bandwidth?.devices || []).find((d) => d.uplink && d.up);
+
+  return (
+    <div className="bw">
+      {speed && <Internet speed={speed} setSpeed={setSpeed} uplink={uplink} readOnly={readOnly} now={now} />}
+      {bandwidth ? <Devices snapshot={bandwidth} /> : <p className="lan-empty">{bandwidthError || "Loading…"}</p>}
+    </div>
+  );
+}
+
+export default BandwidthPanel;

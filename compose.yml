@@ -74,6 +74,7 @@ services:
       SWITCH_UPLINK_PORT: ${SWITCH_UPLINK_PORT:-}
       SWITCH_ERRORS_PER_15M: ${SWITCH_ERRORS_PER_15M:-}
       SWITCH_UPLINK_PERCENT: ${SWITCH_UPLINK_PERCENT:-}
+      SPEEDTEST_EVERY_HOURS: ${SPEEDTEST_EVERY_HOURS:-}
     volumes:
       - dashboard-data:/data
     # Lets the backend send unprivileged ICMP echo (Ping checks) without

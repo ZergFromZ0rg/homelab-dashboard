@@ -62,3 +62,15 @@ def _isolated_capture_features(tmp_path, monkeypatch):
         auto._busy.clear()
         auto._recent.clear()
         auto._last_for_check.clear()
+
+
+@pytest.fixture(autouse=True)
+def _isolated_speedtest(tmp_path, monkeypatch):
+    """A speed test on a temp file that never touches the network, so no test
+    can start a real one or leave a result behind."""
+    from backend import speedtest
+
+    def refuse():
+        raise speedtest.SpeedTestError("no network in tests")
+
+    monkeypatch.setattr(speedtest, "test", speedtest.SpeedTest(tmp_path / "speedtest.json", measure_fn=refuse))

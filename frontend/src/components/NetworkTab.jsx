@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import BandwidthPanel from "./BandwidthPanel";
 import ConnectionsPanel from "./ConnectionsPanel";
 import LanScan from "./LanScan";
 import NetworkWatch from "./NetworkWatch";
@@ -582,6 +583,14 @@ function NetworkTab({ machines, containers, checks, connected, history = {}, ess
         <div className="fit-pane">
           <section className="overview-card net-fill">
             <PiholePanel readOnly={essential} />
+          </section>
+        </div>
+      )}
+
+      {section === "bandwidth" && (
+        <div className="fit-pane">
+          <section className="overview-card net-fill">
+            <BandwidthPanel readOnly={essential} />
           </section>
         </div>
       )}
