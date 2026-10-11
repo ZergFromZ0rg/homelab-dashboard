@@ -14,7 +14,7 @@ function QaRow({ t, busy, onControl, showLink, showLiveActivity, staleAge }) {
   const primary = running ? "Stop" : "Start";
   const cpu = t.stats?.cpu_percent;
   const ram = t.stats?.memory?.used_bytes;
-  const url = showLink ? containerUrl(t.host, t.ports) : null;
+  const url = showLink ? containerUrl(t.host, t.ports, t.web_path) : null;
   const live = showLiveActivity ? t.live_activity : null;
 
   const act = (verb) => {

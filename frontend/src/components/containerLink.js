@@ -23,9 +23,11 @@ export function firstHostPort(ports) {
   return ports[preferred || tcpKeys[0]][0];
 }
 
-export function containerUrl(host, ports) {
+// `path` is for apps whose web UI isn't at "/" (Pi-hole's root answers 403;
+// the backend sends `web_path` for it).
+export function containerUrl(host, ports, path = "") {
   const port = firstHostPort(ports);
-  return port ? `http://${host}:${port}` : null;
+  return port ? `http://${host}:${port}${path || ""}` : null;
 }
 
 // Letter-avatar tints. No green, red or amber: those mean up / down /

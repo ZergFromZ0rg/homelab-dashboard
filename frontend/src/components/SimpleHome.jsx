@@ -137,7 +137,7 @@ function AppGrid({ pins, containers, onSetPins }) {
     <div className="sh-apps-wrap">
       <div className={`sh-apps ${editing ? "sh-apps--editing" : ""}`} ref={row}>
         {apps.map((c) => {
-          const url = containerUrl(c.host, c.ports);
+          const url = containerUrl(c.host, c.ports, c.web_path);
           const running = c.status === "running";
           const tile = (
             <>
@@ -261,7 +261,7 @@ function ContainerTable({ containers, onControl }) {
               const up = c.status === "running";
               const pendingAct = onControl.pending[`${c.host}-${c.id}`];
               const busy = Boolean(pendingAct);
-              const url = containerUrl(c.host, c.ports);
+              const url = containerUrl(c.host, c.ports, c.web_path);
               return (
                 <tr key={`${c.host}-${c.id}`} className={up ? "" : "sh-row--off"}>
                   <td>

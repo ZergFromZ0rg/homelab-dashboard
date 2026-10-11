@@ -132,6 +132,7 @@ function HostGroup({
   staleAge,
   onControl,
   onTogglePin,
+  pinSet,
   collapsed,
   sortBy,
   onHostState,
@@ -234,7 +235,7 @@ function HostGroup({
               errors={onControl.errors}
               onControl={onControl.run}
               onClearError={onControl.clearError}
-              pinned={false}
+              pinned={pinSet.has(pinKey(host, container.name))}
               onTogglePin={() => onTogglePin(pinKey(host, container.name))}
             />
           ))}
@@ -288,7 +289,6 @@ function ContainerList({
     return map;
   }, [containers, hosts]);
 
-  const isPinned = (c) => pinSet.has(pinKey(c.__host, c.name));
   const passes = (c) =>
     matchesQuery(c, query) && matchesStatus(c, statusFilter, highRestartCount);
 
@@ -456,8 +456,10 @@ function ContainerList({
       )}
 
       {hosts.map((host) => {
-        // Pinned containers live in the strip above, not in their group.
-        const groupContainers = withHost[host].filter((c) => !isPinned(c));
+        // A pinned container is in the strip above *and* still in its host's
+        // group: pinning is a shortcut, it doesn't take the container away
+        // from the host it runs on.
+        const groupContainers = withHost[host];
         const visible = groupContainers.filter(passes);
         if (filtering && visible.length === 0) return null;
 
@@ -471,6 +473,7 @@ function ContainerList({
             staleAge={machines?.[host]?.agent_stale_age}
             onControl={onControl}
             onTogglePin={setPin}
+            pinSet={pinSet}
             sortBy={hostState[host]?.sortBy ?? "name"}
             collapsed={filtering ? false : hostState[host]?.collapsed ?? false}
             onHostState={(patch) => updateHostState(host, patch)}

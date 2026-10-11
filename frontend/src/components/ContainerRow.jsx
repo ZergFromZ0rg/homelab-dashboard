@@ -103,7 +103,7 @@ function ContainerRow({
   const network = stats?.network;
   const blockIo = stats?.block_io;
 
-  const url = containerUrl(host, container.ports);
+  const url = containerUrl(host, container.ports, container.web_path);
   const cpuPercent = stats?.cpu_percent;
   const ramPercent = memory?.percent;
   // A container with no memory cap reports limit_bytes 0 and, with it,
