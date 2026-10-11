@@ -70,6 +70,19 @@ def test_the_uplink_is_marked_so_it_is_not_taken_for_one_device(monkeypatch):
     assert found["router"]["uplink"] is True and found["Bigboy"]["uplink"] is False
 
 
+def test_the_router_reads_as_the_internet_not_as_a_device(monkeypatch):
+    """What the switch sends the router is on its way out, so for that one row down is
+    what the router sends the switch. Everywhere else down is what the switch sends."""
+    fake_prometheus(monkeypatch)
+    monitor = bandwidth.Bandwidth()
+    monitor.refresh(2000.0)
+    router = rows(monitor.snapshot(PORTS))["router"]
+    assert (router["down_bps"], router["up_bps"]) == (2e6, 11e6)  # port: sent 2e6 to the switch, received 11e6
+    assert (router["down_24h"], router["up_24h"]) == (1e9, 9e9)  # from the router (In) is the download
+    # the fake has an inbound series for the router only: it is the download trend
+    assert router["down_trend"][0]["v"] == 1000 and router["up_trend"] == []
+
+
 def test_before_the_first_refresh_rates_still_show_without_totals():
     found = rows(bandwidth.Bandwidth().snapshot(PORTS))
     assert found["Bigboy"]["up_bps"] == 40e6

@@ -87,6 +87,17 @@ class Bandwidth:
         rows = []
         for port in base.get("ports") or []:
             extra = (history or {}).get(str(port["index"])) or {}
+            down_bps, up_bps = port["received_bps"], port["sent_bps"]
+            down_24h, up_24h = extra.get("down_24h"), extra.get("up_24h")
+            down_trend, up_trend = extra.get("down", []), extra.get("up", [])
+            uplink = port["name"].lower() == switch.UPLINK
+            if uplink:
+                # The router stands for the internet. What the switch sends it is on
+                # its way out (upload) and what it sends the switch is coming in
+                # (download), the reverse of a device's own down and up.
+                down_bps, up_bps = up_bps, down_bps
+                down_24h, up_24h = up_24h, down_24h
+                down_trend, up_trend = up_trend, down_trend
             rows.append({
                 "index": port["index"],
                 "name": port["name"],
@@ -94,13 +105,13 @@ class Bandwidth:
                 "labelled": port["labelled"],
                 "up": port["up"],
                 "speed_mbps": port["speed_mbps"],
-                "uplink": port["name"].lower() == switch.UPLINK,
-                "down_bps": port["received_bps"],
-                "up_bps": port["sent_bps"],
-                "down_24h": extra.get("down_24h"),
-                "up_24h": extra.get("up_24h"),
-                "down_trend": extra.get("down", []),
-                "up_trend": extra.get("up", []),
+                "uplink": uplink,
+                "down_bps": down_bps,
+                "up_bps": up_bps,
+                "down_24h": down_24h,
+                "up_24h": up_24h,
+                "down_trend": down_trend,
+                "up_trend": up_trend,
             })
         return {
             "state": base.get("state", "loading"),
