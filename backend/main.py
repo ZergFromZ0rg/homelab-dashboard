@@ -290,9 +290,11 @@ async def _build_update() -> dict:
         history.setdefault(host, {})["gpu_temperature"] = (
             live_history.gpu_temp_history(host)
         )
-        # Where a browser reaches this node's published ports; the links the
-        # dashboard shows are built from it.
-        link_host = browse_host(host, nodes.get(host, {}).get("url", ""))
+        # Where a browser reaches this node's published ports, or None when
+        # the agent is on the dashboard's own machine (the page then uses the
+        # address it was opened at). The links the dashboard shows are built
+        # from it.
+        link_host = browse_host(nodes.get(host, {}).get("url", ""))
         for container in conts:
             container["link_host"] = link_host
             container["heartbeat"] = live_history.container_heartbeat(

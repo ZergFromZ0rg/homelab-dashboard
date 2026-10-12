@@ -28,6 +28,16 @@ export function containerUrl(host, ports) {
   return port ? `http://${host}:${port}` : null;
 }
 
+// The address to put in a link. The backend sends `link_host`: the node's
+// registered IP or name when it has one, or null when its agent is on the
+// dashboard's own machine, which this browser reached at an address of its
+// own, so that is the one to use. Absent (older backend, demo data): the
+// node's name, which is only a guess and does not resolve everywhere.
+function linkHost(host, container) {
+  if (container.link_host === undefined) return host;
+  return container.link_host || globalThis.location?.hostname || host;
+}
+
 // Where to send the browser for a container. The agent connects to each
 // container's ports itself and says which one is a web UI, over which
 // scheme, and at what path (`web`, or null when it has none). An agent
@@ -35,11 +45,7 @@ export function containerUrl(host, ports) {
 // guessing from the published ports.
 export function containerLink(host, container) {
   if (!container) return null;
-  // The backend sends the address a browser can use for this node (its
-  // registered IP when it has one); the node's name is only a guess, and a
-  // short name that doesn't resolve on the machine the browser runs on makes a
-  // dead link.
-  const where = container.link_host || host;
+  const where = linkHost(host, container);
   if (container.web !== undefined) {
     const web = container.web;
     if (!web) return null;

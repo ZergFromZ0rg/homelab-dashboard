@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { containerLink, containerUrl, linkLabel, linkProblem, publishedPorts } from "../containerLink";
 
 const web = (over = {}) => ({ port: 8053, scheme: "http", path: "/admin/", status: 302, ok: true, host_rejected: false, ...over });
@@ -23,12 +23,19 @@ describe("containerLink", () => {
 });
 
 describe("link address", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   it("uses the address the backend found for the node, not its name", () => {
     expect(containerLink("bigboy", { link_host: "100.72.159.83", web: web({ port: 8096, path: "/" }) })).toBe("http://100.72.159.83:8096");
     expect(containerLink("bigboy", { link_host: "100.72.159.83", ports: { "8096/tcp": ["8096"] } })).toBe("http://100.72.159.83:8096");
   });
 
-  it("falls back to the node name when the backend sent none", () => {
+  it("uses the address the page was opened at when the node is the dashboard's own machine", () => {
+    vi.stubGlobal("location", { hostname: "thinkpad.tail0179f8.ts.net" });
+    expect(containerLink("thinkpad", { link_host: null, web: web({ port: 8053, path: "/" }) })).toBe("http://thinkpad.tail0179f8.ts.net:8053");
+  });
+
+  it("falls back to the node name when the backend sent nothing at all", () => {
     expect(containerLink("bigboy", { web: web({ port: 8096, path: "/" }) })).toBe("http://bigboy:8096");
   });
 });

@@ -25,25 +25,25 @@ STALE_SECONDS = env_int("NODE_STALE_SECONDS", 300)
 TTL_SECONDS = env_int("NODE_TTL_SECONDS", 86400)
 
 
-def browse_host(name: str, agent_url: str) -> str:
-    """The address a browser should use for ports published on a node.
+def browse_host(agent_url: str) -> str | None:
+    """The address a browser can use for ports published on a node, or None.
 
-    A node registers the URL its agent answers on. When that is a routable
-    IPv4 address or a dotted name (bigboy registers its Tailscale IP) it works
-    from any browser that can reach the node, which the bare node name may not:
-    short MagicDNS names only resolve on some machines. When it is a Docker
-    alias such as ``homelab-agent`` (thinkpad's agent is reached over the
-    dashboard's own network) it only means something inside Docker, so the node
-    name is the best guess.
+    A node registers the URL its agent answers on. When that is a routable IPv4
+    address or a dotted name (bigboy registers its Tailscale IP) it works from
+    any browser that can reach the node. When it is a Docker alias such as
+    ``homelab-agent`` it only resolves on the dashboard's own Docker network, so
+    the agent is on the dashboard's own machine and the browser already knows
+    that machine's address: it is the one it used to open the dashboard. None
+    says exactly that, and the page fills it in.
     """
     host = urlsplit(agent_url or "").hostname or ""
     try:
         ip = ipaddress.ip_address(host)
     except ValueError:
-        return host if "." in host else name
+        return host if "." in host else None
     if ip.version == 4 and not (ip.is_loopback or ip.is_link_local or ip.is_unspecified):
         return host
-    return name
+    return None
 
 
 class NodeRegistry:
