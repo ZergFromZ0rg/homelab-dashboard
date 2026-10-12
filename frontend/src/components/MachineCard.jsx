@@ -1,5 +1,6 @@
 import MachineVitals from "./MachineVitals";
 import HostFooter from "./HostFooter";
+import { hostColor } from "./hostColor";
 
 // One server on its Summary page: a header line, then its full vitals. `main`
 // marks the host the dashboard itself runs on. Its files, shell and system
@@ -10,11 +11,12 @@ function MachineCard({ name, machine, history, containers, main = false, onOpenF
       className={`machine-card ${main ? "machine-card--main" : ""} ${
         machine.online ? "online" : "offline"
       }`}
+      style={{ "--host-color": hostColor(name) }}
     >
       <div className="machine-header">
         <div className="machine-fold">
           <span className="status-dot" />
-          <h2>{name}</h2>
+          <h2 style={{ color: hostColor(name) }}>{name}</h2>
           {main && <span className="machine-badge">Dashboard host</span>}
         </div>
 

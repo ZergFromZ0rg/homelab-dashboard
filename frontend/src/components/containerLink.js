@@ -35,13 +35,40 @@ export function containerUrl(host, ports) {
 // guessing from the published ports.
 export function containerLink(host, container) {
   if (!container) return null;
+  // The backend sends the address a browser can use for this node (its
+  // registered IP when it has one); the node's name is only a guess, and a
+  // short name that doesn't resolve on the machine the browser runs on makes a
+  // dead link.
+  const where = container.link_host || host;
   if (container.web !== undefined) {
     const web = container.web;
     if (!web) return null;
     const path = web.path && web.path !== "/" ? web.path : "";
-    return `${web.scheme}://${host}:${web.port}${path}`;
+    return `${web.scheme}://${where}:${web.port}${path}`;
   }
-  return containerUrl(host, container.ports);
+  return containerUrl(where, container.ports);
+}
+
+// A link as it is shown on a row: no scheme when it is plain http, no
+// trailing slash. "http://100.72.159.83:8096" -> "100.72.159.83:8096".
+export function linkLabel(url) {
+  return url.replace(/^http:\/\//, "").replace(/\/$/, "");
+}
+
+// Host ports a container publishes over TCP, lowest first, for a row that has
+// no web page to link to ("what does it listen on?").
+export function publishedPorts(container) {
+  const ports = container?.ports;
+  if (!ports) return [];
+  const found = new Set();
+  for (const [key, bindings] of Object.entries(ports)) {
+    if (!key.endsWith("/tcp")) continue;
+    for (const b of bindings || []) {
+      const n = Number(b);
+      if (Number.isInteger(n) && n > 0) found.add(n);
+    }
+  }
+  return [...found].sort((a, b) => a - b);
 }
 
 // Why a link may not work from a browser, or null. Only the agent can tell:
@@ -55,3 +82,27 @@ export function linkProblem(host, container) {
   return `Answered ${web.status}`;
 }
 
+// Letter-avatar tints. No green, red or amber: those mean up / down /
+// warning everywhere else, and a red "N" beside a healthy container read
+// as a problem. Shown as a tint behind a colored letter, not a solid block.
+const AVATAR_COLORS = [
+  "#5eead4", // teal
+  "#7dd3fc", // sky
+  "#a5b4fc", // periwinkle
+  "#67e8f9", // cyan
+  "#93c5fd", // light blue
+  "#94a3b8", // slate
+  "#e2c08d", // sand
+  "#d4b896", // tan
+];
+
+export function avatarColor(name) {
+  let hash = 0;
+
+  for (let i = 0; i < name.length; i += 1) {
+    hash = (hash << 5) - hash + name.charCodeAt(i);
+    hash |= 0;
+  }
+
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}

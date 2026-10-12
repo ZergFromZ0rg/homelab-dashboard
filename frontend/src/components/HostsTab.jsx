@@ -9,6 +9,7 @@ import Overview from "./Overview";
 import PacketCapture from "./PacketCapture";
 import { Journal, Services } from "./HostSystem";
 import { HOST_PAGES, hostsSub, parseHostsSub } from "./hostsNav";
+import { hostColor } from "./hostColor";
 import { useFitHeight } from "./useFitHeight";
 import { useLocalStorage } from "./useLocalStorage";
 
@@ -38,7 +39,7 @@ function HostsTab({ sub, onSub, machines, containers, history, mainHost, connect
   };
 
   return (
-    <section className="hosts-tab fit-page" ref={fit}>
+    <section className="hosts-tab fit-page" ref={fit} style={host ? { "--host-color": hostColor(host) } : undefined}>
       <div className="net-bar hosts-bar">
         <div className="net-hosts" role="tablist" aria-label="Server">
           <button
@@ -57,6 +58,7 @@ function HostsTab({ sub, onSub, machines, containers, history, mainHost, connect
               role="tab"
               aria-selected={h === host}
               className={`net-host-tab ${h === host ? "active" : ""}`}
+              style={{ "--host-color": hostColor(h) }}
               onClick={() => onSub(hostsSub(h, host ? page : "summary"))}
             >
               <span className={`status-dot status-dot--${machines[h].online ? "ok" : "bad"}`} />

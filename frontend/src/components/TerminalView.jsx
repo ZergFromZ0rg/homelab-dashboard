@@ -19,8 +19,8 @@ import { ensureConfirmed } from "./confirmedFetch";
 const THEME = {
   background: "#0a0c10",
   foreground: "#e3e6ec",
-  cursor: "#5b9dff",
-  selectionBackground: "rgba(91, 157, 255, 0.3)",
+  cursor: "#2dd4bf",
+  selectionBackground: "rgba(45, 212, 191, 0.3)",
   black: "#1b212d",
   brightBlack: "#6b748a",
 };

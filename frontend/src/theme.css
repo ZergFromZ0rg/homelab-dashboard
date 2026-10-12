@@ -4,15 +4,20 @@
    App.css owns layout and per-component structure; this file owns how
    surfaces look and move. Flat and solid: opaque panels on a plain dark
    page, one hairline border, no blur, no glows, no gradients. Color is
-   kept for meaning: one accent for what you can act on or have selected,
-   and red/amber/green for status. Hosts, tabs and containers get no hue of
-   their own. Motion is short and decelerating; it confirms a click, it
-   never performs.
+   kept for meaning — the active tab's color, host colors, and
+   red/amber/green for status. Motion is short and decelerating; it
+   confirms a click, it never performs.
 
    History: a frosted-glass look (2026-09-23) was dropped the next day as
    hard to read, and big even tiles were dropped as too spread out. The
    --glass names survive as aliases so older rules still resolve.
    ===================================================================== */
+
+@property --page-accent {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #2dd4bf;
+}
 
 :root {
   --glass: var(--bg-card);
@@ -119,6 +124,14 @@
   font-weight: 600;
 }
 
+.services-head h2::before {
+  content: "";
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--page-accent);
+}
+
 /* ----- Top bar ----- */
 
 .topbar {
@@ -204,9 +217,28 @@
 
 .tab.active,
 .tab.active:hover {
-  color: var(--accent);
+  color: var(--tab-color);
   background: none;
   box-shadow: none;
+}
+
+.tab-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--tab-color);
+  opacity: 0.7;
+  transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease-spring);
+}
+
+.tab:hover .tab-dot,
+.tab.active .tab-dot {
+  opacity: 1;
+}
+
+.tab.active .tab-dot {
+  transform: scale(1.25);
 }
 
 .tab:active {
@@ -225,8 +257,8 @@
 }
 
 .tab.active .tab-count:not(.tab-count--bad) {
-  color: var(--accent);
-  background: var(--accent-bg);
+  color: var(--tab-color);
+  background: color-mix(in srgb, var(--tab-color) 16%, transparent);
 }
 
 .tab-count--bad,
@@ -246,8 +278,8 @@
   width: var(--w, 0);
   transform: translateX(var(--x, 0));
   border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--accent) 13%, var(--bg));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);
+  background: color-mix(in srgb, var(--tab-color) 13%, var(--bg));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tab-color) 30%, transparent);
   pointer-events: none;
   transition:
     transform var(--dur-slow) var(--ease),
@@ -256,7 +288,7 @@
     box-shadow var(--dur-slow) var(--ease);
 }
 
-/* ----- View mode: Simple / God, with a sliding thumb (one look for both) ----- */
+/* ----- View mode: Simple / God, with a sliding thumb ----- */
 
 .mode-selector {
   --mode-color: var(--text);
@@ -271,6 +303,10 @@
   border: 1px solid var(--border);
   border-radius: 6px;
   overflow: visible;
+}
+
+.mode-selector--god {
+  --mode-color: var(--warning);
 }
 
 .mode-thumb {
@@ -402,8 +438,8 @@
 
 .btn:hover:not(:disabled),
 .qa-btn:hover:not(:disabled) {
-  background: var(--bg-raised);
-  border-color: color-mix(in srgb, var(--text) 28%, transparent);
+  background: color-mix(in srgb, var(--page-accent) 12%, var(--bg-card));
+  border-color: color-mix(in srgb, var(--page-accent) 45%, transparent);
 }
 
 .btn:active:not(:disabled),
@@ -430,13 +466,13 @@
 }
 
 .btn.btn--primary {
-  color: var(--on-accent);
+  color: #06201c;
   background: var(--accent);
   border-color: var(--accent);
 }
 
 .btn.btn--primary:hover:not(:disabled) {
-  color: var(--on-accent);
+  color: #06201c;
   background: color-mix(in srgb, var(--accent) 82%, #fff);
   border-color: color-mix(in srgb, var(--accent) 82%, #fff);
 }
@@ -591,6 +627,16 @@ textarea.deploy-input {
   box-shadow: none;
 }
 
+.machine-card--main {
+  background: var(--bg-card);
+  border-color: color-mix(in srgb, var(--main-host) 35%, transparent);
+}
+
+.machine-card--main:hover {
+  border-color: color-mix(in srgb, var(--main-host) 55%, transparent);
+  box-shadow: none;
+}
+
 .machine-header h2 {
   font-size: var(--fs-xl);
   font-weight: 650;
@@ -632,25 +678,38 @@ textarea.deploy-input {
 
 /* ----- Headings inside a panel -----
    Three levels of text carry the hierarchy: a panel title (14px), a heading
-   for a group inside it (13px, semibold, full-strength), and the small muted
-   labels that name a column or a figure (12px). Groups used to be 11px
-   uppercase in a muted color, which read as a label, not a heading. */
+   for a group inside it (13px, semibold), and the small muted labels that
+   name a column or a figure (12px). Groups used to be 11px uppercase, which
+   read as a label, not a heading. (.sv-section h3, .dx-title and
+   .bf-section legend keep the color their own rules give them.) */
 
-.sv-section h3,
 .hs-group h4,
 .hsys-block h4,
 .mb-column h3,
 .dd-section h4,
 .files-places h3,
-.bf-section legend,
 .cs-group-head,
-.qa-group-label,
-.dx-title {
+.qa-group-label {
   font-size: var(--fs-md);
   font-weight: 600;
   letter-spacing: 0;
   text-transform: none;
   color: var(--text);
+}
+
+.sv-section h3,
+.bf-section legend,
+.dx-title {
+  font-size: var(--fs-md);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Down / Up figures sit two to a column: keep each on one line. */
+.sv-pair .sv-trend-head {
+  gap: 4px;
+  white-space: nowrap;
 }
 
 /* A key/value row that is too tight shortens its label, never its number. */
@@ -667,12 +726,6 @@ textarea.deploy-input {
 .sv-kv dd {
   flex-shrink: 0;
   overflow: visible;
-}
-
-/* Down / Up figures sit two to a column: keep each on one line. */
-.sv-pair .sv-trend-head {
-  gap: 4px;
-  white-space: nowrap;
 }
 
 /* ----- Attention panel ----- */
@@ -1060,11 +1113,11 @@ textarea.deploy-input {
   opacity: 1;
 }
 
-/* Letter avatars: one neutral tile, so a container is never mistaken for a
-   status by its color. */
+/* Letter avatars: the name's hue as a tint with the letter in it. */
 .app-tile-letter {
-  color: var(--text-muted);
-  background: var(--bg-raised);
+  color: var(--avatar, var(--text-muted));
+  background: color-mix(in srgb, var(--avatar, var(--text-muted)) 20%, var(--bg-card));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--avatar, var(--text-muted)) 22%, transparent);
   font-weight: 650;
 }
 
@@ -1092,6 +1145,16 @@ textarea.deploy-input {
 .tab {
   animation: tab-appear var(--dur) var(--ease) backwards;
   animation-delay: calc(var(--i, 0) * 25ms);
+}
+
+/* God mode: the top bar's hairline turns amber — you're driving the
+   machines themselves now (the same amber that marks "powerful" switches). */
+.topbar {
+  transition: border-color var(--dur-slow) var(--ease);
+}
+
+.topbar--god {
+  border-bottom-color: color-mix(in srgb, var(--warning) 40%, var(--border));
 }
 
 /* ----- Phones: nothing wider than the screen ----- */

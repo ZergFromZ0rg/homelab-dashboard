@@ -11,6 +11,7 @@ import WeatherCard from "./WeatherCard";
 import { containerLink, linkProblem } from "./containerLink";
 import { diskLabel } from "./diskLabel";
 import { formatBytes } from "./format";
+import { hostColor } from "./hostColor";
 import { formatUptime } from "./machineInfo";
 import { pinKey, togglePin } from "./containerPins";
 import { useSettings } from "./settings";
@@ -200,7 +201,7 @@ function AppGrid({ pins, containers, onSetPins }) {
             choices.map((c) => (
               <button type="button" role="menuitem" key={`${c.host}/${c.id}`} className="sh-pick" onClick={() => add(c)}>
                 {c.name}
-                <small>{c.host}</small>
+                <small style={{ color: hostColor(c.host) }}>{c.host}</small>
               </button>
             ))
           )}
@@ -278,7 +279,7 @@ function ContainerTable({ containers, onControl }) {
                       )}
                     </span>
                   </td>
-                  <td>{c.host}</td>
+                  <td style={{ color: hostColor(c.host) }}>{c.host}</td>
                   <td className="num">{up && c.stats?.cpu_percent != null ? `${c.stats.cpu_percent.toFixed(1)}%` : ""}</td>
                   <td className="num">{up && c.stats?.memory?.used_bytes != null ? formatBytes(c.stats.memory.used_bytes) : ""}</td>
                   <td className="sh-actions">
@@ -319,7 +320,7 @@ function HostCard({ name, machine: m, containers, onOpen }) {
     <button type="button" className="sh-host" onClick={() => onOpen(name)} title={`Show ${name} in full`}>
       <span className="sh-host-head">
         <span className={`status-dot status-dot--${m.online ? "ok" : "bad"}`} />
-        <strong>{name}</strong>
+        <strong style={{ color: hostColor(name) }}>{name}</strong>
         <span className="sh-host-meta">
           {m.online ? `up ${formatUptime(m.uptime)}` : "offline"}
           {m.online && m.temperature != null ? ` · ${Math.round(m.temperature)}°C` : ""}

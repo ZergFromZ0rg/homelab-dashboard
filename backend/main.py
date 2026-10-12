@@ -32,7 +32,7 @@ from backend import updates_api
 from backend import git_updates_api
 from backend import volume_backup_api
 from backend import volume_backups
-from backend.registry import registry
+from backend.registry import browse_host, registry
 from backend import audit_log, fleet_api, host_control_api, host_tools_api, personal_api, morning, rebalance
 from backend.hosts import MAIN_HOST_OVERRIDE, detect_main_host
 from backend.scheduler_api import deployments, merge_agent_snapshot
@@ -290,7 +290,11 @@ async def _build_update() -> dict:
         history.setdefault(host, {})["gpu_temperature"] = (
             live_history.gpu_temp_history(host)
         )
+        # Where a browser reaches this node's published ports; the links the
+        # dashboard shows are built from it.
+        link_host = browse_host(host, nodes.get(host, {}).get("url", ""))
         for container in conts:
+            container["link_host"] = link_host
             container["heartbeat"] = live_history.container_heartbeat(
                 host, container["id"]
             )

@@ -7,6 +7,7 @@ import { sortContainers, needsAttention } from "./containerSort";
 import { formatBytes } from "./format";
 import { pinKey, togglePin } from "./containerPins";
 import { useLocalStorage } from "./useLocalStorage";
+import { hostColor } from "./hostColor";
 import { useFitHeight } from "./useFitHeight";
 import { useSettings } from "./settings";
 import Icon from "./Icon";
@@ -150,7 +151,7 @@ function HostGroup({
   const updatable = containers.filter((c) => c.update?.can_update);
 
   return (
-    <div className="host-group">
+    <div className="host-group" style={{ "--host-color": hostColor(host) }}>
       <div className={`host-header ${collapsed ? "" : "expanded"}`}>
         <button
           type="button"

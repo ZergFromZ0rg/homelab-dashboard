@@ -37,7 +37,7 @@
   font-weight: 600;
   font-size: var(--fs-md);
   padding: 9px 12px;
-  color: var(--on-accent);
+  color: #06201c;
   background: var(--accent);
   border: none;
   border-radius: var(--radius-sm);

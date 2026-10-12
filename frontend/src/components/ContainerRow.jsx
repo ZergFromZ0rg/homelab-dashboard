@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState } from "react";
-import { containerLink, linkProblem } from "./containerLink";
+import { containerLink, linkLabel, linkProblem, publishedPorts } from "./containerLink";
 import AppIcon from "./AppIcon";
 import Icon, { IconButton } from "./Icon";
 import { needsAttention } from "./containerSort";
@@ -9,6 +9,7 @@ import Heartbeat from "./Heartbeat";
 import RebuildButton, { RebuildNote } from "./RebuildButton";
 import { useRebuild } from "./useRebuild";
 import { useSettings } from "./settings";
+import { hostColor } from "./hostColor";
 import { requestContainerCapture } from "./captureRequest";
 import { useTerminal } from "./terminalContext";
 import { useUpdates } from "./updatesContext";
@@ -104,6 +105,8 @@ function ContainerRow({
 
   const url = containerLink(host, container);
   const urlProblem = url ? linkProblem(host, container) : null;
+  // No web page: say what it does listen on, so "no link" isn't a blank.
+  const ports = url ? [] : publishedPorts(container);
   const cpuPercent = stats?.cpu_percent;
   const ramPercent = memory?.percent;
   // A container with no memory cap reports limit_bytes 0 and, with it,
@@ -164,6 +167,7 @@ function ContainerRow({
               {showHost && (
                 <span
                   className="chip chip--host"
+                  style={{ color: hostColor(host), borderColor: hostColor(host) }}
                 >
                   {host}
                 </span>
@@ -203,6 +207,23 @@ function ContainerRow({
               )}
               <RebuildNote note={rebuild.note} onDismiss={rebuild.dismiss} />
             </div>
+            {url ? (
+              <a
+                className="c-addr"
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={urlProblem ? `Open ${url} — ${urlProblem}` : `Open ${url}`}
+              >
+                <span className="c-addr-go" aria-hidden="true">↗</span>
+                {linkLabel(url)}
+              </a>
+            ) : ports.length > 0 ? (
+              <span className="c-addr c-addr--ports" title="Publishes these ports, but no web page answered on them">
+                {ports.slice(0, 3).map((p) => `:${p}`).join(" ")}
+                {ports.length > 3 ? ` +${ports.length - 3}` : ""}
+              </span>
+            ) : null}
           </div>
         </div>
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { jsonOrThrow } from "./apiAuth";
+import { hostColor } from "./hostColor";
 
 // Settings → History. Two records, newest first, each with its own
 // retention: Actions (who did what — the audit log, a year by default) and
@@ -146,7 +147,7 @@ function AuditLog() {
               {e.target?.container && <span className="audit-dim"> {e.target.container}</span>}
             </span>
             {e.host && (
-              <span className="audit-host">{e.host}</span>
+              <span className="audit-host" style={{ color: hostColor(e.host) }}>{e.host}</span>
             )}
           </li>
         ))}

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { hostColor } from "./hostColor";
 import { KINDS, layout, shortName } from "./topology";
 
 // The LAN as a map: Internet → router → every device that answered, your own
@@ -11,10 +12,11 @@ const MARGIN_TOP = 56; // the Internet pill
 const MARGIN_BOTTOM = 56;
 
 function Node({ d, pos, selected, onSelect }) {
+  const color = d.node ? hostColor(d.node) : undefined;
   return (
     <g
       className={`nmap-node nmap-node--${d.kind} ${d.gone ? "nmap-node--gone" : ""} ${d.isNew ? "nmap-node--new" : ""} ${selected ? "nmap-node--sel" : ""}`}
-      style={{ transform: `translate(${pos.x}px, ${pos.y}px)` }}
+      style={{ transform: `translate(${pos.x}px, ${pos.y}px)`, ...(color ? { "--host-color": color } : null) }}
       onClick={() => onSelect(d.key)}
       onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onSelect(d.key)}
       tabIndex={0}
@@ -134,6 +136,7 @@ export default function NetworkMap({ devices, gateway, subnet, scanning, onRenam
                 x2={p.x}
                 y2={p.y}
                 className={`nmap-link ${d.gone ? "nmap-link--gone" : ""}`}
+                style={d.node ? { "--host-color": hostColor(d.node) } : undefined}
               />
             ) : null;
           })}

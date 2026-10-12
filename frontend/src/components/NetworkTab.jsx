@@ -4,6 +4,7 @@ import NetworkWatch from "./NetworkWatch";
 import PiholePanel from "./PiholePanel";
 import SwitchPanel from "./SwitchPanel";
 import ServicesTab from "./ServicesTab";
+import { hostColor } from "./hostColor";
 import { isRootDown } from "./checkStatus";
 import { useLocalStorage } from "./useLocalStorage";
 import { networkSections, pickSection, PER_HOST } from "./networkSections";
@@ -53,6 +54,7 @@ function NetworkTab({ machines, checks, connected, section: wanted, onSection })
                 role="tab"
                 aria-selected={h === host}
                 className={`net-host-tab ${h === host ? "active" : ""}`}
+                style={{ "--host-color": hostColor(h) }}
                 onClick={() => setPicked(h)}
               >
                 <span className={`status-dot status-dot--${machines[h].online ? "ok" : "bad"}`} />

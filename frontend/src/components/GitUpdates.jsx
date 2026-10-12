@@ -4,6 +4,7 @@ import FleetUpdate from "./FleetUpdate";
 import Icon from "./Icon";
 import { formatWhen } from "./format";
 import { fetchGitUpdates, setGitUpdates } from "./gitUpdatesApi";
+import { hostColor } from "./hostColor";
 import "./GitUpdates.css";
 
 const POLL_MS = 5000;
@@ -163,7 +164,7 @@ function GitUpdatesBody({ demo, machines }) {
         <div className="git-updates-agent-update"><span>Update older agents to discover their repositories.</span><FleetUpdate machines={machines} /></div>
       )}
       {hosts.map((host) => (
-        <section className="git-updates-host" key={host.host} aria-label={`Repositories on ${host.host}`}>
+        <section className="git-updates-host" key={host.host} style={{ "--host-color": hostColor(host.host) }} aria-label={`Repositories on ${host.host}`}>
           <h3>{host.host}<span>{host.poll_seconds ? `Checks every ${host.poll_seconds}s` : ""}</span></h3>
           {!host.available && <p className="git-updates-note">{[404, 405, 501].includes(host.status_code) ? "This agent does not support automatic updates yet. Update the host agent to discover repositories." : host.error || "This host's agent is unavailable. Repositories will appear when it reconnects."}</p>}
           {host.available && host.enabled === false && <p className="git-updates-note">Rebuilding is disabled on this host. Enable REBUILD_ENABLED in its agent settings to allow automatic updates.</p>}

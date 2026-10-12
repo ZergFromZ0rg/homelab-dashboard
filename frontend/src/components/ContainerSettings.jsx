@@ -6,6 +6,7 @@ import {
   addEnv, addListItem, edit, parse, readService, removeEnv, removeListItem,
   setEnv, setListItem, setScalar,
 } from "./yamlEdit";
+import { hostColor } from "./hostColor";
 
 const CodeEditor = lazy(() => import("./CodeEditor"));
 
@@ -363,7 +364,7 @@ function ContainerSettings({ host, container, onClose }) {
         <div className="drawer-head">
           <h2>
             {container.name}
-            <span className="chip chip--host">{host}</span>
+            <span className="chip chip--host" style={{ color: hostColor(host), borderColor: hostColor(host) }}>{host}</span>
           </h2>
           <button type="button" className="icon-btn" onClick={close} aria-label="Close" title="Close (Esc)" disabled={running}>
             ✕

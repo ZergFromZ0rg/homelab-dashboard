@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { containerLink } from "./containerLink";
+import { hostColor } from "./hostColor";
 import { useTerminal } from "./terminalContext";
 import { useUpdates } from "./updatesContext";
 import { HOST_PAGES } from "./hostsNav";
@@ -192,7 +193,7 @@ function CommandPalette({ tabs, machines, containers, control, onNavigate, onOpe
             >
               <span className="palette-kind">{KIND_LABEL[item.kind]}</span>
               <span className="palette-title">{item.title}</span>
-              <span className="palette-sub">
+              <span className="palette-sub" style={item.host ? { color: hostColor(item.host) } : undefined}>
                 {item.sub}
               </span>
             </li>
