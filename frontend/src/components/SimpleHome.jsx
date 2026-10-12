@@ -1,28 +1,23 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import AppIcon from "./AppIcon";
-import CalendarCard from "./CalendarCard";
 import Card from "./Card";
 import FirstRun from "./FirstRun";
-import ProjectsCard from "./ProjectsCard";
 import { Meter } from "./HostSummary";
-import { IconButton } from "./Icon";
+import NeedsYouCard from "./NeedsYouCard";
 import TodoList from "./TodoList";
-import WeatherCard from "./WeatherCard";
+import { WeatherLine } from "./WeatherCard";
 import { containerLink, linkProblem } from "./containerLink";
 import { diskLabel } from "./diskLabel";
-import { formatBytes } from "./format";
 import { hostColor } from "./hostColor";
-import { formatUptime } from "./machineInfo";
 import { pinKey, togglePin } from "./containerPins";
 import { useSettings } from "./settings";
 import { useNow } from "./useNow";
 import { useFitHeight } from "./useFitHeight";
 
-// The Simple page: a board you can read from across the room. Three columns —
-// time, calendar and to-dos on the left; pinned apps as icon tiles over the
-// briefing and one plain container table in the middle; the servers, the
-// projects, four headline numbers and what needs attention on the right.
-// Everything you act on lives in God.
+// The Simple page: a place to glance at, not a console. A top band with the
+// time (and the weather in a line) beside your pinned apps; under it three
+// cards — what needs you, how the servers are doing, your to-dos. Everything
+// you dig into lives in God.
 
 function partOfDay(hour) {
   if (hour < 5) return "Good night";
@@ -31,7 +26,7 @@ function partOfDay(hour) {
   return "Good evening";
 }
 
-function Clock() {
+function Clock({ weather }) {
   const now = useNow(1000);
   const {
     settings: { displayName },
@@ -44,14 +39,17 @@ function Clock() {
   const period = parts.find((p) => p.type === "dayPeriod")?.value.replace(/\./g, "").toUpperCase();
   return (
     <section className="sh-clock" title={`${partOfDay(now.getHours())}${name ? `, ${name}` : ""}`}>
-      <time dateTime={now.toISOString()}>
-        {clock}
-        {period && <small>{period}</small>}
-      </time>
-      <span>
-        <b>{now.toLocaleDateString(undefined, { weekday: "long" })}</b>
-        {now.toLocaleDateString(undefined, { month: "long", day: "numeric" })}
-      </span>
+      <div className="sh-clock-main">
+        <time dateTime={now.toISOString()}>
+          {clock}
+          {period && <small>{period}</small>}
+        </time>
+        <span>
+          <b>{now.toLocaleDateString(undefined, { weekday: "long" })}</b>
+          {now.toLocaleDateString(undefined, { month: "long", day: "numeric" })}
+        </span>
+      </div>
+      {weather && <WeatherLine />}
     </section>
   );
 }
@@ -211,181 +209,26 @@ function AppGrid({ pins, containers, onSetPins }) {
   );
 }
 
-function ContainerTable({ containers, onControl }) {
-  const [filter, setFilter] = useState("");
-  const rows = useMemo(() => {
-    const q = filter.trim().toLowerCase();
-    return allContainers(containers)
-      .filter((c) => !q || `${c.name} ${c.host}`.toLowerCase().includes(q))
-      .sort((a, b) => {
-        const down = (c) => (c.status === "running" ? 1 : 0);
-        return down(a) - down(b) || a.name.localeCompare(b.name);
-      });
-  }, [containers, filter]);
-
-  const all = allContainers(containers);
-  const running = all.filter((c) => c.status === "running");
-
-  const act = (c, verb) => {
-    if (window.confirm(`${verb} ${c.name} on ${c.host}?`)) {
-      onControl.run(c.host, c.id, verb.toLowerCase());
-    }
-  };
-
-  return (
-    <Card
-      title="Containers"
-      count={`${running.length}/${all.length}`}
-      actions={
-        <input
-          className="sh-filter"
-          type="search"
-          placeholder="Find…"
-          aria-label="Find a container"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-        />
-      }
-      className="sh-table-card sh-fill"
-    >
-      <div className="sh-table-scroll">
-        <table className="sh-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Host</th>
-              <th className="num">CPU</th>
-              <th className="num">Memory</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((c) => {
-              const up = c.status === "running";
-              const pendingAct = onControl.pending[`${c.host}-${c.id}`];
-              const busy = Boolean(pendingAct);
-              const url = containerLink(c.host, c);
-              return (
-                <tr key={`${c.host}-${c.id}`} className={up ? "" : "sh-row--off"}>
-                  <td>
-                    <span className="sh-name">
-                      <span className={`status-dot status-dot--${up ? "ok" : "bad"}`} title={c.status} />
-                      {url ? (
-                        <a href={url} target="_blank" rel="noopener noreferrer" title={`Open ${url}${linkProblem(c.host, c) ? ` — ${linkProblem(c.host, c)}` : ""}`}>
-                          {c.name}
-                        </a>
-                      ) : (
-                        c.name
-                      )}
-                    </span>
-                  </td>
-                  <td style={{ color: hostColor(c.host) }}>{c.host}</td>
-                  <td className="num">{up && c.stats?.cpu_percent != null ? `${c.stats.cpu_percent.toFixed(1)}%` : ""}</td>
-                  <td className="num">{up && c.stats?.memory?.used_bytes != null ? formatBytes(c.stats.memory.used_bytes) : ""}</td>
-                  <td className="sh-actions">
-                    <IconButton
-                      icon={up ? "stop" : "play"}
-                      label={up ? "Stop" : "Start"}
-                      working={pendingAct === (up ? "stop" : "start")}
-                      disabled={busy}
-                      onClick={() => act(c, up ? "Stop" : "Start")}
-                    />
-                    <IconButton icon="refresh" label="Restart" working={pendingAct === "restart"} disabled={busy} onClick={() => act(c, "Restart")} />
-                  </td>
-                </tr>
-              );
-            })}
-            {rows.length === 0 && (
-              <tr>
-                <td colSpan={5} className="sh-empty">
-                  {all.length ? "No match." : "No containers reported yet."}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </Card>
-  );
-}
-
-function HostCard({ name, machine: m, containers, onOpen }) {
-  const list = containers || [];
-  const running = list.filter((c) => c.status === "running").length;
-  const disks = [...(m.filesystems || [])]
-    .sort((a, b) => (b.used_percent ?? 0) - (a.used_percent ?? 0))
-    .slice(0, 3);
+// One server: its name and the three meters worth a glance — CPU, memory and
+// the fullest disk. Uptime, temperature and the rest are on its God page.
+function HostCard({ name, machine: m, onOpen }) {
+  const fullest = [...(m.filesystems || [])].sort((x, y) => (y.used_percent ?? 0) - (x.used_percent ?? 0))[0];
 
   return (
     <button type="button" className="sh-host" onClick={() => onOpen(name)} title={`Show ${name} in full`}>
       <span className="sh-host-head">
         <span className={`status-dot status-dot--${m.online ? "ok" : "bad"}`} />
         <strong style={{ color: hostColor(name) }}>{name}</strong>
-        <span className="sh-host-meta">
-          {m.online ? `up ${formatUptime(m.uptime)}` : "offline"}
-          {m.online && m.temperature != null ? ` · ${Math.round(m.temperature)}°C` : ""}
-          {m.online ? ` · ${running}/${list.length}` : ""}
-        </span>
+        {!m.online && <span className="sh-host-meta">offline</span>}
       </span>
       {m.online && (
         <span className="sh-host-meters">
           <Meter label="CPU" pct={m.cpu} />
           <Meter label="RAM" pct={m.ram} />
-          {disks.map((fs) => (
-            <Meter key={fs.mountpoint || fs.device || diskLabel(fs)} label={diskLabel(fs)} pct={fs.used_percent} />
-          ))}
+          {fullest && <Meter label={diskLabel(fullest)} pct={fullest.used_percent} />}
         </span>
       )}
     </button>
-  );
-}
-
-function Tile({ value, label, tone, onClick }) {
-  return (
-    <button type="button" className={`sh-tile ${tone ? `sh-tile--${tone}` : ""}`} onClick={onClick}>
-      <strong>{value}</strong>
-      <span>{label}</span>
-    </button>
-  );
-}
-
-function Alerts({ overview, alerts, ready, onNavigate }) {
-  const firing = alerts.filter((a) => a.resolved_at == null);
-  const rows = [
-    ...overview.issues.map((i) => ({ key: i.key, tone: i.severity, text: i.title, title: i.message })),
-    ...firing
-      .filter((a) => !overview.issues.some((i) => i.key === a.key))
-      .map((a) => ({ key: `alert-${a.key}-${a.at}`, tone: a.severity || "bad", text: a.title, title: a.message })),
-  ];
-  const clear = ready && rows.length === 0;
-  return (
-    <Card title="Alerts" count={clear || !ready ? null : rows.length} className="sh-alerts sh-fill">
-      {!ready ? (
-        <p className="sh-empty">Waiting for the first update…</p>
-      ) : clear ? (
-        <p className="ov-clear">
-          <span className="status-dot status-dot--ok" />
-          All clear
-        </p>
-      ) : (
-        <ul className="ov-issue-list">
-          {rows.map((r) => (
-            <li key={r.key}>
-              <button
-                type="button"
-                className={`ov-issue ov-issue--${r.tone}`}
-                title={r.title}
-                onClick={() => onNavigate(r.key.startsWith("check:") ? "network" : "containers")}
-              >
-                <span className={`status-dot status-dot--${r.tone}`} />
-                <strong>{r.text}</strong>
-                <span className="ov-go" aria-hidden="true">→</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Card>
   );
 }
 
@@ -401,18 +244,13 @@ function SimpleHome({
   onSetTodos,
   openTodos,
   ready,
-  briefing,
-  onControl,
+  morningSummary,
   onNavigate,
 }) {
   const {
     settings: { personalCards: show },
   } = useSettings();
   const hosts = Object.keys(machines).sort();
-  const online = hosts.filter((h) => machines[h].online).length;
-  const all = allContainers(containers);
-  const running = all.filter((c) => c.status === "running").length;
-  const issues = overview.issues.length;
 
   const fit = useFitHeight(4, 520);
 
@@ -420,52 +258,40 @@ function SimpleHome({
     <div className="simple-home" ref={fit}>
       <FirstRun machines={machines} backups={backups} onNavigate={onNavigate} />
       <div className="sh-grid">
-        <aside className="sh-col sh-col--left">
-          <Clock />
-          {show.calendar && <CalendarCard />}
-          {show.weather && <WeatherCard compact />}
-          {show.todo && (
-            <Card title="To-do" count={openTodos || null} className="sh-todo sh-fill">
-              <TodoList todos={todos} onChange={onSetTodos} compact />
-            </Card>
-          )}
-        </aside>
-
-        <main className="sh-col sh-col--mid">
+        <div className="sh-top">
+          <Clock weather={show.weather} />
           <AppGrid pins={pins} containers={containers} onSetPins={onSetPins} />
-          {briefing}
-          <ContainerTable containers={containers} onControl={onControl} />
-        </main>
+        </div>
 
-        <aside className="sh-col sh-col--right">
-          <Card title="Servers" count={hosts.length || null} className="sh-servers sh-fill">
-            <div className="sh-hosts">
-              {hosts.length === 0 && <p className="sh-empty">{ready ? "No hosts reporting yet." : "Connecting…"}</p>}
-              {hosts.map((h) => (
-                <HostCard
-                  key={h}
-                  name={h}
-                  machine={machines[h]}
-                  containers={containers[h]}
-                  onOpen={(host) => onNavigate("servers", { host })}
-                />
-              ))}
-            </div>
-          </Card>
-          <ProjectsCard containers={containers} ready={ready} onOpen={(project) => onNavigate("containers", { container: project })} />
-          <div className="sh-tiles">
-            <Tile value={`${online}/${hosts.length}`} label="Hosts up" tone={online < hosts.length ? "bad" : null} onClick={() => onNavigate("servers")} />
-            <Tile value={`${running}/${all.length}`} label="Running" onClick={() => onNavigate("containers")} />
-            <Tile value={ready ? issues : "—"} label="Issues" tone={issues ? "bad" : null} onClick={() => onNavigate("containers")} />
-            <Tile
-              value={backups?.total ? `${backups.ok}/${backups.total}` : "—"}
-              label="Backups"
-              tone={ready && backups?.attention ? "bad" : null}
-              onClick={() => onNavigate("backups")}
+        <div className="sh-main">
+          <div className="sh-col sh-col--wide">
+            <NeedsYouCard
+              overview={overview}
+              alerts={alerts}
+              summary={morningSummary}
+              machines={machines}
+              ready={ready}
+              onNavigate={onNavigate}
             />
+
+            {show.todo && (
+              <Card title="To-do" count={openTodos || null} className="sh-todo sh-fill">
+                <TodoList todos={todos} onChange={onSetTodos} compact />
+              </Card>
+            )}
           </div>
-          <Alerts overview={overview} alerts={alerts} ready={ready} onNavigate={onNavigate} />
-        </aside>
+
+          <div className="sh-col">
+            <Card title="Servers" count={hosts.length || null} className="sh-servers sh-fill">
+              <div className="sh-hosts">
+                {hosts.length === 0 && <p className="sh-empty">{ready ? "No hosts reporting yet." : "Connecting…"}</p>}
+                {hosts.map((h) => (
+                  <HostCard key={h} name={h} machine={machines[h]} onOpen={(host) => onNavigate("servers", { host })} />
+                ))}
+              </div>
+            </Card>
+          </div>
+        </div>
       </div>
     </div>
   );

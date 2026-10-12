@@ -26,7 +26,6 @@ import { AUTH_REQUIRED_EVENT } from "./components/apiAuth";
 import ModeSelector from "./components/ModeSelector";
 import { useModeSelector } from "./components/viewMode";
 import { parseHash, useNavHistory } from "./components/navHistory";
-import MorningBriefing from "./components/MorningBriefing";
 import { isRootDown } from "./components/checkStatus";
 
 const EMPTY_OVERVIEW = { ok: true, issues: [], recommendations: [] };
@@ -537,8 +536,7 @@ function App() {
               onSetTodos={setTodos}
               openTodos={openTodos}
               ready={ready}
-              onControl={control}
-              briefing={<MorningBriefing summary={morning_summary} machines={machines} onNavigate={navigate} />}
+              morningSummary={morning_summary}
               onNavigate={navigate}
             />
           </div>
