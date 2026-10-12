@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { avatarColor } from "./containerLink";
 
 // A service's own /favicon.ico, or a lettered avatar when there's no URL to
 // ask or the icon fails to load (no favicon, or an http:// icon blocked as
@@ -22,11 +21,7 @@ function AppIcon({ url, label, className = "app-tile-icon" }) {
   return (
     <span className={`${className} app-icon`}>
       {state !== "ok" && (
-        <span
-          className="app-tile-letter"
-          style={{ "--avatar": avatarColor(label) }}
-          aria-hidden="true"
-        >
+        <span className="app-tile-letter" aria-hidden="true">
           {(label || "?").charAt(0).toUpperCase()}
         </span>
       )}

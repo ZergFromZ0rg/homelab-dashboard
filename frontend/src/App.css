@@ -3,7 +3,7 @@
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.13em;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 600;
 }
 
@@ -51,12 +51,12 @@ h1 {
 .machine-badge {
   display: inline-block;
   margin-left: 8px;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--main-host);
-  border: 1px solid var(--main-host);
+  color: var(--text-muted);
+  border: 1px solid var(--border-strong);
   vertical-align: middle;
 }
 
@@ -64,7 +64,7 @@ h1 {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 600;
   letter-spacing: 0.08em;
   color: var(--offline);
@@ -111,7 +111,7 @@ h1 {
 }
 
 .gauge-fill--ok {
-  stroke: var(--online);
+  stroke: var(--meter);
 }
 
 .gauge-fill--warn {
@@ -171,7 +171,7 @@ h1 {
 .host-name {
   font-weight: 600;
   text-transform: capitalize;
-  color: var(--host-color, var(--text));
+  color: var(--text);
 }
 
 .host-controls {
@@ -271,7 +271,7 @@ h1 {
 
 .network-stats span {
   color: var(--text-muted);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   letter-spacing: 0.08em;
 }
 
@@ -348,7 +348,7 @@ h1 {
   gap: 16px;
   padding: 7px 12px;
   border-top: 1px solid var(--border);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 
@@ -373,9 +373,9 @@ h1 {
 
 .gpu-stats span {
   color: var(--text-muted);
-  font-size: var(--fs-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font-size: var(--fs-sm);
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .gpu-stats strong {
@@ -398,10 +398,10 @@ h1 {
 }
 
 .deploy-label {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  text-transform: none;
+  letter-spacing: 0;
   color: var(--text-muted);
 }
 
@@ -451,10 +451,10 @@ select.deploy-input[multiple] {
   border-radius: var(--radius-sm);
   padding: 4px 9px;
   cursor: pointer;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .deployment-actions button:hover:not(:disabled) {
@@ -508,16 +508,16 @@ select.deploy-input[multiple] {
 }
 
 .rebalance-checked {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text-faint);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  text-transform: none;
+  letter-spacing: 0;
   margin: 8px 0 0;
 }
 
 .rebalance-auto {
   margin-left: 8px;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -539,7 +539,7 @@ select.deploy-input[multiple] {
 }
 
 .overview-card-count {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 700;
   font-family: var(--mono);
 }
@@ -656,7 +656,7 @@ select.deploy-input[multiple] {
 
 .activity-time {
   font-family: var(--mono);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text-faint);
 }
 
@@ -675,7 +675,7 @@ select.deploy-input[multiple] {
 }
 
 .calendar-weekday {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-faint);
@@ -711,7 +711,7 @@ select.deploy-input[multiple] {
 
 .gpu-hint {
   margin: 6px 0 0;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   line-height: 1.5;
   color: var(--warning);
   overflow-wrap: anywhere;
@@ -733,9 +733,9 @@ select.deploy-input[multiple] {
   background: transparent;
   padding: 2px 0;
   cursor: pointer;
-  font-size: var(--fs-xs);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: var(--fs-sm);
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-muted);
 }
 
@@ -766,21 +766,21 @@ select.deploy-input[multiple] {
 
 .addnode-note--head {
   margin-top: 14px;
-  font-size: var(--fs-xs);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: var(--fs-sm);
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-muted);
 }
 
 .addnode-note--small {
   margin: 8px 0 0;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text-faint);
 }
 
 .addnode-note code {
   font-family: var(--mono);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   background: var(--bg-subtle);
   padding: 1px 4px;
   border-radius: 4px;
@@ -793,7 +793,7 @@ select.deploy-input[multiple] {
   border-radius: 4px;
   background: var(--bg-subtle);
   font-family: var(--mono);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   line-height: 1.6;
   color: var(--text);
   white-space: pre-wrap;
@@ -811,7 +811,7 @@ select.deploy-input[multiple] {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text-muted);
   cursor: pointer;
 }
@@ -830,7 +830,7 @@ select.deploy-input[multiple] {
 }
 
 .ccharts-title {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   letter-spacing: 0.08em;
   color: var(--text-muted);
 }
@@ -862,7 +862,7 @@ select.deploy-input[multiple] {
 }
 
 .tchart-label {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   letter-spacing: 0.08em;
   color: var(--text-muted);
 }
@@ -954,7 +954,7 @@ select.deploy-input[multiple] {
 
 .tchart-empty {
   margin: 8px 0 0;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text-faint);
 }
 
@@ -975,7 +975,7 @@ select.deploy-input[multiple] {
   background: transparent;
   padding: 2px 0;
   cursor: pointer;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   letter-spacing: 0.08em;
   color: var(--text-muted);
 }
@@ -1006,7 +1006,7 @@ select.deploy-input[multiple] {
 /* The reason line from the agent: it names the exact mount or sysctl, so
    it has to stay readable rather than being truncated into a chip. */
 .conn-note {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text-muted);
   margin: 0 0 6px;
   line-height: 1.5;
@@ -1019,7 +1019,7 @@ select.deploy-input[multiple] {
 
 .conn-note code {
   font-family: var(--mono);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   background: var(--bg-subtle);
   padding: 1px 4px;
   border-radius: 4px;
@@ -1028,7 +1028,7 @@ select.deploy-input[multiple] {
 .conn-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
 }
 
 .conn-table th {
@@ -1054,7 +1054,7 @@ select.deploy-input[multiple] {
 
 .conn-peer {
   font-family: var(--mono);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text);
   overflow-wrap: anywhere;
 }
@@ -1093,7 +1093,7 @@ select.deploy-input[multiple] {
   justify-content: space-between;
   gap: 8px;
   margin-top: 6px;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text-faint);
 }
 
@@ -1169,7 +1169,7 @@ select.deploy-input[multiple] {
 }
 
 .alert-entry-state {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 
@@ -1179,7 +1179,7 @@ select.deploy-input[multiple] {
 
 .alert-entry-time {
   font-family: var(--mono);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text-faint);
 }
 
@@ -1194,10 +1194,10 @@ select.deploy-input[multiple] {
    color swap), since these trigger the exact same control action. */
 
 .qa-group-label {
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
   color: var(--text-muted);
   padding: 6px 2px 2px;
 }
@@ -1443,7 +1443,7 @@ select.deploy-input[multiple] {
 }
 
 .cred-status {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -1457,7 +1457,7 @@ select.deploy-input[multiple] {
 .cred-why,
 .cred-how {
   margin: 0;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   line-height: 1.5;
   color: var(--text-faint);
 }
@@ -1492,7 +1492,7 @@ select.deploy-input[multiple] {
 .cred-error,
 .form-error {
   margin: 0;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--offline);
 }
 
@@ -1581,7 +1581,7 @@ textarea {
 }
 
 .tab.active {
-  border-color: color-mix(in srgb, var(--tab-color, var(--accent)) 32%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 32%, transparent);
 }
 
 .tab-count {
@@ -1665,7 +1665,7 @@ textarea {
 
 .chip {
   flex-shrink: 0;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 600;
   line-height: 1.5;
   padding: 0 8px;
@@ -1866,7 +1866,7 @@ textarea {
   padding: 10px 14px;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--host-color, var(--border));
+  border-left: 1px solid var(--border);
   border-radius: var(--radius);
   font: inherit;
   color: var(--text);
@@ -1915,14 +1915,10 @@ textarea {
 .container-list {
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--host-color, var(--accent));
+  border-left: 1px solid var(--border);
   border-top: 0;
   border-radius: 0 0 var(--radius) var(--radius);
   overflow: hidden;
-}
-
-.pinned-strip .container-list {
-  --host-color: var(--accent);
 }
 
 /* ----- Containers: one dense row per container ----- */
@@ -1942,10 +1938,10 @@ textarea {
 
 .crow-head {
   padding: 8px 16px 8px 12px;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
+  text-transform: none;
+  letter-spacing: 0;
   color: var(--text-faint);
   border-bottom: 1px solid var(--border);
   background: color-mix(in srgb, var(--bg-subtle) 55%, transparent);
@@ -2039,7 +2035,7 @@ textarea {
 
 .container-status,
 .container-health {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   letter-spacing: 0.06em;
 }
 
@@ -2084,12 +2080,9 @@ textarea {
   transition: width 0.4s ease;
 }
 
-.mini-bar-fill--cpu {
-  background: var(--accent);
-}
-
+.mini-bar-fill--cpu,
 .mini-bar-fill--ram {
-  background: var(--main-host);
+  background: var(--meter);
 }
 
 .c-net {
@@ -2154,10 +2147,10 @@ textarea {
 }
 
 .crow-detail-item span {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  text-transform: none;
+  letter-spacing: 0;
   color: var(--text-faint);
 }
 
@@ -2193,7 +2186,7 @@ textarea {
 }
 
 .heartbeat-bar--up {
-  background: var(--online);
+  background: color-mix(in srgb, var(--online) 45%, transparent);
 }
 
 .heartbeat-bar--down {
@@ -2391,7 +2384,7 @@ textarea {
 
 .card-credit {
   margin: 12px 0 0;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text-faint);
 }
 
@@ -2503,9 +2496,9 @@ textarea {
 }
 
 .weather-facts dt {
-  font-size: var(--fs-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-size: var(--fs-sm);
+  text-transform: none;
+  letter-spacing: 0;
   color: var(--text-faint);
 }
 
@@ -2552,7 +2545,7 @@ textarea {
 }
 
 .forecast-precip {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: #7dd3fc;
 }
 
@@ -2687,7 +2680,7 @@ textarea {
 }
 
 .app-tile-label {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2711,7 +2704,7 @@ textarea {
   border: 0;
   background: transparent;
   color: var(--text-faint);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   line-height: 1;
   padding: 4px;
   cursor: pointer;
@@ -3159,7 +3152,7 @@ textarea {
 .backup-restore pre {
   margin: 6px 0 0;
   padding: 8px 10px;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   background: var(--bg-subtle);
   border-radius: var(--radius-sm);
   overflow-x: auto;
@@ -3168,7 +3161,7 @@ textarea {
 }
 
 .archive-check {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   min-width: 90px;
   text-align: right;
 }
@@ -3196,7 +3189,7 @@ textarea {
 }
 
 .restore-where {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -3228,10 +3221,10 @@ textarea {
 
 .hs-group h4 {
   margin: 0 0 8px;
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-sm);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  text-transform: none;
+  letter-spacing: 0;
   color: var(--text-faint);
 }
 
@@ -3244,7 +3237,7 @@ textarea {
 }
 
 .hs-field strong {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 500;
   color: var(--text-muted);
 }
@@ -3280,7 +3273,7 @@ textarea {
 
 .hs-host-scope {
   margin: -6px 0 10px;
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-sm);
   color: var(--text-faint);
 }
 
@@ -3438,15 +3431,15 @@ textarea {
   justify-content: space-between;
   gap: 8px;
   margin: 0;
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--host-color, var(--text-muted));
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-muted);
 }
 
 .sv-section h3 span {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 500;
   letter-spacing: 0;
   text-transform: none;
@@ -3543,7 +3536,7 @@ textarea {
   display: block;
   height: 100%;
   border-radius: 999px;
-  background: var(--online);
+  background: var(--meter);
 }
 
 .sv-bar--warn > span {
@@ -3575,7 +3568,7 @@ textarea {
   display: flex;
   flex-wrap: wrap;
   gap: 2px 10px;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text-faint);
 }
 
@@ -3587,10 +3580,10 @@ textarea {
 
 .sv-table th {
   padding: 3px 0;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   text-align: left;
   color: var(--text-faint);
   border-bottom: 1px solid var(--border);
@@ -3635,7 +3628,7 @@ textarea {
   display: flex;
   flex-wrap: wrap;
   gap: 2px 10px;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 
@@ -3686,7 +3679,7 @@ textarea {
 .sv-core-fill {
   display: block;
   width: 100%;
-  background: var(--online);
+  background: var(--meter);
   opacity: 0.85;
 }
 
@@ -3772,9 +3765,15 @@ textarea {
   background: currentColor;
 }
 
+/* Healthy is quiet: a green dot and an ordinary label, no tinted pill. */
 .status-pill--ok {
-  color: var(--online);
-  background: var(--online-bg);
+  color: var(--text-muted);
+  background: none;
+  padding-inline: 0;
+}
+
+.status-pill--ok::before {
+  background: var(--online);
 }
 
 .status-pill--bad {
@@ -3788,8 +3787,8 @@ textarea {
 }
 
 .status-pill--info {
-  color: var(--main-host);
-  background: var(--main-host-bg);
+  color: var(--accent);
+  background: var(--accent-bg);
 }
 
 .icon-action {
@@ -3851,10 +3850,10 @@ textarea {
 
 .check-head-row {
   padding: 8px 12px;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-faint);
   border-bottom: 1px solid var(--border);
 }
@@ -3907,7 +3906,7 @@ textarea {
 }
 
 .check-title .chip {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   line-height: 1.4;
   padding: 0 6px;
 }
@@ -3937,7 +3936,7 @@ textarea {
 }
 
 .check-cell-now small {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
@@ -4009,10 +4008,10 @@ textarea {
 
 .backup-head-row {
   padding: 8px 14px;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-faint);
   border-bottom: 1px solid var(--border);
 }
@@ -4055,7 +4054,7 @@ textarea {
 
 .backup-cell-job code {
   font-family: var(--mono);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text-faint);
   white-space: nowrap;
   overflow: hidden;
@@ -4097,7 +4096,7 @@ textarea {
 
 .backup-cell small,
 .backup-cell-newest small {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 
@@ -4107,7 +4106,7 @@ textarea {
 
 .backup-line .status-pill {
   justify-self: start;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   padding: 4px 9px;
 }
 
@@ -4158,11 +4157,11 @@ textarea {
 
 .c-state-line .status-pill {
   text-transform: capitalize;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
 }
 
 .c-state-line .container-health {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   text-transform: capitalize;
   letter-spacing: 0;
 }
@@ -4422,10 +4421,10 @@ textarea {
 
 .ov-meter-label {
   grid-area: label;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-faint);
   white-space: nowrap;
   overflow: hidden;
@@ -4435,7 +4434,7 @@ textarea {
 .ov-meter-pct {
   grid-area: pct;
   font-family: var(--mono);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text-muted);
 }
@@ -4452,7 +4451,7 @@ textarea {
   display: block;
   height: 100%;
   border-radius: 999px;
-  background: var(--online);
+  background: var(--meter);
 }
 
 .ov-meter--warn .ov-meter-bar > span {
@@ -4532,7 +4531,7 @@ textarea {
   width: 20px;
   height: 20px;
   border-radius: 5px;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
 }
 
 /* Pinned */
@@ -4603,7 +4602,7 @@ textarea {
 
 .qa-host {
   flex-shrink: 0;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 600;
   text-transform: capitalize;
 }
@@ -4624,7 +4623,7 @@ textarea {
   display: flex;
   gap: 10px;
   font-family: var(--mono);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 
@@ -4688,13 +4687,13 @@ textarea {
 
 .timeline-time {
   font-family: var(--mono);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text-faint);
   white-space: nowrap;
 }
 
 .timeline-tag {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 600;
   white-space: nowrap;
   color: var(--offline);
@@ -4726,7 +4725,7 @@ textarea {
 }
 
 .net-host-tab.active {
-  border-color: var(--host-color);
+  border-color: var(--border-strong);
 }
 
 .net-grid {
@@ -4752,10 +4751,10 @@ textarea {
 
 .net-table th {
   padding: 7px 14px;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   text-align: left;
   color: var(--text-faint);
   border-bottom: 1px solid var(--border);
@@ -4817,10 +4816,10 @@ textarea {
 
 .net-head {
   padding-block: 7px;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-faint);
   border-bottom: 1px solid var(--border);
 }
@@ -4851,7 +4850,7 @@ textarea {
 }
 
 .net-name .chip {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   line-height: 1.4;
   padding: 0 6px;
 }
@@ -4887,7 +4886,7 @@ textarea {
 }
 
 .net-member .net-mono {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 
@@ -5025,11 +5024,11 @@ textarea {
 
 .bf-section legend {
   padding: 0 6px;
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--page-accent, var(--text-muted));
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text);
 }
 
 .bf-field {
@@ -5082,7 +5081,7 @@ textarea {
 
 .backup-form input:focus,
 .backup-form select:focus {
-  border-color: var(--page-accent, var(--accent));
+  border-color: var(--accent);
   box-shadow: none;
 }
 
@@ -5154,7 +5153,7 @@ textarea {
 }
 
 .sv-disk-go {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text-faint);
   opacity: 0;
   transition: opacity 0.12s ease;
@@ -5163,7 +5162,7 @@ textarea {
 .sv-disk-open:hover .sv-disk-go,
 .sv-disk-open:focus-visible .sv-disk-go {
   opacity: 1;
-  color: var(--host-color, var(--text));
+  color: var(--text);
 }
 
 .dx {
@@ -5183,11 +5182,11 @@ textarea {
 }
 
 .dx-title {
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--host-color, var(--text-muted));
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-muted);
   white-space: nowrap;
 }
 
@@ -5263,10 +5262,10 @@ textarea {
 
 .dx-table th {
   padding: 6px 12px;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   text-align: left;
   color: var(--text-faint);
   border-bottom: 1px solid var(--border);
@@ -5309,7 +5308,7 @@ textarea {
 
 .dx-name .chip {
   margin-left: 8px;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   line-height: 1.4;
   padding: 0 6px;
 }
@@ -5335,7 +5334,7 @@ textarea {
   display: block;
   height: 100%;
   border-radius: 999px;
-  background: var(--host-color, var(--accent));
+  background: var(--meter);
   transition: width 0.4s ease;
 }
 
@@ -5490,12 +5489,12 @@ textarea {
 }
 
 .term-tab-host {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
 }
 
 .term-tab-close {
   padding: 0 4px;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   line-height: 1;
   color: var(--text-faint);
   background: none;
@@ -5613,7 +5612,7 @@ textarea {
 
 .fx-dirty {
   color: var(--warning);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
 }
 
 .fx-spacer {
@@ -5763,15 +5762,15 @@ textarea {
 .cs-group-head {
   display: flex;
   justify-content: space-between;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-muted);
 }
 
 .cs-add {
-  font: 600 var(--fs-xs) var(--sans);
+  font: 600 var(--fs-sm) var(--sans);
   color: var(--accent);
   background: none;
   border: 0;
@@ -5899,7 +5898,7 @@ textarea {
 .cs-steps pre {
   max-height: 220px;
   overflow: auto;
-  font: var(--fs-xs) var(--mono);
+  font: var(--fs-sm) var(--mono);
   white-space: pre-wrap;
 }
 
@@ -6021,7 +6020,7 @@ textarea {
 }
 
 .palette-kind {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -6052,7 +6051,7 @@ textarea {
 
 .palette-foot {
   padding: 6px 12px;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text-faint);
   border-top: 1px solid var(--border);
 }
@@ -6182,7 +6181,7 @@ textarea {
 .audit-dim {
   color: var(--text-faint);
   font-family: var(--mono);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
 }
 
 .audit-who {
@@ -6199,7 +6198,7 @@ textarea {
 }
 
 .audit-host {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
 }
 
 .audit-empty {
@@ -6243,7 +6242,7 @@ textarea {
 }
 
 .notify-topic {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text-faint);
   word-break: break-all;
 }
@@ -6274,9 +6273,9 @@ textarea {
 
 .hsys-block h4 {
   margin: 0;
-  font-size: var(--fs-xs);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: var(--fs-sm);
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-muted);
 }
 
@@ -6342,7 +6341,7 @@ textarea {
 
 .hsys-sub {
   color: var(--text-faint);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
 }
 
 .hsys-actions {
@@ -6352,7 +6351,7 @@ textarea {
 
 .hsys-actions button {
   padding: 1px 6px;
-  font: var(--fs-xs) var(--sans);
+  font: var(--fs-sm) var(--sans);
   color: var(--text-muted);
   background: none;
   border: 0;
@@ -6371,7 +6370,7 @@ textarea {
   margin: 4px 0;
   padding: 8px;
   overflow: auto;
-  font: var(--fs-xs)/1.4 var(--mono);
+  font: var(--fs-sm)/1.4 var(--mono);
   white-space: pre-wrap;
   background: var(--bg);
   border: 1px solid var(--border);
@@ -6736,18 +6735,17 @@ textarea {
 }
 .stat-label {
   color: var(--text-muted);
-  text-transform: uppercase;
+  text-transform: none;
 }
 .stat-item strong {
   color: var(--text);
 }
-.stat-item--ok strong { color: var(--online); }
 .stat-item--bad strong { color: var(--offline); }
 .stat-item--warn strong { color: var(--warning); }
-.stat-note { color: var(--text-muted); font-size: var(--fs-xs); }
+.stat-note { color: var(--text-muted); font-size: var(--fs-sm); }
 .stat-note--bad { color: var(--offline); }
 .stat-action {
-  font: 600 var(--fs-xs) var(--sans);
+  font: 600 var(--fs-sm) var(--sans);
   color: var(--warning);
   background: none;
   border: 1px solid currentColor;
@@ -6800,7 +6798,7 @@ textarea {
 }
 .machine-fold h2 { margin: 0; }
 .machine-fold-caret {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
 }
 .machine-card--folded .machine-fold-caret { transform: rotate(-90deg); }
 .machine-card.online .machine-fold .status-dot { background: var(--online); }
@@ -6816,7 +6814,7 @@ textarea {
 .machine-fold-meters .ov-meter { flex: 1; max-width: 220px; }
 .machine-offline {
   color: var(--offline);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 600;
   text-transform: uppercase;
 }
@@ -6838,10 +6836,10 @@ textarea {
 .mb-column h3 {
   margin: 0 0 4px;
   padding: 0 4px;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-muted);
 }
 .mb-empty {
@@ -6884,12 +6882,12 @@ button.mb-item:disabled { cursor: default; }
 }
 .mb-time {
   color: var(--text-muted);
-  font: var(--fs-xs) var(--mono, var(--sans));
+  font: var(--fs-sm) var(--mono, var(--sans));
 }
 .mb-more {
   padding: 2px 4px;
   color: var(--text-muted);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
 }
 .mb-action-card {
   display: flex;
@@ -6913,7 +6911,7 @@ button.mb-item:disabled { cursor: default; }
   white-space: nowrap;
 }
 .mb-action-info span {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -6965,7 +6963,7 @@ button.mb-item:disabled { cursor: default; }
 }
 .net-host-tab:first-child { border-left: 0; }
 .net-host-tab.active {
-  color: var(--host-color, var(--text));
+  color: var(--text);
   background: var(--bg-raised);
   box-shadow: none;
 }
@@ -7359,7 +7357,7 @@ button.mb-item:disabled { cursor: default; }
 }
 
 .sh-pick small {
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-sm);
 }
 
 .sh-pick:hover {
@@ -7428,7 +7426,7 @@ a.sh-app:hover {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 
@@ -7468,9 +7466,9 @@ a.sh-app:hover {
 
 .weather-today-day dt {
   color: var(--text-faint);
-  font-size: var(--fs-2xs);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-size: var(--fs-sm);
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .weather-today-day dd {
@@ -7516,11 +7514,11 @@ a.sh-app:hover {
   background: var(--bg-card);
   border-bottom: 1px solid var(--border);
   color: var(--text-faint);
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-sm);
   font-weight: 500;
-  letter-spacing: 0.06em;
+  letter-spacing: 0;
   text-align: left;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .sh-table td {
@@ -7607,7 +7605,7 @@ a.sh-app:hover {
 .sh-host-meta {
   margin-left: auto;
   color: var(--text-muted);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
 }
 
 .sh-host-meters {
@@ -7660,20 +7658,20 @@ a.sh-app:hover {
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .sh-project-up {
   color: var(--warning);
-  font: 600 var(--fs-xs) / 1 var(--mono);
+  font: 600 var(--fs-sm) / 1 var(--mono);
 }
 
 .sh-project-count,
 .sh-project-age {
   color: var(--text-muted);
-  font: var(--fs-xs) / 1 var(--mono);
+  font: var(--fs-sm) / 1 var(--mono);
   white-space: nowrap;
 }
 
@@ -7713,9 +7711,9 @@ a.sh-app:hover {
 
 .sh-tile span {
   color: var(--text-muted);
-  font-size: var(--fs-2xs);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-size: var(--fs-sm);
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .sh-tile--bad strong {
@@ -7757,7 +7755,7 @@ a.sh-app:hover {
   border: 0;
   color: var(--accent);
   font: inherit;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   cursor: pointer;
 }
 
@@ -7895,9 +7893,9 @@ a.sh-app:hover {
 .rec-check > span {
   min-width: 90px;
   color: var(--text-muted);
-  font-size: var(--fs-xs);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: var(--fs-sm);
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .rec-check--ok strong {
@@ -7910,7 +7908,7 @@ a.sh-app:hover {
 
 .rec-check em {
   color: var(--text-muted);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-style: normal;
 }
 
@@ -7932,9 +7930,9 @@ a.sh-app:hover {
 .rec-head {
   border-bottom: 1px solid var(--border);
   color: var(--text-faint);
-  font-size: var(--fs-2xs);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: var(--fs-sm);
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .rec-stack {
@@ -7963,7 +7961,7 @@ a.sh-app:hover {
 .rec-stack .num {
   text-align: right;
   font-family: var(--mono);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 
@@ -8014,7 +8012,7 @@ a.sh-app:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--text-muted);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
 }
 
 .rec-cover {
@@ -8022,7 +8020,7 @@ a.sh-app:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--text-muted);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
 }
 
 .rec-protect {
@@ -8225,17 +8223,17 @@ a.sh-app:hover {
 .files-host.active {
   background: var(--bg-card);
   border-color: var(--border-strong);
-  color: var(--host-color, var(--text));
+  color: var(--text);
 }
 
 .files-places h3 {
   margin: 0 0 4px;
   padding: 0 10px;
   color: var(--text-faint);
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-sm);
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .files-place {
@@ -8258,7 +8256,7 @@ a.sh-app:hover {
 }
 
 .files-place-pct {
-  font: 500 var(--fs-xs) var(--mono);
+  font: 500 var(--fs-sm) var(--mono);
   color: var(--text-faint);
 }
 
@@ -8383,9 +8381,9 @@ a.sh-app:hover {
   justify-content: space-between;
   margin-bottom: 4px;
   color: var(--text-muted);
-  font-size: var(--fs-xs);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: var(--fs-sm);
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .net-trend-head strong {
@@ -8461,7 +8459,7 @@ a.sh-app:hover {
   display: grid;
   place-items: center;
   color: var(--text);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-style: normal;
 }
 
@@ -8496,7 +8494,7 @@ a.sh-app:hover {
   background: var(--bg-raised);
   border-radius: var(--radius-pill);
   color: var(--text-muted);
-  font: 500 var(--fs-xs) var(--mono);
+  font: 500 var(--fs-sm) var(--mono);
   text-decoration: none;
 }
 
@@ -8513,14 +8511,14 @@ a.lan-port--web:hover {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  color: var(--host-color);
+  color: var(--text);
   font-weight: 600;
 }
 
 .lan-node-dot {
   width: 7px;
   height: 7px;
-  background: var(--host-color);
+  background: var(--text-faint);
   border-radius: 50%;
 }
 
@@ -8534,7 +8532,7 @@ a.lan-port--web:hover {
 }
 
 .lan-row--node td:first-child {
-  box-shadow: inset 3px 0 0 var(--host-color, var(--accent));
+  box-shadow: inset 2px 0 0 var(--text-faint);
 }
 
 /* ----- Network: traffic by service ----- */
@@ -8546,7 +8544,7 @@ a.lan-port--web:hover {
 .net-services-note {
   margin-left: auto;
   color: var(--text-faint);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
 }
 
 .net-svc {
@@ -8571,9 +8569,9 @@ a.lan-port--web:hover {
   z-index: 1;
   background: var(--bg-card);
   color: var(--text-faint);
-  font-size: var(--fs-2xs);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: var(--fs-sm);
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .net-svc-name {
@@ -8626,7 +8624,7 @@ a.lan-port--web:hover {
 
 .net-svc-cell b {
   flex: 0 0 64px;
-  font: 500 var(--fs-xs) var(--mono);
+  font: 500 var(--fs-sm) var(--mono);
   text-align: right;
   white-space: nowrap;
 }
@@ -8634,7 +8632,7 @@ a.lan-port--web:hover {
 /* Busiest containers under a node's download / upload. */
 .sv-talkers {
   margin: 8px 0 4px;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
 }
 
 .sv-talkers-head,
@@ -8647,9 +8645,9 @@ a.lan-port--web:hover {
 
 .sv-talkers-head {
   color: var(--text-faint);
-  font-size: var(--fs-2xs);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: var(--fs-sm);
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .sv-talkers-head span:not(:first-child),
@@ -8934,7 +8932,7 @@ a.lan-port--web:hover {
 
 .check-suggest-bar span {
   margin-left: auto;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text-faint);
 }
 
@@ -8954,10 +8952,10 @@ a.lan-port--web:hover {
 }
 
 .check-suggest-title {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-faint);
 }
 
@@ -9005,7 +9003,7 @@ a.lan-port--web:hover {
 
 .check-group-caret,
 .check-group-count {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text-faint);
 }
 
@@ -9067,7 +9065,7 @@ a.lan-port--web:hover {
 }
 
 .latency-matrix-corner {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   color: var(--text-faint);
 }
 
@@ -9157,7 +9155,7 @@ a.lan-port--web:hover {
 
 .nmap-node--router { --kind: var(--accent); }
 .nmap-node--network { --kind: #818cf8; }
-.nmap-node--node { --kind: var(--host-color, var(--accent)); }
+.nmap-node--node { --kind: var(--accent); }
 .nmap-node--server { --kind: #22d3ee; }
 .nmap-node--computer { --kind: #60a5fa; }
 .nmap-node--media { --kind: #d4b896; }
@@ -9399,7 +9397,7 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text-muted);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   text-align: left;
   cursor: pointer;
 }
@@ -9434,13 +9432,13 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
 
 .pcap-syntax dt {
   color: var(--text);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
 }
 
 .pcap-syntax dd {
   margin: 0;
   color: var(--text-muted);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
 }
 
 .pcap-save {
@@ -9584,7 +9582,7 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
   background: var(--bg-raised);
   border-radius: var(--radius-pill);
   color: var(--text-muted);
-  font: 600 var(--fs-xs) / 16px var(--mono);
+  font: 600 var(--fs-sm) / 16px var(--mono);
 }
 
 .pcap-proto--tcp { color: var(--accent); }
@@ -9636,7 +9634,7 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
   margin: 0;
   overflow-x: auto;
   color: var(--text-muted);
-  font: var(--fs-xs) / 1.5 var(--mono);
+  font: var(--fs-sm) / 1.5 var(--mono);
 }
 
 .pcap-protos {
@@ -9716,7 +9714,7 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
   max-width: 340px;
   overflow: hidden;
   color: var(--text-muted);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -9793,7 +9791,7 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
   border: 0;
   border-radius: var(--radius-pill);
   color: var(--warning);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   cursor: pointer;
 }
 
@@ -9897,7 +9895,7 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
 }
 
 .pcap-stream-key {
-  font: var(--fs-xs) var(--mono);
+  font: var(--fs-sm) var(--mono);
 }
 
 .pcap-stream-key--client { color: var(--accent); }
@@ -9905,7 +9903,7 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
 
 .pcap-stream-warn {
   color: var(--warning);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
 }
 
 .pcap-stream-body {
@@ -9940,7 +9938,7 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
 .pcap-stream-gap {
   margin: 4px 0 6px;
   color: var(--warning);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   text-align: center;
 }
 
@@ -10012,7 +10010,7 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
 .watch-message,
 .watch-hint {
   color: var(--text-muted);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   line-height: 1.4;
 }
 
@@ -10026,7 +10024,7 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
   border-radius: var(--radius-pill);
   background: var(--bg-raised);
   color: var(--text-muted);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 600;
 }
 
@@ -10050,7 +10048,7 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
   background: color-mix(in srgb, var(--accent) 16%, transparent);
   border-radius: var(--radius-pill);
   color: var(--accent);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 600;
 }
 
@@ -10149,18 +10147,18 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
 }
 
 .pihole-state {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-.pihole-state--ok { color: var(--ok, #3fb950); }
-.pihole-state--warn { color: var(--warn, #d29922); }
-.pihole-state--bad { color: var(--bad, #f85149); }
+.pihole-state--ok { color: var(--online); }
+.pihole-state--warn { color: var(--warning); }
+.pihole-state--bad { color: var(--offline); }
 
 .pihole-error {
   color: var(--text-muted);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -10180,9 +10178,9 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
 
 .pihole-tiles span {
   color: var(--text-muted);
-  font-size: var(--fs-xs);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: var(--fs-sm);
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .pihole-tiles strong {
@@ -10192,7 +10190,7 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
 
 .pihole-tiles small {
   color: var(--text-muted);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
 }
 
 .pihole-health {
@@ -10212,7 +10210,7 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
 
 .pihole-health-row span { color: var(--text-muted); }
 .pihole-health-row strong { font-weight: 500; text-align: right; overflow: hidden; text-overflow: ellipsis; }
-.pihole-health-row--warn strong { color: var(--warn, #d29922); }
+.pihole-health-row--warn strong { color: var(--warning); }
 
 @media (max-width: 640px) {
   .pihole-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -10257,7 +10255,7 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
 
 .dev-note {
   color: var(--text-muted);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
 }
 
 .dev-tag {
@@ -10266,7 +10264,7 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
   border: 1px solid var(--border);
   border-radius: 3px;
   color: var(--text-muted);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
 }
 
 .dev-tag--warn,
@@ -10293,7 +10291,7 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
 
 .dev-error {
   color: var(--offline);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
 }
 
 @media (max-width: 640px) {
@@ -10347,14 +10345,14 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
 }
 
 .dd-facts {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
 }
 
 .dd-section h4 {
   margin: 0 0 4px;
-  font-size: var(--fs-xs);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: var(--fs-sm);
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-muted);
   font-weight: 600;
 }
@@ -10456,18 +10454,18 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
 }
 
 .sw-state {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-.sw-state--ok { color: var(--ok, #3fb950); }
-.sw-state--warn { color: var(--warn, #d29922); }
-.sw-state--bad { color: var(--bad, #f85149); }
+.sw-state--ok { color: var(--online); }
+.sw-state--warn { color: var(--warning); }
+.sw-state--bad { color: var(--offline); }
 
 .sw-error {
   color: var(--text-muted);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -10475,7 +10473,7 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
 
 .sw-speed--warn,
 .sw-errors--warn { color: var(--warning); }
-.sw-speed--bad { color: var(--bad, #f85149); }
+.sw-speed--bad { color: var(--offline); }
 
 .sw tbody .status-dot {
   display: inline-block;
@@ -10516,14 +10514,14 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
 
 .bw-state {
   color: var(--text-muted);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .bw-state--bad {
   overflow: hidden;
-  color: var(--bad, #f85149);
+  color: var(--offline);
   letter-spacing: 0;
   text-overflow: ellipsis;
   text-transform: none;
@@ -10611,7 +10609,7 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
   grid-column: 1 / -1;
   margin: 0;
   color: var(--text-muted);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   line-height: 1.5;
 }
 
@@ -10631,7 +10629,7 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
 
 .hist-warn {
   color: var(--warning);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
 }
 
 .tchart-svg--temp {
@@ -10650,7 +10648,7 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
   flex-direction: column;
   gap: 1px;
   padding: 5px 2px;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
 }
 
 .dh-item-name {
@@ -10663,10 +10661,10 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
   padding: 14px 14px 4px;
   border-top: 1px solid var(--border);
   color: var(--text-muted);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .dh-table td:nth-child(2) {

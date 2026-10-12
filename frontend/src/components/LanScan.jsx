@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchDeviceNames, fetchNodeAddresses, fetchScan, saveDeviceName, startScan } from "./lanApi";
-import { hostColor } from "./hostColor";
 import NetworkMap from "./NetworkMap";
 import { classify } from "./topology";
 import { useLocalStorage } from "./useLocalStorage";
@@ -74,7 +73,7 @@ function DeviceName({ device, node, custom, onRename }) {
   return (
     <span className="lan-name">
       {node ? (
-        <span className="lan-node" style={{ "--host-color": hostColor(node) }} title={device.via === "self" ? `${node} — the host running this scan` : `${node} — one of your nodes`}>
+        <span className="lan-node" title={device.via === "self" ? `${node} — the host running this scan` : `${node} — one of your nodes`}>
           <span className="lan-node-dot" />
           {node}
           {device.via === "self" && <em>scanner</em>}
@@ -338,7 +337,6 @@ function LanScan({ host }) {
               <tr
                 key={d.ip}
                 className={`${isNew(d) ? "lan-row--new" : ""} ${node ? "lan-row--node" : ""}`}
-                style={node ? { "--host-color": hostColor(node) } : undefined}
               >
                 <td className="net-mono">
                   {d.ip}

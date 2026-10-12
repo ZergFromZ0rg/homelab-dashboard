@@ -5,7 +5,6 @@
 // server card in full.
 
 import { diskLabel } from "./diskLabel";
-import { hostColor } from "./hostColor";
 
 function level(pct) {
   if (pct == null) return "none";
@@ -59,7 +58,7 @@ function HostSummary({ machines, containers, ready = true, onOpen }) {
           >
             <span className="ov-host-name">
               <span className={`status-dot status-dot--${offline ? "bad" : "ok"}`} />
-              <span className="ov-host-label" style={{ color: hostColor(name) }} title={name}>
+              <span className="ov-host-label" title={name}>
                 {name}
               </span>
             </span>

@@ -9,7 +9,6 @@ const RANGES = [
 ];
 import { TerminalContext } from "./terminalContext";
 import { useLocalStorage } from "./useLocalStorage";
-import { hostColor } from "./hostColor";
 import Icon from "./Icon";
 
 const TerminalView = lazy(() => import("./TerminalView"));
@@ -111,7 +110,7 @@ function TerminalDock({ machines, shells = true, children }) {
                   <span className="term-tab-name">
                     {s.target === "host" ? "host" : s.target === "logs" ? `logs · ${s.name}` : s.name}
                   </span>
-                  <span className="term-tab-host" style={{ color: hostColor(s.host) }}>
+                  <span className="term-tab-host">
                     {s.host}
                   </span>
                   {s.target === "logs" && (

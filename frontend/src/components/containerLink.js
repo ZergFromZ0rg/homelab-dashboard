@@ -55,27 +55,3 @@ export function linkProblem(host, container) {
   return `Answered ${web.status}`;
 }
 
-// Letter-avatar tints. No green, red or amber: those mean up / down /
-// warning everywhere else, and a red "N" beside a healthy container read
-// as a problem. Shown as a tint behind a colored letter, not a solid block.
-const AVATAR_COLORS = [
-  "#5eead4", // teal
-  "#7dd3fc", // sky
-  "#a5b4fc", // periwinkle
-  "#67e8f9", // cyan
-  "#93c5fd", // light blue
-  "#94a3b8", // slate
-  "#e2c08d", // sand
-  "#d4b896", // tan
-];
-
-export function avatarColor(name) {
-  let hash = 0;
-
-  for (let i = 0; i < name.length; i += 1) {
-    hash = (hash << 5) - hash + name.charCodeAt(i);
-    hash |= 0;
-  }
-
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}

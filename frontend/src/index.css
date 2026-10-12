@@ -10,24 +10,31 @@
   --border: rgba(255, 255, 255, 0.075);
   --border-strong: rgba(255, 255, 255, 0.13);
 
+  /* Text, on the panel color: primary 14.8:1, muted 7.8:1, faint 5.0:1. Faint
+     is the floor for anything read — it used to be 3.5:1. */
   --text: #e3e6ec;
-  --text-muted: #9098a6;
-  --text-faint: #646b79;
+  --text-muted: #a1a9b7;
+  --text-faint: #7d8595;
 
   --radius: 6px;
   --radius-sm: 4px;
   --radius-pill: 999px;
 
-  --accent: #2dd4bf;
-  --accent-bg: rgba(45, 212, 191, 0.12);
+  /* One accent, and it only means "you can act on this / this is selected":
+     primary buttons, the active tab, focus, today. It is a blue so it can't
+     be mistaken for the green below. Nothing else on screen gets a hue of its
+     own — hosts, tabs and containers are told apart by name and position. */
+  --accent: #5b9dff;
+  --accent-bg: rgba(91, 157, 255, 0.14);
+  --on-accent: #07101f;
 
-  /* The dashboard's own host — a hue apart from --accent so it reads as
-     "this one's special" without implying clickable. */
-  --main-host: #60a5fa;
-  --main-host-bg: rgba(96, 165, 250, 0.1);
+  /* Meter and bar fill while everything is fine: quiet grey. A bar turns amber
+     or red only when it is worth looking at. */
+  --meter: var(--text-faint);
 
-  /* Status. Softer than the Tailwind 500s they replaced: still unmistakable
-     on the dark page, but they don't vibrate next to body text. */
+  /* Status — the only other colors. Softer than the Tailwind 500s they
+     replaced: unmistakable on the dark page, but they don't vibrate next to
+     body text. */
   --online: #3ecf8e;
   --online-bg: rgba(62, 207, 142, 0.12);
   --offline: #ef5b50;
@@ -38,10 +45,11 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.45);
 
-  /* One type scale. 13px is body; 11px is the floor for anything read
-     (2xs is only for chart ticks and in-cell digits). */
-  --fs-2xs: 10px;
-  --fs-xs: 11px;
+  /* One type scale. sm (12px) is meta and labels, md (13px) is body, lg (14px)
+     is a panel title, xl (16px) is a figure worth reading from across the
+     room. 12px is the floor for anything read; 2xs (11px) is only for chart
+     ticks and in-cell digits. */
+  --fs-2xs: 11px;
   --fs-sm: 12px;
   --fs-md: 13px;
   --fs-lg: 14px;

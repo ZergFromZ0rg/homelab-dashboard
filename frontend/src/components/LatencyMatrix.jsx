@@ -1,6 +1,5 @@
 import { fetchMatrix } from "./checksApi";
 import { formatLatency } from "./format";
-import { hostColor } from "./hostColor";
 import { usePolled } from "./usePolled";
 
 // Latency between your machines: a row pings a column from the row's own
@@ -17,14 +16,14 @@ function LatencyMatrix() {
       <div className="latency-matrix-row" role="row" style={{ "--cols": hosts.length }}>
         <span className="latency-matrix-corner" role="columnheader" title="Row pings column">from ↓ to →</span>
         {hosts.map((h) => (
-          <span key={h} role="columnheader" className="latency-matrix-host" style={{ color: hostColor(h) }}>
+          <span key={h} role="columnheader" className="latency-matrix-host">
             {h}
           </span>
         ))}
       </div>
       {hosts.map((from) => (
         <div key={from} className="latency-matrix-row" role="row" style={{ "--cols": hosts.length }}>
-          <span role="rowheader" className="latency-matrix-host" style={{ color: hostColor(from) }}>
+          <span role="rowheader" className="latency-matrix-host">
             {from}
           </span>
           {hosts.map((to) => {

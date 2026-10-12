@@ -1,5 +1,4 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import { tabColor } from "./tabColors";
 
 // tab: { value, label, count?, tone? } — `tone: "bad"` paints the count as
 // an alert (e.g. open issues on Overview).
@@ -46,7 +45,7 @@ function Tabs({ tabs, active, onChange }) {
         <span
           className="tab-indicator"
           aria-hidden="true"
-          style={{ "--x": `${pill.x}px`, "--w": `${pill.w}px`, "--tab-color": tabColor(active) }}
+          style={{ "--x": `${pill.x}px`, "--w": `${pill.w}px` }}
         />
       )}
       {tabs.map((tab, i) => (
@@ -54,11 +53,10 @@ function Tabs({ tabs, active, onChange }) {
           key={tab.value}
           type="button"
           className={`tab ${active === tab.value ? "active" : ""}`}
-          style={{ "--tab-color": tabColor(tab.value), "--i": i }}
+          style={{ "--i": i }}
           aria-current={active === tab.value ? "page" : undefined}
           onClick={() => onChange(tab.value)}
         >
-          <span className="tab-dot" aria-hidden="true" />
           {tab.label}
           {tab.count != null && (
             <span className={`tab-count ${tab.tone ? `tab-count--${tab.tone}` : ""}`}>

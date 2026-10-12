@@ -1,6 +1,5 @@
 import Card from "./Card";
 import { formatAge } from "./format";
-import { hostColor } from "./hostColor";
 import { composeProjects } from "./projects";
 import { useNow } from "./useNow";
 
@@ -30,7 +29,7 @@ function ProjectsCard({ containers, ready, onOpen }) {
               >
                 <span className={`status-dot status-dot--${p.tone}`} />
                 <span className="sh-project-name">{p.name}</span>
-                <span className="sh-project-host" style={{ color: hostColor(p.host) }}>{p.host}</span>
+                <span className="sh-project-host">{p.host}</span>
                 {p.updates > 0 && <span className="sh-project-up" title={`${p.updates} newer image${p.updates === 1 ? "" : "s"}`}>↑{p.updates}</span>}
                 <span className="sh-project-count">{p.running}/{p.total}</span>
                 <span className="sh-project-age">{p.newest != null ? formatAge((now - p.newest) / 1000) : "—"}</span>

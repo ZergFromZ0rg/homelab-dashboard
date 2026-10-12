@@ -5,7 +5,6 @@ import { windowPoints } from "./historyWindow";
 import { useSettings } from "./settings";
 import { IconButton } from "./Icon";
 import { formatBytesPerSec } from "./format";
-import { hostColor } from "./hostColor";
 import { createNetwork, fetchNetworks, removeNetwork, setMembership } from "./networksApi";
 
 // One server's network: traffic, interfaces, published ports, Docker networks
@@ -289,7 +288,7 @@ function HostNetwork({ host, machine, containers, history }) {
   const userNets = nets.filter((n) => !n.builtin).length;
 
   return (
-    <div className="net-host" style={{ "--host-color": hostColor(host) }}>
+    <div className="net-host">
 
       <div className="net-top">
       <div className="net-traffic">

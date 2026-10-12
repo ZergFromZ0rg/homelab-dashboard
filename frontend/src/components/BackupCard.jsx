@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import BackupForm from "./BackupForm";
 import { deleteArchives, fetchBackupArchives, runBackup, verifyArchive } from "./backupsApi";
 import { formatAge, formatBytes } from "./format";
-import { hostColor } from "./hostColor";
 import ProgressBar from "./ProgressBar";
 import { IconButton } from "./Icon";
 
@@ -204,7 +203,7 @@ function Location({ job, onOpenFolder }) {
   return (
     <p className="backup-location">
       <span className="stat-label">Kept in</span>
-      <span className="backup-host" style={{ color: hostColor(job.dest_host) }}>{job.dest_host}</span>
+      <span className="backup-host">{job.dest_host}</span>
       {path ? (
         <button type="button" className="backup-location-path" title="Open in Files" onClick={() => onOpenFolder?.(job.dest_host, path)}>
           {path}
@@ -282,11 +281,11 @@ function BackupCard({ job, hosts, defaultDestHost, now, onChanged, onDelete, sho
         </span>
 
         <span className="backup-cell-route">
-          <span className="backup-host" style={{ color: hostColor(job.source_host) }}>
+          <span className="backup-host">
             {job.source_host}
           </span>
           <span className="backup-arrow" aria-hidden="true">→</span>
-          <span className="backup-host" style={{ color: hostColor(job.dest_host) }}>
+          <span className="backup-host">
             {job.dest_host}
           </span>
         </span>

@@ -19,7 +19,6 @@ import { loadCachedPins, cachePins, putPins } from "./components/containerPins";
 import { loadCachedTodos, cacheTodos, putTodos } from "./components/todosApi";
 import "./App.css";
 import "./theme.css";
-import { tabColor } from "./components/tabColors";
 import brandImage from "./assets/brand.webp";
 import { DEMO, demoSnapshot } from "./demoData";
 import { AUTH_REQUIRED_EVENT } from "./components/apiAuth";
@@ -281,8 +280,8 @@ function AppShell({ tabs, activeTab, onTab, connected, lastUpdate, onOpenSetting
   // The active tab's color tints the page backdrop, so the section you're
   // in is a color before it's a word.
   return (
-    <div className={`app mode-${viewMode}`} style={{ "--page-accent": viewMode === "simple" ? "var(--accent)" : tabColor(activeTab) }}>
-      <header className={`topbar ${viewMode === "god" ? "topbar--god" : ""}`}>
+    <div className={`app mode-${viewMode}`}>
+      <header className="topbar">
         <div className="topbar-inner">
           <div className="brand">
             <span className="brand-mark" aria-hidden="true">

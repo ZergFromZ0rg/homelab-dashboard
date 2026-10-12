@@ -9,7 +9,6 @@ import Heartbeat from "./Heartbeat";
 import RebuildButton, { RebuildNote } from "./RebuildButton";
 import { useRebuild } from "./useRebuild";
 import { useSettings } from "./settings";
-import { hostColor } from "./hostColor";
 import { requestContainerCapture } from "./captureRequest";
 import { useTerminal } from "./terminalContext";
 import { useUpdates } from "./updatesContext";
@@ -165,7 +164,6 @@ function ContainerRow({
               {showHost && (
                 <span
                   className="chip chip--host"
-                  style={{ color: hostColor(host), borderColor: hostColor(host) }}
                 >
                   {host}
                 </span>

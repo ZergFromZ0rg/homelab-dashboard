@@ -2,7 +2,6 @@ import { pinKey } from "./containerPins";
 import { containerLink } from "./containerLink";
 import { formatBytes } from "./format";
 import { useSettings } from "./settings";
-import { hostColor } from "./hostColor";
 import AppIcon from "./AppIcon";
 import { IconButton } from "./Icon";
 
@@ -55,7 +54,7 @@ function QaRow({ t, busy, onControl, showLink, showLiveActivity, staleAge }) {
             {t.name}
           </span>
         )}
-        <span className="qa-host" style={{ color: hostColor(t.host) }}>
+        <span className="qa-host">
           {t.host}
         </span>
       </span>
