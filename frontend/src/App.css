@@ -6853,6 +6853,103 @@ a.c-addr:hover {
 .machine-card--folded { padding-top: 7px; padding-bottom: 7px; }
 .machine-card--folded .machine-header { margin-bottom: 0; }
 
+/* ----- Morning briefing ----- */
+
+.morning-briefing .mb-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+.mb-column {
+  min-width: 0;
+  padding: 6px 8px 8px;
+  border-left: 1px solid var(--border);
+}
+.mb-column:first-child { border-left: 0; }
+.mb-column h3 {
+  margin: 0 0 4px;
+  padding: 0 4px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-muted);
+}
+.mb-empty {
+  margin: 0;
+  padding: 4px;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+.mb-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.mb-item {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 4px;
+  font: inherit;
+  font-size: var(--fs-md);
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+}
+button.mb-item { cursor: pointer; }
+button.mb-item:hover:not(:disabled) { background: var(--bg-subtle); }
+button.mb-item:disabled { cursor: default; }
+.mb-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mb-time {
+  color: var(--text-muted);
+  font: var(--fs-sm) var(--mono, var(--sans));
+}
+.mb-more {
+  padding: 2px 4px;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+.mb-action-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+}
+.mb-action-card:hover { background: var(--bg-subtle); }
+.mb-action-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.mb-action-info strong {
+  font-size: var(--fs-md);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mb-action-info span {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* A clicked action's button, replaced by what became of it. */
 .mb-run {
   display: inline-flex;
@@ -7083,60 +7180,33 @@ a.c-addr:hover {
    the viewport, and the lists inside it (to-dos, containers, alerts, apps)
    scroll on their own. Phones fall back to a normal scrolling page. */
 .simple-home {
-  display: flex;
-  flex-direction: column;
   height: var(--fit-h, calc(100dvh - 124px));
   min-height: 0;
 }
 
-/* A top band (time, then the pinned apps) over a main band of three cards.
-   The main band takes what height is left; the cards' lists scroll inside. */
 .sh-grid {
-  display: flex;
-  flex: 1 1 0;
-  flex-direction: column;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: minmax(230px, 280px) minmax(0, 1fr) minmax(270px, 320px);
+  gap: 10px;
+  height: 100%;
   min-height: 0;
 }
 
-.sh-top {
-  display: flex;
-  align-items: stretch;
-  gap: 12px;
-  flex: 0 0 auto;
-  min-width: 0;
-}
-
-.sh-main {
-  display: flex;
-  gap: 12px;
-  flex: 1 1 0;
-  min-height: 0;
-}
-
-/* Cards are as tall as what is in them and no taller; a long list shrinks its
-   card and scrolls inside it. Only the to-do list takes whatever is left. */
 .sh-col {
   display: flex;
-  flex: 1 1 0;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
   min-height: 0;
-}
-
-.sh-col--wide {
-  flex-grow: 2;
 }
 
 .sh-col > * {
-  flex: 0 1 auto;
-  min-height: 0;
+  flex: 0 0 auto;
 }
 
-.sh-col > .sh-todo {
+.sh-col > .sh-fill {
   flex: 1 1 0;
-  min-height: 120px;
+  min-height: 90px;
 }
 
 .sh-fill {
@@ -7145,7 +7215,7 @@ a.c-addr:hover {
 }
 
 .sh-fill > .overview-card-body {
-  flex: 1 1 auto;
+  flex: 1;
   min-height: 0;
   max-height: none;
   overflow-y: auto;
@@ -7158,27 +7228,19 @@ a.c-addr:hover {
 }
 
 .sh-clock {
-  flex: 0 0 300px;
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 8px;
-  padding: 12px 16px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   white-space: nowrap;
 }
 
-.sh-clock-main {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
 .sh-clock time {
-  font: 500 36px / 1 var(--mono);
+  font: 500 30px / 1 var(--mono);
   letter-spacing: -0.03em;
 }
 
@@ -7189,7 +7251,7 @@ a.c-addr:hover {
   letter-spacing: 0.04em;
 }
 
-.sh-clock-main > span {
+.sh-clock > span {
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -7198,70 +7260,19 @@ a.c-addr:hover {
   text-align: right;
 }
 
-.sh-clock-main > span b {
+.sh-clock > span b {
   color: var(--text);
   font-weight: 500;
-}
-
-/* The weather as one quiet line under the time. */
-.sh-weather {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0;
-  background: none;
-  border: 0;
-  box-shadow: none;
-  color: var(--text-muted);
-  font: inherit;
-  font-size: var(--fs-sm);
-  text-align: left;
-  cursor: pointer;
-}
-
-.sh-weather strong {
-  color: var(--text);
-  font: 600 var(--fs-md) var(--mono);
-}
-
-.sh-weather:hover {
-  color: var(--text);
-}
-
-.sh-weather--add {
-  color: var(--text-faint);
-}
-
-.sh-weather--add:hover {
-  color: var(--accent);
-}
-
-.sh-weather--quiet {
-  cursor: default;
-}
-
-.sh-weather-pick {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  white-space: normal;
 }
 
 /* Pinned apps: one row that scrolls sideways with no scrollbar. The "+" tile
    is sticky at the right edge, so it is always there. Padding leaves room
    for the focus ring and the "−" badge. */
-.sh-apps-wrap {
-  display: flex;
-  flex: 1 1 0;
-  flex-direction: column;
-  justify-content: center;
-  min-width: 0;
-}
-
 .sh-apps {
   display: flex;
   gap: 8px;
   padding: 6px 0 4px 2px;
+  margin-top: -6px;
   overflow-x: auto;
   scroll-snap-type: x proximity;
   scroll-behavior: smooth;
@@ -7410,29 +7421,6 @@ a.sh-app:hover {
   opacity: 0.55;
 }
 
-/* In the top band the tiles are the main event: bigger icons, more room. */
-.sh-top .sh-app {
-  flex-basis: 92px;
-  gap: 6px;
-  padding: 12px 6px 9px;
-}
-
-.sh-top .sh-app--add {
-  flex-basis: 72px;
-}
-
-.sh-top .sh-app-icon,
-.sh-top .sh-app-icon .app-tile-letter,
-.sh-top .sh-app-icon img {
-  width: 40px;
-  height: 40px;
-}
-
-.sh-top .sh-app-dot {
-  top: 8px;
-  right: 8px;
-}
-
 .sh-app--static {
   cursor: default;
 }
@@ -7474,7 +7462,140 @@ a.sh-app:hover {
   color: var(--text-muted);
 }
 
-/* Servers: a block per host — its name, then three meters. */
+/* The briefing keeps its full height — "Needs a yes" is the important part,
+   so it is the full-width top row and Live updates / Degrading sit under it.
+   The container table gives way instead. */
+.sh-col--mid .morning-briefing .mb-columns {
+  grid-template-columns: 1fr 1fr;
+}
+
+.sh-col--mid .mb-column:nth-child(3) {
+  grid-column: 1 / -1;
+  order: -1;
+  border-left: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.sh-col--mid .mb-column:nth-child(2) {
+  border-left: 1px solid var(--border);
+}
+
+.weather-today {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.weather-today-main .weather-temp {
+  font-size: var(--fs-2xl);
+}
+
+.weather-today-day {
+  display: flex;
+  gap: 12px;
+  margin: 0 0 0 auto;
+}
+
+.weather-today-day dt {
+  color: var(--text-faint);
+  font-size: var(--fs-sm);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.weather-today-day dd {
+  margin: 0;
+  font: 600 var(--fs-md) var(--mono);
+}
+
+/* The one container table. Stopped rows sort first. */
+.sh-filter {
+  width: 110px;
+  height: var(--control-h-sm);
+  padding: 0 8px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: var(--fs-sm);
+}
+
+.sh-table-card .overview-card-body {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+.sh-table-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.sh-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+}
+
+.sh-table th {
+  position: sticky;
+  top: 0;
+  padding: 5px 12px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-faint);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: none;
+}
+
+.sh-table td {
+  padding: 3px 12px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.sh-table .num {
+  text-align: right;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.sh-table a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.sh-table a:hover {
+  text-decoration: underline;
+}
+
+.sh-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sh-row--off td {
+  color: var(--text-muted);
+}
+
+.sh-actions {
+  text-align: right;
+}
+
+.sh-table tr:not(:hover) .sh-actions {
+  opacity: 0.25;
+}
+
+/* Servers: a block per host — name, uptime and temperature, then meters. */
+.sh-col > .sh-servers {
+  flex-grow: 3;
+}
 
 .sh-fill > .overview-card-body {
   scrollbar-width: thin;
@@ -7525,120 +7646,179 @@ a.sh-app:hover {
   gap: 4px;
 }
 
-/* What needs you: problems first (a dot and an arrow to look), then what is
-   waiting on a yes (a button). */
-.ny-list {
+/* Projects: one line each. */
+.sh-col > .sh-projects {
+  flex-grow: 2;
+}
+
+.sh-project-list {
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.ny-list > li {
-  border-top: 1px solid var(--border);
-}
-
-.ny-list > li:first-child {
-  border-top: 0;
-}
-
-.ny-row {
-  display: grid;
-  grid-template-columns: 8px minmax(0, 1fr) auto;
+.sh-project {
+  display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
-  padding: 7px 4px;
+  padding: 5px 12px;
   background: none;
   border: 0;
   border-radius: 0;
   box-shadow: none;
   color: var(--text);
   font: inherit;
-  font-size: var(--fs-md);
+  font-size: var(--fs-sm);
   text-align: left;
-}
-
-button.ny-row {
   cursor: pointer;
 }
 
-button.ny-row:hover {
-  background: var(--bg-subtle);
+.sh-project:hover {
+  background: var(--bg-raised);
 }
 
-.ny-text {
+.sh-project-name {
   min-width: 0;
   overflow: hidden;
+  font-weight: 550;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* An action's title as the link to its details. */
-.ny-link {
-  display: block;
-  max-width: 100%;
-  padding: 0;
-  background: none;
-  border: 0;
-  color: inherit;
+.sh-project-host {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--fs-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sh-project-up {
+  color: var(--warning);
+  font: 600 var(--fs-sm) / 1 var(--mono);
+}
+
+.sh-project-count,
+.sh-project-age {
+  color: var(--text-muted);
+  font: var(--fs-sm) / 1 var(--mono);
+  white-space: nowrap;
+}
+
+.sh-project-age {
+  min-width: 52px;
+  text-align: right;
+}
+
+/* Four headline numbers in a row. */
+.sh-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.sh-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
   font: inherit;
-  text-align: left;
-  text-decoration: underline;
-  text-decoration-color: var(--border-strong);
-  text-underline-offset: 3px;
   cursor: pointer;
 }
 
-.ny-link:hover {
-  color: var(--accent);
-  text-decoration-color: var(--accent);
+.sh-tile:hover {
+  border-color: var(--border-strong);
 }
 
-.sh-clear {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  padding: 2px 0;
-  color: var(--text);
-  font-size: var(--fs-lg);
+.sh-tile strong {
+  font: 600 var(--fs-xl) / 1.1 var(--mono);
+}
+
+.sh-tile span {
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.sh-tile--bad strong {
+  color: var(--offline);
 }
 
 /* Narrower than a laptop: stop pretending it's one window. */
-@media (max-width: 1100px), (max-height: 560px) {
-  .simple-home {
+@media (max-width: 1000px), (max-height: 560px) {
+  .simple-home,
+  .sh-grid {
     height: auto;
   }
 
   .sh-grid {
-    flex: none;
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .sh-top,
-  .sh-main {
-    flex-direction: column;
-  }
-
-  .sh-main {
-    flex: none;
-  }
-
-  .sh-clock {
-    flex: 0 0 auto;
-  }
-
-  .sh-col,
-  .sh-col > .sh-todo {
-    flex: 0 0 auto;
-  }
-
-  .sh-need {
-    max-height: 420px;
+  .sh-col--right {
+    order: -1;
   }
 
   .sh-col > .sh-fill {
+    flex: 0 0 auto;
     max-height: 420px;
   }
+}
+
+/* Live updates: a short scrolling list with the link to the full Timeline. */
+.mb-list--overnight {
+  max-height: 84px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.mb-seeall {
+  margin-top: 4px;
+  padding: 2px 4px;
+  background: none;
+  border: 0;
+  color: var(--accent);
+  font: inherit;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+.mb-seeall:hover {
+  text-decoration: underline;
+}
+
+/* An item's title as the link to its details. */
+.mb-action-link {
+  display: block;
+  max-width: 100%;
+  padding: 0;
+  overflow: hidden;
+  background: none;
+  border: 0;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-md);
+  font-weight: 600;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: var(--border-strong);
+  text-overflow: ellipsis;
+  text-underline-offset: 3px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.mb-action-link:hover {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
 }
 
 /* System on the Advanced server card: one panel at a time under a tab bar. */

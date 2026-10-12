@@ -685,6 +685,7 @@ textarea.deploy-input {
 
 .hs-group h4,
 .hsys-block h4,
+.mb-column h3,
 .dd-section h4,
 .files-places h3,
 .cs-group-head,
@@ -798,7 +799,9 @@ textarea.deploy-input {
 .ov-host,
 .ov-service,
 .qa-line,
-.timeline-row {
+.timeline-row,
+.mb-item,
+.mb-action-card {
   transition: background-color var(--dur-fast) var(--ease);
 }
 

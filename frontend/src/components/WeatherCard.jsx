@@ -21,7 +21,7 @@ function placeLabel(place) {
 // picked right on the card rather than in Settings. It only grabs focus
 // when you asked to change the city: on first load an autofocused field
 // scrolled the page down to it (and opened the keyboard on a phone).
-function PlacePicker({ onPick, onCancel, hint = true }) {
+function PlacePicker({ onPick, onCancel }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [status, setStatus] = useState("");
@@ -71,7 +71,7 @@ function PlacePicker({ onPick, onCancel, hint = true }) {
         )}
       </div>
       {status && query.trim().length >= 2 && <p className="overview-empty">{status}</p>}
-      {hint && !onCancel && query.trim().length < 2 && (
+      {!onCancel && query.trim().length < 2 && (
         <p className="overview-empty">Pick a city for the current conditions and a five-day forecast.</p>
       )}
       {shown.length > 0 && (
@@ -107,7 +107,43 @@ function Forecast({ weather }) {
   );
 }
 
-function WeatherCard() {
+// Today only: icon, the temperature now, the day's high and low, and the
+// chance of rain or snow. The five-day strip and the details are the full card.
+function Today({ data }) {
+  const now = data.current;
+  const today = data.daily[0];
+  const sky = today ? describeWeather(today.code).label : null;
+  return (
+    <div className="weather-today">
+      <WeatherIcon kind={describeWeather(now.code).icon} night={!now.is_day} size={34} />
+      <div className="weather-today-main">
+        <div className="weather-temp">
+          {now.temperature}
+          <span>{data.units.temp}</span>
+        </div>
+        <div className="weather-label">{describeWeather(now.code).label}</div>
+      </div>
+      {today && (
+        <dl className="weather-today-day" title={`Feels like ${now.feels_like}°`}>
+          <div>
+            <dt>High</dt>
+            <dd>{today.high}°</dd>
+          </div>
+          <div>
+            <dt>Low</dt>
+            <dd>{today.low}°</dd>
+          </div>
+          <div title={sky}>
+            <dt>{/snow|sleet/i.test(sky) ? "Snow" : "Rain"}</dt>
+            <dd>{today.precip ?? 0}%</dd>
+          </div>
+        </dl>
+      )}
+    </div>
+  );
+}
+
+function WeatherCard({ compact = false }) {
   const { settings, update } = useSettings();
   const location = settings.weatherLocation;
   const units = settings.temperatureUnits;
@@ -158,7 +194,7 @@ function WeatherCard() {
   );
 
   return (
-    <Card title={location ? `Weather · ${location.name}` : "Weather"} actions={actions}>
+    <Card title={location ? (compact ? location.name : `Weather · ${location.name}`) : "Weather"} actions={actions}>
       {(!location || changing) && (
         <PlacePicker onPick={pick} onCancel={location ? () => setChanging(false) : null} />
       )}
@@ -172,7 +208,8 @@ function WeatherCard() {
               outbound internet access.
             </p>
           )}
-          {data && (
+          {data && compact && <Today data={data} />}
+          {data && !compact && (
             <>
               <div className="weather-now">
                 <WeatherIcon
@@ -218,96 +255,6 @@ function WeatherCard() {
     </Card>
   );
 }
-
-// One quiet line for the Simple page: the sky and the temperature now. The
-// day's high and low, the chance of rain and the city are in its tooltip;
-// clicking it opens the city search (and the °C/°F switch). With no city
-// picked it is a small "Add weather" button.
-function WeatherLineBase() {
-  const { settings, update } = useSettings();
-  const location = settings.weatherLocation;
-  const units = settings.temperatureUnits;
-  const [changing, setChanging] = useState(false);
-
-  const key = location ? `${location.lat},${location.lon},${units}` : "none";
-  const { data } = usePolled(
-    () => (location ? fetchWeather({ lat: location.lat, lon: location.lon, units }) : Promise.resolve(null)),
-    key,
-    location ? REFRESH_MS : 0
-  );
-
-  const pick = (place) => {
-    update({
-      weatherLocation: {
-        name: place.name,
-        region: place.region,
-        country: place.country,
-        lat: place.latitude,
-        lon: place.longitude,
-      },
-    });
-    setChanging(false);
-  };
-
-  if (changing) {
-    return (
-      <div className="sh-weather-pick">
-        <PlacePicker onPick={pick} onCancel={() => setChanging(false)} hint={false} />
-        <div className="segmented segmented--sm" role="group" aria-label="Temperature units">
-          {[
-            ["metric", "°C"],
-            ["imperial", "°F"],
-          ].map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              className={units === value ? "active" : ""}
-              aria-pressed={units === value}
-              onClick={() => update({ temperatureUnits: value })}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (!location) {
-    return (
-      <button type="button" className="sh-weather sh-weather--add" onClick={() => setChanging(true)}>
-        Add weather
-      </button>
-    );
-  }
-
-  if (!data) return <span className="sh-weather sh-weather--quiet">{location.name}</span>;
-
-  const now = data.current;
-  const today = data.daily[0];
-  const sky = describeWeather(now.code);
-  const tip = [
-    placeLabel(location),
-    `Feels like ${now.feels_like}°`,
-    today ? `High ${today.high}° · Low ${today.low}° · ${today.precip ?? 0}% chance of precipitation` : null,
-    "Click to change the city or units",
-  ]
-    .filter(Boolean)
-    .join("\n");
-
-  return (
-    <button type="button" className="sh-weather" title={tip} onClick={() => setChanging(true)}>
-      <WeatherIcon kind={sky.icon} night={!now.is_day} size={20} />
-      <strong>
-        {now.temperature}
-        {data.units.temp}
-      </strong>
-      <span>{sky.label}</span>
-    </button>
-  );
-}
-
-export const WeatherLine = memo(WeatherLineBase);
 
 // Memoized: it takes no fleet data, so the 2 s dashboard tick needn't
 // re-render it.
