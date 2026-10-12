@@ -3718,35 +3718,6 @@ textarea {
   border-top: 1px solid var(--border);
 }
 
-/* System / Settings / If this host died: one even row of toggles, one open
-   at a time. The sections are made transparent to the grid so every toggle
-   stays in row 1 and whichever is open drops under the row at full width. */
-.sv-manage {
-  display: grid;
-  grid-template-columns: repeat(2, max-content) 1fr;
-  align-items: start;
-  gap: 4px 28px;
-  margin-top: 8px;
-  padding-top: 6px;
-  border-top: 1px solid var(--border);
-}
-
-.sv-manage > * {
-  display: contents;
-}
-
-.sv-manage .conn-toggle {
-  grid-row: 1;
-  width: auto;
-  padding: 4px 0;
-}
-
-.sv-manage > * > :not(.conn-toggle) {
-  grid-row: 2;
-  grid-column: 1 / -1;
-  min-width: 0;
-}
-
 @media (max-width: 1280px) {
   .sv-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -7005,139 +6976,147 @@ button.mb-item:disabled { cursor: default; }
   .topbar .brand-text { display: none; }
 }
 
-/* ----- God mode: System tab ----- */
+/* ----- Hosts tab ----- */
 
-.system-bar {
+.hosts-bar .net-hosts {
+  margin: 0 0 4px;
+}
+
+.hosts-bar-end {
   display: flex;
   align-items: center;
-  gap: 10px;
-}
-.system-bar .net-hosts { margin-bottom: 0; }
-.system-tab { display: flex; flex-direction: column; gap: 10px; }
-.system-tab .stat-strip strong { font-family: var(--sans); font-size: var(--fs-sm); }
-.system-off { margin: 0; }
-.system-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
-  gap: 12px;
-  align-items: start;
-}
-.system-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-.system-col > .overview-card > .overview-card-body { padding: 4px 11px 10px; }
-.system-panels { padding: 4px 11px 10px; }
-.system-panels > .conn-panel:first-child { margin-top: 0; border-top: 0; }
-.system-bad { color: var(--offline); }
-.system-warn { color: var(--warning); }
-@media (max-width: 1000px) {
-  .system-grid { grid-template-columns: minmax(0, 1fr); }
+  margin: 0 0 4px auto;
 }
 
-/* ----- God mode: Terminal tab ----- */
-
-.terminal-tab {
-  display: grid;
-  grid-template-columns: 270px minmax(0, 1fr);
-  gap: 10px;
-  height: var(--fit-h, 80vh);
-  min-height: 0;
-}
-
-.tl-side {
+/* Pages that fill the window and scroll inside their own panels. */
+.hosts-tab > .hosts-pane--fill,
+.hosts-tab > .hosts-pane--card,
+.hosts-tab > .hosts-pane--board {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  overflow: hidden;
+}
+
+.hosts-pane--fill > .files-tab {
+  flex: 1;
+  grid-template-columns: 230px minmax(0, 1fr);
+  height: auto;
   min-height: 0;
+}
+
+.net-conns-fold {
+  flex: 0 0 auto;
+  max-height: 45%;
   overflow-y: auto;
   scrollbar-width: thin;
 }
 
-.tl-host {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px 12px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--host-color);
-  border-radius: var(--radius);
-}
-
-.tl-host-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.tl-host-head .btn {
-  margin-left: auto;
-}
-
-.tl-name {
-  color: var(--host-color);
-  font-size: var(--fs-md);
-  text-transform: capitalize;
-}
-
-.tl-container {
+/* Services and the journal side by side, each scrolling in its own card. */
+.host-pair {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  gap: 6px;
-}
-
-.tl-select {
-  min-width: 0;
-  height: var(--control-h-sm);
-  padding: 0 6px;
-  font: var(--fs-sm) var(--sans);
-  color: var(--text);
-  background: var(--bg-subtle);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-}
-
-/* The terminals are pinned over this box; it shows only while none are open. */
-.tl-stage {
-  display: grid;
-  place-items: center;
-  min-width: 0;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+  gap: 12px;
   min-height: 0;
-  background: var(--bg-card);
-  border: 1px dashed var(--border);
-  border-radius: var(--radius);
 }
 
-.tl-empty {
+.host-pair > .overview-card {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin: 0;
-  padding: 0 20px;
-  text-align: center;
-  color: var(--text-muted);
-  font-size: var(--fs-md);
+  min-height: 0;
 }
 
-.tl-empty small {
-  color: var(--text-faint);
-  font-size: var(--fs-xs);
+.host-pair-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 11px 10px;
+  scrollbar-width: thin;
+}
+
+.host-pair .hsys-block h4 {
+  display: none;
+}
+
+.host-pair .hsys-list,
+.host-pair .hsys-journal {
+  max-height: none;
+}
+
+/* Manage: what changes the machine, in two columns of panels, each scrolling
+   on its own. */
+.host-manage {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.host-manage-grid {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  min-height: 0;
+}
+
+.host-manage-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.host-manage-col > .overview-card {
+  flex: 0 0 auto;
+}
+
+.host-manage-body {
+  padding: 4px 11px 10px;
+}
+
+.host-manage .hsys-block h4 {
+  display: none;
+}
+
+.system-off {
+  margin: 0;
+}
+
+/* A row of pages wider than a phone scrolls sideways instead of clipping. */
+.hosts-bar .hsys-tabs,
+.net-bar .hsys-tabs {
+  min-width: 0;
+  max-width: 100%;
+  padding-bottom: 1px;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
 @media (max-width: 900px) {
-  .terminal-tab {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto minmax(260px, 1fr);
-    height: auto;
-    min-height: var(--fit-h, 80vh);
+  .host-pair,
+  .host-manage-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
-}
 
-.term-dock--full {
-  top: var(--term-full-top, 120px);
-  left: var(--term-full-left, 0);
-  right: var(--term-full-right, 0);
-  bottom: var(--term-full-bottom, 0);
-  box-shadow: none;
-  border: 1px solid var(--border);
+  .hosts-tab > .hosts-pane--fill,
+  .hosts-tab > .hosts-pane--card {
+    overflow-y: auto;
+  }
+
+  .host-pair,
+  .host-manage,
+  .host-manage-grid {
+    flex: none;
+  }
+
+  .host-manage-col {
+    overflow-y: visible;
+  }
 }
 
 /* God mode: where a backup's archives really are. */
@@ -7637,6 +7616,72 @@ a.sh-app:hover {
   gap: 4px;
 }
 
+/* Projects: one line each. */
+.sh-col > .sh-projects {
+  flex-grow: 2;
+}
+
+.sh-project-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sh-project {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 12px;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.sh-project:hover {
+  background: var(--bg-raised);
+}
+
+.sh-project-name {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 550;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sh-project-host {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--fs-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sh-project-up {
+  color: var(--warning);
+  font: 600 var(--fs-xs) / 1 var(--mono);
+}
+
+.sh-project-count,
+.sh-project-age {
+  color: var(--text-muted);
+  font: var(--fs-xs) / 1 var(--mono);
+  white-space: nowrap;
+}
+
+.sh-project-age {
+  min-width: 52px;
+  text-align: right;
+}
+
 /* Four headline numbers in a row. */
 .sh-tiles {
   display: grid;
@@ -7994,67 +8039,33 @@ a.sh-app:hover {
   }
 }
 
-/* ----- Advanced overview: two screens that snap ----- */
+/* ----- Hosts: the fleet board and a host's Summary ----- */
 
-html.ov-snap {
-  scroll-snap-type: y mandatory;
-  scroll-padding-top: var(--ov-top, 56px);
-}
-
-.ovw {
-  gap: 20px;
-}
-
-.ovw-win {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  height: var(--ov-h, 80vh);
-  min-height: 0;
-  scroll-snap-align: start;
-  scroll-snap-stop: always;
-}
-
-/* Screen one: node buttons, then one server per width. */
-.ovw-hosts {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 8px;
-  min-height: 0;
-}
-
-/* No overscroll-behavior-x here (or on .sh-apps): swiping past the last
-   server is the browser's back/forward gesture, which `contain` would eat. */
-.ovw-track {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  scrollbar-width: none;
-}
-
-.ovw-track::-webkit-scrollbar {
-  display: none;
-}
-
+/* A host's Summary: its card fills the page, its five columns scroll on their own. */
 .ovw-slide {
-  flex: 0 0 100%;
+  flex: 1 1 0;
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
   padding: 0 1px;
-  scroll-snap-align: start;
-  scroll-snap-stop: always;
   scrollbar-width: thin;
 }
 
-/* Screen two: two columns, the lists inside fill and scroll. */
-.ovw-win--panels {
+/* The fleet board: three columns, the lists inside fill and scroll. */
+.ovb {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.ovb-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  flex: 1;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
+  min-height: 0;
 }
 
 .ovw-col {
@@ -8074,21 +8085,13 @@ html.ov-snap {
   flex: 1 1 0;
 }
 
-.ovw-win .ov-panel .overview-card-body {
+.ovb .ov-panel .overview-card-body {
   max-height: none;
   min-height: 0;
 }
 
 @media (max-width: 900px) {
-  html.ov-snap {
-    scroll-snap-type: none;
-  }
-
-  .ovw-win {
-    height: auto;
-  }
-
-  .ovw-win--panels {
+  .ovb-grid {
     grid-template-columns: 1fr;
   }
 
@@ -8097,22 +8100,8 @@ html.ov-snap {
   }
 }
 
-/* God tabs: a section bar under the host buttons, one section at a time. */
-.system-pane {
-  margin-top: 10px;
-}
-
 .network-tab > .hsys-tabs {
   margin-bottom: 10px;
-}
-
-.system-pane .hsys-block h4 {
-  display: none;
-}
-
-.system-pane .hsys-list,
-.system-pane .hsys-journal {
-  max-height: 55vh;
 }
 
 /* A page that fits the window: the lists inside scroll, the page doesn't. */
@@ -8129,7 +8118,6 @@ html.ov-snap {
   flex: 0 0 auto;
 }
 
-.fit-page > .system-pane,
 .fit-page > .fit-pane {
   flex: 1 1 0;
   min-height: 0;
@@ -8167,13 +8155,6 @@ html.ov-snap {
 
 .ovw-slide .sv-section::-webkit-scrollbar {
   display: none;
-}
-
-/* A short window can't hold two snapping screens; let the page scroll. */
-@media (max-height: 560px) {
-  html.ov-snap {
-    scroll-snap-type: none;
-  }
 }
 
 /* Keep the five columns on one row inside a slide, down to a small laptop;
@@ -8748,7 +8729,7 @@ a.lan-port--web:hover {
   overflow: hidden;
 }
 
-.network-tab .net-host {
+:is(.network-tab, .hosts-pane--fill) .net-host {
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -8757,24 +8738,24 @@ a.lan-port--web:hover {
   min-height: 0;
 }
 
-.network-tab .net-top {
+:is(.network-tab, .hosts-pane--fill) .net-top {
   flex: 0 0 auto;
   margin: 0;
 }
 
-.network-tab .net-grid {
+:is(.network-tab, .hosts-pane--fill) .net-grid {
   flex: 1;
   align-items: stretch;
   min-height: 0;
   margin: 0;
 }
 
-.network-tab .net-col {
+:is(.network-tab, .hosts-pane--fill) .net-col {
   min-height: 0;
 }
 
-.network-tab .net-col > .overview-card,
-.network-tab .net-grid > .net-networks {
+:is(.network-tab, .hosts-pane--fill) .net-col > .overview-card,
+:is(.network-tab, .hosts-pane--fill) .net-grid > .net-networks {
   flex: 1 1 auto;
   min-height: 90px;
   overflow-y: auto;
@@ -8826,12 +8807,12 @@ a.lan-port--web:hover {
     scrollbar-width: thin;
   }
 
-  .network-tab .net-host {
+  :is(.network-tab, .hosts-pane--fill) .net-host {
     flex: 0 0 auto;
     height: auto;
   }
 
-  .network-tab .net-grid {
+  :is(.network-tab, .hosts-pane--fill) .net-grid {
     flex: 0 0 auto;
   }
 
@@ -8840,41 +8821,6 @@ a.lan-port--web:hover {
     flex: 0 0 auto;
     min-height: 0;
     overflow-y: visible;
-  }
-}
-
-/* Advanced's Host network (no per-service table, no Docker networks): traffic
-   across the top, interfaces and published ports side by side. */
-.net-host--essential .net-top {
-  grid-template-columns: 1fr;
-}
-
-.net-host--essential .net-top .net-traffic {
-  flex-direction: row;
-}
-
-.net-host--essential .net-top .net-trend {
-  flex: 1 1 0;
-  min-width: 0;
-}
-
-.net-host--essential .net-grid {
-  grid-template-columns: 1fr;
-}
-
-.network-tab .net-host--essential .net-col {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-items: stretch;
-}
-
-@media (max-width: 1000px) {
-  .net-host--essential .net-top .net-traffic {
-    flex-direction: column;
-  }
-
-  .network-tab .net-host--essential .net-col {
-    grid-template-columns: 1fr;
   }
 }
 
@@ -10299,14 +10245,6 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
   cursor: pointer;
 }
 
-.dev-row--static {
-  cursor: default;
-}
-
-.dev-row--static:hover td {
-  background: transparent;
-}
-
 .dev-row .status-dot {
   display: inline-block;
   vertical-align: middle;
@@ -10700,17 +10638,25 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
   color: var(--warning);
 }
 
-.system-pane .hist {
-  max-height: calc(var(--fit-h, 100vh) - 190px);
-  overflow-y: auto;
-  scrollbar-width: thin;
-}
-
 .bw-range {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
   gap: 10px;
+}
+
+.dh-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px 2px;
+  font-size: var(--fs-xs);
+}
+
+.dh-item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dh-head {

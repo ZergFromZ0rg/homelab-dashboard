@@ -38,7 +38,7 @@ function usePoll(fetcher, intervalMs) {
 
 const mbps = (value) => (value == null ? "—" : `${value >= 100 ? Math.round(value) : value.toFixed(1)} Mbps`);
 
-function Internet({ speed, setSpeed, uplink, readOnly, now }) {
+function Internet({ speed, setSpeed, uplink, now }) {
   const [problem, setProblem] = useState("");
   const results = speed.results || [];
   const last = latestQuiet(results) || results[results.length - 1];
@@ -76,26 +76,24 @@ function Internet({ speed, setSpeed, uplink, readOnly, now }) {
         ) : (
           <span className="net-dim">the first test runs a minute after the dashboard starts</span>
         )}
-        {!readOnly && (
-          <span className="bw-controls">
-            <select
-              aria-label="Test schedule"
-              value={speed.every_hours}
-              title="How often a test runs. A test waits while the line is in use."
-              onChange={(e) => act(() => setSpeedtestSchedule(Number(e.target.value)))}
-            >
-              {speed.choices.map((h) => (
-                <option key={h} value={h}>{scheduleLabel(h)}</option>
-              ))}
-            </select>
-            <IconButton
-              icon="play"
-              label="Test now"
-              working={speed.running}
-              onClick={() => act(runSpeedtest)}
-            />
-          </span>
-        )}
+        <span className="bw-controls">
+          <select
+            aria-label="Test schedule"
+            value={speed.every_hours}
+            title="How often a test runs. A test waits while the line is in use."
+            onChange={(e) => act(() => setSpeedtestSchedule(Number(e.target.value)))}
+          >
+            {speed.choices.map((h) => (
+              <option key={h} value={h}>{scheduleLabel(h)}</option>
+            ))}
+          </select>
+          <IconButton
+            icon="play"
+            label="Test now"
+            working={speed.running}
+            onClick={() => act(runSpeedtest)}
+          />
+        </span>
       </div>
 
       <div className="pihole-tiles bw-tiles">
@@ -238,7 +236,7 @@ function Devices({ snapshot, range, setRange }) {
   );
 }
 
-function BandwidthPanel({ readOnly = false }) {
+function BandwidthPanel() {
   const [speed, setSpeed, speedError] = usePoll(fetchSpeedtest, POLL_MS);
   const [range, setRange] = useLocalStorage("bandwidthRange", "2h");
   const chosen = BANDWIDTH_RANGES.includes(range) ? range : "2h";
@@ -269,7 +267,7 @@ function BandwidthPanel({ readOnly = false }) {
 
   return (
     <div className="bw">
-      {speed && <Internet speed={speed} setSpeed={setSpeed} uplink={uplink} readOnly={readOnly} now={now} />}
+      {speed && <Internet speed={speed} setSpeed={setSpeed} uplink={uplink} now={now} />}
       {bandwidth ? <Devices snapshot={bandwidth} range={chosen} setRange={setRange} /> : <p className="lan-empty">{bandwidthError || "Loading…"}</p>}
     </div>
   );

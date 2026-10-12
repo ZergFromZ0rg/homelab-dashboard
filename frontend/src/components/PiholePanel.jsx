@@ -54,7 +54,7 @@ function Health({ snapshot, now }) {
   );
 }
 
-function PiholePanel({ readOnly = false }) {
+function PiholePanel() {
   const [snapshot, setSnapshot] = useState(null);
   const [error, setError] = useState("");
   const [view, setView] = useLocalStorage("dnsView", "devices");
@@ -99,7 +99,7 @@ function PiholePanel({ readOnly = false }) {
         <span className={`pihole-state pihole-state--${tone}`}>{label}</span>
         {snapshot.error && <span className="pihole-error" title={snapshot.error}>{snapshot.error}</span>}
         {state !== "up" && summary && <span className="net-dim">Showing the last numbers it returned.</span>}
-        {snapshot.blocking && state !== "down" && !readOnly && (
+        {snapshot.blocking && state !== "down" && (
           <BlockingControl snapshot={snapshot} now={now} onChange={setSnapshot} />
         )}
         {summary && (
@@ -130,7 +130,7 @@ function PiholePanel({ readOnly = false }) {
 
       {summary && view === "history" && <PiholeHistory />}
       {summary && view !== "history" && <Health snapshot={snapshot} now={now} />}
-      {summary && view !== "history" && <DeviceTable readOnly={readOnly} />}
+      {summary && view !== "history" && <DeviceTable />}
     </div>
   );
 }

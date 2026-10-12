@@ -54,56 +54,63 @@ Settings → Appearance. The layout reflows down to phone width (the tab bar
 scrolls sideways there; the title gives way to the logo); below ~1040px
 each container becomes a small stacked card.
 
-**View modes** (⌥1 / ⌥2 / ⌥3, remembered per browser). The point of three
-modes is fewer tabs:
+**View modes** (⌥1 / ⌥2, remembered per browser). Two views: one to check on,
+one to work in.
 
-- **Simple** (default) — no tabs, one page: a greeting line, the
-  **Morning briefing**, the Overview panels (with a one-line-per-host
-  Servers panel), then the personal cards (to-do, notes, weather,
-  calendar, word of the day, quick links). The briefing has three
-  columns: what happened in the last 14 hours (updates, restarts,
-  unhealthy containers, hosts and agents going down or coming back),
-  what's degrading (failed services, disks filling within a week, pending
-  OS updates, a container stuck restarting, backups needing attention),
-  and what needs a yes — install OS updates, reboot, update containers,
-  accept a rebalance move. A clicked button turns into a status line that
-  follows the job to its end and stays until dismissed. Built from the
-  same data as the rest of the page (`backend/morning.py`, on the `/ws`
-  tick and at `/api/morning`), no LLM. Opening any section switches to
-  Advanced.
-- **Advanced** — five tabs: **Overview** (servers included), **Containers**,
-  **Files** (the file browser as a page: pick a server, jump to home, `/`
-  or a disk), **Backups**, and a look-only **Network** (**Checks** — what is
-  answering and how it has been; **DNS** — Pi-hole and the devices it has
-  seen; **Switch** — port state and traffic; **Host network** — traffic,
-  interfaces and published ports). Nothing on it changes anything: no
-  pausing blocking, editing checks or Docker networks. Each server card still has System / Settings / If this host
-  died folded under it.
-- **God** — Advanced plus control of the machines themselves:
-  - **Network** in full — the same four, plus Scans, Connections, Packets and
-    Watch, per-service traffic, Docker networks, and every control (add, edit,
-    pause or delete checks, pause blocking, allow a domain, regroup or label a
-    device);
-  - **System** — one server at a time with everything open: hardware
-    (OS, kernel, CPU, cores, RAM, GPUs, uptime, agent commit), disks with
-    fill forecasts, systemd services, the journal, OS updates, reboot /
-    power off, the agent's settings and "if this host died";
-  - **Backups** also shows where each job's archives really are on the
+- **Simple** (default) — no tabs, one page you can leave open: the clock,
+  calendar, weather and to-dos on the left; your pinned containers as icon
+  tiles over the **Morning briefing** and one plain container table in the
+  middle; the **Servers** (a block of meters per host), the **Projects**
+  (every compose project: how many of its containers are up, a mark when
+  newer images are waiting, how long ago it was last started — what you
+  redeployed today is near the top), four headline numbers and **Alerts**
+  on the right. The briefing has three columns: what happened in the last 14
+  hours (updates, restarts, unhealthy containers, hosts and agents going
+  down or coming back), what's degrading (failed services, disks filling
+  within a week, pending OS updates, a container stuck restarting, backups
+  needing attention), and what needs a yes — install OS updates, reboot,
+  update containers, accept a rebalance move. A clicked button turns into a
+  status line that follows the job to its end and stays until dismissed.
+  Built from the same data as the rest of the page (`backend/morning.py`, on
+  the `/ws` tick and at `/api/morning`), no LLM. Clicking anything that is
+  more than a look opens it in God.
+- **God** — four tabs, and never more than one row of pages under them:
+  - **Hosts** — pick the server once (or **Overview** for the whole fleet)
+    and everything about it is a page in one row: **Summary** (the full
+    vitals: CPU, memory, storage, network, thermals and GPU), **History**
+    (hours to months), **Storage** (the file browser, every disk with its fill
+    forecast, the drives' own health), **Services** (systemd, and the
+    machine's journal beside it), **Network** (traffic, interfaces, published
+    ports, Docker networks and who is on them, connections), **Packets** (the
+    sniffer), **Manage** (pending OS updates, reboot / power off, "if this
+    host died", the agent's settings). A `>_` button opens a root shell on
+    the host in the terminal dock. The fleet **Overview** is the whole fleet
+    on one screen: the headline numbers, the servers, what needs attention,
+    uptime checks, pinned containers and the timeline;
+  - **Containers** — every container, with its shell, logs, settings and
+    controls on the row;
+  - **Network** — the network as a whole: **Uptime** (checks), **DNS**
+    (Pi-hole and the devices it has seen), **Bandwidth**, **Switch**, and
+    **Scan** and **Watch** (the LAN seen from a server you pick);
+  - **Backups** — also shows where each job's archives really are on the
     destination machine ("Kept in thinkpad /mnt/media/backups/…", read from
-    its agent) — click the path to open it in Files;
-  - **Terminal** — a launcher per server (root shell on the machine, a
-    shell or the logs of any running container) over the terminal dock
-    stretched to the page. Sessions are the dock's, so they keep running
-    across tabs.
+    its agent); click the path to open it in Storage.
 
-  Host and container shells (buttons and ⌘K) only exist in this mode;
-  logs open in any mode, and a shell already open survives switching away.
+  Terminals (⌘K "Shell on …", the `>_` button, a container's row) live in a
+  dock along the bottom of the page, so they keep running as you move
+  between tabs. New shells only exist in God; logs open in either view, and a
+  shell already open survives switching to Simple.
+
+  Every page has an address (`#/god/hosts/bigboy/storage`,
+  `#/god/network/dns`), so back, forward, reload and bookmarks all work. ⌘K
+  jumps to any host page ("packets bigboy"). The old Advanced view is gone;
+  its addresses open the page that holds the same thing now.
 
 There is no Deploy tab: placement, stacks and moves live on in the API
 (below) for the AI overseer to drive. Rebalance suggestions still reach
 you, in the briefing and in Needs attention.
 
-**Overview** is the one-page fleet view:
+**Overview** (God → Hosts) is the one-screen fleet view:
 
 - one thin line of headline numbers (health / hosts online / containers
   running / CPU threads / **backups healthy** / agents current, with an
@@ -116,19 +123,19 @@ you, in the briefing and in Needs attention.
   is healthy, otherwise a severity-coded list of problems each with a
   *View* jump and a plain next-step. Deterministic: it reuses the same
   checks the alert loop runs (`alerts.evaluate`) plus stale nodes, no LLM;
-  host problems jump to that server's card;
-- **Services** — a chip per service check with its latency (down ones
-  first); click for the Services tab;
-- in Simple, **Servers** — one line per machine with its headline bars
-  (CPU, RAM, fullest disk); click one for its full card in Advanced;
+  host problems jump to that server's page;
+- **Uptime** — a line per service check with its latency (down ones
+  first); click for the Network tab;
+- **Servers** — one line per machine with its headline bars (CPU, RAM,
+  fullest disk); click one for its pages;
 - a right-hand rail: **Quick actions** (restart / stop for your pinned
   containers, jumps to Containers) and **Recent activity**
   (container start/stop/restart, host up/down, agent unreachable and
   scheduler deploy/move/fail events, diffed from the fleet snapshot each
   reconcile tick and kept in `/data/activity.json`).
 
-Below the panels (Advanced / God) comes the full view of every machine: a
-card per host, each folding to one line of bars (remembered per browser) — CPU /
+A host's **Summary** page is the full view of that machine: a
+card with CPU /
 temperature / RAM gauges with sparklines, network (with a per-interface
 breakdown — see below), every GPU, disk I/O and
 storage, plus a footer with how many containers run there, whether its
@@ -568,7 +575,7 @@ false ones is worse than saying nothing.
 
 ## Adding a node
 
-The Overview (Advanced) ends with an **Add a node** panel: a `curl | sh` command
+The fleet Overview (God → Hosts) ends with an **Add a node** panel: a `curl | sh` command
 with this dashboard's address already in it. Run it on the new machine and
 the node appears here within a minute — Docker is the only prerequisite.
 

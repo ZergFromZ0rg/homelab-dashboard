@@ -288,14 +288,14 @@
     box-shadow var(--dur-slow) var(--ease);
 }
 
-/* ----- View mode: Simple / Advanced / God, with a sliding thumb ----- */
+/* ----- View mode: Simple / God, with a sliding thumb ----- */
 
 .mode-selector {
   --mode-color: var(--text);
   position: relative;
   isolation: isolate;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   flex-shrink: 0;
   height: 30px;
   padding: 2px;
@@ -303,10 +303,6 @@
   border: 1px solid var(--border);
   border-radius: 6px;
   overflow: visible;
-}
-
-.mode-selector--advanced {
-  --mode-color: var(--accent);
 }
 
 .mode-selector--god {
@@ -319,7 +315,7 @@
   top: 2px;
   bottom: 2px;
   left: 2px;
-  width: calc((100% - 4px) / 3);
+  width: calc((100% - 4px) / 2);
   border-radius: 4px;
   background: color-mix(in srgb, var(--mode-color) 14%, var(--bg-card));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--mode-color) 32%, transparent);
@@ -329,12 +325,8 @@
     box-shadow var(--dur-slow) var(--ease);
 }
 
-.mode-selector--advanced .mode-thumb {
-  transform: translateX(100%);
-}
-
 .mode-selector--god .mode-thumb {
-  transform: translateX(200%);
+  transform: translateX(100%);
 }
 
 .mode-btn {
@@ -1085,7 +1077,7 @@ textarea.deploy-input {
   white-space: nowrap;
 }
 
-/* Tabs that appear (entering Advanced, or God's three) arrive in order
+/* Tabs that appear (entering God) arrive in order
    rather than popping in all at once. Only newly mounted tabs animate. */
 @keyframes tab-appear {
   from {

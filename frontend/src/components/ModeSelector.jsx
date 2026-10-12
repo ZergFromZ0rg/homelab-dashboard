@@ -1,13 +1,12 @@
 import { useEffect } from "react";
 
 const MODES = [
-  { value: "simple", label: "Simple", key: "1", title: "Briefing, overview and personal on one page" },
-  { value: "advanced", label: "Advanced", key: "2", title: "Overview with every server, Containers, Files, Backups, and a look-only Network" },
-  { value: "god", label: "God", key: "3", title: "Advanced plus the full Network tools, System, Terminal and shells" },
+  { value: "simple", label: "Simple", key: "1", title: "A page to check on: what is happening, what is updating, your day" },
+  { value: "god", label: "God", key: "2", title: "Hosts, Containers, Network and Backups, with every control" },
 ];
 
-// Three equal segments and one thumb that slides between them (CSS moves
-// it from the mode class), tinted per mode: neutral, teal, red for God.
+// Two equal segments and one thumb that slides between them (CSS moves it
+// from the mode class), tinted per mode: neutral, then amber for God.
 function ModeSelector({ mode, onSetMode }) {
   useEffect(() => {
     const handleKeyDown = (e) => {

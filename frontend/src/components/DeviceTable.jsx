@@ -21,15 +21,15 @@ const SOURCES = {
   mac: "no name known",
 };
 
-function Row({ device, open, onToggle, readOnly }) {
+function Row({ device, open, onToggle }) {
   const online = device.online;
   const dot = online === true ? "ok" : "off";
   const unidentified = device.kind === "unknown";
   return (
     <tr
-      className={`dev-row ${open ? "dev-row--open" : ""} ${device.new ? "dev-row--new" : ""} ${readOnly ? "dev-row--static" : ""}`}
-      onClick={readOnly ? undefined : onToggle}
-      aria-selected={readOnly ? undefined : open}
+      className={`dev-row ${open ? "dev-row--open" : ""} ${device.new ? "dev-row--new" : ""}`}
+      onClick={onToggle}
+      aria-selected={open}
     >
       <td>
         <span
@@ -70,8 +70,7 @@ function Row({ device, open, onToggle, readOnly }) {
   );
 }
 
-// `readOnly` (Advanced) is the list without the device panel and its controls.
-function DeviceTable({ readOnly = false }) {
+function DeviceTable() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [open, setOpen] = useState(null);
@@ -99,7 +98,7 @@ function DeviceTable({ readOnly = false }) {
   const all = data.devices || [];
   const shown = filterDevices(all, { filter, showHidden, query });
   const hidden = hiddenCount(all);
-  const openRow = open && !readOnly ? all.find((d) => d.mac === open) : null;
+  const openRow = open ? all.find((d) => d.mac === open) : null;
 
   return (
     <div className="dev">
@@ -150,8 +149,7 @@ function DeviceTable({ readOnly = false }) {
                   <Row
                     key={d.mac}
                     device={d}
-                    open={!readOnly && open === d.mac}
-                    readOnly={readOnly}
+                    open={open === d.mac}
                     onToggle={() => setOpen(open === d.mac ? null : d.mac)}
                   />
                 ))}

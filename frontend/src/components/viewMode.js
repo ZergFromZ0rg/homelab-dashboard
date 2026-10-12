@@ -1,11 +1,14 @@
-// The view mode (simple / advanced / god), remembered per browser. The
-// event lets every listener in this window follow a change.
+// The view mode (simple / god), remembered per browser. The event lets every
+// listener in this window follow a change.
 const KEY = "homelab.viewMode";
-const MODES = ["simple", "advanced", "god"];
+const MODES = ["simple", "god"];
 
 function getMode() {
   try {
     const stored = localStorage.getItem(KEY);
+    // "advanced" was a middle mode that no longer exists: it opens God, which
+    // has everything it had.
+    if (stored === "advanced") return "god";
     return MODES.includes(stored) ? stored : "simple";
   } catch {
     return "simple";

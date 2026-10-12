@@ -691,32 +691,32 @@ function fullSnapshot() {
 
   const containers = {
     bigboy: [
-      container("a1", "jellyfin", "jellyfin/jellyfin:latest", "bigboy", {
+      container("a1", "jellyfin", "jellyfin/jellyfin:latest", "bigboy", { project: "media",
         cpu: 22.5, ramMb: 1400, limitMb: 4096, ports: { "8096/tcp": ["8096"] },
         rx: 3_200_000, tx: 18_000_000, live: { app: "jellyfin", detail: "2 users streaming" }, update: true,
       }),
-      container("a2", "qbittorrent", "lscr.io/linuxserver/qbittorrent:latest", "bigboy", {
+      container("a2", "qbittorrent", "lscr.io/linuxserver/qbittorrent:latest", "bigboy", { project: "media",
         cpu: 6.8, ramMb: 610, ports: { "8080/tcp": ["8080"] },
         rx: 9_500_000, tx: 1_100_000, live: { app: "qbittorrent", detail: "3 downloading, 5 seeding" },
       }),
-      container("a3", "sonarr", "lscr.io/linuxserver/sonarr:latest", "bigboy", { update: true, cpu: 0.8, ramMb: 380, ports: { "8989/tcp": ["8989"] } }),
-      container("a4", "radarr", "lscr.io/linuxserver/radarr:latest", "bigboy", { update: true, cpu: 0.6, ramMb: 340, ports: { "7878/tcp": ["7878"] } }),
-      container("a5", "postgres", "postgres:16", "bigboy", { cpu: 1.4, ramMb: 220, limitMb: 1024, health: "healthy" }),
-      container("a6", "homelab-agent", "homelab-agent", "bigboy", { cpu: 0.4, ramMb: 60, rebuild: { project: "homelab", service: "homelab-agent", remote: "https://github.com/zerg/homelab-agent.git", can_pull: true } }),
-      container("a7", "watchtower", "containrrr/watchtower", "bigboy", { status: "exited", cpu: 0, ramMb: 0, upHours: 200 }),
+      container("a3", "sonarr", "lscr.io/linuxserver/sonarr:latest", "bigboy", { project: "media", update: true, cpu: 0.8, ramMb: 380, ports: { "8989/tcp": ["8989"] } }),
+      container("a4", "radarr", "lscr.io/linuxserver/radarr:latest", "bigboy", { project: "media", update: true, cpu: 0.6, ramMb: 340, ports: { "7878/tcp": ["7878"] } }),
+      container("a5", "postgres", "postgres:16", "bigboy", { project: "db", cpu: 1.4, ramMb: 220, limitMb: 1024, health: "healthy" }),
+      container("a6", "homelab-agent", "homelab-agent", "bigboy", { project: "homelab", cpu: 0.4, ramMb: 60, rebuild: { project: "homelab", service: "homelab-agent", remote: "https://github.com/zerg/homelab-agent.git", can_pull: true } }),
+      container("a7", "watchtower", "containrrr/watchtower", "bigboy", { project: "homelab", status: "exited", cpu: 0, ramMb: 0, upHours: 200 }),
     ],
     thinkpad: [
-      container("b1", "homelab-dashboard", "homelab-dashboard", "thinkpad", { cpu: 0.9, ramMb: 90, ports: { "80/tcp": ["8081"] } }),
-      container("b2", "prometheus", "prom/prometheus:latest", "thinkpad", { cpu: 2.1, ramMb: 480, ports: { "9090/tcp": ["9090"] } }),
-      container("b3", "grafana", "grafana/grafana:latest", "thinkpad", { cpu: 1.1, ramMb: 210, ports: { "3000/tcp": ["3000"] }, health: "healthy" }),
-      container("b4", "homelab-agent", "homelab-agent", "thinkpad", { cpu: 0.3, ramMb: 55 }),
+      container("b1", "homelab-dashboard", "homelab-dashboard", "thinkpad", { project: "homelab", cpu: 0.9, ramMb: 90, ports: { "80/tcp": ["8081"] } }),
+      container("b2", "prometheus", "prom/prometheus:latest", "thinkpad", { project: "monitoring", cpu: 2.1, ramMb: 480, ports: { "9090/tcp": ["9090"] } }),
+      container("b3", "grafana", "grafana/grafana:latest", "thinkpad", { project: "monitoring", cpu: 1.1, ramMb: 210, ports: { "3000/tcp": ["3000"] }, health: "healthy" }),
+      container("b4", "homelab-agent", "homelab-agent", "thinkpad", { project: "homelab", cpu: 0.3, ramMb: 55 }),
     ],
     "nuc-media": [
-      container("c1", "plex", "plexinc/pms-docker:latest", "nuc-media", { cpu: 48.0, ramMb: 2100, ports: { "32400/tcp": ["32400"] } }),
-      container("c2", "nextcloud", "nextcloud:29", "nuc-media", {
+      container("c1", "plex", "plexinc/pms-docker:latest", "nuc-media", { project: "plex", cpu: 48.0, ramMb: 2100, ports: { "32400/tcp": ["32400"] } }),
+      container("c2", "nextcloud", "nextcloud:29", "nuc-media", { project: "nextcloud",
         cpu: 3.2, ramMb: 900, health: "unhealthy", restarts: 7, downAt: [96, 97, 98, 99, 100, 101], ports: { "80/tcp": ["8082"] },
       }),
-      container("c3", "homelab-agent", "homelab-agent", "nuc-media", { cpu: 0.4, ramMb: 58 }),
+      container("c3", "homelab-agent", "homelab-agent", "nuc-media", { project: "homelab", cpu: 0.4, ramMb: 58 }),
     ],
   };
 

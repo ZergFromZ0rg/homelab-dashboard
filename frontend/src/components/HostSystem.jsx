@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { jsonOrThrow } from "./apiAuth";
 import { confirmedFetch } from "./confirmedFetch";
-import Icon from "./Icon";
 
-// The machine under the containers, on its server card: systemd services
+// The machine under the containers, on a host's pages: systemd services
 // (failed first), OS package updates, reboot and power off. Reading is a
 // click; anything that changes the machine asks for Face ID / Touch ID
 // (once per few minutes) and says what it did. The agent runs upgrades and
@@ -354,91 +353,3 @@ function Power({ host, machine }) {
 }
 
 export { Services, Journal, OsUpdates, Power };
-
-// The blocks on their own — the God-mode System tab shows them all open.
-// `tabbed` (the server card on Advanced) shows one at a time under a tab bar,
-// opening on whatever most needs a look: the updates you came for, failed
-// services, pending updates, else the services.
-export function HostSystemPanels({ host, machine, autoCheckUpdates = false, tabbed = false }) {
-  const facts = machine.host_facts;
-  const failed = facts?.failed_units?.length || 0;
-  const pending = facts?.os_updates || 0;
-  const [tab, setTab] = useState(autoCheckUpdates || (!failed && pending) ? "updates" : "services");
-
-  const panels = {
-    services: <Services host={host} />,
-    journal: <Journal host={host} />,
-    updates: <OsUpdates host={host} facts={facts} autoCheck={autoCheckUpdates} />,
-    power: <Power host={host} machine={machine} />,
-  };
-
-  if (!tabbed) {
-    return (
-      <div className="hsys">
-        {panels.services}
-        {panels.journal}
-        {panels.updates}
-        {panels.power}
-      </div>
-    );
-  }
-
-  const tabs = [
-    ["updates", "OS updates", pending || null, facts?.security_updates ? "warn" : null],
-    ["services", "Services", failed || null, "bad"],
-    ["journal", "Journal", null, null],
-    ["power", "Power", facts?.reboot_required ? "!" : null, "warn"],
-  ];
-
-  return (
-    <div className="hsys hsys--tabbed">
-      <div className="hsys-tabs" role="tablist" aria-label="System">
-        {tabs.map(([id, label, badge, tone]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={tab === id}
-            className={tab === id ? "active" : ""}
-            onClick={() => setTab(id)}
-          >
-            {label}
-            {badge != null && <span className={`hsys-badge ${tone ? `hsys-badge--${tone}` : ""}`}>{badge}</span>}
-          </button>
-        ))}
-      </div>
-      <div className="hsys-pane">{panels[tab]}</div>
-    </div>
-  );
-}
-
-// `showUpdates` is a counter the host card bumps when a link elsewhere (the
-// Simple page's "Details") asks for the OS updates: open, and list them.
-function HostSystem({ host, machine, showUpdates = 0, open: openProp, onToggle }) {
-  const [openState, setOpen] = useState(showUpdates > 0);
-  const open = openProp ?? openState;
-  const [fromLink, setFromLink] = useState(showUpdates > 0);
-  const section = useRef(null);
-  useEffect(() => {
-    if (!showUpdates) return;
-    setOpen(true);
-    setFromLink(true);
-    setTimeout(() => section.current?.querySelector(".hsys")?.scrollIntoView({ behavior: "smooth", block: "center" }), 250);
-  }, [showUpdates]);
-  if (!machine.terminal) return null;
-  const facts = machine.host_facts;
-  const failed = facts?.failed_units?.length || 0;
-
-  return (
-    <section className="conn" ref={section}>
-      <button type="button" className={`conn-toggle ${open ? "expanded" : ""}`} onClick={() => (onToggle ? onToggle() : setOpen(!open))} aria-expanded={open}>
-        <span className="host-toggle" aria-hidden="true"><Icon name="chevron" size={12} /></span>
-        SYSTEM
-        {failed > 0 && <span className="conn-count conn-count--bad">{failed} failed</span>}
-      </button>
-      {open && <HostSystemPanels key={showUpdates} host={host} machine={machine} autoCheckUpdates={fromLink} tabbed />}
-    </section>
-  );
-}
-
-export default HostSystem;

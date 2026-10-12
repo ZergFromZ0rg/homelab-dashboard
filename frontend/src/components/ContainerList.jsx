@@ -87,7 +87,8 @@ function matchesQuery(container, query) {
   const needle = query.toLowerCase();
   return (
     container.name.toLowerCase().includes(needle) ||
-    (container.image || "").toLowerCase().includes(needle)
+    (container.image || "").toLowerCase().includes(needle) ||
+    (container.compose_project || "").toLowerCase().includes(needle)
   );
 }
 

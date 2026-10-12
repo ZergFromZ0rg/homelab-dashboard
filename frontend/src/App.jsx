@@ -1,14 +1,12 @@
 import ContainerList from "./components/ContainerList";
 import Tabs from "./components/Tabs";
-import Overview from "./components/Overview";
 import BackupsTab from "./components/BackupsTab";
 import NetworkTab from "./components/NetworkTab";
-import SystemTab from "./components/SystemTab";
-import FilesTab from "./components/FilesTab";
-import TerminalTab from "./components/TerminalTab";
+import HostsTab from "./components/HostsTab";
 import SimpleHome from "./components/SimpleHome";
-import { requestFocus, requestSection } from "./components/focusRequest";
 import { onNavigateRequest } from "./components/captureRequest";
+import { resolveTarget } from "./components/navTargets";
+import { useLocalStorage } from "./components/useLocalStorage";
 import SiteSettings from "./components/SiteSettings";
 import SettingsDrawer from "./components/SettingsDrawer";
 import TerminalDock from "./components/TerminalDock";
@@ -296,7 +294,7 @@ function AppShell({ tabs, activeTab, onTab, connected, lastUpdate, onOpenSetting
             </div>
           </div>
 
-          {viewMode !== "simple" && <Tabs tabs={tabs} active={activeTab} onChange={onTab} />}
+          {viewMode === "god" && <Tabs tabs={tabs} active={activeTab} onChange={onTab} />}
           {viewMode === "simple" && <div className="tabs-spacer" />}
 
           <div className="topbar-actions">
@@ -358,8 +356,8 @@ function App() {
   } = useDashboardSocket();
 
   const { getMode, setMode } = useModeSelector();
-  // The address names the view (#/advanced/containers), so a reload or a
-  // bookmark opens it; with none, the saved mode's Overview.
+  // The address names the view (#/god/hosts/bigboy/storage), so a reload or
+  // a bookmark opens it; with none, the saved mode's first tab.
   const [opened] = useState(() => parseHash(window.location.hash));
   const [viewMode, setViewMode] = useState(() => opened?.mode ?? getMode());
 
@@ -377,7 +375,11 @@ function App() {
     };
   }, [getMode]);
 
-  const [activeTab, setActiveTab] = useState(opened?.tab ?? "overview");
+  // The tab, and the page inside it (a host and its page, a Network section).
+  // Each tab remembers its page, so coming back to it finds it as you left it.
+  const [subs, setSubs] = useLocalStorage("navSubs", {});
+  const [activeTab, setActiveTab] = useState(opened?.tab ?? "hosts");
+  const [activeSub, setActiveSub] = useState(opened?.sub || subs[opened?.tab ?? "hosts"] || "");
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Container settings opened from the palette (rows open their own).
   const [settingsFor, setSettingsFor] = useState(null);
@@ -387,6 +389,14 @@ function App() {
   // A folder another tab asked the Files tab to open ({host, path, n}).
   const [filesTarget, setFilesTarget] = useState(null);
   const control = useContainerControl();
+  // The host the Hosts tab was last on (it keeps it in localStorage).
+  const lastHost = () => {
+    try {
+      return JSON.parse(localStorage.getItem("hostsLastHost"));
+    } catch {
+      return null;
+    }
+  };
 
   const totalContainers = Object.values(containers).reduce(
     (sum, list) => sum + list.length,
@@ -400,50 +410,40 @@ function App() {
   );
 
 
-  // Simple has no tabs (briefing, overview, personal on one page).
-  // Advanced: the fleet (Overview — servers included), Containers, Files,
-  // Backups and a look-only Network (checks, DNS, switch, host traffic).
-  // God adds control of the machines themselves: the full Network (scans,
-  // packets, Docker networks, every control), System (services, updates,
-  // power, agent settings, hardware) and Terminal, plus shells. Deploy has no
-  // tab: placement lives on in the API for the AI to drive.
+  // Simple is one page and has no tabs. God has four: the machines (every
+  // page of one: vitals, history, storage and files, services, network,
+  // packets, what you change — or the fleet as a whole), the containers, the
+  // network as a whole, and the backups. Deploy has no tab: placement lives on
+  // in the API for the AI to drive.
   const tabs = [
     {
-      value: "overview",
-      label: "Overview",
-      count: overview.ok ? null : overview.issues.length,
+      value: "hosts",
+      label: "Hosts",
+      count: failedUnits || (overview.ok ? null : overview.issues.length) || null,
       tone: "bad",
     },
     { value: "containers", label: "Containers", count: totalContainers },
-    { value: "files", label: "Files" },
-    {
-      value: "backups",
-      label: "Backups",
-      count: backups?.total || null,
-      tone: backups?.attention ? "bad" : undefined,
-    },
     {
       value: "network",
       label: "Network",
       count: checks.length || null,
       tone: checks.some(isRootDown) ? "bad" : checks.some((c) => c.status === "degraded") ? "warn" : undefined,
     },
-    ...(viewMode === "god"
-      ? [
-          {
-            value: "system",
-            label: "System",
-            count: failedUnits || null,
-            tone: failedUnits ? "bad" : undefined,
-          },
-          { value: "terminal", label: "Terminal" },
-        ]
-      : []),
+    {
+      value: "backups",
+      label: "Backups",
+      count: backups?.total || null,
+      tone: backups?.attention ? "bad" : undefined,
+    },
   ];
   const tabValues = tabs.map((t) => t.value);
-  // A tab that doesn't exist in this mode (Network after leaving God) shows
-  // the Overview instead.
-  const shownTab = tabValues.includes(activeTab) ? activeTab : "overview";
+  // A tab that doesn't exist shows the first one instead.
+  const shownTab = tabValues.includes(activeTab) ? activeTab : "hosts";
+  const shownSub = shownTab === activeTab ? activeSub : "";
+
+  useEffect(() => {
+    if (viewMode === "god" && shownSub) setSubs((all) => (all[shownTab] === shownSub ? all : { ...all, [shownTab]: shownSub }));
+  }, [viewMode, shownTab, shownSub, setSubs]);
 
   // Every view you reach is a history entry: swipe or ⌘[ goes back to the
   // last one (also back across a mode switch), ⌘] forward again. Going back
@@ -451,15 +451,26 @@ function App() {
   useNavHistory({
     mode: viewMode,
     tab: viewMode === "simple" ? null : shownTab,
-    onPop: ({ mode, tab }) => {
+    sub: viewMode === "simple" ? "" : shownSub,
+    onPop: ({ mode, tab, sub }) => {
       setViewMode(mode);
-      if (tab) setActiveTab(tab);
+      if (tab) {
+        setActiveTab(tab);
+        setActiveSub(sub);
+      }
     },
   });
 
+  // A tab's own button: the page you were last on in it.
+  const showTab = (tab) => {
+    setActiveTab(tab);
+    setActiveSub(subs[tab] || "");
+  };
+  const showSub = (sub) => setActiveSub(sub);
+
   // Anything that says "go look at X" (Attention → View, Quick actions →
   // Containers) funnels through here.
-  const navigate = (target, { container, host, path, action, filter, section } = {}) => {
+  const navigate = (target, { container, host, path, action, filter, section, page } = {}) => {
     if (target === "settings") return setSettingsOpen(true);
     if (container) {
       try {
@@ -482,14 +493,12 @@ function App() {
     }
     // Old section names land where their content lives now.
     if (target === "personal") return setMode("simple");
-    // Packet capture is God's; the rest of Network is open from Advanced.
-    const tab = target === "servers" || target === "deploy" ? "overview" : target === "packets" ? "network" : target;
-    if ((["system", "terminal"].includes(tab) || target === "packets") && viewMode !== "god") setMode("god");
-    else if (viewMode === "simple") setMode("advanced");
+    const { tab, sub } = resolveTarget(target, { host, action, page, section });
+    // Everything but Simple's one page is God's.
+    if (viewMode !== "god") setMode("god");
     setActiveTab(tab);
-    if (target === "servers" && host) requestFocus(host, action);
-    if (section) requestSection(section);
-    if (target === "files" && host) setFilesTarget({ host, path, n: Date.now() });
+    setActiveSub(sub ?? subs[tab] ?? "");
+    if (target === "files" && path) setFilesTarget({ host: host ?? lastHost(), path, n: Date.now() });
   };
   const openSettingsFor = useCallback((host, container) => setSettingsFor({ host, container }), []);
   // A component far from the tab bar can ask to go to a tab (a container row's "capture its traffic").
@@ -497,14 +506,14 @@ function App() {
   useEffect(() => {
     goTo.current = navigate;
   });
-  useEffect(() => onNavigateRequest((target) => goTo.current(target)), []);
+  useEffect(() => onNavigateRequest((target, detail) => goTo.current(target, detail)), []);
 
   return (
     <SettingsProvider>
       <AppShell
         tabs={tabs}
         activeTab={shownTab}
-        onTab={setActiveTab}
+        onTab={showTab}
         connected={connected}
         lastUpdate={lastUpdate}
         onOpenSettings={() => setSettingsOpen(true)}
@@ -512,11 +521,7 @@ function App() {
         onSetMode={setMode}
       >
         <UpdatesProvider>
-        <TerminalDock
-          machines={machines}
-          shells={viewMode === "god"}
-          full={viewMode === "god" && shownTab === "terminal"}
-        >
+        <TerminalDock machines={machines} shells={viewMode === "god"}>
         {viewMode === "simple" && (
           <div className="simple-mode-content view" key="simple">
             <SimpleHome
@@ -539,10 +544,12 @@ function App() {
           </div>
         )}
 
-        {viewMode !== "simple" && (
+        {viewMode === "god" && (
           <div className={`view view--${shownTab}`} key={shownTab}>
-            {shownTab === "overview" && (
-              <Overview
+            {shownTab === "hosts" && (
+              <HostsTab
+                sub={shownSub}
+                onSub={showSub}
                 overview={overview}
                 backups={backups}
                 machines={machines}
@@ -555,7 +562,9 @@ function App() {
                 history={history}
                 mainHost={mainHost}
                 ready={ready}
-                detail
+                connected={connected}
+                filesTarget={filesTarget}
+                onFilesTargetUsed={() => setFilesTarget(null)}
                 onControl={control}
                 onNavigate={navigate}
               />
@@ -573,41 +582,22 @@ function App() {
               />
             )}
 
-            {shownTab === "files" && (
-              <FilesTab
-                machines={machines}
-                connected={connected}
-                target={filesTarget}
-                onTargetUsed={() => setFilesTarget(null)}
-              />
-            )}
-
             {shownTab === "backups" && (
               <BackupsTab
                 machines={machines}
                 connected={connected}
-                showLocation={viewMode === "god"}
+                showLocation
                 onOpenFolder={(host, path) => navigate("files", { host, path })}
               />
             )}
 
-            {shownTab === "system" && (
-              <SystemTab machines={machines} connected={connected} />
-            )}
-
-            {shownTab === "terminal" && (
-              <TerminalTab machines={machines} containers={containers} />
-            )}
-
             {shownTab === "network" && (
               <NetworkTab
-                key={viewMode === "god" ? "full" : "essential"}
-                essential={viewMode !== "god"}
+                section={shownSub}
+                onSection={showSub}
                 machines={machines}
-                containers={containers}
                 checks={checks}
                 connected={connected}
-                history={history}
               />
             )}
           </div>

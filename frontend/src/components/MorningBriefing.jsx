@@ -19,7 +19,7 @@ function _ago(seconds) {
 }
 
 // The newest events, scrolling inside a short box; the full history is the
-// Timeline on Advanced → Overview, one link away.
+// Timeline on Hosts → Overview, one link away.
 function OvernightList({ overnight, now, onNavigate }) {
   if (!overnight || overnight.events_count === 0) {
     return <p className="mb-empty">Nothing new.</p>;
@@ -37,7 +37,7 @@ function OvernightList({ overnight, now, onNavigate }) {
         ))}
       </ul>
       <button type="button" className="mb-seeall" onClick={() => onNavigate("overview", { section: "timeline" })}>
-        {more > 0 ? `+${more} more · ` : ""}See all in Advanced →
+        {more > 0 ? `+${more} more · ` : ""}See all →
       </button>
     </>
   );
@@ -107,9 +107,8 @@ function RunStatus({ run, now, onDismiss }) {
   );
 }
 
-// Where the detail behind each kind of item lives in Advanced: the host's own
-// card for OS updates (its System section, opened with the package list), the
-// Containers tab for image updates.
+// Where the detail behind each kind of item lives: the host's Manage page for
+// OS updates, the Containers tab for image updates.
 function detailsTarget(item) {
   if (item.type === "os_upgrade" || item.type === "reboot") {
     return ["servers", { host: item.host, action: "os-updates" }];
@@ -149,7 +148,7 @@ function ActionQueue({ actions, machines, now, onNavigate }) {
               <button
                 type="button"
                 className="mb-action-link"
-                title={`${item.title} — see the details in Advanced`}
+                title={`${item.title} — see the details`}
                 onClick={() => onNavigate(...detailsTarget(item))}
               >
                 {item.title}

@@ -133,7 +133,7 @@ function HostSettings({ host, defaultOpen = false, open: openProp, onToggle }) {
         aria-expanded={open}
       >
         <span className="host-toggle" aria-hidden="true"><Icon name="chevron" size={12} /></span>
-        SETTINGS
+        AGENT SETTINGS
         {data && !data.writable && <span className="conn-count">read-only</span>}
       </button>
 

@@ -3,6 +3,7 @@ import AppIcon from "./AppIcon";
 import CalendarCard from "./CalendarCard";
 import Card from "./Card";
 import FirstRun from "./FirstRun";
+import ProjectsCard from "./ProjectsCard";
 import { Meter } from "./HostSummary";
 import { IconButton } from "./Icon";
 import TodoList from "./TodoList";
@@ -18,9 +19,10 @@ import { useNow } from "./useNow";
 import { useFitHeight } from "./useFitHeight";
 
 // The Simple page: a board you can read from across the room. Three columns —
-// time, calendar and to-dos on the left; pinned apps as icon tiles over one
-// plain container table in the middle; the servers, four headline numbers and
-// what needs attention on the right. Everything else lives in Advanced.
+// time, calendar and to-dos on the left; pinned apps as icon tiles over the
+// briefing and one plain container table in the middle; the servers, the
+// projects, four headline numbers and what needs attention on the right.
+// Everything you act on lives in God.
 
 function partOfDay(hour) {
   if (hour < 5) return "Good night";
@@ -450,6 +452,7 @@ function SimpleHome({
               ))}
             </div>
           </Card>
+          <ProjectsCard containers={containers} ready={ready} onOpen={(project) => onNavigate("containers", { container: project })} />
           <div className="sh-tiles">
             <Tile value={`${online}/${hosts.length}`} label="Hosts up" tone={online < hosts.length ? "bad" : null} onClick={() => onNavigate("servers")} />
             <Tile value={`${running}/${all.length}`} label="Running" onClick={() => onNavigate("containers")} />

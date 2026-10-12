@@ -10,11 +10,30 @@ function tempTone(celsius) {
   return celsius >= 55 ? "warn" : "ok";
 }
 
-// `wide` is the System tab's table (the same one as the filesystems above it);
-// without it, the compact table inside a server card.
-function DiskHealth({ health, wide = false }) {
+// `wide` is a full-width table with temperature and power-on time; `list` is
+// one two-line entry per drive, for a narrow column (the Storage page's side);
+// without either, the compact table.
+function DiskHealth({ health, wide = false, list = false }) {
   if (!health) return null;
   const disks = health.disks || [];
+  if (list) {
+    return (
+      <>
+        {health.error && <p className="gpu-limited">{health.error}</p>}
+        {disks.map((d) => (
+          <div className="dh-item" key={d.device} title={d.reasons?.join(" · ") || undefined}>
+            <span className="dh-item-name">{d.model || d.device}</span>
+            <span className={`sv-tone--${HEALTH[d.health] || "none"}`}>
+              {d.health === "ok" ? "OK" : d.health === "unknown" ? "—" : d.reasons?.[0] || d.health}
+              {d.standby && <span className="sv-dim"> · asleep</span>}
+              {d.wear_percent != null && d.health === "ok" && <span className="sv-dim"> · {d.wear_percent}% worn</span>}
+              {d.temperature_c != null && <span className={`sv-dim sv-tone--${tempTone(d.temperature_c)}`}> · {d.temperature_c}°C</span>}
+            </span>
+          </div>
+        ))}
+      </>
+    );
+  }
   return (
     <>
       {health.error && <p className={wide ? "gpu-limited net-pad" : "gpu-limited"}>{health.error}</p>}

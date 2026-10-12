@@ -1,41 +1,35 @@
 import { describe, expect, it } from "vitest";
-import { networkSections, pickSection } from "./networkSections";
+import { networkSections, pickSection, PER_HOST } from "./networkSections";
 
 const ids = (sections) => sections.map(([id]) => id);
 
 describe("networkSections", () => {
-  it("gives Advanced the essentials and nothing that scans, captures or watches", () => {
-    expect(ids(networkSections(true, null))).toEqual(["checks", "dns", "bandwidth", "switch", "network"]);
+  it("is the network as a whole, with nothing that belongs to one host", () => {
+    expect(ids(networkSections(null))).toEqual(["checks", "dns", "bandwidth", "switch", "scan", "watch"]);
   });
 
-  it("gives God everything", () => {
-    const god = ids(networkSections(false, null));
-    for (const id of ["network", "devices", "connections", "packets", "watch", "dns", "bandwidth", "switch", "checks"]) {
-      expect(god).toContain(id);
-    }
+  it("leads with the uptime checks, the thing you open it to see", () => {
+    expect(networkSections(null)[0][0]).toBe("checks");
   });
 
-  it("leads Advanced with the checks and God with the host network", () => {
-    expect(networkSections(true, null)[0][0]).toBe("checks");
-    expect(networkSections(false, null)[0][0]).toBe("network");
+  it("carries the down-count badge on the checks section", () => {
+    expect(networkSections("2 down").find(([id]) => id === "checks")[2]).toBe("2 down");
   });
 
-  it("carries the down-count badge on the checks section in both", () => {
-    for (const essential of [true, false]) {
-      const checks = networkSections(essential, "2 down").find(([id]) => id === "checks");
-      expect(checks[2]).toBe("2 down");
-    }
+  it("asks which server only for the tools that look from one", () => {
+    expect(PER_HOST).toEqual(["scan", "watch"]);
+    for (const id of PER_HOST) expect(ids(networkSections(null))).toContain(id);
   });
 });
 
 describe("pickSection", () => {
-  it("keeps the remembered section when this mode offers it", () => {
-    expect(pickSection(networkSections(true, null), "dns")).toBe("dns");
-    expect(pickSection(networkSections(false, null), "packets")).toBe("packets");
+  it("keeps a section that exists", () => {
+    expect(pickSection(networkSections(null), "dns")).toBe("dns");
   });
 
-  it("falls back to the first when it does not (Packets saved in God, then Advanced)", () => {
-    expect(pickSection(networkSections(true, null), "packets")).toBe("checks");
-    expect(pickSection(networkSections(true, null), undefined)).toBe("checks");
+  it("falls back to the first for one that doesn't (an old address, a bad one)", () => {
+    expect(pickSection(networkSections(null), "packets")).toBe("checks");
+    expect(pickSection(networkSections(null), "")).toBe("checks");
+    expect(pickSection(networkSections(null), undefined)).toBe("checks");
   });
 });

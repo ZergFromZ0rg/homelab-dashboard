@@ -4,10 +4,10 @@ import { containerLink } from "./containerLink";
 import { hostColor } from "./hostColor";
 import { useTerminal } from "./terminalContext";
 import { useUpdates } from "./updatesContext";
-import { requestFocus } from "./focusRequest";
+import { HOST_PAGES } from "./hostsNav";
 
-// ⌘K / Ctrl+K: jump anywhere, do the common things. Every tab, every host
-// (show it, its files, a shell), every container (find it, open its web
+// ⌘K / Ctrl+K: jump anywhere, do the common things. Every tab, every host and
+// each page of it (its files, services, packets…, a shell), every container (find it, open its web
 // UI, a shell, its settings, restart, update). Words match anywhere, in any
 // order; titles that start with what you typed come first. Arrows + Enter.
 
@@ -18,6 +18,16 @@ function score(item, words) {
   return (title.startsWith(words[0]) ? 100 : 0) + (title.includes(words.join(" ")) ? 50 : 0) - item.rank;
 }
 
+// What each page of a host is called in the palette and what else finds it.
+const HOST_PAGE_ITEMS = {
+  history: { title: (h) => `History of ${h}`, keywords: "charts graphs trends cpu memory temperature" },
+  storage: { title: (h) => `Files on ${h}`, sub: "Browse files", keywords: "browse disk explorer folder storage drives smart health" },
+  services: { title: (h) => `Services on ${h}`, keywords: "systemd units journal logs failed" },
+  network: { title: (h) => `Network on ${h}`, keywords: "traffic interfaces ports docker networks connections" },
+  packets: { title: (h) => `Packets on ${h}`, keywords: "capture sniffer tcpdump pcap wireshark" },
+  manage: { title: (h) => `Manage ${h}`, sub: "Updates, power, recovery, agent settings", keywords: "os updates upgrade reboot power recover agent settings" },
+};
+
 function buildItems({ tabs, machines, containers, go, openSettings, terminal, updates, control }) {
   const items = [];
   const add = (kind, title, sub, run, { keywords = "", rank = 0, host } = {}) =>
@@ -27,8 +37,11 @@ function buildItems({ tabs, machines, containers, go, openSettings, terminal, up
   add("action", "Settings", "Dashboard settings drawer", () => go({ tab: "settings" }), { rank: 1 });
 
   Object.keys(machines).sort().forEach((host) => {
-    add("host", host, "Show on Overview", () => go({ tab: "servers", host }), { host, rank: 1, keywords: "server machine" });
-    add("host", `Files on ${host}`, "Browse files", () => go({ tab: "servers", host, action: "files" }), { host, rank: 3, keywords: "browse disk explorer folder" });
+    add("host", host, "Open host", () => go({ tab: "hosts", host }), { host, rank: 1, keywords: "server machine summary" });
+    HOST_PAGES.filter(([id]) => id !== "summary").forEach(([id, label]) => {
+      const { title, sub, keywords } = HOST_PAGE_ITEMS[id];
+      add("host", title(host), sub ?? label, () => go({ tab: "hosts", host, page: id }), { host, rank: 3, keywords });
+    });
     if (terminal?.available(host)) {
       add("host", `Shell on ${host}`, "Host terminal", () => terminal.open({ host, target: "host" }), { host, rank: 3, keywords: "terminal ssh console" });
     }
@@ -104,10 +117,9 @@ function CommandPalette({ tabs, machines, containers, control, onNavigate, onOpe
     };
   }, []);
 
-  const go = ({ tab, host, action, container }) => {
+  const go = ({ tab, host, page, container }) => {
     if (tab === "settings") return onNavigate("settings");
-    onNavigate(tab, { container });
-    if (host) requestFocus(host, action === "files" ? "files" : "show");
+    onNavigate(tab, { container, host, page });
   };
 
   const items = useMemo(

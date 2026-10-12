@@ -1,9 +1,5 @@
-import { useEffect, useState } from "react";
-import DiskExplorer from "./DiskExplorer";
-import HostRecovery from "./HostRecovery";
 import { formatUptime, gpuDevices } from "./machineInfo";
 import DiskHealth from "./DiskHealth";
-import HostSystem from "./HostSystem";
 import Sparkline from "./Sparkline";
 import Stat from "./Stat";
 import { diskLabel } from "./diskLabel";
@@ -274,24 +270,12 @@ function PerCore({ cores }) {
 // Everything known about one server, laid out as five dense sections:
 // CPU, memory, storage, network & system, thermals & GPU. Every metric the
 // agent and node_exporter report is on screen — this is the tab for detail.
-function MachineVitals({ host, machine, history, containers = [], explore, onExplore, showUpdates = 0 }) {
-  // System / Recover: one open at a time. A "Details"
-  // link elsewhere (showUpdates) opens System.
-  const [managing, setManaging] = useState(showUpdates > 0 ? "system" : null);
-  useEffect(() => {
-    if (showUpdates > 0) setManaging("system");
-  }, [showUpdates]);
-  const manage = {
-    props: (id) => ({ open: managing === id, onToggle: () => setManaging((m) => (m === id ? null : id)) }),
-  };
+function MachineVitals({ machine, history, containers = [], onOpenFolder }) {
   const {
     settings: { graphWindowMinutes: windowMinutes },
   } = useSettings();
 
   const d = machine.details || {};
-  // `explore` is the folder the file browser is open at (null = closed);
-  // the card owns it, so its header's folder button can open it too.
-  const setExplore = onExplore ?? (() => {});
   const netMax = Math.max(
     1,
     ...windowPoints(history?.network_rx, windowMinutes).map((p) => p.v ?? 0),
@@ -395,7 +379,7 @@ function MachineVitals({ host, machine, history, containers = [], explore, onExp
                     type="button"
                     className="sv-disk-open"
                     title={`${fs.device} — see what's taking the space`}
-                    onClick={() => host && setExplore(fs.mountpoint)}
+                    onClick={() => onOpenFolder?.(fs.mountpoint)}
                   >
                     <strong>{diskLabel(fs)}</strong> <span className="sv-dim">{fs.mountpoint}</span>
                     <span className="sv-disk-go">explore →</span>
@@ -557,17 +541,6 @@ function MachineVitals({ host, machine, history, containers = [], explore, onExp
           {!gpus.length && !machine.gpu?.hint && <p className="sv-dim">No GPU.</p>}
         </Section>
       </div>
-
-      {host && explore && (
-        <DiskExplorer key={explore} host={host} start={explore} onClose={() => setExplore(null)} />
-      )}
-
-      {host && (
-        <div className="sv-manage">
-          <HostSystem host={host} machine={machine} showUpdates={showUpdates} {...manage.props("system")} />
-          <HostRecovery host={host} {...manage.props("recovery")} />
-        </div>
-      )}
     </>
   );
 }

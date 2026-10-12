@@ -1,10 +1,7 @@
-import { useLayoutEffect, useRef } from "react";
-import { useSectionRequest } from "./focusRequest";
 import RebalancePanel from "./RebalancePanel";
 import FirstRun from "./FirstRun";
 import SummaryRow from "./SummaryRow";
 import HostSummary from "./HostSummary";
-import HostGrid from "./HostGrid";
 import AddNode from "./AddNode";
 import { formatLatency } from "./format";
 import Timeline from "./Timeline";
@@ -13,13 +10,14 @@ import { useSettings } from "./settings";
 import AppIcon from "./AppIcon";
 import { isRootDown } from "./checkStatus";
 
-// issue key -> where the details live: host problems on this page's
-// server cards, checks on Network, container ones on Containers.
-function issueTab(key) {
-  if (key.startsWith("check:")) return "network";
-  if (key.startsWith("container:")) return "containers";
-  if (key.startsWith("host:") || key.startsWith("deploy:")) return "servers";
-  return "containers";
+// issue key -> where the details live: a host's problem on that host's page,
+// checks on Network, backups on Backups, container ones on Containers.
+function issueTarget(key) {
+  if (key.startsWith("check:")) return ["network"];
+  if (key.startsWith("backup")) return ["backups"];
+  if (key.startsWith("host:")) return ["hosts", { host: key.split(":")[1] }];
+  if (key.startsWith("deploy:")) return ["hosts"];
+  return ["containers"];
 }
 
 // What's wrong, always visible: one compact line per issue, worst first,
@@ -52,7 +50,7 @@ function IssuesPanel({ overview, deployments, ready, onNavigate }) {
               <button
                 type="button"
                 className={`ov-issue ov-issue--${issue.severity}`}
-                onClick={() => onNavigate(issueTab(issue.key))}
+                onClick={() => onNavigate(...issueTarget(issue.key))}
                 title={issue.message}
               >
                 <span className={`status-dot status-dot--${issue.severity}`} />
@@ -95,7 +93,7 @@ function IssuesPanel({ overview, deployments, ready, onNavigate }) {
   );
 }
 
-// Service health as a dense two-column list: dot, icon, name, latency.
+// Uptime checks as a dense two-column list: dot, icon, name, latency.
 // Down sorts first and is the only thing in color.
 function ServiceList({ checks, onOpen }) {
   const order = { down: 0, degraded: 1, pending: 2, up: 3, paused: 4 };
@@ -160,13 +158,10 @@ function Panel({ title, count, tone, linkLabel, onLink, className = "", children
   );
 }
 
-// One page for the fleet. Advanced / God (`detail`): the headline numbers
-// on one line, four panels side by side (what's wrong, services, pinned,
-// the timeline), then every server's full vitals, each foldable to a line
-// — Servers used to be its own tab. Simple: the headline numbers live in
-// the page header instead, the servers are one panel of columns (one per
-// host, like the briefing above it), then what's wrong / services / the
-// timeline, and pinned containers only once something is pinned.
+// The whole fleet on one screen: the headline numbers on one line, then three
+// columns of panels — the servers (a click opens that server's pages), what is
+// wrong and what is answering, and what is pinned and what happened. The lists
+// scroll inside their panels; the page doesn't.
 function Overview({
   backups,
   overview,
@@ -177,12 +172,10 @@ function Overview({
   activity,
   alerts,
   pins,
-  history = {},
-  mainHost = null,
   ready = true,
-  detail = false,
   onControl,
   onNavigate,
+  onOpenHost,
 }) {
   const {
     settings: { homeCards },
@@ -192,149 +185,56 @@ function Overview({
   const down = checks.filter(isRootDown).length;
   const firing = alerts.filter((a) => a.resolved_at == null).length;
 
-  // Simple keeps healthy things quiet: with nothing wrong (and no login
-  // footnote to show) the header's "all clear" says it, not an empty panel.
-  const quiet =
-    !detail && ready && overview.ok && overview.security?.authenticated !== false;
-  const issues = homeCards.attention && !quiet && (
-    <IssuesPanel overview={overview} deployments={deployments} ready={ready} onNavigate={onNavigate} />
-  );
-  const services = homeCards.services && checks.length > 0 && (
-    <Panel
-      title="Services"
-      count={down ? `${down} down` : checks.length}
-      tone={down ? "bad" : undefined}
-    >
-      <ServiceList checks={checks} onOpen={() => onNavigate("network")} />
-    </Panel>
-  );
-  const pinned = homeCards.quickActions && (detail || pins.length > 0) && (
-    <Panel
-      title="Pinned"
-      count={pins.length || null}
-      linkLabel="Containers"
-      onLink={() => onNavigate("containers")}
-      className={detail ? "" : "ov-pinned-wide"}
-    >
-      <QuickActions pins={pins} containers={containers} machines={machines} onControl={onControl} />
-    </Panel>
-  );
-  const timeline = (homeCards.alerts || homeCards.activity) && (
-    <Panel
-      title="Timeline"
-      count={firing ? `${firing} firing` : null}
-      tone={firing ? "bad" : undefined}
-      className="ov-scroll"
-    >
-      <Timeline
-        alerts={homeCards.alerts ? alerts : []}
-        activity={homeCards.activity ? activity : []}
-      />
-    </Panel>
-  );
-
-  if (!detail) {
-    return (
-      <div className="overview overview--dense overview--simple">
-        <FirstRun machines={machines} backups={backups} onNavigate={onNavigate} />
-
-        {homeCards.hosts && (
-          <Panel
-            title="Servers"
-            count={hostCount || null}
-            linkLabel="Details"
-            onLink={() => onNavigate("servers")}
-            className="ov-hosts-panel"
-          >
-            <HostSummary
-              machines={machines}
-              containers={containers}
-              ready={ready}
-              onOpen={(host) => onNavigate("servers", { host })}
-            />
-          </Panel>
-        )}
-
-        {(issues || services || timeline) && (
-          <div className="ov-grid ov-grid--simple">
-            {issues}
-            {services}
-            {timeline}
-          </div>
-        )}
-
-        {pinned}
-      </div>
-    );
-  }
-
   return (
-    <DetailWindows>
-      <section className="ovw-win">
-        <FirstRun machines={machines} backups={backups} onNavigate={onNavigate} />
-        {homeCards.summary && (
-          <SummaryRow
-            overview={overview}
-            machines={machines}
-            containers={containers}
-            backups={backups}
-            ready={ready}
-            agents
-          />
-        )}
-        {homeCards.hosts ? (
-          <HostGrid machines={machines} containers={containers} history={history} mainHost={mainHost} />
-        ) : (
-          <p className="overview-empty">Server cards are switched off in Settings.</p>
-        )}
-      </section>
-
-      <section className="ovw-win ovw-win--panels" data-section="panels">
+    <div className="overview overview--dense ovb">
+      <FirstRun machines={machines} backups={backups} onNavigate={onNavigate} />
+      {homeCards.summary && (
+        <SummaryRow
+          overview={overview}
+          machines={machines}
+          containers={containers}
+          backups={backups}
+          ready={ready}
+          agents
+        />
+      )}
+      <div className="ovb-grid">
         <div className="ovw-col">
-          {issues}
-          {services}
+          {homeCards.hosts && (
+            <Panel title="Servers" count={hostCount || null} className="ov-hosts-panel">
+              <HostSummary machines={machines} containers={containers} ready={ready} onOpen={onOpenHost} />
+            </Panel>
+          )}
           {homeCards.hosts && <AddNode />}
         </div>
         <div className="ovw-col">
-          {pinned}
-          {timeline}
+          {homeCards.attention && (
+            <IssuesPanel overview={overview} deployments={deployments} ready={ready} onNavigate={onNavigate} />
+          )}
+          {homeCards.services && checks.length > 0 && (
+            <Panel title="Uptime" count={down ? `${down} down` : checks.length} tone={down ? "bad" : undefined}>
+              <ServiceList checks={checks} onOpen={() => onNavigate("network")} />
+            </Panel>
+          )}
         </div>
-      </section>
-    </DetailWindows>
-  );
-}
-
-// Advanced / God Overview as two screens that snap into place as you scroll:
-// the servers first (swipe sideways for more of them), then the panels that
-// answer "what's wrong, what's running, what happened". Each screen is as
-// tall as the window, so the lists inside scroll rather than the page.
-function DetailWindows({ children }) {
-  const root = useRef(null);
-  // A link from Simple ("See all" under Live updates) lands on the second
-  // screen, where the Timeline is.
-  useSectionRequest((name) => {
-    if (name !== "timeline") return;
-    setTimeout(() => root.current?.querySelector('[data-section="panels"]')?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
-  });
-  useLayoutEffect(() => {
-    const html = document.documentElement;
-    const measure = () => {
-      const top = document.querySelector(".topbar")?.getBoundingClientRect().height || 56;
-      html.style.setProperty("--ov-top", `${top}px`);
-      root.current?.style.setProperty("--ov-h", `${Math.max(460, window.innerHeight - top - 32)}px`);
-    };
-    measure();
-    html.classList.add("ov-snap");
-    window.addEventListener("resize", measure);
-    return () => {
-      window.removeEventListener("resize", measure);
-      html.classList.remove("ov-snap");
-      html.style.removeProperty("--ov-top");
-    };
-  }, []);
-  return (
-    <div className="overview overview--dense ovw" ref={root}>
-      {children}
+        <div className="ovw-col">
+          {homeCards.quickActions && (
+            <Panel title="Pinned" count={pins.length || null} linkLabel="Containers" onLink={() => onNavigate("containers")}>
+              <QuickActions pins={pins} containers={containers} machines={machines} onControl={onControl} />
+            </Panel>
+          )}
+          {(homeCards.alerts || homeCards.activity) && (
+            <Panel
+              title="Timeline"
+              count={firing ? `${firing} firing` : null}
+              tone={firing ? "bad" : undefined}
+              className="ov-scroll"
+            >
+              <Timeline alerts={homeCards.alerts ? alerts : []} activity={homeCards.activity ? activity : []} />
+            </Panel>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

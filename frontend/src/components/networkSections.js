@@ -1,38 +1,24 @@
-// The Network tab's sections per mode.
-//
-// Advanced gets the essentials, look-only: what is answering, who is on the
-// network, how fast it is and who uses it, the switch, and the host's traffic.
-// God gets everything: scans, connections, packet capture and the watch as
-// well, plus the controls.
+// The Network tab's sections: the network as a whole. What is answering, what
+// DNS is doing, how fast the internet is and who is using it, the switch, and
+// the two tools that look at the LAN from one host (a scan, and the watch for
+// a rogue DHCP server or a stolen address). What one host's traffic looks like
+// is on that host's page, under Hosts.
 
-export function networkSections(essential, checksBadge) {
-  if (essential) {
-    return [
-      ["checks", "Checks", checksBadge],
-      ["dns", "DNS", null],
-      ["bandwidth", "Bandwidth", null],
-      ["switch", "Switch", null],
-      ["network", "Host network", null],
-    ];
-  }
+export function networkSections(checksBadge) {
   return [
-    ["network", "Host network", null],
-    ["devices", "Scans", null],
-    ["connections", "Connections", null],
-    ["packets", "Packets", null],
-    ["watch", "Watch", null],
+    ["checks", "Uptime", checksBadge],
     ["dns", "DNS", null],
     ["bandwidth", "Bandwidth", null],
     ["switch", "Switch", null],
-    ["checks", "Service checks", checksBadge],
+    ["scan", "Scan", null],
+    ["watch", "Watch", null],
   ];
 }
 
-// The section remembered from last time, unless this mode doesn't offer it
-// (Packets saved in God, then Advanced): then the first one.
-export function pickSection(sections, saved) {
-  return sections.some(([id]) => id === saved) ? saved : sections[0][0];
+// The section in the address, unless there is no such section: then the first.
+export function pickSection(sections, wanted) {
+  return sections.some(([id]) => id === wanted) ? wanted : sections[0][0];
 }
 
-// Sections that show one server at a time, with the server picker.
-export const PER_HOST = ["network", "devices", "connections", "packets", "watch"];
+// Sections that look at the LAN from one server, so they show the server picker.
+export const PER_HOST = ["scan", "watch"];
