@@ -1690,6 +1690,7 @@ textarea {
 
 .chip--accent {
   color: var(--accent);
+  background: var(--accent-bg);
   border-color: color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
@@ -1761,7 +1762,7 @@ textarea {
 .drawer-scrim {
   position: absolute;
   inset: 0;
-  background: rgba(4, 6, 9, 0.62);
+  background: rgba(3, 9, 17, 0.62);
 }
 
 .drawer {
@@ -3565,7 +3566,7 @@ a.c-addr:hover {
   display: block;
   height: 6px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(150, 200, 255, 0.08);
   overflow: hidden;
 }
 
@@ -3657,7 +3658,7 @@ a.c-addr:hover {
   display: flex;
   height: 8px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(150, 200, 255, 0.08);
   overflow: hidden;
 }
 
@@ -3709,7 +3710,7 @@ a.c-addr:hover {
   justify-content: flex-end;
   height: 34px;
   border-radius: 3px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(150, 200, 255, 0.06);
   overflow: hidden;
 }
 
@@ -3791,7 +3792,7 @@ a.c-addr:hover {
   border-radius: var(--radius-pill);
   white-space: nowrap;
   color: var(--text-muted);
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(150, 200, 255, 0.06);
 }
 
 .status-pill::before {
@@ -3836,13 +3837,13 @@ a.c-addr:hover {
 
 .icon-action:hover:not(:disabled) {
   color: var(--text);
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(150, 200, 255, 0.07);
   border-color: var(--border-strong);
 }
 
 .icon-action--active {
   color: var(--text);
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(150, 200, 255, 0.08);
 }
 
 .icon-action--danger:hover:not(:disabled) {
@@ -3903,7 +3904,7 @@ a.c-addr:hover {
 }
 
 .check-row:hover .check-line {
-  background: rgba(255, 255, 255, 0.025);
+  background: rgba(150, 200, 255, 0.025);
 }
 
 .check-row--paused .check-line {
@@ -4061,7 +4062,7 @@ a.c-addr:hover {
 }
 
 .backup-row:hover .backup-line {
-  background: rgba(255, 255, 255, 0.025);
+  background: rgba(150, 200, 255, 0.025);
 }
 
 .backup-row--paused .backup-line {
@@ -4182,8 +4183,8 @@ a.c-addr:hover {
 
 .c-icon {
   flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.06);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  background: rgba(150, 200, 255, 0.06);
+  box-shadow: inset 0 0 0 1px rgba(150, 200, 255, 0.06);
 }
 
 .c-state-line .status-pill {
@@ -4324,7 +4325,7 @@ a.c-addr:hover {
 .ov-host:hover,
 .ov-service:hover,
 .qa-line:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(150, 200, 255, 0.05);
 }
 
 /* Issues */
@@ -4474,7 +4475,7 @@ a.c-addr:hover {
   grid-area: bar;
   height: 5px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(150, 200, 255, 0.08);
   overflow: hidden;
 }
 
@@ -4947,7 +4948,7 @@ a.c-addr:hover {
   gap: 6px;
   padding: 2px 4px 2px 9px;
   font-size: var(--fs-sm);
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(150, 200, 255, 0.05);
   border: 1px solid var(--border);
   border-radius: var(--radius-pill);
 }
@@ -5143,7 +5144,7 @@ a.c-addr:hover {
   font: inherit;
   font-size: var(--fs-md);
   color: var(--text);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(150, 200, 255, 0.04);
   border: 1px solid var(--glass-border-strong, var(--border-strong));
   border-radius: 4px;
   padding: 7px 10px;
@@ -5249,7 +5250,7 @@ a.c-addr:hover {
   gap: 12px;
   padding: 8px 12px;
   border-bottom: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(150, 200, 255, 0.02);
 }
 
 .dx-title {
@@ -5282,7 +5283,7 @@ a.c-addr:hover {
 }
 
 .dx-crumbs button:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(150, 200, 255, 0.07);
 }
 
 .dx-crumbs button:disabled {
@@ -5315,7 +5316,7 @@ a.c-addr:hover {
 
 .dx-close:hover {
   color: var(--text);
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(150, 200, 255, 0.07);
 }
 
 .dx-error {
@@ -5359,7 +5360,7 @@ a.c-addr:hover {
 
 .dx-row--open:hover,
 .dx-row--up:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(150, 200, 255, 0.04);
 }
 
 .dx-row--up td {
@@ -5397,7 +5398,7 @@ a.c-addr:hover {
   display: block;
   height: 8px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(150, 200, 255, 0.06);
   overflow: hidden;
 }
 
@@ -6043,7 +6044,7 @@ a.c-addr:hover {
   justify-content: center;
   align-items: flex-start;
   padding: 12vh 16px 16px;
-  background: rgba(5, 7, 12, 0.55);
+  background: rgba(3, 9, 17, 0.55);
 }
 
 .palette {

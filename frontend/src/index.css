@@ -3,25 +3,25 @@
 :root {
   /* Surfaces, darkest first: page, panel, then translucent washes that
      work on either (row hover, selected). */
-  --bg: #0a0c10;
-  --bg-card: #111419;
-  --bg-subtle: rgba(255, 255, 255, 0.04);
-  --bg-raised: rgba(255, 255, 255, 0.075);
-  --border: rgba(255, 255, 255, 0.075);
-  --border-strong: rgba(255, 255, 255, 0.13);
+  --bg: #091522;
+  --bg-card: #0c1a2c;
+  --bg-subtle: rgba(79, 172, 254, 0.05);
+  --bg-raised: rgba(79, 172, 254, 0.10);
+  --border: #16304a;
+  --border-strong: #24476a;
 
   /* Text, on the panel color: primary 14.8:1, muted 6.4:1, faint 4.8:1. Faint
      is the floor for anything read — it used to be 3.5:1. */
-  --text: #e3e6ec;
-  --text-muted: #9098a6;
-  --text-faint: #7a8292;
+  --text: #d9e8f5;
+  --text-muted: #78aecd;
+  --text-faint: #5f98b8;
 
   --radius: 6px;
   --radius-sm: 4px;
   --radius-pill: 999px;
 
-  --accent: #2dd4bf;
-  --accent-bg: rgba(45, 212, 191, 0.12);
+  --accent: #4facfe;
+  --accent-bg: rgba(79, 172, 254, 0.14);
 
   /* The dashboard's own host — a hue apart from --accent so it reads as
      "this one's special" without implying clickable. */
