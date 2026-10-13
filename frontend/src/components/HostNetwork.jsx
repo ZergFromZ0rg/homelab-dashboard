@@ -8,24 +8,10 @@ import { formatBytesPerSec } from "./format";
 import { hostColor } from "./hostColor";
 import { createNetwork, fetchNetworks, removeNetwork, setMembership } from "./networksApi";
 
-// One server's network: traffic, interfaces, published ports, Docker networks
+// One server's network: traffic, interfaces, Docker networks
 // with who's on them (and the controls to change that), and — folded away
 // until asked — who it's talking to. The Network page of a host on the Hosts
 // tab.
-
-// Every host port a container publishes, as one row per mapping.
-function publishedPorts(containers) {
-  const rows = [];
-  for (const c of containers || []) {
-    for (const [key, hostPorts] of Object.entries(c.ports || {})) {
-      const [port, proto] = key.split("/");
-      for (const hostPort of hostPorts || []) {
-        rows.push({ hostPort: Number(hostPort), port, proto, container: c.name });
-      }
-    }
-  }
-  return rows.sort((a, b) => a.hostPort - b.hostPort || a.proto.localeCompare(b.proto));
-}
 
 function NewNetworkForm({ onCreate, onCancel }) {
   const [name, setName] = useState("");
@@ -277,7 +263,6 @@ function HostNetwork({ host, machine, containers, history }) {
     }
   };
 
-  const ports = publishedPorts(containers);
   const interfaces = machine?.interfaces || [];
   const trafficMax =
     Math.max(
@@ -352,52 +337,6 @@ function HostNetwork({ host, machine, containers, history }) {
                 {!interfaces.length && (
                   <tr>
                     <td colSpan={4} className="net-dim">No interface data from Prometheus.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </section>
-
-          <section className="overview-card">
-            <div className="overview-card-head">
-              <h2>Published ports</h2>
-              <span className="overview-card-count">{ports.length}</span>
-            </div>
-            <table className="net-table">
-              <thead>
-                <tr>
-                  <th>Host port</th>
-                  <th>Container</th>
-                  <th>Inside</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {ports.map((p) => (
-                  <tr key={`${p.hostPort}-${p.proto}-${p.container}`}>
-                    <td className="net-mono">
-                      <strong>{p.hostPort}</strong>
-                      <span className="net-dim">/{p.proto}</span>
-                    </td>
-                    <td>{p.container}</td>
-                    <td className="net-mono net-dim">{p.port}</td>
-                    <td>
-                      {p.proto === "tcp" && (
-                        <a
-                          className="net-open"
-                          href={`http://${host}:${p.hostPort}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          open ↗
-                        </a>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-                {!ports.length && (
-                  <tr>
-                    <td colSpan={4} className="net-dim">Nothing is published on this host.</td>
                   </tr>
                 )}
               </tbody>
