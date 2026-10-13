@@ -21,8 +21,8 @@
 
 :root {
   --glass: var(--bg-card);
-  --glass-strong: #0f2035;
-  --glass-hover: #11253b;
+  --glass-strong: #14171d;
+  --glass-hover: #161a21;
   --glass-border: var(--border);
   --glass-border-strong: var(--border-strong);
   --glass-highlight: 0 0 0 transparent;
@@ -156,7 +156,7 @@
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  box-shadow: inset 0 0 0 1px rgba(150, 200, 255, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
 }
 
 .brand-text h1 {

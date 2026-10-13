@@ -17,10 +17,10 @@ import { ensureConfirmed } from "./confirmedFetch";
 
 // Matches index.css's --bg / --text.
 const THEME = {
-  background: "#091522",
-  foreground: "#d9e8f5",
-  cursor: "#4facfe",
-  selectionBackground: "rgba(79, 172, 254, 0.3)",
+  background: "#0a0c10",
+  foreground: "#e3e6ec",
+  cursor: "#2dd4bf",
+  selectionBackground: "rgba(45, 212, 191, 0.3)",
   black: "#1b212d",
   brightBlack: "#6b748a",
 };
