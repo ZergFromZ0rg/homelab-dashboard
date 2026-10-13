@@ -60,6 +60,10 @@ function container(id, name, image, host, o = {}) {
     live_activity: o.live ?? null,
     // Compose projects in a git checkout, on a host that opted in.
     rebuild: o.rebuild ?? null,
+    // A host-network container publishes nothing; the agent reports what it
+    // listens on instead. `web` is the agent's probe of its web UI.
+    ...(o.listening ? { listening: o.listening } : {}),
+    ...(o.web ? { web: o.web } : {}),
   };
 }
 
@@ -696,7 +700,7 @@ function fullSnapshot() {
         rx: 3_200_000, tx: 18_000_000, live: { app: "jellyfin", detail: "2 users streaming" }, update: true,
       }),
       container("a2", "qbittorrent", "lscr.io/linuxserver/qbittorrent:latest", "bigboy", { project: "media",
-        cpu: 6.8, ramMb: 610, ports: { "8080/tcp": ["8080"] },
+        cpu: 6.8, ramMb: 610, ports: { "6881/tcp": ["6881"], "6881/udp": ["6881"], "8080/tcp": ["8080"] },
         rx: 9_500_000, tx: 1_100_000, live: { app: "qbittorrent", detail: "3 downloading, 5 seeding" },
       }),
       container("a3", "sonarr", "lscr.io/linuxserver/sonarr:latest", "bigboy", { project: "media", update: true, cpu: 0.8, ramMb: 380, ports: { "8989/tcp": ["8989"] } }),
@@ -709,7 +713,13 @@ function fullSnapshot() {
       container("b1", "homelab-dashboard", "homelab-dashboard", "thinkpad", { project: "homelab", cpu: 0.9, ramMb: 90, ports: { "80/tcp": ["8081"] } }),
       container("b2", "prometheus", "prom/prometheus:latest", "thinkpad", { project: "monitoring", cpu: 2.1, ramMb: 480, ports: { "9090/tcp": ["9090"] } }),
       container("b3", "grafana", "grafana/grafana:latest", "thinkpad", { project: "monitoring", cpu: 1.1, ramMb: 210, ports: { "3000/tcp": ["3000"] }, health: "healthy" }),
-      container("b4", "homelab-agent", "homelab-agent", "thinkpad", { project: "homelab", cpu: 0.3, ramMb: 55 }),
+      container("b4", "homelab-agent", "homelab-agent", "thinkpad", { project: "homelab", cpu: 0.3, ramMb: 55, ports: { "8123/tcp": ["8123"] } }),
+      container("b5", "pihole", "pihole/pihole:latest", "thinkpad", { project: "pihole", cpu: 0.7, ramMb: 140, health: "healthy",
+        listening: [53, 8053], web: { port: 8053, scheme: "http", path: "/admin/", status: 302, ok: true, host_rejected: false },
+      }),
+      container("b6", "node-exporter", "prom/node-exporter:latest", "thinkpad", { project: "monitoring", cpu: 0.2, ramMb: 22,
+        listening: [9100], web: { port: 9100, scheme: "http", path: "/", status: 200, ok: true, host_rejected: false },
+      }),
     ],
     "nuc-media": [
       container("c1", "plex", "plexinc/pms-docker:latest", "nuc-media", { project: "plex", cpu: 48.0, ramMb: 2100, ports: { "32400/tcp": ["32400"] } }),

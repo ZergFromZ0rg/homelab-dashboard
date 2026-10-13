@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import ContainerRow from "./ContainerRow";
 import ContainerTableHead from "./ContainerTableHead";
+import PortsView from "./PortsView";
 import SortControl from "./SortControl";
 import { useUpdates } from "./updatesContext";
 import { sortContainers, needsAttention } from "./containerSort";
@@ -14,6 +15,11 @@ import Icon from "./Icon";
 import ProgressBar from "./ProgressBar";
 import { useTerminal } from "./terminalContext";
 import GitUpdates from "./GitUpdates";
+
+const VIEWS = [
+  ["list", "Containers"],
+  ["ports", "Ports"],
+];
 
 const STATUS_FILTERS = [
   { value: "all", label: "All" },
@@ -267,6 +273,9 @@ function ContainerList({
     "homelab.containerStatusFilter",
     "all"
   );
+  const [view, setView] = useLocalStorage("homelab.containerView", "list");
+  const [portQuery, setPortQuery] = useState("");
+  const listView = view !== "ports";
   const [hostState, setHostState] = useLocalStorage(
     "homelab.containerHostState",
     {}
@@ -345,60 +354,94 @@ function ContainerList({
         </div>
       ) : (
         <div className="container-toolbar">
-          <div className="container-search">
-            <input
-              type="search"
-              placeholder="Filter by name or image…"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              aria-label="Filter containers"
-            />
-          </div>
-
-          <div className="segmented" role="group" aria-label="Status filter">
-            {STATUS_FILTERS.map((f) => (
+          <div className="segmented" role="group" aria-label="View">
+            {VIEWS.map(([value, label]) => (
               <button
-                key={f.value}
+                key={value}
                 type="button"
-                className={statusFilter === f.value ? "active" : ""}
-                aria-pressed={statusFilter === f.value}
-                onClick={() => setStatusFilter(f.value)}
+                className={view === value ? "active" : ""}
+                aria-pressed={view === value}
+                onClick={() => setView(value)}
               >
-                {f.label}
+                {label}
               </button>
             ))}
           </div>
 
-          <div className="container-toolbar-end">
-            {filtering && (
-              <span className="container-search-count">
-                {totalMatches} match{totalMatches === 1 ? "" : "es"}
-              </span>
-            )}
-            <button
-              type="button"
-              className="btn btn--sm btn--ghost"
-              onClick={() => setAllCollapsed(false)}
-            >
-              Expand all
-            </button>
-            <button
-              type="button"
-              className="btn btn--sm btn--ghost"
-              onClick={() => setAllCollapsed(true)}
-            >
-              Collapse all
-            </button>
-          </div>
+          {listView ? (
+            <>
+              <div className="container-search">
+                <input
+                  type="search"
+                  placeholder="Filter by name or image…"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  aria-label="Filter containers"
+                />
+              </div>
+
+              <div className="segmented" role="group" aria-label="Status filter">
+                {STATUS_FILTERS.map((f) => (
+                  <button
+                    key={f.value}
+                    type="button"
+                    className={statusFilter === f.value ? "active" : ""}
+                    aria-pressed={statusFilter === f.value}
+                    onClick={() => setStatusFilter(f.value)}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="container-toolbar-end">
+                {filtering && (
+                  <span className="container-search-count">
+                    {totalMatches} match{totalMatches === 1 ? "" : "es"}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  className="btn btn--sm btn--ghost"
+                  onClick={() => setAllCollapsed(false)}
+                >
+                  Expand all
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--sm btn--ghost"
+                  onClick={() => setAllCollapsed(true)}
+                >
+                  Collapse all
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="container-search">
+              <input
+                type="search"
+                placeholder="Filter by container or port…"
+                value={portQuery}
+                onChange={(event) => setPortQuery(event.target.value)}
+                aria-label="Filter ports"
+              />
+            </div>
+          )}
         </div>
       )}
 
       <div className="containers-scroll fit-pane">
+      {!listView && hosts.length > 0 && (
+        <PortsView containers={containers} hosts={hosts} query={portQuery.trim()} />
+      )}
+
+      {listView && (
       <div className="container-list container-list--head">
         <ContainerTableHead />
       </div>
+      )}
 
-      {pinnedContainers.length > 0 && (() => {
+      {listView && pinnedContainers.length > 0 && (() => {
         const pinnedOpen = filtering ? true : !pinnedCollapsed;
         return (
           <div className="pinned-strip">
@@ -440,7 +483,7 @@ function ContainerList({
         );
       })()}
 
-      {filtering && totalMatches === 0 && (
+      {listView && filtering && totalMatches === 0 && (
         <div className="empty-state">
           No containers match.{" "}
           <button
@@ -456,7 +499,7 @@ function ContainerList({
         </div>
       )}
 
-      {hosts.map((host) => {
+      {listView && hosts.map((host) => {
         // A pinned container is in the strip above *and* still in its host's
         // group: pinning is a shortcut, it doesn't take the container away
         // from the host it runs on.
@@ -483,7 +526,7 @@ function ContainerList({
         );
       })}
 
-      <GitUpdates machines={machines} />
+      {listView && <GitUpdates machines={machines} />}
       </div>
     </section>
   );

@@ -4831,6 +4831,46 @@ a.c-addr:hover {
   text-decoration: underline;
 }
 
+/* Containers → Ports: the same columns in every host's card, so a port
+   number is found by eye down the page, not re-read per table. */
+.ports-table {
+  table-layout: fixed;
+}
+
+.ports-table th:nth-child(1) {
+  width: 110px;
+}
+
+.ports-table th:nth-child(2) {
+  width: 280px;
+}
+
+.ports-table th:nth-child(3) {
+  width: 130px;
+}
+
+.ports-table td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ports-row--off td {
+  opacity: 0.5;
+}
+
+@media (max-width: 640px) {
+  /* The port inside is the first thing to go: the port, who has it and
+     where it opens are what a phone is for. */
+  .ports-table th:nth-child(2) {
+    width: auto;
+  }
+
+  .ports-table th:nth-child(3),
+  .ports-table td:nth-child(3) {
+    display: none;
+  }
+}
+
 .net-list {
   display: flex;
   flex-direction: column;
