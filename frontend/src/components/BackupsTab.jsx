@@ -1,3 +1,5 @@
+import PageLede from "./PageLede";
+import { purposeOf } from "./navPurpose";
 import { useCallback, useEffect, useState } from "react";
 import BackupCard from "./BackupCard";
 import BackupForm from "./BackupForm";
@@ -79,6 +81,7 @@ function BackupsTab({ machines, connected, showLocation = false, onOpenFolder })
 
   return (
     <section className="backups-tab fit-page" ref={fit}>
+      <PageLede text={purposeOf("backups")} />
       {jobs.length > 0 && (
         <div className="facts-row">
           <Fact

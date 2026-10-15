@@ -15,6 +15,23 @@ export const HOST_PAGES = [
 
 const PAGE_IDS = HOST_PAGES.map(([id]) => id);
 
+// What the row of pages shows: five entries, each a job. History is the
+// "over time" view of Health, and Packets the "capture it" view of Network;
+// both keep their own address, and a switch on the page moves between them.
+// [entry id (the page it opens), label, [pages it covers], [[page, switch label]…]]
+export const HOST_NAV = [
+  ["summary", "Health", ["summary", "history"], [["summary", "Live"], ["history", "Over time"]]],
+  ["storage", "Disks & files", ["storage"], []],
+  ["services", "Services", ["services"], []],
+  ["network", "Network", ["network", "packets"], [["network", "Traffic"], ["packets", "Packet capture"]]],
+  ["manage", "Maintenance", ["manage"], []],
+];
+
+// The entry a page belongs to.
+export function navEntry(page) {
+  return HOST_NAV.find(([, , pages]) => pages.includes(page)) ?? HOST_NAV[0];
+}
+
 export function hostsSub(host, page = "summary") {
   return host ? `${host}/${page}` : "overview";
 }

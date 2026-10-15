@@ -29,6 +29,7 @@ import { useModeSelector } from "./components/viewMode";
 import { parseHash, useNavHistory } from "./components/navHistory";
 import MorningBriefing from "./components/MorningBriefing";
 import { isRootDown } from "./components/checkStatus";
+import { needsAttention } from "./components/containerSort";
 
 const EMPTY_OVERVIEW = { ok: true, issues: [], recommendations: [] };
 
@@ -410,10 +411,12 @@ function App() {
     }
   };
 
-  const totalContainers = Object.values(containers).reduce(
-    (sum, list) => sum + list.length,
+  const containersNeedingYou = Object.values(containers).reduce(
+    (sum, list) => sum + list.filter((c) => needsAttention(c)).length,
     0
   );
+  const checksDown = checks.filter(isRootDown).length;
+  const checksSlow = checks.filter((c) => c.status === "degraded").length;
 
   const openTodos = todos.filter((t) => !t.done).length;
   const failedUnits = Object.values(machines).reduce(
@@ -434,19 +437,16 @@ function App() {
       count: failedUnits || (overview.ok ? null : overview.issues.length) || null,
       tone: "bad",
     },
-    { value: "containers", label: "Containers", count: totalContainers },
+    // A number on a tab always means "this needs you" — never just how many
+    // there are.
+    { value: "containers", label: "Containers", count: containersNeedingYou || null, tone: "bad" },
     {
       value: "network",
       label: "Network",
-      count: checks.length || null,
-      tone: checks.some(isRootDown) ? "bad" : checks.some((c) => c.status === "degraded") ? "warn" : undefined,
+      count: checksDown || checksSlow || null,
+      tone: checksDown ? "bad" : "warn",
     },
-    {
-      value: "backups",
-      label: "Backups",
-      count: backups?.total || null,
-      tone: backups?.attention ? "bad" : undefined,
-    },
+    { value: "backups", label: "Backups", count: backups?.attention || null, tone: "bad" },
   ];
   const tabValues = tabs.map((t) => t.value);
   // A tab that doesn't exist shows the first one instead.

@@ -1,3 +1,5 @@
+import PageLede from "./PageLede";
+import { purposeOf } from "./navPurpose";
 import { useMemo, useState } from "react";
 import ContainerRow from "./ContainerRow";
 import ContainerTableHead from "./ContainerTableHead";
@@ -353,6 +355,8 @@ function ContainerList({
             : "No agents reporting containers yet."}
         </div>
       ) : (
+        <>
+        <PageLede text={purposeOf("containers")} />
         <div className="container-toolbar">
           <div className="segmented" role="group" aria-label="View">
             {VIEWS.map(([value, label]) => (
@@ -428,6 +432,7 @@ function ContainerList({
             </div>
           )}
         </div>
+        </>
       )}
 
       <div className="containers-scroll fit-pane">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hostsSub, parseHostsSub } from "./hostsNav";
+import { HOST_NAV, hostsSub, navEntry, parseHostsSub } from "./hostsNav";
 
 const hosts = ["bigboy", "thinkpad"];
 
@@ -39,5 +39,31 @@ describe("hostsSub", () => {
     expect(hostsSub(null)).toBe("overview");
     expect(hostsSub("bigboy")).toBe("bigboy/summary");
     expect(parseHostsSub(hostsSub("thinkpad", "manage"), hosts)).toEqual({ host: "thinkpad", page: "manage" });
+  });
+});
+
+describe("the row of pages", () => {
+  it("shows five entries, each a job", () => {
+    expect(HOST_NAV.map(([, label]) => label)).toEqual(["Health", "Disks & files", "Services", "Network", "Maintenance"]);
+  });
+
+  it("folds History into Health and Packets into Network, and keeps their addresses", () => {
+    expect(navEntry("history")[0]).toBe("summary");
+    expect(navEntry("packets")[0]).toBe("network");
+    expect(parseHostsSub("bigboy/history", hosts)).toEqual({ host: "bigboy", page: "history" });
+    expect(parseHostsSub("bigboy/packets", hosts)).toEqual({ host: "bigboy", page: "packets" });
+  });
+
+  it("gives the two-view entries a switch between their pages, and the rest none", () => {
+    const views = Object.fromEntries(HOST_NAV.map(([id, , , v]) => [id, v.map(([page]) => page)]));
+    expect(views.summary).toEqual(["summary", "history"]);
+    expect(views.network).toEqual(["network", "packets"]);
+    expect(views.storage).toEqual([]);
+  });
+
+  it("reaches every page the address can name", () => {
+    for (const page of ["summary", "history", "storage", "services", "network", "packets", "manage"]) {
+      expect(HOST_NAV.some(([, , pages]) => pages.includes(page)), page).toBe(true);
+    }
   });
 });

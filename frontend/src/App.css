@@ -11014,3 +11014,45 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
 .check-charts {
   margin-top: 8px;
 }
+
+/* ----- Page lede: what this page is for ----- */
+
+.page-lede {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 26px;
+  margin: 0 2px;
+}
+
+.page-lede p {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--fs-md);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.page-lede-views {
+  flex: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.page-lede-views button {
+  padding: 3px 12px;
+  font-size: var(--fs-sm);
+}
+
+.page-lede-views button + button {
+  border-left: 1px solid var(--border);
+}
+
+.page-lede-views button.active {
+  background: var(--bg-raised);
+  color: var(--text);
+}

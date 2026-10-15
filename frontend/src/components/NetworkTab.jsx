@@ -7,7 +7,9 @@ import ServicesTab from "./ServicesTab";
 import { hostColor } from "./hostColor";
 import { isRootDown } from "./checkStatus";
 import { useLocalStorage } from "./useLocalStorage";
-import { networkSections, pickSection, PER_HOST } from "./networkSections";
+import PageLede from "./PageLede";
+import { purposeOf } from "./navPurpose";
+import { entryOf, networkSections, pickSection, PER_HOST, SECTION_VIEWS } from "./networkSections";
 import { useFitHeight } from "./useFitHeight";
 
 // The network as a whole: uptime checks, DNS, bandwidth, the switch, and a
@@ -25,6 +27,7 @@ function NetworkTab({ machines, checks, connected, section: wanted, onSection })
   const sections = networkSections(checksBadge);
   const section = pickSection(sections, wanted);
   const perHost = PER_HOST.includes(section);
+  const entry = entryOf(section);
 
   return (
     <section className="network-tab fit-page" ref={fit}>
@@ -35,8 +38,9 @@ function NetworkTab({ machines, checks, connected, section: wanted, onSection })
               key={id}
               type="button"
               role="tab"
-              aria-selected={section === id}
-              className={section === id ? "active" : ""}
+              aria-selected={entry === id}
+              className={entry === id ? "active" : ""}
+              title={purposeOf("network", { section: id })}
               onClick={() => onSection(id)}
             >
               {label}
@@ -64,6 +68,8 @@ function NetworkTab({ machines, checks, connected, section: wanted, onSection })
           </div>
         )}
       </div>
+
+      <PageLede text={purposeOf("network", { section })} views={SECTION_VIEWS[entry]} current={section} onView={onSection} />
 
       {perHost && hosts.length === 0 && (
         <div className="empty-state">{connected === false ? "Connecting…" : "No servers reporting yet."}</div>

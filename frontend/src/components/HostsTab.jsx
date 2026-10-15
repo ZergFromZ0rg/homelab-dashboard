@@ -8,14 +8,17 @@ import MachineCard from "./MachineCard";
 import Overview from "./Overview";
 import PacketCapture from "./PacketCapture";
 import { Journal, Services } from "./HostSystem";
-import { HOST_PAGES, hostsSub, parseHostsSub } from "./hostsNav";
+import PageLede from "./PageLede";
+import { HOST_NAV, hostsSub, navEntry, parseHostsSub } from "./hostsNav";
+import { purposeOf } from "./navPurpose";
 import { hostColor } from "./hostColor";
 import { useFitHeight } from "./useFitHeight";
 import { useLocalStorage } from "./useLocalStorage";
 
 // The machines, one page each. Pick the server once — or the fleet as a whole
-// — and everything about it is a page in the same row: its vitals, history,
-// storage and files, services, network, packets, and the things you change.
+// — and everything about it is a page in the same row: its health, disks and
+// files, services, network, and the things you change. Each page says what it
+// is for, and History and Packets are the second view of Health and Network.
 // `sub` is the address's second half (`overview`, or `bigboy/storage`), so the
 // browser's back and forward walk the pages too.
 function HostsTab({ sub, onSub, machines, containers, history, mainHost, connected, filesTarget, onFilesTargetUsed, ...fleet }) {
@@ -23,6 +26,7 @@ function HostsTab({ sub, onSub, machines, containers, history, mainHost, connect
   const hosts = Object.keys(machines).sort();
   const [lastHost, setLastHost] = useLocalStorage("hostsLastHost", null);
   const { host, page } = parseHostsSub(sub, hosts, lastHost);
+  const [entryId, , , views] = navEntry(page);
   // A bare page in the address ("storage") means the host you were last on.
   useEffect(() => {
     if (host && host !== lastHost) setLastHost(host);
@@ -69,15 +73,16 @@ function HostsTab({ sub, onSub, machines, containers, history, mainHost, connect
 
         {host && (
           <div className="hsys-tabs" role="tablist" aria-label={`${host} pages`}>
-            {HOST_PAGES.map(([id, label]) => {
+            {HOST_NAV.map(([id, label]) => {
               const badge = badges[id];
               return (
                 <button
                   key={id}
                   type="button"
                   role="tab"
-                  aria-selected={page === id}
-                  className={page === id ? "active" : ""}
+                  aria-selected={entryId === id}
+                  className={entryId === id ? "active" : ""}
+                  title={purposeOf("hosts", { page: id, host })}
                   onClick={() => onSub(hostsSub(host, id))}
                 >
                   {label}
@@ -94,6 +99,13 @@ function HostsTab({ sub, onSub, machines, containers, history, mainHost, connect
           </span>
         )}
       </div>
+
+      <PageLede
+        text={purposeOf("hosts", { page, host })}
+        views={host ? views : null}
+        current={page}
+        onView={(id) => onSub(hostsSub(host, id))}
+      />
 
       {!host && (
         <div className="fit-pane hosts-pane--board">
