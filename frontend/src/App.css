@@ -7225,6 +7225,9 @@ button.mb-item:disabled { cursor: default; }
 }
 
 .sh-grid {
+  /* The clock and the pinned-app tiles are the top row of two columns; they
+     share a height so the cards under them start on the same line. */
+  --sh-top-h: 71px;
   display: grid;
   grid-template-columns: minmax(230px, 280px) minmax(0, 1fr) minmax(270px, 320px);
   gap: 10px;
@@ -7272,6 +7275,7 @@ button.mb-item:disabled { cursor: default; }
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  min-height: var(--sh-top-h);
   padding: 10px 14px;
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -7312,7 +7316,7 @@ button.mb-item:disabled { cursor: default; }
   display: flex;
   gap: 8px;
   padding: 6px 0 4px 2px;
-  margin-top: -6px;
+  margin: -6px 0 -4px;
   overflow-x: auto;
   scroll-snap-type: x proximity;
   scroll-behavior: smooth;
@@ -7443,6 +7447,7 @@ button.mb-item:disabled { cursor: default; }
   flex-direction: column;
   align-items: center;
   gap: 4px;
+  min-height: var(--sh-top-h);
   padding: 9px 4px 6px;
   background: var(--bg-card);
   border: 1px solid var(--border);
