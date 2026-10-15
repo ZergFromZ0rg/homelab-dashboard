@@ -7569,9 +7569,21 @@ a.sh-app:hover {
   gap: 2px;
 }
 
-/* The briefing keeps its full height — "Needs a yes" is the important part,
-   so it is the full-width top row and Live updates / Degrading sit under it.
-   The container table gives way instead. */
+/* "Needs a yes" is the important part of the briefing, so it is the
+   full-width top row and Live updates / Degrading sit under it. The container
+   list is what you read the page for, so it keeps room for about six rows and
+   the briefing scrolls inside itself when the window is short. */
+.sh-col--mid > .morning-briefing {
+  flex: 0 1 auto;
+  min-height: 150px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.sh-col--mid > .sh-table-card {
+  min-height: 240px;
+}
+
 .sh-col--mid .morning-briefing .mb-columns {
   grid-template-columns: 1fr 1fr;
 }
@@ -7628,6 +7640,7 @@ a.sh-app:hover {
 }
 
 .sh-table-card .overview-card-body {
+  container: sh-table / inline-size;
   display: flex;
   flex-direction: column;
   padding: 0;
@@ -7649,7 +7662,8 @@ a.sh-app:hover {
 .sh-table th {
   position: sticky;
   top: 0;
-  padding: 5px 12px;
+  z-index: 1;
+  padding: 5px 8px;
   background: var(--bg-card);
   border-bottom: 1px solid var(--border);
   color: var(--text-faint);
@@ -7661,15 +7675,28 @@ a.sh-app:hover {
 }
 
 .sh-table td {
-  padding: 3px 12px;
+  padding: 3px 8px;
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
+  vertical-align: middle;
+}
+
+/* The name takes whatever the numbers leave and gives way with an ellipsis. */
+.sh-col-name {
+  width: 100%;
+  max-width: 0;
 }
 
 .sh-table .num {
   text-align: right;
   font-family: var(--mono);
+  font-size: var(--fs-2xs);
   font-variant-numeric: tabular-nums;
+}
+
+.sh-table th.num {
+  font-family: var(--sans);
+  font-size: var(--fs-sm);
 }
 
 .sh-table a {
@@ -7682,9 +7709,116 @@ a.sh-app:hover {
 }
 
 .sh-name {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+}
+
+.sh-name a,
+.sh-name > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sh-row-icon {
+  position: relative;
+  flex: none;
+  width: 22px;
+  height: 22px;
+}
+
+.sh-row-icon .app-tile-letter {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  font-size: var(--fs-sm);
+}
+
+.sh-row-icon img {
+  position: absolute;
+  inset: 0;
+  width: 22px;
+  height: 22px;
+  max-width: none;
+  max-height: none;
+  object-fit: contain;
+}
+
+.sh-table .status-pill {
+  padding: 3px 8px;
+  font-size: var(--fs-2xs);
+}
+
+.sh-health {
+  margin-left: 6px;
+  font-size: var(--fs-2xs);
+}
+
+/* A number with a short bar beside it. */
+.sh-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.sh-meter {
+  flex: none;
+  display: block;
+  width: 22px;
+  height: 4px;
+  overflow: hidden;
+  background: var(--bg-raised);
+  border-radius: var(--radius-pill);
+}
+
+.sh-meter i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: var(--radius-pill);
+}
+
+.sh-meter i.sh-meter--ram {
+  background: var(--main-host);
+}
+
+.sh-meter i.sh-meter--warn {
+  background: var(--warning);
+}
+
+.sh-meter i.sh-meter--bad {
+  background: var(--offline);
+}
+
+.sh-net span + span {
+  margin-left: 10px;
+}
+
+.sh-dim {
+  color: var(--text-faint);
+}
+
+.sh-up {
+  color: var(--text-muted);
+}
+
+/* In a narrow card the least-needed columns go first, so the name keeps room:
+   uptime and the bars, then network. */
+@container sh-table (max-width: 760px) {
+  .sh-c-up,
+  .sh-meter {
+    display: none;
+  }
+}
+
+@container sh-table (max-width: 600px) {
+  .sh-c-net {
+    display: none;
+  }
 }
 
 .sh-row--off td {
@@ -7695,8 +7829,14 @@ a.sh-app:hover {
   text-align: right;
 }
 
+.sh-actions .icon-action {
+  width: 22px;
+  height: 22px;
+  margin-left: 2px;
+}
+
 .sh-table tr:not(:hover) .sh-actions {
-  opacity: 0.25;
+  opacity: 0.6;
 }
 
 /* Servers: a block per host — name, uptime and temperature, then meters. */

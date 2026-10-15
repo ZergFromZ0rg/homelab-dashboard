@@ -71,3 +71,24 @@ export function formatWhen(at) {
     ? time
     : `${d.toLocaleDateString([], { month: "short", day: "numeric" })} ${time}`;
 }
+
+// A container's start time -> "3d 4h" / "5h 12m" / "9m" up, or "—" when unknown.
+export function formatStartedAt(value) {
+  if (!value || value.startsWith("0001-")) return "—";
+
+  const started = new Date(value);
+  const now = new Date();
+
+  const seconds = Math.floor((now - started) / 1000);
+
+  if (seconds < 0) return "—";
+
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+
+  return `${minutes}m`;
+}

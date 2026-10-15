@@ -3,7 +3,7 @@ import { containerLink, linkLabel, linkProblem, publishedPorts } from "./contain
 import AppIcon from "./AppIcon";
 import Icon, { IconButton } from "./Icon";
 import { needsAttention } from "./containerSort";
-import { formatBytes, formatBytesPerSec, formatWhen } from "./format";
+import { formatBytes, formatBytesPerSec, formatStartedAt, formatWhen } from "./format";
 import ContainerCharts from "./ContainerCharts";
 import Heartbeat from "./Heartbeat";
 import RebuildButton, { RebuildNote } from "./RebuildButton";
@@ -15,26 +15,6 @@ import { useTerminal } from "./terminalContext";
 import { useUpdates } from "./updatesContext";
 
 const ContainerSettings = lazy(() => import("./ContainerSettings"));
-
-function formatStartedAt(value) {
-  if (!value || value.startsWith("0001-")) return "—";
-
-  const started = new Date(value);
-  const now = new Date();
-
-  const seconds = Math.floor((now - started) / 1000);
-
-  if (seconds < 0) return "—";
-
-  const days = Math.floor(seconds / 86400);
-  const hours = Math.floor((seconds % 86400) / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-
-  if (days > 0) return `${days}d ${hours}h`;
-  if (hours > 0) return `${hours}h ${minutes}m`;
-
-  return `${minutes}m`;
-}
 
 function Detail({ label, value, sub }) {
   return (
