@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import AppIcon from "./AppIcon";
 import Card from "./Card";
+import ContainerTiles, { ContainerTile } from "./ContainerTiles";
 import FirstRun from "./FirstRun";
 import ProjectsCard from "./ProjectsCard";
 import { Meter } from "./HostSummary";
@@ -13,6 +13,7 @@ import { formatBytes } from "./format";
 import { hostColor } from "./hostColor";
 import { formatUptime } from "./machineInfo";
 import { pinKey, togglePin } from "./containerPins";
+import { useLocalStorage } from "./useLocalStorage";
 import { useSettings } from "./settings";
 import { useNow } from "./useNow";
 import { useFitHeight } from "./useFitHeight";
@@ -137,45 +138,9 @@ function AppGrid({ pins, containers, onSetPins }) {
   return (
     <div className="sh-apps-wrap">
       <div className={`sh-apps ${editing ? "sh-apps--editing" : ""}`} ref={row}>
-        {apps.map((c) => {
-          const url = containerLink(c.host, c);
-          const running = c.status === "running";
-          const tile = (
-            <>
-              <AppIcon url={url} label={c.name} className="app-tile-icon sh-app-icon" />
-              <span className={`status-dot status-dot--${running ? "ok" : "bad"} sh-app-dot`} />
-              <span className="sh-app-name">{c.name}</span>
-            </>
-          );
-          const problem = url ? linkProblem(c.host, c) : null;
-          const title = `${c.name} on ${c.host}${running ? "" : ` — ${c.status}`}${url ? ` · ${url}` : ""}${problem ? ` — ${problem}` : ""}`;
-          const cls = `sh-app ${running ? "" : "sh-app--off"}`;
-          const key = `${c.host}/${c.id}`;
-          if (editing) {
-            return (
-              <button
-                type="button"
-                key={key}
-                className={`${cls} sh-app--removable`}
-                title={`Unpin ${c.name}`}
-                aria-label={`Unpin ${c.name}`}
-                onClick={() => unpin(c)}
-              >
-                {tile}
-                <span className="sh-app-minus" aria-hidden="true">−</span>
-              </button>
-            );
-          }
-          return url ? (
-            <a key={key} className={cls} href={url} target="_blank" rel="noopener noreferrer" title={title}>
-              {tile}
-            </a>
-          ) : (
-            <span key={key} className={`${cls} sh-app--static`} title={title}>
-              {tile}
-            </span>
-          );
-        })}
+        {apps.map((c) => (
+          <ContainerTile key={`${c.host}/${c.id}`} c={c} editing={editing} onUnpin={unpin} />
+        ))}
         <button
           type="button"
           className={`sh-app sh-app--add ${adding || editing ? "sh-app--active" : ""}`}
@@ -188,8 +153,8 @@ function AppGrid({ pins, containers, onSetPins }) {
           title={editing ? "Done" : "Pin a container (hold to remove some)"}
           aria-expanded={adding}
         >
-          <span className="sh-app-plus">{editing ? "✓" : "+"}</span>
           <span className="sh-app-name">{editing ? "Done" : "Add"}</span>
+          <span className="sh-app-plus">{editing ? "✓" : "+"}</span>
         </button>
       </div>
       {adding && (
@@ -210,8 +175,10 @@ function AppGrid({ pins, containers, onSetPins }) {
   );
 }
 
-function ContainerTable({ containers, onControl }) {
+function ContainerTable({ containers, pins, onControl }) {
   const [filter, setFilter] = useState("");
+  const [saved, setView] = useLocalStorage("homelab.simpleContainersView", "tiles");
+  const view = saved === "list" ? "list" : "tiles";
   const rows = useMemo(() => {
     const q = filter.trim().toLowerCase();
     return allContainers(containers)
@@ -225,6 +192,11 @@ function ContainerTable({ containers, onControl }) {
   const all = allContainers(containers);
   const running = all.filter((c) => c.status === "running");
 
+  // The pinned ones are the row of tiles above the briefing, so the grid
+  // doesn't repeat them — unless you are searching, when every match shows.
+  const pinned = new Set(pins);
+  const tiles = filter.trim() ? rows : rows.filter((c) => !pinned.has(pinKey(c.host, c.name)));
+
   const act = (c, verb) => {
     if (window.confirm(`${verb} ${c.name} on ${c.host}?`)) {
       onControl.run(c.host, c.id, verb.toLowerCase());
@@ -236,73 +208,89 @@ function ContainerTable({ containers, onControl }) {
       title="Containers"
       count={`${running.length}/${all.length}`}
       actions={
-        <input
-          className="sh-filter"
-          type="search"
-          placeholder="Find…"
-          aria-label="Find a container"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-        />
+        <>
+          <input
+            className="sh-filter"
+            type="search"
+            placeholder="Find…"
+            aria-label="Find a container"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+          />
+          <span className="sh-view" role="group" aria-label="Show containers as">
+            <IconButton icon="grid" label="Tiles" active={view === "tiles"} aria-pressed={view === "tiles"} onClick={() => setView("tiles")} />
+            <IconButton icon="list" label="List" active={view === "list"} aria-pressed={view === "list"} onClick={() => setView("list")} />
+          </span>
+        </>
       }
       className="sh-table-card sh-fill"
     >
       <div className="sh-table-scroll">
-        <table className="sh-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Host</th>
-              <th className="num">CPU</th>
-              <th className="num">Memory</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((c) => {
-              const up = c.status === "running";
-              const pendingAct = onControl.pending[`${c.host}-${c.id}`];
-              const busy = Boolean(pendingAct);
-              const url = containerLink(c.host, c);
-              return (
-                <tr key={`${c.host}-${c.id}`} className={up ? "" : "sh-row--off"}>
-                  <td>
-                    <span className="sh-name">
-                      <span className={`status-dot status-dot--${up ? "ok" : "bad"}`} title={c.status} />
-                      {url ? (
-                        <a href={url} target="_blank" rel="noopener noreferrer" title={`Open ${url}${linkProblem(c.host, c) ? ` — ${linkProblem(c.host, c)}` : ""}`}>
-                          {c.name}
-                        </a>
-                      ) : (
-                        c.name
-                      )}
-                    </span>
-                  </td>
-                  <td style={{ color: hostColor(c.host) }}>{c.host}</td>
-                  <td className="num">{up && c.stats?.cpu_percent != null ? `${c.stats.cpu_percent.toFixed(1)}%` : ""}</td>
-                  <td className="num">{up && c.stats?.memory?.used_bytes != null ? formatBytes(c.stats.memory.used_bytes) : ""}</td>
-                  <td className="sh-actions">
-                    <IconButton
-                      icon={up ? "stop" : "play"}
-                      label={up ? "Stop" : "Start"}
-                      working={pendingAct === (up ? "stop" : "start")}
-                      disabled={busy}
-                      onClick={() => act(c, up ? "Stop" : "Start")}
-                    />
-                    <IconButton icon="refresh" label="Restart" working={pendingAct === "restart"} disabled={busy} onClick={() => act(c, "Restart")} />
+        {view === "tiles" ? (
+          tiles.length ? (
+            <ContainerTiles rows={tiles} />
+          ) : (
+            <p className="sh-empty">
+              {all.length === 0 ? "No containers reported yet." : filter.trim() ? "No match." : "Everything is pinned above."}
+            </p>
+          )
+        ) : (
+          <table className="sh-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Host</th>
+                <th className="num">CPU</th>
+                <th className="num">Memory</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((c) => {
+                const up = c.status === "running";
+                const pendingAct = onControl.pending[`${c.host}-${c.id}`];
+                const busy = Boolean(pendingAct);
+                const url = containerLink(c.host, c);
+                return (
+                  <tr key={`${c.host}-${c.id}`} className={up ? "" : "sh-row--off"}>
+                    <td>
+                      <span className="sh-name">
+                        <span className={`status-dot status-dot--${up ? "ok" : "bad"}`} title={c.status} />
+                        {url ? (
+                          <a href={url} target="_blank" rel="noopener noreferrer" title={`Open ${url}${linkProblem(c.host, c) ? ` — ${linkProblem(c.host, c)}` : ""}`}>
+                            {c.name}
+                          </a>
+                        ) : (
+                          c.name
+                        )}
+                      </span>
+                    </td>
+                    <td style={{ color: hostColor(c.host) }}>{c.host}</td>
+                    <td className="num">{up && c.stats?.cpu_percent != null ? `${c.stats.cpu_percent.toFixed(1)}%` : ""}</td>
+                    <td className="num">{up && c.stats?.memory?.used_bytes != null ? formatBytes(c.stats.memory.used_bytes) : ""}</td>
+                    <td className="sh-actions">
+                      <IconButton
+                        icon={up ? "stop" : "play"}
+                        label={up ? "Stop" : "Start"}
+                        working={pendingAct === (up ? "stop" : "start")}
+                        disabled={busy}
+                        onClick={() => act(c, up ? "Stop" : "Start")}
+                      />
+                      <IconButton icon="refresh" label="Restart" working={pendingAct === "restart"} disabled={busy} onClick={() => act(c, "Restart")} />
+                    </td>
+                  </tr>
+                );
+              })}
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="sh-empty">
+                    {all.length ? "No match." : "No containers reported yet."}
                   </td>
                 </tr>
-              );
-            })}
-            {rows.length === 0 && (
-              <tr>
-                <td colSpan={5} className="sh-empty">
-                  {all.length ? "No match." : "No containers reported yet."}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+              )}
+            </tbody>
+          </table>
+        )}
       </div>
     </Card>
   );
@@ -432,7 +420,7 @@ function SimpleHome({
         <main className="sh-col sh-col--mid">
           <AppGrid pins={pins} containers={containers} onSetPins={onSetPins} />
           {briefing}
-          <ContainerTable containers={containers} onControl={onControl} />
+          <ContainerTable containers={containers} pins={pins} onControl={onControl} />
         </main>
 
         <aside className="sh-col sh-col--right">

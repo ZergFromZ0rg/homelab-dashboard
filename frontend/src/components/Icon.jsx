@@ -127,6 +127,24 @@ const PATHS = {
       <path d="M3 12h3l2.5-6 4 12 2.5-6H21" />
     </>
   ),
+  grid: (
+    <>
+      <rect x="4" y="4" width="6.5" height="6.5" rx="1.5" />
+      <rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5" />
+      <rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5" />
+      <rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5" />
+    </>
+  ),
+  list: (
+    <>
+      <path d="M9 6h11" />
+      <path d="M9 12h11" />
+      <path d="M9 18h11" />
+      <path d="M4.6 6h.1" />
+      <path d="M4.6 12h.1" />
+      <path d="M4.6 18h.1" />
+    </>
+  ),
   hammer: (
     <>
       <path d="M13.5 8.5L5 17a1.8 1.8 0 0 0 2.5 2.5L16 11" />

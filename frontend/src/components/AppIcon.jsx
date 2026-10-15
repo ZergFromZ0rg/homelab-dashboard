@@ -13,15 +13,24 @@ function faviconUrl(href) {
   }
 }
 
-// The letter shows until the icon has actually loaded, so a slow or
-// unreachable host never leaves an empty box.
-function AppIcon({ url, label, className = "app-tile-icon" }) {
-  const [state, setState] = useState("loading");
-  const icon = state === "broken" ? null : faviconUrl(url);
+// `logo` is a better picture when the caller has one (see containerIcon.js);
+// it is tried first, then the favicon, then the letter. The letter shows until
+// an image has actually loaded, so a slow or unreachable host never leaves an
+// empty box.
+function AppIcon({ url, label, logo, className = "app-tile-icon" }) {
+  const sources = [logo, faviconUrl(url)].filter(Boolean);
+  // Keyed on the list so a new `logo` or `url` starts over from the first.
+  return <Pictured key={sources.join("|")} sources={sources} label={label} className={className} />;
+}
+
+function Pictured({ sources, label, className }) {
+  const [tried, setTried] = useState(0); // sources that already failed
+  const [loaded, setLoaded] = useState(false);
+  const icon = sources[tried];
 
   return (
     <span className={`${className} app-icon`}>
-      {state !== "ok" && (
+      {!loaded && (
         <span
           className="app-tile-letter"
           style={{ "--avatar": avatarColor(label) }}
@@ -32,14 +41,15 @@ function AppIcon({ url, label, className = "app-tile-icon" }) {
       )}
       {icon && (
         <img
+          key={icon}
           src={icon}
           alt=""
-          className={state === "ok" ? "" : "app-icon-pending"}
+          className={loaded ? "" : "app-icon-pending"}
           onLoad={(e) =>
             // A 1×1 pixel or empty response is "no icon", not an icon.
-            setState(e.currentTarget.naturalWidth > 1 ? "ok" : "broken")
+            e.currentTarget.naturalWidth > 1 ? setLoaded(true) : setTried((n) => n + 1)
           }
-          onError={() => setState("broken")}
+          onError={() => setTried((n) => n + 1)}
         />
       )}
     </span>

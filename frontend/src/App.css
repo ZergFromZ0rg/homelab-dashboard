@@ -7227,12 +7227,27 @@ button.mb-item:disabled { cursor: default; }
 .sh-grid {
   /* The clock and the pinned-app tiles are the top row of two columns; they
      share a height so the cards under them start on the same line. */
-  --sh-top-h: 71px;
+  --sh-tile: 96px;
+  --sh-logo: calc(var(--sh-tile) - 42px);
+  --sh-top-h: var(--sh-tile);
   display: grid;
   grid-template-columns: minmax(230px, 280px) minmax(0, 1fr) minmax(270px, 320px);
   gap: 10px;
   height: 100%;
   min-height: 0;
+}
+
+/* On a short window the tiles shrink so the grid still shows a row or two. */
+@media (max-height: 780px) {
+  .sh-grid {
+    --sh-tile: 88px;
+  }
+}
+
+@media (max-height: 700px) {
+  .sh-grid {
+    --sh-tile: 80px;
+  }
 }
 
 .sh-col {
@@ -7335,8 +7350,7 @@ button.mb-item:disabled { cursor: default; }
   position: sticky;
   right: 0;
   z-index: 2;
-  flex: 0 0 72px;
-  justify-content: center;
+  justify-content: flex-start;
   border-style: dashed;
   color: var(--text-muted);
   font: inherit;
@@ -7400,9 +7414,9 @@ button.mb-item:disabled { cursor: default; }
 .sh-app-plus {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
-  font: 300 26px / 1 var(--sans);
+  width: var(--sh-logo);
+  height: var(--sh-logo);
+  font: 300 36px / 1 var(--sans);
 }
 
 .sh-picker {
@@ -7440,21 +7454,39 @@ button.mb-item:disabled { cursor: default; }
   border-color: var(--accent);
 }
 
+/* An app tile, after the Homarr board: the name small over a big logo, a
+   status dot in the bottom corner, and the host's colour as a short bar along
+   the bottom edge. The pinned row and the Containers grid share it. */
 .sh-app {
   position: relative;
-  flex: 0 0 72px;
+  flex: 0 0 var(--sh-tile);
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  min-height: var(--sh-top-h);
-  padding: 9px 4px 6px;
+  gap: 5px;
+  width: var(--sh-tile);
+  height: var(--sh-tile);
+  padding: 8px 4px 9px;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 14px;
   color: var(--text);
   text-decoration: none;
   transition: border-color var(--dur-fast), background var(--dur-fast);
+}
+
+.sh-app:not(.sh-app--add)::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 26px;
+  height: 3px;
+  background: var(--host, transparent);
+  border-radius: 3px 3px 0 0;
+  opacity: 0.75;
+  transform: translateX(-50%);
 }
 
 a.sh-app:hover {
@@ -7470,32 +7502,39 @@ a.sh-app:hover {
   cursor: default;
 }
 
-/* The favicon loads on top of the letter. Left in the flow it sat beside
-   the letter and squeezed it into a narrow pill until it finished. */
+/* The logo loads on top of the letter. Left in the flow it sat beside the
+   letter and squeezed it into a narrow pill until it finished. */
 .sh-app-icon {
   position: relative;
-  width: 32px;
-  height: 32px;
+  flex: none;
+  width: var(--sh-logo);
+  height: var(--sh-logo);
 }
 
 .sh-app-icon .app-tile-letter {
   flex: none;
-  width: 32px;
-  height: 32px;
+  width: var(--sh-logo);
+  height: var(--sh-logo);
+  border-radius: 12px;
+  font-size: var(--fs-2xl);
 }
 
 .sh-app-icon img {
   position: absolute;
   inset: 0;
-  width: 32px;
-  height: 32px;
+  width: var(--sh-logo);
+  height: var(--sh-logo);
+  max-width: none;
+  max-height: none;
   object-fit: contain;
 }
 
 .sh-app-dot {
   position: absolute;
-  top: 6px;
-  right: 6px;
+  right: 8px;
+  bottom: 8px;
+  width: 9px;
+  height: 9px;
 }
 
 .sh-app-name {
@@ -7503,8 +7542,31 @@ a.sh-app:hover {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-2xs);
+  line-height: 14px;
+  color: var(--text);
+}
+
+.sh-app--off .sh-app-name {
   color: var(--text-muted);
+}
+
+.sh-app--add .sh-app-name {
+  color: var(--text-muted);
+}
+
+/* The Containers card as a grid of the same tiles. Columns are the tile's
+   own width so they line up with the pinned row above the briefing. */
+.sh-apps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, var(--sh-tile));
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+.sh-view {
+  display: inline-flex;
+  gap: 2px;
 }
 
 /* The briefing keeps its full height — "Needs a yes" is the important part,
