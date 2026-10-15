@@ -14,7 +14,8 @@ import UpdatesProvider from "./components/UpdatesProvider";
 import CommandPalette from "./components/CommandPalette";
 import { useSettings } from "./components/settings";
 import { SettingsProvider } from "./components/SettingsContext";
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { expectedStatus, pruneExpected, withExpected } from "./components/expectedStatus";
 import { loadCachedPins, cachePins, putPins } from "./components/containerPins";
 import { loadCachedTodos, cacheTodos, putTodos } from "./components/todosApi";
 import "./App.css";
@@ -36,6 +37,8 @@ const ContainerSettings = lazy(() => import("./components/ContainerSettings"));
 function useContainerControl() {
   const [pending, setPending] = useState({});
   const [errors, setErrors] = useState({});
+  // What a finished start/stop made true, shown until the next poll catches up.
+  const [expected, setExpected] = useState({});
 
   async function run(host, containerId, action) {
     const key = `${host}-${containerId}`;
@@ -57,6 +60,11 @@ function useContainerControl() {
 
       if (!response.ok || body.success === false) {
         throw new Error(body.error || `Request failed: ${response.status}`);
+      }
+
+      const status = expectedStatus(action);
+      if (status) {
+        setExpected((current) => ({ ...pruneExpected(current), [key]: { status, at: Date.now() } }));
       }
     } catch (error) {
       console.error("Container control failed:", error);
@@ -81,7 +89,7 @@ function useContainerControl() {
     });
   }
 
-  return { pending, errors, run, clearError };
+  return { pending, errors, expected, run, clearError };
 }
 
 // State the server owns (pins, todos): the WebSocket pushes the
@@ -336,7 +344,7 @@ function AppShell({ tabs, activeTab, onTab, connected, lastUpdate, onOpenSetting
 function App() {
   const {
     machines,
-    containers,
+    containers: polledContainers,
     history,
     deployments,
     activity,
@@ -389,6 +397,10 @@ function App() {
   // A folder another tab asked the Files tab to open ({host, path, n}).
   const [filesTarget, setFilesTarget] = useState(null);
   const control = useContainerControl();
+  const containers = useMemo(
+    () => withExpected(polledContainers, control.expected),
+    [polledContainers, control.expected]
+  );
   // The host the Hosts tab was last on (it keeps it in localStorage).
   const lastHost = () => {
     try {
