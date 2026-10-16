@@ -145,6 +145,22 @@ const PATHS = {
       <path d="M4.6 18h.1" />
     </>
   ),
+  more: (
+    <>
+      <path d="M5.5 12h.1" />
+      <path d="M12 12h.1" />
+      <path d="M18.5 12h.1" />
+    </>
+  ),
+  branch: (
+    <>
+      <circle cx="6.5" cy="5.5" r="2" />
+      <circle cx="6.5" cy="18.5" r="2" />
+      <circle cx="17.5" cy="8.5" r="2" />
+      <path d="M6.5 7.5v9" />
+      <path d="M17.5 10.5c0 4-5 3-10 6" />
+    </>
+  ),
   hammer: (
     <>
       <path d="M13.5 8.5L5 17a1.8 1.8 0 0 0 2.5 2.5L16 11" />

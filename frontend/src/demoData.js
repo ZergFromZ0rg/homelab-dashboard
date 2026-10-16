@@ -22,6 +22,14 @@ function heartbeat(downAt = []) {
   return { buckets, bucket_seconds: 60, uptime_percent: 100 - downAt.length };
 }
 
+function demoRepo(owner, name, branch, short, remoteShort, state, subject, dirty = false) {
+  return {
+    owner, name, url: `https://github.com/${owner}/${name}`, branch, short, sha: short.padEnd(40, "0"), subject,
+    committed_at: Date.now() / 1000 - 86400, dirty, remote_sha: remoteShort.padEnd(40, "0"), remote_short: remoteShort,
+    state, error: null, checked_at: Date.now() / 1000 - 60,
+  };
+}
+
 function container(id, name, image, host, o = {}) {
   return {
     id,
@@ -60,6 +68,8 @@ function container(id, name, image, host, o = {}) {
     live_activity: o.live ?? null,
     // Compose projects in a git checkout, on a host that opted in.
     rebuild: o.rebuild ?? null,
+    // The GitHub repo that checkout came from, and whether it has fallen behind.
+    repo: o.repo ?? null,
     // A host-network container publishes nothing; the agent reports what it
     // listens on instead. `web` is the agent's probe of its web UI.
     ...(o.listening ? { listening: o.listening } : {}),
@@ -706,11 +716,26 @@ function fullSnapshot() {
       container("a3", "sonarr", "lscr.io/linuxserver/sonarr:latest", "bigboy", { project: "media", update: true, cpu: 0.8, ramMb: 380, ports: { "8989/tcp": ["8989"] } }),
       container("a4", "radarr", "lscr.io/linuxserver/radarr:latest", "bigboy", { project: "media", update: true, cpu: 0.6, ramMb: 340, ports: { "7878/tcp": ["7878"] } }),
       container("a5", "postgres", "postgres:16", "bigboy", { project: "db", cpu: 1.4, ramMb: 220, limitMb: 1024, health: "healthy" }),
-      container("a6", "homelab-agent", "homelab-agent", "bigboy", { project: "homelab", cpu: 0.4, ramMb: 60, rebuild: { project: "homelab", service: "homelab-agent", remote: "https://github.com/zerg/homelab-agent.git", can_pull: true } }),
+      container("a6", "homelab-agent", "homelab-agent", "bigboy", { project: "homelab", cpu: 0.4, ramMb: 60,
+        rebuild: { project: "homelab", service: "homelab-agent", remote: "https://github.com/ZergFromZ0rg/homelab-agent.git", can_pull: true },
+        repo: demoRepo("ZergFromZ0rg", "homelab-agent", "main", "6538608", "6538608", "up_to_date", "Cache image info and disk size"),
+      }),
+      container("a8", "ai-librarian-document-service-1", "ai-librarian-document-service", "bigboy", { project: "ai-librarian", cpu: 8.4, ramMb: 5100, limitMb: 15872, health: "healthy",
+        ports: { "8000/tcp": ["8000"] },
+        rebuild: { project: "ai-librarian", service: "document-service", remote: "https://github.com/ZergFromZ0rg/ai-librarian.git", can_pull: true },
+        repo: demoRepo("ZergFromZ0rg", "ai-librarian", "library-ledger", "f4ef1c4", "22ee733", "behind", "Add Ledger view, notes ribbon, and shareable library views", true),
+      }),
+      container("a9", "ai-librarian-qdrant-1", "qdrant/qdrant", "bigboy", { project: "ai-librarian", cpu: 1.2, ramMb: 1500,
+        rebuild: { project: "ai-librarian", service: "qdrant", remote: "https://github.com/ZergFromZ0rg/ai-librarian.git", can_pull: true },
+        repo: demoRepo("ZergFromZ0rg", "ai-librarian", "library-ledger", "f4ef1c4", "22ee733", "behind", "Add Ledger view, notes ribbon, and shareable library views", true),
+      }),
       container("a7", "watchtower", "containrrr/watchtower", "bigboy", { project: "homelab", status: "exited", cpu: 0, ramMb: 0, upHours: 200 }),
     ],
     thinkpad: [
-      container("b1", "homelab-dashboard", "homelab-dashboard", "thinkpad", { project: "homelab", cpu: 0.9, ramMb: 90, ports: { "80/tcp": ["8081"] } }),
+      container("b1", "homelab-dashboard", "homelab-dashboard", "thinkpad", { project: "homelab", cpu: 0.9, ramMb: 90, ports: { "80/tcp": ["8081"] },
+        rebuild: { project: "homelab", service: "dashboard-web", remote: "git@github.com:ZergFromZ0rg/homelab-dashboard.git", can_pull: true },
+        repo: demoRepo("ZergFromZ0rg", "homelab-dashboard", "main", "7b07ece", "7b07ece", "up_to_date", "God nav: 5 host pages, a purpose line on every page"),
+      }),
       container("b2", "prometheus", "prom/prometheus:latest", "thinkpad", { project: "monitoring", cpu: 2.1, ramMb: 480, ports: { "9090/tcp": ["9090"] } }),
       container("b3", "grafana", "grafana/grafana:latest", "thinkpad", { project: "monitoring", cpu: 1.1, ramMb: 210, ports: { "3000/tcp": ["3000"] }, health: "healthy" }),
       container("b4", "homelab-agent", "homelab-agent", "thinkpad", { project: "homelab", cpu: 0.3, ramMb: 55, ports: { "8123/tcp": ["8123"] } }),
@@ -850,6 +875,11 @@ function fullSnapshot() {
         {
           id: "container_updates:bigboy", type: "container_updates", title: "Update 3 containers on bigboy", subtitle: "jellyfin, sonarr, radarr", host: "bigboy", button_label: "Update all",
           action: { method: "POST", url: "/api/updates/bigboy", body: { containers: ["jellyfin", "sonarr", "radarr"] }, confirm: "Update 3 containers on bigboy?" }
+        },
+        {
+          id: "repo_updates:bigboy:ai-librarian", type: "repo_updates", title: "ai-librarian has new commits on GitHub",
+          subtitle: "bigboy · library-ledger · f4ef1c4 → 22ee733 · uncommitted changes on the host", host: "bigboy", button_label: "Pull & redeploy",
+          action: { method: "POST", url: "/api/rebuild/bigboy", body: { container: "ai-librarian-document-service-1", pull: true }, confirm: "Pull ZergFromZ0rg/ai-librarian and redeploy ai-librarian on bigboy?" }
         }
       ]
     },

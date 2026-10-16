@@ -114,6 +114,7 @@ function detailsTarget(item) {
     return ["servers", { host: item.host, action: "os-updates" }];
   }
   if (item.type === "container_updates") return ["containers", { filter: "updates" }];
+  if (item.type === "repo_updates") return ["containers", {}];
   return null;
 }
 

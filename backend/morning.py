@@ -30,6 +30,48 @@ OVERNIGHT_KINDS = {
     "agent_up": "ok",
 }
 
+def _repo_updates(host: str, host_containers: list[dict]) -> list[dict]:
+    """Needs-a-yes items for projects whose checkout is behind GitHub."""
+    projects: dict[str, list[dict]] = {}
+    for c in host_containers:
+        repo = c.get("repo") or {}
+        if repo.get("state") == "behind" and c.get("rebuild") and c.get("compose_project"):
+            projects.setdefault(c["compose_project"], []).append(c)
+
+    items = []
+    for project, members in sorted(projects.items()):
+        members.sort(key=lambda c: c.get("name") or "")
+        repo = members[0]["repo"]
+        slug = f"{repo.get('owner')}/{repo.get('name')}"
+        names = ", ".join(sorted(c.get("name", "?") for c in members)[:3])
+        trail = f"{repo.get('short')} → {repo.get('remote_short')}"
+        subtitle = f"{host} · {repo.get('branch')} · {trail}"
+        if repo.get("dirty"):
+            subtitle += " · uncommitted changes on the host"
+        confirm = (
+            f"Pull {slug} and redeploy {project} on {host}?\n\n"
+            f"This runs git pull and docker compose up -d --build in {project}'s folder on {host} "
+            f"({names})."
+        )
+        if repo.get("dirty"):
+            confirm += "\n\nThat folder has uncommitted changes; the pull stops if they conflict."
+        items.append({
+            "id": f"repo_updates:{host}:{project}",
+            "type": "repo_updates",
+            "title": f"{repo.get('name')} has new commits on GitHub",
+            "subtitle": subtitle,
+            "host": host,
+            "button_label": "Pull & redeploy",
+            "action": {
+                "method": "POST",
+                "url": f"/api/rebuild/{host}",
+                "body": {"container": members[0].get("name"), "pull": True},
+                "confirm": confirm,
+            },
+        })
+    return items
+
+
 def synthesize(
     machines: dict,
     containers: dict,
@@ -163,6 +205,11 @@ def synthesize(
                     "confirm": f"Update {len(updatable)} containers on {host}?"
                 }
             })
+
+        # Action: a project's source repo has new commits on GitHub. One item
+        # per project (its containers share the checkout), offered only where
+        # the agent can rebuild — that is what does the pulling.
+        needs_action.extend(_repo_updates(host, host_containers))
 
         # Degrading: Restarting/flapping containers
         for c in host_containers:

@@ -30,7 +30,7 @@ export async function startRun(item, now = Date.now()) {
       body: act.body ? JSON.stringify(act.body) : undefined,
     }).then(jsonOrThrow);
 
-    if (item.type === "container_updates") return { ...run, jobId: body.id };
+    if (item.type === "container_updates" || item.type === "repo_updates") return { ...run, jobId: body.id };
     if (item.type === "rebalance") {
       return { ...run, state: "done", endedAt: Date.now(), note: body.placed_on ? `Moved to ${body.placed_on}` : "Moved" };
     }
@@ -63,6 +63,16 @@ export async function advance(run, { machines, now = Date.now() } = {}) {
     if (job.state === "done") return end("done", "Updated", results);
     if (job.state === "rolled_back") return end("failed", "Rolled back", job.error || results);
     return end("failed", "Update failed", job.error || results);
+  }
+
+  if (run.type === "repo_updates") {
+    if (!run.jobId) return end("failed", "No job", null);
+    const job = await get(`/api/rebuild/${host}/${encodeURIComponent(run.jobId)}`).catch(() => null);
+    if (!job || job.state === "running") return run;
+    const failed = (job.steps || []).find((s) => s.exit_code);
+    if (job.state === "done") return end("done", "Redeployed", null);
+    if (job.state === "handed_off") return end("done", "Handed off", job.steps?.at(-1)?.output || null);
+    return end("failed", "Redeploy failed", failed?.output || job.error);
   }
 
   if (run.type === "reboot") {

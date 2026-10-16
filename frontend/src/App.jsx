@@ -30,6 +30,7 @@ import { parseHash, useNavHistory } from "./components/navHistory";
 import MorningBriefing from "./components/MorningBriefing";
 import { isRootDown } from "./components/checkStatus";
 import { needsAttention } from "./components/containerSort";
+import { reposBehind } from "./components/repoState";
 
 const EMPTY_OVERVIEW = { ok: true, issues: [], recommendations: [] };
 
@@ -411,10 +412,9 @@ function App() {
     }
   };
 
-  const containersNeedingYou = Object.values(containers).reduce(
-    (sum, list) => sum + list.filter((c) => needsAttention(c)).length,
-    0
-  );
+  const containersNeedingYou =
+    Object.values(containers).reduce((sum, list) => sum + list.filter((c) => needsAttention(c)).length, 0) +
+    reposBehind(containers);
   const checksDown = checks.filter(isRootDown).length;
   const checksSlow = checks.filter((c) => c.status === "degraded").length;
 

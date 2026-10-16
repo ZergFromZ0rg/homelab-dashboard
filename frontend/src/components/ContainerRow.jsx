@@ -1,12 +1,15 @@
 import { lazy, Suspense, useState } from "react";
 import { containerLink, linkLabel, linkProblem, publishedPorts } from "./containerLink";
 import AppIcon from "./AppIcon";
-import Icon, { IconButton } from "./Icon";
+import { containerIconUrl } from "./containerIcon";
+import Icon from "./Icon";
 import { needsAttention } from "./containerSort";
 import { formatBytes, formatBytesPerSec, formatStartedAt, formatWhen } from "./format";
 import ContainerCharts from "./ContainerCharts";
 import Heartbeat from "./Heartbeat";
-import RebuildButton, { RebuildNote } from "./RebuildButton";
+import { RebuildNote } from "./RebuildButton";
+import { RowAction, RowMenu } from "./RowActions";
+import { needsPull, repoSummary } from "./repoState";
 import { useRebuild } from "./useRebuild";
 import { useSettings } from "./settings";
 import { hostColor } from "./hostColor";
@@ -56,6 +59,7 @@ function ContainerRow({
     (hostJob.projects.length === 0 || hostJob.projects.includes(container.compose_project));
 
   const rebuild = useRebuild(host, container, container.rebuild);
+  const repo = container.repo;
 
   const live = container.live_activity;
   const showLive = showLiveActivity && Boolean(live);
@@ -127,7 +131,7 @@ function ContainerRow({
 
         <div className="c-name">
           {/* The web UI's own icon when it has one, else a lettered avatar. */}
-          <AppIcon url={url} label={container.name} className="app-tile-icon c-icon" />
+          <AppIcon url={url} label={container.name} logo={containerIconUrl(container)} className="app-tile-icon c-icon" />
           <div className="c-name-block" title={container.image}>
             <div className="c-name-line">
               {url ? (
@@ -152,6 +156,26 @@ function ContainerRow({
                   {host}
                 </span>
               )}
+            </div>
+            <div className="c-name-sub">
+              {url ? (
+                <a
+                  className="c-addr"
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={urlProblem ? `Open ${url} — ${urlProblem}` : `Open ${url}`}
+                >
+                  <span className="c-addr-go" aria-hidden="true">↗</span>
+                  {linkLabel(url)}
+                </a>
+              ) : ports.length > 0 ? (
+                <span className="c-addr c-addr--ports" title="Publishes these ports, but no web page answered on them">
+                  {ports.slice(0, 3).map((p) => `:${p}`).join(" ")}
+                  {ports.length > 3 ? ` +${ports.length - 3}` : ""}
+                </span>
+              ) : null}
+              {/* What else to know about it, after the address. */}
               {showLive && (
                 <span className="chip chip--live" title={`${live.app}: ${live.detail}`}>
                   {live.detail}
@@ -177,8 +201,13 @@ function ContainerRow({
                     }
                   }}
                 >
-                  {updating ? (hostJob.progress?.percent != null ? `updating ${Math.round(hostJob.progress.percent)}%` : "updating…") : "update"}
+                  {updating ? (hostJob.progress?.percent != null ? `updating ${Math.round(hostJob.progress.percent)}%` : "updating…") : "image update"}
                 </button>
+              )}
+              {needsPull(repo) && (
+                <span className="chip chip--warn" title={`${repo.owner}/${repo.name}: ${repoSummary(repo).title}`}>
+                  new commits
+                </span>
               )}
               {container.deployed_by === "homelab-dashboard" && (
                 <span className="chip chip--accent" title="Placed by the scheduler">
@@ -187,23 +216,6 @@ function ContainerRow({
               )}
               <RebuildNote note={rebuild.note} onDismiss={rebuild.dismiss} />
             </div>
-            {url ? (
-              <a
-                className="c-addr"
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={urlProblem ? `Open ${url} — ${urlProblem}` : `Open ${url}`}
-              >
-                <span className="c-addr-go" aria-hidden="true">↗</span>
-                {linkLabel(url)}
-              </a>
-            ) : ports.length > 0 ? (
-              <span className="c-addr c-addr--ports" title="Publishes these ports, but no web page answered on them">
-                {ports.slice(0, 3).map((p) => `:${p}`).join(" ")}
-                {ports.length > 3 ? ` +${ports.length - 3}` : ""}
-              </span>
-            ) : null}
           </div>
         </div>
 
@@ -284,47 +296,11 @@ function ContainerRow({
 
         <div className="c-actions">
           {terminal && (
-            <IconButton
+            <RowAction
               icon="logs"
               label="Logs"
-              onClick={() =>
-                terminal.open({ host, target: "logs", container: container.id, name: container.name })
-              }
-            />
-          )}
-          {running && (
-            <IconButton
-              icon="packets"
-              label="Capture its network traffic (Network → Packets)"
-              onClick={() => requestContainerCapture(host, container.name)}
-            />
-          )}
-          <IconButton
-            icon="sliders"
-            label="Settings — edit its compose file"
-            active={settingsOpen}
-            onClick={() => setSettingsOpen(true)}
-          />
-          {running && terminal?.available(host) && (
-            <IconButton
-              icon="terminal"
-              label="Open a shell in this container"
-              onClick={() =>
-                terminal.open({
-                  host,
-                  target: "container",
-                  container: container.id,
-                  name: container.name,
-                })
-              }
-            />
-          )}
-          {/* Outside the protected branch on purpose: "Protected" is about
-              not stopping or deleting the agent, but replacing it with a
-              newer build is exactly what you want to do from here. */}
-          {container.rebuild && (
-            <RebuildButton
-              rebuild={rebuild}
+              title="Read what this container prints, live"
+              onClick={() => terminal.open({ host, target: "logs", container: container.id, name: container.name })}
             />
           )}
 
@@ -332,45 +308,83 @@ function ContainerRow({
             <span
               className="protected-label"
               title="Protected — the agent can't be stopped or restarted from here"
-              aria-label="Protected"
             >
-              <Icon name="lock" size={15} />
+              <Icon name="lock" size={14} />
+              Protected
             </span>
           ) : (
             <>
+              <RowAction
+                icon="refresh"
+                label="Restart"
+                title="Stop it and start it again"
+                working={action === "restart"}
+                disabled={busy}
+                onClick={() => confirmControl("Restart")}
+              />
               {running ? (
-                <IconButton
+                <RowAction
                   icon="stop"
-                  label="Stopping…"
+                  label="Stop"
+                  title="Stop this container"
+                  tone="danger"
                   working={action === "stop"}
                   disabled={busy}
                   onClick={() => confirmControl("Stop")}
                 />
               ) : (
-                <IconButton
+                <RowAction
                   icon="play"
-                  label="Starting…"
+                  label="Start"
+                  title="Start this container"
+                  tone="ok"
                   working={action === "start"}
                   disabled={busy}
                   onClick={() => onControl(host, container.id, "start")}
                 />
               )}
-              <IconButton
-                icon="refresh"
-                label="Restarting…"
-                working={action === "restart"}
-                disabled={busy}
-                onClick={() => confirmControl("Restart")}
-              />
             </>
           )}
-          <IconButton
-            icon="chevron"
-            label={open ? "Hide details" : "Show details"}
-            className="crow-toggle"
-            active={open}
-            aria-expanded={open}
-            onClick={() => setOpen((v) => !v)}
+
+          <RowMenu
+            items={[
+              running &&
+                terminal?.available(host) && {
+                  icon: "terminal",
+                  label: "Open a shell",
+                  hint: "A terminal inside this container",
+                  onClick: () =>
+                    terminal.open({ host, target: "container", container: container.id, name: container.name }),
+                },
+              running && {
+                icon: "packets",
+                label: "Capture its traffic",
+                hint: "Record its network packets (Network → Packets)",
+                onClick: () => requestContainerCapture(host, container.name),
+              },
+              {
+                icon: "sliders",
+                label: "Edit its compose file",
+                hint: "Change its image, ports, volumes or environment",
+                onClick: () => setSettingsOpen(true),
+              },
+              // Outside the protected branch on purpose: "Protected" is about
+              // not stopping or deleting the agent, but replacing it with a
+              // newer build is exactly what you want to do from here.
+              container.rebuild && {
+                icon: "hammer",
+                label: rebuild.running ? "Redeploying…" : needsPull(repo) ? "Pull & redeploy" : "Redeploy",
+                hint: rebuild.title,
+                disabled: rebuild.running,
+                onClick: rebuild.run,
+              },
+              {
+                icon: "chevron",
+                label: open ? "Hide details" : "Show details",
+                hint: "History charts, disk and network totals",
+                onClick: () => setOpen((v) => !v),
+              },
+            ]}
           />
         </div>
       </div>

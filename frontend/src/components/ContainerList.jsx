@@ -1,3 +1,4 @@
+import RepoStrip from "./RepoStrip";
 import PageLede from "./PageLede";
 import { purposeOf } from "./navPurpose";
 import { useMemo, useState } from "react";
@@ -229,6 +230,8 @@ function HostGroup({
       {job && !jobBusy && (
         <UpdateResult job={job} onDismiss={() => updates.dismiss(host)} />
       )}
+
+      {!collapsed && <RepoStrip host={host} containers={containers} />}
 
       {!collapsed && (
         <div className="container-list">
