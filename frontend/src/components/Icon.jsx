@@ -50,6 +50,24 @@ const PATHS = {
     </>
   ),
   chevron: <path d="M6 9l6 6 6-6" />,
+  search: (
+    <>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="M16 16l4.5 4.5" />
+    </>
+  ),
+  expand: (
+    <>
+      <path d="M7 9l5-4 5 4" />
+      <path d="M7 15l5 4 5-4" />
+    </>
+  ),
+  collapse: (
+    <>
+      <path d="M7 5l5 4 5-4" />
+      <path d="M7 19l5-4 5 4" />
+    </>
+  ),
   download: (
     <>
       <path d="M12 4v11" />

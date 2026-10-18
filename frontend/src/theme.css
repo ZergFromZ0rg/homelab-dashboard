@@ -1068,12 +1068,73 @@ textarea.deploy-input {
 }
 
 .container-toolbar {
-  gap: 10px;
-  margin-bottom: 12px;
+  gap: 8px;
+  margin: 4px 0 8px;
+}
+
+/* Every control in the row is one height (28px), so nothing sits off-line. */
+.container-toolbar .segmented button {
+  height: 22px;
+  padding: 0 9px;
+}
+
+.container-search {
+  position: relative;
+  flex: 0 1 260px;
 }
 
 .container-search input {
   width: 100%;
+  padding-left: 28px;
+}
+
+.container-search-icon {
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  display: flex;
+  color: var(--text-faint);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.container-search input:focus ~ .container-search-icon,
+.container-search:focus-within .container-search-icon {
+  color: var(--text-muted);
+}
+
+/* A count after each status filter; coloured only when it means something. */
+.segmented--filters button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.seg-count {
+  color: var(--text-faint);
+  font: 600 var(--fs-2xs) / 1 var(--mono);
+}
+
+.segmented button.active .seg-count {
+  color: var(--text-muted);
+}
+
+.segmented button .seg-count--warn {
+  color: var(--warning);
+}
+
+.segmented button .seg-count--update {
+  color: var(--accent);
+}
+
+.container-toolbar-end .icon-action {
+  width: var(--control-h);
+  height: var(--control-h);
+  border-color: var(--border);
+}
+
+.containers-section .page-lede {
+  min-height: 20px;
 }
 
 /* A click's lasting status (rebuilding…, rebuilt, failed) next to a name. */

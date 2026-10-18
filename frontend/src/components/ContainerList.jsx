@@ -14,7 +14,7 @@ import { useLocalStorage } from "./useLocalStorage";
 import { hostColor } from "./hostColor";
 import { useFitHeight } from "./useFitHeight";
 import { useSettings } from "./settings";
-import Icon from "./Icon";
+import Icon, { IconButton } from "./Icon";
 import ProgressBar from "./ProgressBar";
 import { useTerminal } from "./terminalContext";
 import GitUpdates from "./GitUpdates";
@@ -24,12 +24,14 @@ const VIEWS = [
   ["ports", "Ports"],
 ];
 
+// `tone` colours the count only while something is in it, so a healthy fleet
+// stays quiet and a problem is the one coloured number.
 const STATUS_FILTERS = [
   { value: "all", label: "All" },
   { value: "running", label: "Running" },
-  { value: "attention", label: "Needs attention" },
+  { value: "attention", label: "Needs attention", tone: "warn" },
   { value: "stopped", label: "Stopped" },
-  { value: "updates", label: "Updates" },
+  { value: "updates", label: "Updates", tone: "update" },
 ];
 
 // Attention rows (unhealthy / restart-looping) float to the top of a host
@@ -332,6 +334,18 @@ function ContainerList({
   );
   const filtering = Boolean(query) || statusFilter !== "all";
 
+  // How many containers each status filter would show (ignoring the search
+  // box), so the chips say what is behind them before they're clicked.
+  const statusCounts = useMemo(() => {
+    const all = hosts.flatMap((h) => containers[h] || []);
+    return Object.fromEntries(
+      STATUS_FILTERS.map((f) => [
+        f.value,
+        all.filter((c) => matchesStatus(c, f.value, highRestartCount)).length,
+      ])
+    );
+  }, [hosts, containers, highRestartCount]);
+
   const setAllCollapsed = (collapsed) =>
     setHostState((current) =>
       Object.fromEntries(
@@ -378,6 +392,7 @@ function ContainerList({
           {listView ? (
             <>
               <div className="container-search">
+                <span className="container-search-icon"><Icon name="search" size={13} /></span>
                 <input
                   type="search"
                   placeholder="Filter by name or image…"
@@ -387,18 +402,24 @@ function ContainerList({
                 />
               </div>
 
-              <div className="segmented" role="group" aria-label="Status filter">
-                {STATUS_FILTERS.map((f) => (
-                  <button
-                    key={f.value}
-                    type="button"
-                    className={statusFilter === f.value ? "active" : ""}
-                    aria-pressed={statusFilter === f.value}
-                    onClick={() => setStatusFilter(f.value)}
-                  >
-                    {f.label}
-                  </button>
-                ))}
+              <div className="segmented segmented--filters" role="group" aria-label="Status filter">
+                {STATUS_FILTERS.map((f) => {
+                  const count = statusCounts[f.value];
+                  return (
+                    <button
+                      key={f.value}
+                      type="button"
+                      className={statusFilter === f.value ? "active" : ""}
+                      aria-pressed={statusFilter === f.value}
+                      onClick={() => setStatusFilter(f.value)}
+                    >
+                      {f.label}
+                      <span className={`seg-count ${f.tone && count > 0 ? `seg-count--${f.tone}` : ""}`}>
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
 
               <div className="container-toolbar-end">
@@ -407,24 +428,13 @@ function ContainerList({
                     {totalMatches} match{totalMatches === 1 ? "" : "es"}
                   </span>
                 )}
-                <button
-                  type="button"
-                  className="btn btn--sm btn--ghost"
-                  onClick={() => setAllCollapsed(false)}
-                >
-                  Expand all
-                </button>
-                <button
-                  type="button"
-                  className="btn btn--sm btn--ghost"
-                  onClick={() => setAllCollapsed(true)}
-                >
-                  Collapse all
-                </button>
+                <IconButton icon="expand" label="Expand all hosts" onClick={() => setAllCollapsed(false)} />
+                <IconButton icon="collapse" label="Collapse all hosts" onClick={() => setAllCollapsed(true)} />
               </div>
             </>
           ) : (
             <div className="container-search">
+              <span className="container-search-icon"><Icon name="search" size={13} /></span>
               <input
                 type="search"
                 placeholder="Filter by container or port…"
