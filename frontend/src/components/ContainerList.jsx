@@ -1,9 +1,6 @@
 import RepoStrip from "./RepoStrip";
-import PageLede from "./PageLede";
-import { purposeOf } from "./navPurpose";
 import { useMemo, useState } from "react";
 import ContainerRow from "./ContainerRow";
-import ContainerTableHead from "./ContainerTableHead";
 import PortsView from "./PortsView";
 import SortControl from "./SortControl";
 import { useUpdates } from "./updatesContext";
@@ -237,7 +234,6 @@ function HostGroup({
 
       {!collapsed && (
         <div className="container-list">
-          <ContainerTableHead />
           {ordered.map((container) => (
             <ContainerRow
               key={container.id}
@@ -373,7 +369,6 @@ function ContainerList({
         </div>
       ) : (
         <>
-        <PageLede text={purposeOf("containers")} />
         <div className="container-toolbar">
           <div className="segmented" role="group" aria-label="View">
             {VIEWS.map(([value, label]) => (
@@ -453,12 +448,6 @@ function ContainerList({
         <PortsView containers={containers} hosts={hosts} query={portQuery.trim()} />
       )}
 
-      {listView && (
-      <div className="container-list container-list--head">
-        <ContainerTableHead />
-      </div>
-      )}
-
       {listView && pinnedContainers.length > 0 && (() => {
         const pinnedOpen = filtering ? true : !pinnedCollapsed;
         return (
@@ -476,7 +465,6 @@ function ContainerList({
             </button>
             {pinnedOpen && (
               <div className="container-list">
-                <ContainerTableHead />
                 {pinnedContainers.map((container) => (
                   <ContainerRow
                     key={`${container.__host}-${container.id}`}

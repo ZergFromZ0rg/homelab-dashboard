@@ -30,7 +30,7 @@ function Detail({ label, value, sub }) {
 }
 
 // One container as a single dense table row. The columns line up with
-// ContainerTableHead; everything that doesn't fit on one line (heartbeat
+// the grid in CSS; everything that doesn't fit on one line (heartbeat
 // history, cumulative traffic, image size, ...) is behind the chevron.
 function ContainerRow({
   container,

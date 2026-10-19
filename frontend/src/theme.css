@@ -1040,11 +1040,6 @@ textarea.deploy-input {
 }
 
 @media (min-width: 1041px) {
-  .crow-head {
-    padding: 6px 12px 6px 10px;
-  }
-
-  .crow-head,
   .crow-line {
     column-gap: 12px;
   }
@@ -1458,8 +1453,7 @@ textarea.deploy-input {
 
 /* Not enough width for the uptime column: it goes first. */
 @media (min-width: 1041px) and (max-width: 1299px) {
-  .containers-section .c-uptime,
-  .containers-section .crow-head-uptime {
+  .containers-section .c-uptime {
     display: none;
   }
 

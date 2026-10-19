@@ -1927,12 +1927,10 @@ textarea {
 
 /* ----- Containers: one dense row per container ----- */
 
-.no-uptime .c-uptime,
-.no-uptime .crow-head-uptime {
+.no-uptime .c-uptime {
   display: none;
 }
 
-.crow-head,
 .crow-line {
   display: grid;
   grid-template-columns: var(--cols);
@@ -1940,22 +1938,11 @@ textarea {
   column-gap: 14px;
 }
 
-.crow-head {
-  padding: 8px 16px 8px 12px;
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  text-transform: none;
-  letter-spacing: 0;
-  color: var(--text-faint);
-  border-bottom: 1px solid var(--border);
-  background: color-mix(in srgb, var(--bg-subtle) 55%, transparent);
-}
-
 .crow {
   border-top: 1px solid var(--border);
 }
 
-.crow-head + .crow {
+.container-list > .crow:first-child {
   border-top: 0;
 }
 
@@ -2257,10 +2244,6 @@ a.c-addr:hover {
 }
 
 @media (max-width: 1040px) {
-  .crow-head {
-    display: none;
-  }
-
   .crow-line {
     grid-template-columns: 28px minmax(0, 1fr) auto;
     grid-template-areas:
@@ -8616,20 +8599,6 @@ a.sh-app:hover {
 
 .containers-scroll > * {
   flex: 0 0 auto;
-}
-
-.container-list--head {
-  position: sticky;
-  top: 0;
-  z-index: 3;
-  margin: 0 1px;
-  background: var(--bg);
-  border: 0;
-  border-radius: var(--radius) var(--radius) 0 0;
-}
-
-.containers-section .container-list:not(.container-list--head) .crow-head {
-  display: none;
 }
 
 .backups-tab .backup-head-row {
