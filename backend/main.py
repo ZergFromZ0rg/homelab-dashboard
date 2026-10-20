@@ -29,6 +29,7 @@ from backend import bandwidth, bandwidth_api, history_api, network_alerts, pihol
 from backend import compose_api
 from backend import network_export_api
 from backend import updates_api
+from backend import explain_api
 from backend import git_updates_api
 from backend import volume_backup_api
 from backend import volume_backups
@@ -80,6 +81,7 @@ app.include_router(compose_api.router)
 app.include_router(updates_api.router)
 app.include_router(git_updates_api.router)
 app.include_router(fleet_api.router)
+app.include_router(explain_api.router)
 app.include_router(host_tools_api.router)
 app.include_router(host_control_api.router)
 app.include_router(personal_api.router)

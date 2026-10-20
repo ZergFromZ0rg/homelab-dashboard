@@ -457,6 +457,185 @@ export function demoContainerHistory(name, range) {
   };
 }
 
+// Mirrors GET /api/containers/{host}/{name}/why. The busy story is real
+// output of backend/explain.py for a recreated document service that has been
+// ingesting for ~2h40m (timestamps stored as seconds before "now"); every
+// other container gets the quiet answer, built from its own row.
+const DEMO_WHY = {
+  "host": "bigboy",
+  "container": "ai-librarian-document-service-1",
+  "generated_at": 0,
+  "headline": "CPU 186% (1.9 vCPU), far above its usual 2.8%. RAM 9.8 GB, up 6.3 GB 5h ago, 63% of its limit.",
+  "attention": true,
+  "findings": [
+    {
+      "level": "warn",
+      "key": "cpu_high",
+      "title": "CPU has been high for 2h 40m",
+      "detail": "186% (1.9 vCPU) now \u2014 23% of bigboy's 8 vCPU, far above its usual 2.8%. It has not dropped back to its normal range once in that time, which is a job, not a blip.",
+      "at": 9600
+    },
+    {
+      "level": "info",
+      "key": "mem_stepped",
+      "title": "Memory stepped up by 6.3 GB",
+      "detail": "It moved from about 3.1 GB to 9.4 GB 5h ago and has stayed at the new level since \u2014 a one-off load (models, a cache, a bigger working set), not a leak. Now 9.8 GB, 63% of its 15.5 GB limit \u2014 32% of bigboy's RAM.",
+      "at": 18000
+    },
+    {
+      "level": "info",
+      "key": "onset_event",
+      "title": "The memory stepped within 1m of: ai-librarian-document-service-1 on bigboy recreated",
+      "detail": "The timing lines up, so that event is the first place to look.",
+      "at": 18110
+    },
+    {
+      "level": "info",
+      "key": "neighbours",
+      "title": "Other busy containers on bigboy",
+      "detail": "jellyfin (23%), ai-librarian-qdrant-1 (14%)",
+      "at": null
+    },
+    {
+      "level": "info",
+      "key": "io",
+      "title": "It is moving a lot of data right now",
+      "detail": "reading 9 MB/s. Indexing, importing and transfers look like this.",
+      "at": null
+    }
+  ],
+  "suggestions": [
+    {
+      "action": "logs",
+      "text": "Read its logs for what it was doing when the CPU rose."
+    },
+    {
+      "action": "details",
+      "text": "Open its CPU and memory history to see when it changed."
+    }
+  ],
+  "cpu": {
+    "now": 186.0,
+    "vcpu": 1.86,
+    "share_of_host": 0.233,
+    "usual": 2.8,
+    "high_end": 3.2,
+    "threshold": 15.0,
+    "times_usual": 66.429,
+    "run": {
+      "since": 9600,
+      "seconds": 9600.0
+    },
+    "level": "high"
+  },
+  "memory": {
+    "now": 10522669875,
+    "limit": 16642998272,
+    "shape": "stepped",
+    "percent": 63.226,
+    "share_of_host": 0.316,
+    "usual": 3366348390.4
+  },
+  "evidence": {
+    "now": {
+      "cpu_percent": 186.0,
+      "memory_bytes": 10522669875,
+      "memory_limit_bytes": 16642998272,
+      "net_rx_bps": 40000,
+      "net_tx_bps": 12000,
+      "disk_read_bps": 9437184,
+      "disk_write_bps": 2097152,
+      "restart_count": 0,
+      "uptime_seconds": 18120.0
+    },
+    "usual": {
+      "cpu": {
+        "median": 2.8,
+        "p90": 3.2,
+        "p95": 3.2,
+        "hours": 165.8
+      },
+      "memory": {
+        "median": 3366348390.4,
+        "p90": 3404097126.4,
+        "p95": 3404097126.4,
+        "hours": 165.8
+      }
+    },
+    "history_hours": 167.9,
+    "host": {
+      "name": "bigboy",
+      "cpu_percent": 38.0,
+      "ram_percent": 52.0,
+      "vcpu": 8,
+      "ram_total_bytes": 33285996544,
+      "gpu_percent": null
+    },
+    "neighbours": [
+      {
+        "name": "jellyfin",
+        "cpu": 22.5,
+        "mem": 1468006400
+      },
+      {
+        "name": "ai-librarian-qdrant-1",
+        "cpu": 14.0,
+        "mem": 1572864000
+      }
+    ],
+    "events": [
+      {
+        "at": 18110,
+        "kind": "container_recreated",
+        "text": "ai-librarian-document-service-1 on bigboy recreated"
+      }
+    ]
+  }
+};
+
+export function demoWhy(host, name, container) {
+  const t = now();
+  const place = (value) =>
+    Array.isArray(value)
+      ? value.map(place)
+      : value && typeof value === "object"
+        ? Object.fromEntries(
+            Object.entries(value).map(([k, v]) => [
+              k,
+              ["at", "since", "generated_at"].includes(k) && typeof v === "number" ? t - v : place(v),
+            ])
+          )
+        : value;
+
+  if (name === DEMO_WHY.container) return place(DEMO_WHY);
+
+  const cpu = container?.stats?.cpu_percent ?? 0;
+  const used = container?.stats?.memory?.used_bytes ?? 0;
+  const gb = (used / 1024 ** 3).toFixed(1);
+  return {
+    host,
+    container: name,
+    generated_at: t,
+    headline: `CPU ${cpu}%, normal for it. RAM ${gb} GB, steady.`,
+    attention: false,
+    findings: [
+      { level: "ok", key: "cpu_normal", title: "CPU is in its usual range", detail: `${cpu}% now, within what this container does most days.`, at: null },
+      { level: "ok", key: "mem_steady", title: "Memory is steady", detail: `${gb} GB, flat for the last day.`, at: null },
+    ],
+    suggestions: [],
+    cpu: {},
+    memory: {},
+    evidence: {
+      now: { cpu_percent: cpu, memory_bytes: used, memory_limit_bytes: null, disk_read_bps: null, disk_write_bps: null, net_rx_bps: null, net_tx_bps: null, restart_count: 0, uptime_seconds: 3 * 86400 },
+      usual: { cpu: { median: cpu, p90: cpu * 1.3, p95: cpu * 1.5, hours: 165 }, memory: { median: used, p90: used, p95: used, hours: 165 } },
+      history_hours: 167,
+      host: { name: host, cpu_percent: 31, ram_percent: 48, vcpu: 8, ram_total_bytes: null, gpu_percent: null },
+      neighbours: [],
+      events: [],
+    },
+  };
+}
+
 // Mirrors GET /api/rebalance. Nothing to move: the demo fleet's hot node
 // (nuc-media) has no scheduler-managed stateless workload on it, so a real
 // backend would return an empty list here too.
@@ -720,7 +899,7 @@ function fullSnapshot() {
         rebuild: { project: "homelab", service: "homelab-agent", remote: "https://github.com/ZergFromZ0rg/homelab-agent.git", can_pull: true },
         repo: demoRepo("ZergFromZ0rg", "homelab-agent", "main", "6538608", "6538608", "up_to_date", "Cache image info and disk size"),
       }),
-      container("a8", "ai-librarian-document-service-1", "ai-librarian-document-service", "bigboy", { project: "ai-librarian", cpu: 8.4, ramMb: 5100, limitMb: 15872, health: "healthy",
+      container("a8", "ai-librarian-document-service-1", "ai-librarian-document-service", "bigboy", { project: "ai-librarian", cpu: 186, ramMb: 10010, limitMb: 15872, upHours: 5, health: "healthy",
         ports: { "8000/tcp": ["8000"] },
         rebuild: { project: "ai-librarian", service: "document-service", remote: "https://github.com/ZergFromZ0rg/ai-librarian.git", can_pull: true },
         repo: demoRepo("ZergFromZ0rg", "ai-librarian", "library-ledger", "f4ef1c4", "22ee733", "behind", "Add Ledger view, notes ribbon, and shareable library views", true),

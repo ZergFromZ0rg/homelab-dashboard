@@ -1639,3 +1639,191 @@ textarea.deploy-input {
     padding: 0 8px;
   }
 }
+
+/* ----- "Why is it busy?" under a container row ----- */
+
+/* Flat, dense, aligned with the row's own text. The dot carries the level;
+   the words carry the rest. */
+.crow-why {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 16px 12px 48px;
+  border-top: 1px dashed var(--border);
+}
+
+.why-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.why-headline {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.why-error {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--offline);
+}
+
+.why-list {
+  max-width: 100ch;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.why-item {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  column-gap: 10px;
+  row-gap: 1px;
+  align-items: baseline;
+}
+
+.why-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  align-self: center;
+}
+
+.why-item--bad .why-dot {
+  background: var(--offline);
+}
+
+.why-item--warn .why-dot {
+  background: var(--warning);
+}
+
+.why-item--ok .why-dot {
+  background: var(--online);
+}
+
+.why-title {
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+
+.why-when {
+  font-size: var(--fs-sm);
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.why-detail {
+  grid-column: 2 / -1;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.why-suggestions {
+  max-width: 100ch;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.why-suggest {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.why-suggest .row-action {
+  flex: none;
+}
+
+.why-foot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  font-size: var(--fs-sm);
+  color: var(--text-faint);
+}
+
+.why-evidence-toggle {
+  padding: 0;
+  background: none;
+  border: 0;
+  font: inherit;
+  color: var(--text-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.why-evidence-toggle:hover {
+  color: var(--text);
+}
+
+.why-evidence {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.why-evidence dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 4px 24px;
+  margin: 0;
+}
+
+.why-evidence dl > div {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.why-evidence dt {
+  flex: none;
+  width: 110px;
+  color: var(--text-faint);
+}
+
+.why-evidence dd {
+  margin: 0;
+  min-width: 0;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.why-evidence p {
+  margin: 6px 0 0;
+}
+
+.why-evidence ul {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.why-evidence time {
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .crow-why {
+    padding-left: 16px;
+  }
+
+  .why-suggest {
+    flex-wrap: wrap;
+  }
+}

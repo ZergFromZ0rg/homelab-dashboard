@@ -16,6 +16,7 @@ import { hostColor } from "./hostColor";
 import { requestContainerCapture } from "./captureRequest";
 import { useTerminal } from "./terminalContext";
 import { useUpdates } from "./updatesContext";
+import WhyPanel from "./WhyPanel";
 
 const ContainerSettings = lazy(() => import("./ContainerSettings"));
 
@@ -51,6 +52,7 @@ function ContainerRow({
   const [open, setOpen] = useState(false);
   const terminal = useTerminal();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [whyOpen, setWhyOpen] = useState(false);
   const updates = useUpdates();
   const update = container.update;
   const hostJob = updates?.jobs[host];
@@ -105,6 +107,13 @@ function ContainerRow({
   // itself stays as Docker reports it.
   const cpuCapacity = hostCores ? hostCores * 100 : 100;
   const cpuBarPercent = Math.min(100, ((cpuPercent ?? 0) / cpuCapacity) * 100);
+
+  // Offered inline only when it's using something you'd wonder about — a
+  // whole vCPU, most of its memory limit, or several GB — so a list of
+  // ordinary containers stays quiet. Every running container has it in the
+  // More menu regardless.
+  const heavy =
+    running && ((cpuPercent ?? 0) >= 100 || (ramPercent ?? 0) >= 75 || (memory?.used_bytes ?? 0) >= 4 * 1024 ** 3);
 
   return (
     <div
@@ -202,6 +211,17 @@ function ContainerRow({
                   }}
                 >
                   {updating ? (hostJob.progress?.percent != null ? `updating ${Math.round(hostJob.progress.percent)}%` : "updating…") : "image update"}
+                </button>
+              )}
+              {heavy && (
+                <button
+                  type="button"
+                  className={`chip chip--button ${whyOpen ? "chip--accent" : ""}`}
+                  aria-expanded={whyOpen}
+                  title="Why is it using this much? What it is doing and what changed, from its own history"
+                  onClick={() => setWhyOpen((v) => !v)}
+                >
+                  why busy?
                 </button>
               )}
               {needsPull(repo) && (
@@ -357,6 +377,12 @@ function ContainerRow({
                     terminal.open({ host, target: "container", container: container.id, name: container.name }),
                 },
               running && {
+                icon: "why",
+                label: whyOpen ? "Hide the explanation" : "Why is it busy?",
+                hint: "What it is using and what changed, from its own history",
+                onClick: () => setWhyOpen((v) => !v),
+              },
+              running && {
                 icon: "packets",
                 label: "Capture its traffic",
                 hint: "Record its network packets (Network → Packets)",
@@ -398,6 +424,21 @@ function ContainerRow({
         >
           {error}
         </button>
+      )}
+
+      {whyOpen && (
+        <WhyPanel
+          host={host}
+          container={container}
+          onClose={() => setWhyOpen(false)}
+          actions={{
+            logs: terminal
+              ? () => terminal.open({ host, target: "logs", container: container.id, name: container.name })
+              : undefined,
+            compose: () => setSettingsOpen(true),
+            details: () => setOpen(true),
+          }}
+        />
       )}
 
       {settingsOpen && (
