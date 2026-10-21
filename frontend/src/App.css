@@ -7268,17 +7268,25 @@ button.mb-item:disabled { cursor: default; }
   font-size: var(--fs-sm);
 }
 
+/* Time over weather in one box. With the weather switched off the clock
+   alone keeps the height of the pinned-app row beside it. */
+.sh-clock-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
 .sh-clock {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  min-height: var(--sh-top-h);
-  padding: 10px 14px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  padding: 12px 14px;
   white-space: nowrap;
+}
+
+.sh-clock:only-child {
+  min-height: calc(var(--sh-top-h) - 2px);
 }
 
 .sh-clock time {
@@ -7582,32 +7590,118 @@ a.sh-app:hover {
   border-left: 1px solid var(--border);
 }
 
+.weather-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px 8px;
+  border-top: 1px solid var(--border);
+}
+
 .weather-today {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
+.weather-today-main {
+  flex: 1;
+  min-width: 0;
+}
+
 .weather-today-main .weather-temp {
   font-size: var(--fs-2xl);
 }
 
+.weather-today-main .weather-label {
+  margin-top: 3px;
+  overflow: hidden;
+  font-size: var(--fs-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .weather-today-day {
   display: flex;
-  gap: 12px;
-  margin: 0 0 0 auto;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 62px;
+  margin: 0;
+}
+
+.weather-today-day div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--fs-sm);
+  line-height: 1.35;
 }
 
 .weather-today-day dt {
   color: var(--text-faint);
-  font-size: var(--fs-sm);
   letter-spacing: 0;
   text-transform: none;
 }
 
 .weather-today-day dd {
   margin: 0;
-  font: 600 var(--fs-md) var(--mono);
+  font-family: var(--mono);
+  font-weight: 600;
+}
+
+/* The city (tap to change it) and the unit switch, one quiet line. */
+.weather-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--text-faint);
+  font-size: var(--fs-sm);
+}
+
+.weather-place {
+  min-width: 0;
+  height: auto;
+  padding: 0;
+  overflow: hidden;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  color: var(--text-muted);
+  font: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.weather-place:hover {
+  color: var(--text);
+}
+
+.weather-units {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+}
+
+.weather-units button {
+  height: auto;
+  padding: 0;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  color: var(--text-faint);
+  font: inherit;
+  cursor: pointer;
+}
+
+.weather-units button:hover {
+  color: var(--text-muted);
+}
+
+.weather-units button.active {
+  color: var(--text);
+  font-weight: 600;
 }
 
 /* The one container table. Stopped rows sort first. */
@@ -7824,7 +7918,7 @@ a.sh-app:hover {
 
 /* Servers: a block per host — name, uptime and temperature, then meters. */
 .sh-col > .sh-servers {
-  flex-grow: 3;
+  flex: 0 1 auto;
 }
 
 .sh-fill > .overview-card-body {
@@ -7874,72 +7968,6 @@ a.sh-app:hover {
   display: flex;
   flex-direction: column;
   gap: 4px;
-}
-
-/* Projects: one line each. */
-.sh-col > .sh-projects {
-  flex-grow: 2;
-}
-
-.sh-project-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.sh-project {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 5px 12px;
-  background: none;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-  color: var(--text);
-  font: inherit;
-  font-size: var(--fs-sm);
-  text-align: left;
-  cursor: pointer;
-}
-
-.sh-project:hover {
-  background: var(--bg-raised);
-}
-
-.sh-project-name {
-  min-width: 0;
-  overflow: hidden;
-  font-weight: 550;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sh-project-host {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  font-size: var(--fs-sm);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sh-project-up {
-  color: var(--warning);
-  font: 600 var(--fs-sm) / 1 var(--mono);
-}
-
-.sh-project-count,
-.sh-project-age {
-  color: var(--text-muted);
-  font: var(--fs-sm) / 1 var(--mono);
-  white-space: nowrap;
-}
-
-.sh-project-age {
-  min-width: 52px;
-  text-align: right;
 }
 
 /* Four headline numbers in a row. */

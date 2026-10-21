@@ -107,39 +107,65 @@ function Forecast({ weather }) {
   );
 }
 
+const UNITS = [
+  ["metric", "°C"],
+  ["imperial", "°F"],
+];
+
 // Today only: icon, the temperature now, the day's high and low, and the
-// chance of rain or snow. The five-day strip and the details are the full card.
-function Today({ data }) {
+// chance of rain or snow, with the city and the unit switch on a line under
+// them. The five-day strip and the details are the full card.
+function Today({ data, place, units, onUnits, onChangePlace }) {
   const now = data.current;
   const today = data.daily[0];
   const sky = today ? describeWeather(today.code).label : null;
   return (
-    <div className="weather-today">
-      <WeatherIcon kind={describeWeather(now.code).icon} night={!now.is_day} size={34} />
-      <div className="weather-today-main">
-        <div className="weather-temp">
-          {now.temperature}
-          <span>{data.units.temp}</span>
+    <>
+      <div className="weather-today">
+        <WeatherIcon kind={describeWeather(now.code).icon} night={!now.is_day} size={34} />
+        <div className="weather-today-main" title={`Feels like ${now.feels_like}°`}>
+          <div className="weather-temp">
+            {now.temperature}
+            <span>{data.units.temp}</span>
+          </div>
+          <div className="weather-label">{describeWeather(now.code).label}</div>
         </div>
-        <div className="weather-label">{describeWeather(now.code).label}</div>
+        {today && (
+          <dl className="weather-today-day">
+            <div>
+              <dt>High</dt>
+              <dd>{today.high}°</dd>
+            </div>
+            <div>
+              <dt>Low</dt>
+              <dd>{today.low}°</dd>
+            </div>
+            <div title={sky}>
+              <dt>{/snow|sleet/i.test(sky) ? "Snow" : "Rain"}</dt>
+              <dd>{today.precip ?? 0}%</dd>
+            </div>
+          </dl>
+        )}
       </div>
-      {today && (
-        <dl className="weather-today-day" title={`Feels like ${now.feels_like}°`}>
-          <div>
-            <dt>High</dt>
-            <dd>{today.high}°</dd>
-          </div>
-          <div>
-            <dt>Low</dt>
-            <dd>{today.low}°</dd>
-          </div>
-          <div title={sky}>
-            <dt>{/snow|sleet/i.test(sky) ? "Snow" : "Rain"}</dt>
-            <dd>{today.precip ?? 0}%</dd>
-          </div>
-        </dl>
-      )}
-    </div>
+      <div className="weather-foot">
+        <button type="button" className="weather-place" onClick={onChangePlace} title="Change city">
+          {place}
+        </button>
+        <span className="weather-units" role="group" aria-label="Temperature units">
+          {UNITS.map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              className={units === value ? "active" : ""}
+              aria-pressed={units === value}
+              onClick={() => onUnits(value)}
+            >
+              {label}
+            </button>
+          ))}
+        </span>
+      </div>
+    </>
   );
 }
 
@@ -169,13 +195,35 @@ function WeatherCard({ compact = false }) {
     setChanging(false);
   };
 
+  // The compact form has no card of its own: it is the lower half of the
+  // Simple page's time box, so the city and the units sit inside it.
+  if (compact) {
+    return (
+      <div className="weather-strip">
+        {(!location || changing) && <PlacePicker onPick={pick} onCancel={location ? () => setChanging(false) : null} />}
+        {location && !changing && loading && <p className="overview-empty">Loading…</p>}
+        {location && !changing && !loading && !data && (
+          <p className="overview-empty" title={error || undefined}>
+            Couldn't load the weather.
+          </p>
+        )}
+        {location && !changing && data && (
+          <Today
+            data={data}
+            place={location.name}
+            units={units}
+            onUnits={(next) => update({ temperatureUnits: next })}
+            onChangePlace={() => setChanging(true)}
+          />
+        )}
+      </div>
+    );
+  }
+
   const actions = location && !changing && (
     <>
       <div className="segmented segmented--sm" role="group" aria-label="Temperature units">
-        {[
-          ["metric", "°C"],
-          ["imperial", "°F"],
-        ].map(([value, label]) => (
+        {UNITS.map(([value, label]) => (
           <button
             key={value}
             type="button"
@@ -194,7 +242,7 @@ function WeatherCard({ compact = false }) {
   );
 
   return (
-    <Card title={location ? (compact ? location.name : `Weather · ${location.name}`) : "Weather"} actions={actions}>
+    <Card title={location ? `Weather · ${location.name}` : "Weather"} actions={actions}>
       {(!location || changing) && (
         <PlacePicker onPick={pick} onCancel={location ? () => setChanging(false) : null} />
       )}
@@ -208,8 +256,7 @@ function WeatherCard({ compact = false }) {
               outbound internet access.
             </p>
           )}
-          {data && compact && <Today data={data} />}
-          {data && !compact && (
+          {data && (
             <>
               <div className="weather-now">
                 <WeatherIcon
