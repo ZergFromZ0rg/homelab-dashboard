@@ -89,9 +89,13 @@ one to work in.
     uptime checks, pinned containers and the timeline;
   - **Containers** — every container, with its shell, logs, settings and
     controls on the row;
-  - **Network** — the network as a whole: **Uptime** (checks), **DNS**
-    (Pi-hole and the devices it has seen), **Bandwidth**, **Switch**, and
-    **Scan** and **Watch** (the LAN seen from a server you pick);
+  - **Network** — opens on an **Overview**: services, the internet (its speed
+    and what is flowing now), who is using it, Pi-hole, the switch's ports and
+    the latency between your hosts in one window, with what is wrong listed
+    first. The tools that need a screen of their own are pages beside it:
+    **Uptime** (the checks: a list, and the one you pick with its history,
+    figures and actions), **DNS** (Pi-hole and the devices it has seen),
+    **Bandwidth**, and **LAN** (a scan, and a watch, from a server you pick);
   - **Backups** — also shows where each job's archives really are on the
     destination machine ("Kept in thinkpad /mnt/media/backups/…", read from
     its agent); click the path to open it in Storage.
@@ -101,8 +105,10 @@ one to work in.
   between tabs. New shells only exist in God; logs open in either view, and a
   shell already open survives switching to Simple.
 
+  Clicking a tab always opens its Overview; the pages inside are the tools.
   Every page has an address (`#/god/hosts/bigboy/storage`,
-  `#/god/network/dns`), so back, forward, reload and bookmarks all work. ⌘K
+  `#/god/network/dns`, `#/god/network/checks/<id>`), so back, forward, reload
+  and bookmarks all work. ⌘K
   jumps to any host page ("packets bigboy"). The old Advanced view is gone;
   its addresses open the page that holds the same thing now.
 
@@ -125,7 +131,7 @@ you, in the briefing and in Needs attention.
   checks the alert loop runs (`alerts.evaluate`) plus stale nodes, no LLM;
   host problems jump to that server's page;
 - **Uptime** — a line per service check with its latency (down ones
-  first); click for the Network tab;
+  first); click one to open it on Network → Uptime;
 - **Servers** — one line per machine with its headline bars (CPU, RAM,
   fullest disk); click one for its pages;
 - a right-hand rail: **Quick actions** (restart / stop for your pinned

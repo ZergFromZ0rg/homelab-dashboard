@@ -1,6 +1,6 @@
 # Switch monitoring
 
-Network → Switch shows each port of the managed switch: link up/down, negotiated
+The Switch panel of Network → Overview shows each port of the managed switch: link up/down, negotiated
 speed, traffic both ways and errors. The same data raises alerts and tells the
 Pi-hole device table which port a device is plugged into.
 

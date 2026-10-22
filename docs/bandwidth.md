@@ -28,7 +28,7 @@ switch negotiates 100 Mbps, that is the ceiling the test can read, whatever the 
 Each device plugged into the switch has a port, and the switch counts every byte through
 it. The table shows, per port: down (to the device) and up (from it) now, a two-hour trend
 of each, what it moved in the last 24 hours, and its share of the day. The name is the
-port's description on the switch, the same as Network → Switch. The router's row reads
+port's description on the switch, the same as the Switch panel on Network → Overview. The router's row reads
 as the internet: down is what the house downloads, up what it uploads. Rows are ordered by what
 they moved in 24 hours, the router first.
 
