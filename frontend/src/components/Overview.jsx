@@ -3,22 +3,13 @@ import FirstRun from "./FirstRun";
 import SummaryRow from "./SummaryRow";
 import HostSummary from "./HostSummary";
 import AddNode from "./AddNode";
-import { formatLatency } from "./format";
 import Timeline from "./Timeline";
 import QuickActions from "./QuickActions";
+import Panel from "./Panel";
+import ServiceList from "./ServiceList";
 import { useSettings } from "./settings";
-import AppIcon from "./AppIcon";
 import { isRootDown } from "./checkStatus";
-
-// issue key -> where the details live: a host's problem on that host's page,
-// checks on Network, backups on Backups, container ones on Containers.
-function issueTarget(key) {
-  if (key.startsWith("check:")) return ["network"];
-  if (key.startsWith("backup")) return ["backups"];
-  if (key.startsWith("host:")) return ["hosts", { host: key.split(":")[1] }];
-  if (key.startsWith("deploy:")) return ["hosts"];
-  return ["containers"];
-}
+import { issueTarget } from "./navTargets";
 
 // What's wrong, always visible: one compact line per issue, worst first,
 // each with a jump to where it lives. The longer "how to fix" notes sit
@@ -93,71 +84,6 @@ function IssuesPanel({ overview, deployments, ready, onNavigate }) {
   );
 }
 
-// Uptime checks as a dense two-column list: dot, icon, name, latency.
-// Down sorts first and is the only thing in color.
-function ServiceList({ checks, onOpen }) {
-  const order = { down: 0, degraded: 1, pending: 2, up: 3, paused: 4 };
-  const sorted = [...checks].sort(
-    (a, b) => order[a.status] - order[b.status] || a.name.localeCompare(b.name)
-  );
-
-  return (
-    <div className="ov-services">
-      {sorted.map((c) => (
-        <button
-          type="button"
-          key={c.id}
-          className={`ov-service ov-service--${c.status}`}
-          onClick={onOpen}
-          title={
-            c.status === "down"
-              ? `${c.name} is down — ${c.suppressed_by ? `behind ${c.suppressed_by.name}` : c.detail ?? ""}`
-              : c.status === "degraded"
-                ? c.lossy && !c.slow
-                  ? `${c.name} is losing packets — over ${c.max_loss}%`
-                  : `${c.name} is slow — over ${formatLatency(c.slow_ms)}`
-                : c.target
-          }
-        >
-          <span
-            className={`status-dot status-dot--${
-              c.status === "up" ? "ok" : c.status === "down" ? "bad" : c.status === "degraded" ? "warn" : "none"
-            }`}
-          />
-          <AppIcon url={c.target} label={c.name} className="app-tile-icon ov-icon" />
-          <span className="ov-service-name">{c.name}</span>
-          <span className="ov-service-ms">
-            {c.status === "down"
-              ? "down"
-              : c.status === "up" || c.status === "degraded"
-                ? formatLatency(c.latency_ms)
-                : c.status}
-          </span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-// A titled panel with an optional "go to tab" link in its header. `tone`
-// tints the header when the panel is reporting a problem.
-function Panel({ title, count, tone, linkLabel, onLink, className = "", children }) {
-  return (
-    <section className={`overview-card ov-panel ${tone ? `ov-panel--${tone}` : ""} ${className}`}>
-      <div className="overview-card-head">
-        <h2>{title}</h2>
-        {count != null && <span className="overview-card-count">{count}</span>}
-        {onLink && (
-          <button type="button" className="ov-panel-link" onClick={onLink}>
-            {linkLabel} →
-          </button>
-        )}
-      </div>
-      <div className="overview-card-body">{children}</div>
-    </section>
-  );
-}
-
 // The whole fleet on one screen: the headline numbers on one line, then three
 // columns of panels — the servers (a click opens that server's pages), what is
 // wrong and what is answering, and what is pinned and what happened. The lists
@@ -213,7 +139,7 @@ function Overview({
           )}
           {homeCards.services && checks.length > 0 && (
             <Panel title="Uptime" count={down ? `${down} down` : checks.length} tone={down ? "bad" : undefined}>
-              <ServiceList checks={checks} onOpen={() => onNavigate("network")} />
+              <ServiceList checks={checks} onOpen={(c) => onNavigate("network", { section: "checks", check: c.id })} />
             </Panel>
           )}
         </div>

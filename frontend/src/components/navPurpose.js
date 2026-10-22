@@ -20,6 +20,7 @@ const HOST = {
 };
 
 const NETWORK = {
+  overview: "Is the network all right? Services, internet, DNS and the switch in one window.",
   checks: "Is each of your services answering? Get told when one stops.",
   dns: "What Pi-hole is blocking and who is asking — and a switch to pause it.",
   bandwidth: "How fast the internet is, and which devices are using it.",

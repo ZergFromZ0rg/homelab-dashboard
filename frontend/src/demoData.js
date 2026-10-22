@@ -980,6 +980,8 @@ function fullSnapshot() {
     alerts: [
       { key: "container:nuc-media:nextcloud:unhealthy", at: t - 300, resolved_at: null, severity: "bad", host: "nuc-media", title: "nextcloud is unhealthy", message: "nextcloud on nuc-media is failing its healthcheck" },
       { key: "check:k5", at: t - 1080, resolved_at: null, severity: "bad", host: null, title: "Nextcloud is down", message: "Nextcloud (http https://cloud.example.com) has been failing for 18 min — HTTP 502" },
+      { key: "network:switch-port-down:g5", at: t - 1500, resolved_at: null, severity: "bad", host: null, title: "pi-hole link is down", message: "Port g5 (pi-hole) has had no link for 2+ minutes." },
+      { key: "network:new-devices", at: t - 3000, resolved_at: null, severity: "warn", host: null, title: "1 new device on the network", message: "Not named yet: amazon-9e282eb2e." },
       { key: "host:nuc-media:ram", at: t - 5400, resolved_at: null, severity: "warn", host: "nuc-media", title: "nuc-media RAM high", message: "nuc-media RAM at 91% (threshold 90%)" },
       { key: "host:bigboy:temp", at: t - 39600, resolved_at: t - 36000, severity: "warn", host: "bigboy", title: "bigboy running hot", message: "bigboy CPU at 87°C (threshold 85°C)" },
       { key: "host:nuc-media:offline", at: t - 90000, resolved_at: t - 88800, severity: "bad", host: "nuc-media", title: "nuc-media offline", message: "nuc-media stopped responding to Prometheus" },
@@ -1009,11 +1011,13 @@ function fullSnapshot() {
       issues: [
         { key: "container:nuc-media:nextcloud:unhealthy", severity: "bad", title: "nextcloud is unhealthy", message: "nextcloud on nuc-media is failing its healthcheck" },
         { key: "check:k5", severity: "bad", title: "Nextcloud is down", message: "Nextcloud (http https://cloud.example.com) has been failing for 18 min — HTTP 502" },
+        { key: "network:switch-port-down:g5", severity: "bad", title: "pi-hole link is down", message: "Port g5 (pi-hole) has had no link for 2+ minutes." },
         { key: "host:nuc-media:backup", severity: "bad", title: "nuc-media backup failing", message: "The last backup on nuc-media failed: push rejected after retries: authentication failed" },
         { key: "host:bigboy:diskfull:/mnt/media", severity: "warn", title: "bigboy /mnt/media filling up", message: "/mnt/media on bigboy will be full in about 7 days at its current rate" },
         { key: "host:nuc-media:disk:/", severity: "warn", title: "nuc-media / is 91% full", message: "/ on nuc-media is 91% full, 22 GB free" },
         { key: "host:nuc-media:ram", severity: "warn", title: "nuc-media RAM high", message: "nuc-media RAM at 91% (threshold 90%)" },
         { key: "host:nuc-media:no-metrics", severity: "warn", title: "nuc-media has no Prometheus job", message: "nuc-media's agent is reporting, but Prometheus has no job called nuc-media, so its CPU, RAM, disk and temperature are blank." },
+        { key: "network:new-devices", severity: "warn", title: "1 new device on the network", message: "Not named yet: amazon-9e282eb2e." },
       ],
       recommendations: [
         "Add a scrape job named nuc-media to prometheus.yml:\n  - job_name: nuc-media\n    static_configs:\n      - targets: ['nuc-media:9100']",
@@ -1023,6 +1027,8 @@ function fullSnapshot() {
         "bigboy is filling up — find what's growing (docker system df, du -sh) before it hits 100%.",
         "Free space on nuc-media — clear old logs and images (docker system prune) or extend the volume.",
         "Free memory on nuc-media or move a workload off it.",
+        "Check the cable and that pi-hole is powered on.",
+        "Open Network → DNS, click the device and name it, or mark it known.",
       ],
     },
     pins: ["bigboy/jellyfin", "bigboy/qbittorrent", "nuc-media/plex"],

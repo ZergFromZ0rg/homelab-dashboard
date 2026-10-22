@@ -1,23 +1,18 @@
 import { useState } from "react";
-import { acceptSuggestions, dismissSuggestions, fetchSuggestions } from "./checksApi";
-import { usePolled } from "./usePolled";
+import { acceptSuggestions, dismissSuggestions } from "./checksApi";
+import { TYPE_LABEL } from "./checkStatus";
 
-const TYPE_LABEL = { http: "HTTP", tcp: "TCP", ping: "Ping" };
-
-// "Nothing watches this yet": hosts and containers the dashboard already
-// knows about, one tick away from being a check. Collapsed to a single line
-// until asked, so a fleet with everything covered shows nothing at all.
-function CheckSuggestions() {
-  const { data } = usePolled(fetchSuggestions, "suggestions", 60_000);
-  const [open, setOpen] = useState(false);
+// "Nothing watches this yet": hosts and containers the dashboard already knows
+// about, one tick away from being a check. Everything starts ticked — leaving out
+// the two you don't want is less work than ticking the nine you do. `items` is the
+// list, `onDone` is called after Add or "Not these" so the caller can fetch the
+// shorter list.
+function CheckSuggestions({ items, onDone }) {
   const [picked, setPicked] = useState(null); // null = all
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  const items = data?.suggestions ?? [];
-  if (items.length === 0) return null;
-
-  const chosen = (picked ?? new Set(items.map((i) => i.key)));
+  const chosen = picked ?? new Set(items.map((i) => i.key));
   const keys = items.filter((i) => chosen.has(i.key)).map((i) => i.key);
 
   const toggle = (key) => {
@@ -33,7 +28,7 @@ function CheckSuggestions() {
     try {
       await fn(keys);
       setPicked(null);
-      setOpen(items.length > keys.length);
+      onDone(keys.length === items.length);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -41,56 +36,37 @@ function CheckSuggestions() {
     }
   };
 
+  if (items.length === 0) return <p className="overview-empty">Everything the dashboard knows about is being checked.</p>;
+
   const groups = [...new Set(items.map((i) => i.group))];
 
   return (
-    <div className="check-suggest">
-      <button
-        type="button"
-        className="check-suggest-bar"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-        title="Hosts and containers nothing is checking yet"
-      >
-        <strong>{items.length}</strong> not monitored yet
-        <span>{open ? "hide" : "review"}</span>
-      </button>
-
-      {open && (
-        <div className="check-suggest-body">
-          {groups.map((group) => (
-            <div key={group} className="check-suggest-group">
-              <span className="check-suggest-title">{group}</span>
-              {items
-                .filter((i) => i.group === group)
-                .map((i) => (
-                  <label key={i.key} className="check-suggest-row" title={i.reason}>
-                    <input type="checkbox" checked={chosen.has(i.key)} onChange={() => toggle(i.key)} />
-                    <strong>{i.name}</strong>
-                    <span className="chip">{TYPE_LABEL[i.type]}</span>
-                    {i.origin && <span className="chip" title={`Runs from ${i.origin}'s agent`}>from {i.origin}</span>}
-                    <code>{i.target}</code>
-                  </label>
-                ))}
-            </div>
-          ))}
-          {error && <p className="cred-error">{error}</p>}
-          <div className="check-form-actions">
-            <button type="button" className="btn btn--sm" disabled={busy || keys.length === 0} onClick={() => run(acceptSuggestions)}>
-              Add {keys.length} check{keys.length === 1 ? "" : "s"}
-            </button>
-            <button
-              type="button"
-              className="btn btn--sm btn--ghost"
-              disabled={busy || keys.length === 0}
-              title="Don't suggest these again"
-              onClick={() => run(dismissSuggestions)}
-            >
-              Not these
-            </button>
-          </div>
+    <div className="check-suggest-body">
+      {groups.map((group) => (
+        <div key={group} className="check-suggest-group">
+          <span className="check-suggest-title">{group}</span>
+          {items
+            .filter((i) => i.group === group)
+            .map((i) => (
+              <label key={i.key} className="check-suggest-row" title={i.reason}>
+                <input type="checkbox" checked={chosen.has(i.key)} onChange={() => toggle(i.key)} />
+                <strong>{i.name}</strong>
+                <span className="chip">{TYPE_LABEL[i.type]}</span>
+                {i.origin && <span className="chip" title={`Runs from ${i.origin}'s agent`}>from {i.origin}</span>}
+                <code>{i.target}</code>
+              </label>
+            ))}
         </div>
-      )}
+      ))}
+      {error && <p className="cred-error">{error}</p>}
+      <div className="check-form-actions">
+        <button type="button" className="btn btn--sm" disabled={busy || keys.length === 0} onClick={() => run(acceptSuggestions)}>
+          Add {keys.length} check{keys.length === 1 ? "" : "s"}
+        </button>
+        <button type="button" className="btn btn--sm btn--ghost" disabled={busy || keys.length === 0} title="Don't suggest these again" onClick={() => run(dismissSuggestions)}>
+          Not these
+        </button>
+      </div>
     </div>
   );
 }

@@ -1,9 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 // Fetch on mount / when `key` changes, then again every `refreshMs`.
 // Keeps the last good data across a failed refresh (so a blip doesn't blank
 // a widget) and never shows one key's data under another (a new weather
 // location shows loading, not the old city).
+//
+// `mutate(next)` replaces the data now, for a control whose own answer is the
+// newest word (pausing Pi-hole's blocking) until the next poll.
 export function usePolled(fetcher, key, refreshMs) {
   const [state, setState] = useState({ key, data: null, error: null });
   const fetcherRef = useRef(fetcher);
@@ -34,10 +37,13 @@ export function usePolled(fetcher, key, refreshMs) {
     };
   }, [key, refreshMs]);
 
+  const mutate = useCallback((data) => setState((s) => (s.key === key ? { ...s, data, error: null } : s)), [key]);
+
   const current = state.key === key ? state : { data: null, error: null };
   return {
     data: current.data,
     error: current.error,
     loading: current.data == null && current.error == null,
+    mutate,
   };
 }

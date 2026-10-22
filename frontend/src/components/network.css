@@ -1,0 +1,903 @@
+/* The Network tab's own surfaces: the overview window, and the Uptime screen.
+   Flat and solid like the rest, built from the shared tokens. */
+
+/* ----- Overview: three columns of panels ----- */
+
+.net-home .ovb-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1fr);
+}
+
+/* In each column one panel takes what is left and the other is as tall as it
+   needs to be (and gives way, scrolling inside, when the window is short). */
+.net-home .ovw-col > .ov-panel.net-fixed {
+  flex: 0 1 auto;
+}
+
+.net-home .ovw-col > .ov-panel.net-grow {
+  flex: 1 1 0;
+}
+
+@media (max-width: 900px) {
+  .network-tab > .fit-pane:has(> .net-home) {
+    overflow-y: auto;
+  }
+
+  .network-tab .net-home,
+  .network-tab .net-home .ovb-grid {
+    flex: none;
+  }
+
+  .network-tab .net-home .ovb-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .network-tab .net-home .ovw-col > .ov-panel.net-fixed,
+  .network-tab .net-home .ovw-col > .ov-panel.net-grow {
+    flex: none;
+  }
+
+  .network-tab .net-home .ov-panel .overview-card-body {
+    max-height: 340px;
+  }
+}
+
+/* Side by side, each column knows how tall it is, so what is only worth drawing
+   when there is room for it (the traffic chart) can leave when there isn't. */
+@media (min-width: 901px) {
+  .net-home .ovw-col {
+    container: nhcol / size;
+  }
+}
+
+.ov-panel-foot {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 3px 12px;
+  border-top: 1px solid var(--border);
+  font-size: var(--fs-sm);
+  color: var(--text-faint);
+}
+
+.nh-foot-end {
+  margin-left: auto;
+}
+
+.nh-ellipsis {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nh-bad {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--offline);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ov-panel-foot .icon-action {
+  flex: none;
+}
+
+/* What is wrong: one line each, wrapping. */
+.nh-attn {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 8px;
+  padding: 0 2px;
+}
+
+.nh-attn .ov-issue {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
+  padding: 3px 8px;
+}
+
+.nh-attn .ov-issue strong {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nh-attn-more {
+  align-self: center;
+  padding: 0 8px;
+  font-size: var(--fs-sm);
+  color: var(--text-faint);
+}
+
+/* A panel with nothing to show says so in one muted line. */
+.nh-quiet {
+  margin: 0;
+  padding: 6px 4px;
+  font-size: var(--fs-md);
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.nh-quiet code {
+  font-size: var(--fs-sm);
+}
+
+/* Big numbers: a label, a figure, what is behind it. */
+.nh-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+  padding: 4px 4px 2px;
+}
+
+.nh-metrics--row {
+  grid-template-columns: repeat(4, minmax(0, auto));
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.nh-metric {
+  min-width: 0;
+}
+
+.nh-metric > span {
+  display: block;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.nh-metric > strong {
+  display: block;
+  font: 600 var(--fs-xl) / 1.25 var(--mono);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.nh-metric--hero > strong {
+  font-size: var(--fs-2xl);
+}
+
+.nh-metric > strong small {
+  margin-left: 4px;
+  font: 500 var(--fs-sm) var(--sans);
+  color: var(--text-muted);
+}
+
+.nh-metric > em {
+  display: block;
+  font-size: var(--fs-sm);
+  font-style: normal;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.nh-metric .sparkline-wrap {
+  margin-top: 2px;
+}
+
+/* Rows: a dot or a name, what it is, a figure. */
+.nh-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 26px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: var(--fs-md);
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+}
+
+button.nh-row {
+  cursor: pointer;
+}
+
+button.nh-row:hover {
+  background: var(--bg-subtle);
+}
+
+.nh-row .grow {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nh-row .grow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nh-row .grow .nh-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nh-row .grow .dev-tag {
+  flex: none;
+}
+
+.nh-row .num {
+  flex: none;
+  font: 500 var(--fs-sm) var(--mono);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.nh-row .num.dim {
+  color: var(--text-faint);
+}
+
+.nh-row--down {
+  background: var(--offline-bg);
+}
+
+.nh-row--down .num.nh-latency {
+  color: var(--offline);
+  font-weight: 700;
+}
+
+.nh-row--slow .num.nh-loss {
+  color: var(--warning);
+}
+
+.nh-row--idle .grow {
+  color: var(--text-muted);
+}
+
+.nh-latency {
+  min-width: 52px;
+  text-align: right;
+}
+
+.nh-loss {
+  min-width: 62px;
+  text-align: right;
+}
+
+/* Who is using it: the name, a bar for its share, what it moved. */
+.nh-bar {
+  flex: 0 0 34%;
+  height: 5px;
+  overflow: hidden;
+  background: var(--bg-raised);
+  border-radius: 3px;
+}
+
+.nh-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--page-accent, var(--accent));
+  border-radius: 3px;
+}
+
+.nh-moved {
+  min-width: 56px;
+  text-align: right;
+}
+
+/* The switch: a port per row. */
+.nh-port .nh-speed {
+  min-width: 40px;
+  text-align: right;
+}
+
+.nh-speed--warn {
+  color: var(--warning) !important;
+}
+
+.nh-speed--bad {
+  color: var(--offline) !important;
+}
+
+.nh-speed--none {
+  color: var(--offline) !important;
+}
+
+.nh-port .nh-rate {
+  min-width: 52px;
+  text-align: right;
+}
+
+/* DNS: the state line, then the numbers. */
+.nh-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 28px;
+  padding: 0 4px;
+}
+
+.nh-state {
+  font-size: var(--fs-md);
+  color: var(--text);
+}
+
+.nh-line .pihole-block {
+  margin-left: auto;
+}
+
+.nh-sub {
+  margin: 8px 0 2px;
+  padding: 6px 8px 0;
+  border-top: 1px solid var(--border);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.nh-more {
+  padding: 2px 8px;
+  font-size: var(--fs-sm);
+  color: var(--text-faint);
+}
+
+/* A check behind a down one is quiet: the one it is behind is the news. */
+.ov-service.ov-service--behind {
+  background: none;
+}
+
+.ov-service.ov-service--behind .ov-service-name {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.ov-service.ov-service--behind .ov-service-ms {
+  font-weight: 500;
+  color: var(--text-faint);
+}
+
+/* The internet panel: the speed test's figures, then live traffic as a chart
+   that takes whatever height the column has left. */
+.nh-internet .overview-card-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.nh-chart {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 74px;
+  margin: 10px 4px 2px;
+}
+
+.nh-chart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.nh-chart-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-faint);
+}
+
+.nh-key {
+  width: 8px;
+  height: 8px;
+  margin-left: 6px;
+  border-radius: 2px;
+}
+
+.nh-key:first-child {
+  margin-left: 0;
+}
+
+.nh-key--rx {
+  background: var(--accent);
+}
+
+.nh-key--tx {
+  background: var(--online);
+}
+
+.nh-chart-plot {
+  position: relative;
+  flex: 1;
+  min-height: 48px;
+  margin-top: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.nh-chart-plot .sparkline-wrap {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+}
+
+.nh-chart-plot .sparkline,
+.nh-chart-plot .sparkline-empty {
+  height: 100% !important;
+}
+
+/* A short column has no room for it: the figures above say the same. */
+@container nhcol (max-height: 480px) {
+  .nh-chart {
+    display: none;
+  }
+}
+
+/* ----- Uptime: the list, and the one you picked ----- */
+
+.up {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+
+.up-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.up-search {
+  flex: 0 1 220px;
+  width: 220px;
+}
+
+.up-bar-end {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.up-chipbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--control-h);
+  padding: 0 10px;
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.up-chipbtn strong {
+  font: 600 var(--fs-md) var(--mono);
+  color: var(--text);
+}
+
+.up-chipbtn:hover {
+  color: var(--text);
+  background: var(--bg-subtle);
+}
+
+.up-chipbtn[aria-pressed="true"] {
+  color: var(--text);
+  background: var(--bg-raised);
+  border-color: var(--page-accent, var(--accent));
+}
+
+.up-split {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 1.3fr) minmax(300px, 1fr);
+  gap: 10px;
+  min-height: 0;
+}
+
+.up-list,
+.up-detail {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.up-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.up-summary {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 2px 18px;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.up-summary b {
+  margin-left: 3px;
+  font: 600 var(--fs-md) var(--mono);
+  color: var(--text);
+}
+
+.up-summary small {
+  font-size: var(--fs-sm);
+  color: var(--text-faint);
+}
+
+.up-group + .up-group {
+  border-top: 1px solid var(--border);
+}
+
+.up-group-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 28px;
+  padding: 0 12px;
+  font: inherit;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  text-align: left;
+  background: var(--bg-subtle);
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.up-group-head strong {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.up-row {
+  display: grid;
+  grid-template-columns: 8px 20px minmax(0, 1fr) auto 72px 56px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 34px;
+  padding: 0 12px;
+  font: inherit;
+  font-size: var(--fs-md);
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.up-group .up-row:last-child {
+  border-bottom: 0;
+}
+
+.up-row:hover {
+  background: var(--bg-subtle);
+}
+
+.up-row--down {
+  background: var(--offline-bg);
+}
+
+.up-row--degraded {
+  background: var(--warning-bg);
+}
+
+.up-row--paused {
+  opacity: 0.55;
+}
+
+.up-row--behind {
+  background: none;
+  opacity: 0.75;
+}
+
+.up-row.is-selected {
+  background: color-mix(in srgb, var(--page-accent, var(--accent)) 14%, transparent);
+  box-shadow: inset 2px 0 0 var(--page-accent, var(--accent));
+  opacity: 1;
+}
+
+.up-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.up-name strong {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 500;
+  text-overflow: ellipsis;
+}
+
+.up-row--behind .up-name strong {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.up-name .chip {
+  flex: none;
+  padding: 0 6px;
+  font-size: var(--fs-sm);
+  line-height: 1.4;
+}
+
+.up-now {
+  min-width: 64px;
+  font: 600 var(--fs-sm) var(--mono);
+  color: var(--text-muted);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.up-now--down {
+  color: var(--offline);
+}
+
+.up-now--degraded {
+  color: var(--warning);
+}
+
+.up-row--behind .up-now {
+  font-weight: 500;
+  color: var(--text-faint);
+}
+
+.up-spark {
+  min-width: 0;
+}
+
+.up-pct {
+  font: 600 var(--fs-sm) var(--mono);
+  text-align: right;
+}
+
+/* The pane: one heading, then what it holds. */
+.up-pane-head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  min-height: var(--panel-head-h);
+  padding: 0 8px 0 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.up-pane-head h3 {
+  font-size: var(--fs-lg);
+  font-weight: 600;
+}
+
+.up-pane-head .icon-btn {
+  width: 26px;
+  height: 26px;
+  font-size: var(--fs-xl);
+  line-height: 1;
+}
+
+.up-pane-body {
+  flex: 1;
+  min-height: 0;
+  padding: 12px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.up-d {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.up-d-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.up-d-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.up-d-title h3 {
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.up-d-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+}
+
+.up-d-state strong {
+  font: 700 var(--fs-xl) var(--mono);
+}
+
+.up-d-state span {
+  font-size: var(--fs-md);
+  color: var(--text-muted);
+}
+
+.up-d-state--down strong {
+  font-family: var(--sans);
+  color: var(--offline);
+}
+
+.up-d-state--degraded strong {
+  color: var(--warning);
+}
+
+.up-d-state--paused strong,
+.up-d-state--pending strong {
+  font-family: var(--sans);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.up-d-target {
+  font: var(--fs-sm) var(--mono);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.up-d-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.up-d-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.up-d-cell {
+  padding: 6px 10px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.up-d-cell:nth-child(3n) {
+  border-right: 0;
+}
+
+.up-d-cell:nth-last-child(-n + 3) {
+  border-bottom: 0;
+}
+
+.up-d-cell dt {
+  font-size: var(--fs-sm);
+  color: var(--text-faint);
+}
+
+.up-d-cell dd {
+  margin: 0;
+  font: 600 var(--fs-lg) var(--mono);
+}
+
+.up-d .check-history {
+  padding-top: 0;
+  border-top: 0;
+}
+
+/* Lists that were built to be a page of their own, in a pane. */
+.up-pane-body .check-incidents {
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+}
+
+.up-pane-body .incident,
+.up-pane-body .incident-list--solo .incident {
+  grid-template-columns: max-content max-content minmax(0, 1fr);
+}
+
+.up-pane-body .incident-list:not(.incident-list--solo) .incident-detail {
+  grid-column: 1 / -1;
+}
+
+.up-pane-body .check-suggest-body {
+  padding: 0;
+  border-top: 0;
+}
+
+@media (max-width: 900px) {
+  .network-tab > .fit-pane:has(> .up) {
+    overflow-y: auto;
+  }
+
+  .up {
+    flex: none;
+  }
+
+  .up-split {
+    grid-template-columns: 1fr;
+  }
+
+  .up-list {
+    max-height: 60vh;
+  }
+
+  .up-detail {
+    overflow: visible;
+  }
+}
+
+@media (max-width: 760px) {
+  .up-row {
+    grid-template-columns: 8px 20px minmax(0, 1fr) auto 52px;
+  }
+
+  /* The name matters more than the second and third chip. */
+  .up-name .chip ~ .chip {
+    display: none;
+  }
+
+  .up-spark {
+    display: none;
+  }
+
+  .up-search {
+    flex: 1 1 100%;
+    width: auto;
+  }
+}
+
+/* A badge on a page tab stays on one line, however narrow the row gets. */
+.net-bar .hsys-badge {
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .net-bar .hsys-tabs {
+    max-width: 100%;
+    padding-bottom: 1px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .net-bar .hsys-tabs button {
+    flex: none;
+    white-space: nowrap;
+  }
+}

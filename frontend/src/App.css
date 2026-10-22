@@ -1505,7 +1505,6 @@ select.deploy-input[multiple] {
    Sticky top bar, three sections, settings drawer, dense container table.
    ========================================================================= */
 
-
 button,
 input:not([type="checkbox"]):not([type="radio"]),
 select,
@@ -2801,9 +2800,8 @@ a.c-addr:hover {
   color: var(--offline);
 }
 
-
 /* =========================================================================
-   Services tab: service checks with latency and history
+   Uptime checks: the form, history, incidents
    ========================================================================= */
 
 .services-head {
@@ -2819,10 +2817,6 @@ a.c-addr:hover {
   flex-direction: column;
   gap: 14px;
   padding: 16px 18px;
-}
-
-.check--editing {
-  margin-bottom: 16px;
 }
 
 .check-uptime--ok {
@@ -3107,8 +3101,6 @@ a.c-addr:hover {
   padding: 14px 16px;
   border-left: 3px solid var(--border-strong);
 }
-
-
 
 .backup-error {
   margin: 10px 0 0;
@@ -3843,162 +3835,12 @@ a.c-addr:hover {
   color: var(--offline);
 }
 
-/* ----- Services: one table row per check ----- */
-
-.checks-table {
-  --check-cols: 44px minmax(200px, 2.2fr) minmax(130px, 1.3fr) minmax(110px, 1.2fr)
-    64px 64px 64px 164px;
-  border-radius: var(--radius);
-  overflow: hidden;
-  background: var(--glass, var(--bg-card));
-  border: 1px solid var(--glass-border, var(--border));
-}
-
-.check-head-row,
-.check-line {
-  display: grid;
-  grid-template-columns: var(--check-cols);
-  align-items: center;
-  column-gap: 12px;
-}
-
-.check-head-row {
-  padding: 8px 12px;
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--text-faint);
-  border-bottom: 1px solid var(--border);
-}
-
-.check-row {
-  border-bottom: 1px solid var(--border);
-}
-
-.check-row:last-child {
-  border-bottom: 0;
-}
-
-.check-line {
-  padding: 7px 12px;
-  font-size: var(--fs-md);
-}
-
-.check-row:hover .check-line {
-  background: rgba(255, 255, 255, 0.025);
-}
-
-.check-row--paused .check-line {
-  opacity: 0.5;
-}
-
-.check-cell-icon {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.check-cell-name {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.check-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.check-title strong {
-  font-size: var(--fs-md);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.check-title .chip {
-  font-size: var(--fs-sm);
-  line-height: 1.4;
-  padding: 0 6px;
-}
-
-.check-cell-now {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.check-now {
-  font-family: var(--mono);
-  font-size: var(--fs-lg);
-  font-weight: 700;
-}
-
-.check-now--down {
-  color: var(--offline);
-  font-family: var(--sans);
-}
-
-.check-now--paused,
-.check-now--pending {
-  color: var(--text-muted);
-  font-family: var(--sans);
-  font-weight: 600;
-}
-
-.check-cell-now small {
-  font-size: var(--fs-sm);
-  color: var(--text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.check-cell-spark {
-  min-width: 0;
-}
-
-.check-cell-num {
-  font-family: var(--mono);
-  font-size: var(--fs-sm);
-  font-weight: 600;
-}
+/* ----- Icon actions at the end of a table row ----- */
 
 .check-cell-actions {
   display: flex;
   justify-content: flex-end;
   gap: 0;
-}
-
-.check-row-error {
-  margin: 0 12px 8px 68px;
-}
-
-.check-row-detail {
-  padding: 4px 16px 14px 68px;
-}
-
-.checks-table + .check--editing,
-.services-tab > .check--editing {
-  margin-bottom: 12px;
-}
-
-@media (max-width: 1000px) {
-  .checks-table {
-    --check-cols: 44px minmax(0, 1fr) minmax(80px, auto) 58px 150px;
-  }
-
-  .check-head-row > :nth-child(4),
-  .check-head-row > :nth-child(6),
-  .check-head-row > :nth-child(7),
-  .check-cell-spark,
-  .check-line > .check-cell-num:nth-child(6),
-  .check-line > .check-cell-num:nth-child(7) {
-    display: none;
-  }
 }
 
 /* ----- Backups: one table row per job ----- */
@@ -5005,11 +4847,6 @@ a.c-addr:hover {
 .net-conns {
   padding: 4px 14px;
   margin-bottom: 18px;
-}
-
-.net-checks {
-  padding-top: 6px;
-  border-top: 1px solid var(--border);
 }
 
 @media (max-width: 1000px) {
@@ -7196,7 +7033,6 @@ button.mb-item:disabled { cursor: default; }
 
 /* Files tab */
 
-
 /* ----- Simple home board ----- */
 
 /* One window, no page scroll: the board is exactly as tall as what's left of
@@ -8997,7 +8833,7 @@ a.lan-port--web:hover {
 /* Network: every section is one window. The page never scrolls and neither
    does the pane — the cards and tables inside it share the height and scroll
    on their own. (A very short window falls back to a scrolling pane.) */
-.network-tab > .fit-pane:not(.net-checks) {
+.network-tab > .fit-pane {
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -9069,14 +8905,14 @@ a.lan-port--web:hover {
 }
 
 @media (max-height: 560px) {
-  .network-tab > .fit-pane:not(.net-checks) {
+  .network-tab > .fit-pane {
     overflow-y: auto;
   }
 }
 
 /* Stacked (narrow) layout: cards keep their natural height, the pane scrolls. */
 @media (max-width: 1000px) {
-  .network-tab > .fit-pane:not(.net-checks) {
+  .network-tab > .fit-pane {
     overflow-y: auto;
     scrollbar-width: thin;
   }
@@ -9098,26 +8934,7 @@ a.lan-port--web:hover {
   }
 }
 
-/* ----- Services: status strip button + incident list ----- */
-
-.fact--button {
-  font: inherit;
-  color: inherit;
-  cursor: pointer;
-  margin-left: auto;
-}
-
-.fact--button:hover .fact-sub {
-  color: var(--text);
-}
-
-.fact--warn .fact-value {
-  color: var(--warning);
-}
-
-.facts-row--bad {
-  border-color: var(--offline);
-}
+/* ----- Uptime: downtime incidents ----- */
 
 .check-incidents {
   margin-bottom: 10px;
@@ -9177,44 +8994,7 @@ a.lan-port--web:hover {
   }
 }
 
-/* ----- Services: suggested checks ----- */
-
-.check-suggest {
-  margin-bottom: 10px;
-  background: var(--bg-card);
-  border: 1px dashed var(--border);
-  border-radius: var(--radius);
-}
-
-.check-suggest-bar {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  width: 100%;
-  padding: 7px 12px;
-  font: inherit;
-  font-size: var(--fs-sm);
-  color: var(--text-muted);
-  text-align: left;
-  background: none;
-  border: 0;
-  cursor: pointer;
-}
-
-.check-suggest-bar strong {
-  color: var(--text);
-  font-family: var(--mono);
-}
-
-.check-suggest-bar span {
-  margin-left: auto;
-  font-size: var(--fs-sm);
-  color: var(--text-faint);
-}
-
-.check-suggest-bar:hover span {
-  color: var(--text);
-}
+/* ----- Uptime: checks nothing watches yet ----- */
 
 .check-suggest-body {
   padding: 2px 12px 10px;
@@ -9251,31 +9031,7 @@ a.lan-port--web:hover {
   white-space: nowrap;
 }
 
-/* ----- Services: groups, dependencies, slow ----- */
-
-.check-group + .check-group {
-  border-top: 1px solid var(--border);
-}
-
-.check-group-head {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  width: 100%;
-  padding: 6px 12px;
-  font: inherit;
-  font-size: var(--fs-sm);
-  color: var(--text-muted);
-  text-align: left;
-  background: color-mix(in srgb, var(--text) 3%, transparent);
-  border: 0;
-  border-bottom: 1px solid var(--border);
-  cursor: pointer;
-}
-
-.check-group-head strong {
-  color: var(--text);
-}
+/* ----- Uptime: groups, dependencies, slow ----- */
 
 .check-group-caret,
 .check-group-count {
@@ -9287,23 +9043,7 @@ a.lan-port--web:hover {
   color: var(--offline);
 }
 
-.check-now--degraded {
-  color: var(--warning);
-}
-
-.check-row--degraded {
-  background: color-mix(in srgb, var(--warning) 6%, transparent);
-}
-
 /* Failing, but only because something it depends on is: quieter than a root cause. */
-.check-row--behind {
-  opacity: 0.7;
-  background: none;
-}
-
-.check-row--behind .check-now--down {
-  color: var(--text-muted);
-}
 
 .check-branch {
   margin-right: 4px;
@@ -9314,53 +9054,6 @@ a.lan-port--web:hover {
   color: var(--warning);
   font-weight: 700;
 }
-
-/* ----- Services: latency between hosts ----- */
-
-.latency-matrix {
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 10px;
-  padding: 4px 12px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font-size: var(--fs-sm);
-}
-
-.latency-matrix-row {
-  display: grid;
-  grid-template-columns: minmax(90px, 1fr) repeat(var(--cols), minmax(70px, 1fr));
-  align-items: baseline;
-  gap: 8px;
-  padding: 5px 0;
-}
-
-.latency-matrix-row + .latency-matrix-row {
-  border-top: 1px solid var(--border);
-}
-
-.latency-matrix-corner {
-  font-size: var(--fs-sm);
-  color: var(--text-faint);
-}
-
-.latency-matrix-host {
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.latency-matrix-cell {
-  font-family: var(--mono);
-  font-variant-numeric: tabular-nums;
-}
-
-.latency-matrix-cell--up { color: var(--online); }
-.latency-matrix-cell--slow { color: var(--warning); }
-.latency-matrix-cell--down { color: var(--offline); }
-.latency-matrix-cell--none { color: var(--text-faint); }
 
 /* --- LAN topology map (Network → Scans → Map) ------------------------ */
 
@@ -10722,33 +10415,11 @@ tr:hover .lan-edit, .lan-edit:focus-visible { opacity: 1; }
   gap: 12px;
 }
 
-.sw-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.sw-state {
-  font-size: var(--fs-sm);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
 .sw-state--ok { color: var(--ok, #3fb950); }
 .sw-state--warn { color: var(--warn, #d29922); }
 .sw-state--bad { color: var(--bad, #f85149); }
 
-.sw-error {
-  color: var(--text-muted);
-  font-size: var(--fs-sm);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sw-speed--warn,
-.sw-errors--warn { color: var(--warning); }
+.sw-speed--warn { color: var(--warning); }
 .sw-speed--bad { color: var(--bad, #f85149); }
 
 .sw tbody .status-dot {

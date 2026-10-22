@@ -764,7 +764,6 @@ textarea.deploy-input {
 
 /* ----- Status washes ----- */
 
-.check-row--down,
 .backup-row--failing,
 .backup-row--corrupt {
   background: color-mix(in srgb, var(--offline) 7%, transparent);
@@ -1224,22 +1223,6 @@ textarea.deploy-input {
 
   .net-table th,
   .net-table td {
-    padding-inline: 10px;
-  }
-
-  /* Service checks: icon, name, now, actions (uptime lives in the
-     details). */
-  .checks-table {
-    --check-cols: 30px minmax(0, 1fr) auto 136px;
-  }
-
-  .check-head-row > :nth-child(5),
-  .check-line > .check-cell-num:nth-child(5) {
-    display: none;
-  }
-
-  .check-line {
-    column-gap: 8px;
     padding-inline: 10px;
   }
 

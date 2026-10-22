@@ -28,6 +28,16 @@ const HOST_PAGE_ITEMS = {
   manage: { title: (h) => `Manage ${h}`, sub: "Updates, power, recovery, agent settings", keywords: "os updates upgrade reboot power recover agent settings" },
 };
 
+// The pages of the Network tab: [page, title, what it is, what else finds it].
+const NETWORK_PAGES = [
+  ["overview", "Network overview", "Services, internet, DNS and the switch in one window", "status internet speed dns pihole switch ports uptime"],
+  ["checks", "Uptime checks", "Is each service answering", "services monitor health ping http latency incidents add check"],
+  ["dns", "DNS and devices", "Pi-hole, and who is asking", "pihole blocking ads queries clients pause"],
+  ["bandwidth", "Bandwidth", "Internet speed, and who is using it", "speed test download upload usage router wan"],
+  ["scan", "LAN scan", "Find every device on your network", "devices nmap arp map discover"],
+  ["watch", "LAN watch", "A rogue DHCP server or a stolen address", "arp spoofing dhcp security"],
+];
+
 function buildItems({ tabs, machines, containers, go, openSettings, terminal, updates, control }) {
   const items = [];
   const add = (kind, title, sub, run, { keywords = "", rank = 0, host } = {}) =>
@@ -35,6 +45,9 @@ function buildItems({ tabs, machines, containers, go, openSettings, terminal, up
 
   tabs.forEach((t) => add("tab", t.label, "Go to tab", () => go({ tab: t.value }), { rank: 0 }));
   add("action", "Settings", "Dashboard settings drawer", () => go({ tab: "settings" }), { rank: 1 });
+  NETWORK_PAGES.forEach(([section, title, sub, keywords]) =>
+    add("network", title, sub, () => go({ tab: "network", section }), { rank: 2, keywords })
+  );
 
   Object.keys(machines).sort().forEach((host) => {
     add("host", host, "Open host", () => go({ tab: "hosts", host }), { host, rank: 1, keywords: "server machine summary" });
@@ -85,7 +98,7 @@ function buildItems({ tabs, machines, containers, go, openSettings, terminal, up
   return items;
 }
 
-const KIND_LABEL = { tab: "Tab", host: "Host", container: "Container", action: "Action" };
+const KIND_LABEL = { tab: "Tab", network: "Network", host: "Host", container: "Container", action: "Action" };
 
 function CommandPalette({ tabs, machines, containers, control, onNavigate, onOpenSettings }) {
   const [open, setOpen] = useState(false);
@@ -117,9 +130,9 @@ function CommandPalette({ tabs, machines, containers, control, onNavigate, onOpe
     };
   }, []);
 
-  const go = ({ tab, host, page, container }) => {
+  const go = ({ tab, host, page, container, section }) => {
     if (tab === "settings") return onNavigate("settings");
-    onNavigate(tab, { container, host, page });
+    onNavigate(tab, { container, host, page, section });
   };
 
   const items = useMemo(

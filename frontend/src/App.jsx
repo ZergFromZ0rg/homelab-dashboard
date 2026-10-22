@@ -6,7 +6,6 @@ import HostsTab from "./components/HostsTab";
 import SimpleHome from "./components/SimpleHome";
 import { onNavigateRequest } from "./components/captureRequest";
 import { resolveTarget } from "./components/navTargets";
-import { useLocalStorage } from "./components/useLocalStorage";
 import SiteSettings from "./components/SiteSettings";
 import SettingsDrawer from "./components/SettingsDrawer";
 import TerminalDock from "./components/TerminalDock";
@@ -28,7 +27,7 @@ import ModeSelector from "./components/ModeSelector";
 import { useModeSelector } from "./components/viewMode";
 import { parseHash, useNavHistory } from "./components/navHistory";
 import MorningBriefing from "./components/MorningBriefing";
-import { isRootDown } from "./components/checkStatus";
+import { issuesTone, networkIssues } from "./components/networkSummary";
 import { needsAttention } from "./components/containerSort";
 import { reposBehind } from "./components/repoState";
 
@@ -386,10 +385,10 @@ function App() {
   }, [getMode]);
 
   // The tab, and the page inside it (a host and its page, a Network section).
-  // Each tab remembers its page, so coming back to it finds it as you left it.
-  const [subs, setSubs] = useLocalStorage("navSubs", {});
+  // A tab always opens on its Overview, the one window that says how it is; the
+  // pages inside are the tools, reached from there or by their address.
   const [activeTab, setActiveTab] = useState(opened?.tab ?? "hosts");
-  const [activeSub, setActiveSub] = useState(opened?.sub || subs[opened?.tab ?? "hosts"] || "");
+  const [activeSub, setActiveSub] = useState(opened?.sub || "");
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Container settings opened from the palette (rows open their own).
   const [settingsFor, setSettingsFor] = useState(null);
@@ -415,8 +414,9 @@ function App() {
   const containersNeedingYou =
     Object.values(containers).reduce((sum, list) => sum + list.filter((c) => needsAttention(c)).length, 0) +
     reposBehind(containers);
-  const checksDown = checks.filter(isRootDown).length;
-  const checksSlow = checks.filter((c) => c.status === "degraded").length;
+  // Everything on the network that needs a look: checks, Pi-hole, the switch, the
+  // router's link, devices, the LAN watch.
+  const networkProblems = networkIssues(overview.issues);
 
   const openTodos = todos.filter((t) => !t.done).length;
   const failedUnits = Object.values(machines).reduce(
@@ -440,22 +440,13 @@ function App() {
     // A number on a tab always means "this needs you" — never just how many
     // there are.
     { value: "containers", label: "Containers", count: containersNeedingYou || null, tone: "bad" },
-    {
-      value: "network",
-      label: "Network",
-      count: checksDown || checksSlow || null,
-      tone: checksDown ? "bad" : "warn",
-    },
+    { value: "network", label: "Network", count: networkProblems.length || null, tone: issuesTone(networkProblems) },
     { value: "backups", label: "Backups", count: backups?.attention || null, tone: "bad" },
   ];
   const tabValues = tabs.map((t) => t.value);
   // A tab that doesn't exist shows the first one instead.
   const shownTab = tabValues.includes(activeTab) ? activeTab : "hosts";
   const shownSub = shownTab === activeTab ? activeSub : "";
-
-  useEffect(() => {
-    if (viewMode === "god" && shownSub) setSubs((all) => (all[shownTab] === shownSub ? all : { ...all, [shownTab]: shownSub }));
-  }, [viewMode, shownTab, shownSub, setSubs]);
 
   // Every view you reach is a history entry: swipe or ⌘[ goes back to the
   // last one (also back across a mode switch), ⌘] forward again. Going back
@@ -473,16 +464,16 @@ function App() {
     },
   });
 
-  // A tab's own button: the page you were last on in it.
+  // A tab's own button: its Overview.
   const showTab = (tab) => {
     setActiveTab(tab);
-    setActiveSub(subs[tab] || "");
+    setActiveSub("");
   };
   const showSub = (sub) => setActiveSub(sub);
 
   // Anything that says "go look at X" (Attention → View, Quick actions →
   // Containers) funnels through here.
-  const navigate = (target, { container, host, path, action, filter, section, page } = {}) => {
+  const navigate = (target, { container, host, path, action, filter, section, page, check } = {}) => {
     if (target === "settings") return setSettingsOpen(true);
     if (container) {
       try {
@@ -505,11 +496,11 @@ function App() {
     }
     // Old section names land where their content lives now.
     if (target === "personal") return setMode("simple");
-    const { tab, sub } = resolveTarget(target, { host, action, page, section });
+    const { tab, sub } = resolveTarget(target, { host, action, page, section, check });
     // Everything but Simple's one page is God's.
     if (viewMode !== "god") setMode("god");
     setActiveTab(tab);
-    setActiveSub(sub ?? subs[tab] ?? "");
+    setActiveSub(sub ?? "");
     if (target === "files" && path) setFilesTarget({ host: host ?? lastHost(), path, n: Date.now() });
   };
   const openSettingsFor = useCallback((host, container) => setSettingsFor({ host, container }), []);
@@ -609,6 +600,8 @@ function App() {
                 onSection={showSub}
                 machines={machines}
                 checks={checks}
+                issues={networkProblems}
+                ready={ready}
                 connected={connected}
               />
             )}

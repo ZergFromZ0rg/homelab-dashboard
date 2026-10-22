@@ -14,6 +14,7 @@ import { pinKey, togglePin } from "./containerPins";
 import { useSettings } from "./settings";
 import { useNow } from "./useNow";
 import { useFitHeight } from "./useFitHeight";
+import { issueTarget } from "./navTargets";
 
 // The Simple page: a board you can read from across the room. Three columns —
 // the time and weather in one box over the to-dos on the left; pinned apps as
@@ -211,10 +212,10 @@ function Tile({ value, label, tone, onClick }) {
 function Alerts({ overview, alerts, ready, onNavigate }) {
   const firing = alerts.filter((a) => a.resolved_at == null);
   const rows = [
-    ...overview.issues.map((i) => ({ key: i.key, tone: i.severity, text: i.title, title: i.message })),
+    ...overview.issues.map((i) => ({ key: i.key, alert: i.key, tone: i.severity, text: i.title, title: i.message })),
     ...firing
       .filter((a) => !overview.issues.some((i) => i.key === a.key))
-      .map((a) => ({ key: `alert-${a.key}-${a.at}`, tone: a.severity || "bad", text: a.title, title: a.message })),
+      .map((a) => ({ key: `alert-${a.key}-${a.at}`, alert: a.key, tone: a.severity || "bad", text: a.title, title: a.message })),
   ];
   const clear = ready && rows.length === 0;
   return (
@@ -234,7 +235,7 @@ function Alerts({ overview, alerts, ready, onNavigate }) {
                 type="button"
                 className={`ov-issue ov-issue--${r.tone}`}
                 title={r.title}
-                onClick={() => onNavigate(r.key.startsWith("check:") ? "network" : "containers")}
+                onClick={() => onNavigate(...issueTarget(r.alert))}
               >
                 <span className={`status-dot status-dot--${r.tone}`} />
                 <strong>{r.text}</strong>

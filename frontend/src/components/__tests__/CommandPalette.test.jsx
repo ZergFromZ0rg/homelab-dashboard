@@ -64,3 +64,19 @@ test("a host on its own opens its summary, and files are its Storage page", () =
   fireEvent.keyDown(input, { key: "Enter" });
   expect(onNavigate).toHaveBeenCalledWith("hosts", expect.objectContaining({ host: "bigboy", page: "storage" }));
 });
+
+test("each page of the Network tab is a command that opens that page", () => {
+  const onNavigate = vi.fn();
+  render(<CommandPalette tabs={[]} machines={{}} containers={{}} control={{}} onNavigate={onNavigate} onOpenSettings={vi.fn()} />);
+  fireEvent.keyDown(window, { key: "k", metaKey: true });
+  const input = screen.getByRole("textbox", { name: "Search commands" });
+
+  fireEvent.change(input, { target: { value: "uptime checks" } });
+  expect(screen.getAllByRole("option")[0].textContent).toContain("Uptime checks");
+  fireEvent.keyDown(input, { key: "Enter" });
+  expect(onNavigate).toHaveBeenCalledWith("network", expect.objectContaining({ section: "checks" }));
+
+  fireEvent.keyDown(window, { key: "k", metaKey: true });
+  fireEvent.change(screen.getByRole("textbox", { name: "Search commands" }), { target: { value: "dns" } });
+  expect(screen.getAllByRole("option")[0].textContent).toContain("DNS and devices");
+});

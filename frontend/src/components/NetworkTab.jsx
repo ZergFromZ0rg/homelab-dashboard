@@ -1,33 +1,38 @@
 import BandwidthPanel from "./BandwidthPanel";
 import LanScan from "./LanScan";
+import NetworkOverview from "./NetworkOverview";
 import NetworkWatch from "./NetworkWatch";
 import PiholePanel from "./PiholePanel";
-import SwitchPanel from "./SwitchPanel";
-import ServicesTab from "./ServicesTab";
+import UptimeScreen from "./UptimeScreen";
 import { hostColor } from "./hostColor";
 import { isRootDown } from "./checkStatus";
 import { useLocalStorage } from "./useLocalStorage";
 import PageLede from "./PageLede";
 import { purposeOf } from "./navPurpose";
-import { entryOf, networkSections, pickSection, PER_HOST, SECTION_VIEWS } from "./networkSections";
+import { entryOf, networkSections, parseSection, pickSection, PER_HOST, SECTION_VIEWS } from "./networkSections";
 import { useFitHeight } from "./useFitHeight";
 
-// The network as a whole: uptime checks, DNS, bandwidth, the switch, and a
-// scan and a watch of the LAN from one server of your choice. One server's own
-// traffic, ports and packets are on its page under Hosts. `section` and
-// `onSection` are the address's second half, so back and forward walk them.
-function NetworkTab({ machines, checks, connected, section: wanted, onSection }) {
+// The network as a whole. It opens on the Overview — services, internet, DNS and
+// the switch in one window — and the tools that need a screen of their own are
+// pages beside it: the uptime checks, DNS and its devices, bandwidth, and a scan
+// and a watch of the LAN from one server of your choice. One server's own traffic,
+// ports and packets are on its page under Hosts. `section` and `onSection` are the
+// address's second half (`dns`, or `checks/k5`), so back and forward walk them.
+function NetworkTab({ machines, checks, connected, issues = [], ready = true, section: wanted, onSection }) {
   const fit = useFitHeight();
   const hosts = Object.keys(machines).sort();
   const [picked, setPicked] = useLocalStorage("networkHost", null);
   const host = hosts.includes(picked) ? picked : hosts[0];
+  // The Uptime page's badge is what needs a look on it, never how many there are.
   const down = checks.filter(isRootDown).length;
-  const checksBadge = down ? `${down} down` : checks.length || null;
+  const slow = checks.filter((c) => c.status === "degraded").length;
+  const checksBadge = down ? `${down} down` : slow ? `${slow} slow` : null;
 
   const sections = networkSections(checksBadge);
   const section = pickSection(sections, wanted);
   const perHost = PER_HOST.includes(section);
   const entry = entryOf(section);
+  const { detail } = parseSection(wanted);
 
   return (
     <section className="network-tab fit-page" ref={fit}>
@@ -44,7 +49,7 @@ function NetworkTab({ machines, checks, connected, section: wanted, onSection })
               onClick={() => onSection(id)}
             >
               {label}
-              {badge != null && <span className={`hsys-badge ${id === "checks" && down ? "hsys-badge--bad" : ""}`}>{badge}</span>}
+              {badge != null && <span className={`hsys-badge ${down ? "hsys-badge--bad" : "hsys-badge--warn"}`}>{badge}</span>}
             </button>
           ))}
         </div>
@@ -69,10 +74,18 @@ function NetworkTab({ machines, checks, connected, section: wanted, onSection })
         )}
       </div>
 
-      <PageLede text={purposeOf("network", { section })} views={SECTION_VIEWS[entry]} current={section} onView={onSection} />
+      {section !== "overview" && (
+        <PageLede text={purposeOf("network", { section })} views={SECTION_VIEWS[entry]} current={section} onView={onSection} />
+      )}
 
       {perHost && hosts.length === 0 && (
         <div className="empty-state">{connected === false ? "Connecting…" : "No servers reporting yet."}</div>
+      )}
+
+      {section === "overview" && (
+        <div className="fit-pane">
+          <NetworkOverview checks={checks} issues={issues} ready={ready} hosts={hosts} onSection={onSection} />
+        </div>
       )}
 
       {section === "scan" && host && (
@@ -107,20 +120,14 @@ function NetworkTab({ machines, checks, connected, section: wanted, onSection })
         </div>
       )}
 
-      {section === "switch" && (
-        <div className="fit-pane">
-          <section className="overview-card net-fill">
-            <SwitchPanel />
-          </section>
-        </div>
-      )}
-
       {section === "checks" && (
-        <div className="net-checks fit-pane">
-          <ServicesTab
+        <div className="fit-pane">
+          <UptimeScreen
+            key={detail}
             checks={checks}
             connected={connected}
             hosts={hosts.filter((h) => machines[h]?.agent_reachable != null)}
+            initialId={detail}
           />
         </div>
       )}

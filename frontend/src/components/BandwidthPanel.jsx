@@ -188,8 +188,8 @@ function Devices({ snapshot, range, setRange }) {
   if (snapshot.state === "unconfigured") {
     return (
       <p className="lan-empty">
-        Bandwidth by device reads the switch. Set it up under Network → Switch first (Prometheus needs a job named{" "}
-        <code>switch</code>).
+        Bandwidth by device reads the switch. Prometheus needs a job named <code>switch</code> for it (see the Switch panel
+        on the Network overview).
       </p>
     );
   }
