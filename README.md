@@ -85,8 +85,8 @@ one to work in.
     sniffer), **Manage** (pending OS updates, reboot / power off, "if this
     host died", the agent's settings). A `>_` button opens a root shell on
     the host in the terminal dock. The fleet **Overview** is the whole fleet
-    on one screen: the headline numbers, the servers, what needs attention,
-    uptime checks, pinned containers and the timeline;
+    on one screen: the headline numbers, the servers, the busiest containers,
+    what needs attention, uptime checks, pinned containers and the timeline;
   - **Containers** — every container, with its shell, logs, settings and
     controls on the row;
   - **Network** — opens on an **Overview**: services, the internet (its speed
@@ -96,9 +96,12 @@ one to work in.
     **Uptime** (the checks: a list, and the one you pick with its history,
     figures and actions), **DNS** (Pi-hole and the devices it has seen),
     **Bandwidth**, and **LAN** (a scan, and a watch, from a server you pick);
-  - **Backups** — also shows where each job's archives really are on the
-    destination machine ("Kept in thinkpad /mnt/media/backups/…", read from
-    its agent); click the path to open it in Storage.
+  - **Backups** — the jobs beside a panel per host for "if it died": whether
+    its compose files are backed up and which data no job covers, biggest
+    first, with a **Recover →** jump to its Manage page. A job also shows
+    where its archives really are on the destination machine ("Kept in
+    thinkpad /mnt/media/backups/…", read from its agent); click the path to
+    open it in Storage.
 
   Terminals (⌘K "Shell on …", the `>_` button, a container's row) live in a
   dock along the bottom of the page, so they keep running as you move
@@ -132,8 +135,13 @@ you, in the briefing and in Needs attention.
   host problems jump to that server's page;
 - **Uptime** — a line per service check with its latency (down ones
   first); click one to open it on Network → Uptime;
-- **Servers** — one line per machine with its headline bars (CPU, RAM,
-  fullest disk); click one for its pages;
+- **Servers** — one card per machine with its headline bars (CPU, RAM,
+  fullest disk) and a line under them: uptime and temperature, then only what
+  needs a look (pending OS updates, a reboot due, failed services); click one
+  for its pages;
+- **Busiest** — the running containers that use the most CPU or memory across
+  every server, a bar each and a switch between the two; click one to open it
+  on Containers. It steps aside when the column is too short to show it;
 - a right-hand rail: **Quick actions** (restart / stop for your pinned
   containers, jumps to Containers) and **Recent activity**
   (container start/stop/restart, host up/down, agent unreachable and
@@ -724,6 +732,13 @@ the `/host` mount it already has, so nothing else changes.
 By default a backup goes to the machine running the dashboard, because a
 copy that lives on the box it came from dies with it. The form says so out
 loud if you point a job back at its own host.
+
+The tab also answers *what would I lose if this host died?* Each host gets a
+verdict beside the jobs: whether its compose files are backed up (the config
+backup above, live from its agent), and which stacks hold data that no job
+covers and nobody has marked as skipped. The data half comes from the agent's
+recovery report (`/api/hosts/{host}/recovery`, the same one behind a host's
+Manage page), refreshed every two minutes.
 
 ### How a backup is taken
 
