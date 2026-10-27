@@ -591,6 +591,7 @@ function App() {
                 connected={connected}
                 showLocation
                 onOpenFolder={(host, path) => navigate("files", { host, path })}
+                onNavigate={navigate}
               />
             )}
 

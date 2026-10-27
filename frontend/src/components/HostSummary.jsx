@@ -4,7 +4,9 @@
 // busy machine stands out and a healthy one stays quiet. A click opens the
 // server card in full.
 
+import "./fleet.css";
 import { diskLabel } from "./diskLabel";
+import { hostFacts } from "./fleetFacts";
 import { hostColor } from "./hostColor";
 
 function level(pct) {
@@ -80,6 +82,16 @@ function HostSummary({ machines, containers, ready = true, onOpen }) {
             <span className="ov-host-count" title="containers running">
               {offline ? "—" : `${running}/${conts.length}`}
             </span>
+
+            {!offline && (
+              <span className="ov-host-facts">
+                {hostFacts(m).map((fact) => (
+                  <span key={fact.id} className={fact.tone ? `ov-fact--${fact.tone}` : undefined} title={fact.title}>
+                    {fact.text}
+                  </span>
+                ))}
+              </span>
+            )}
           </button>
         );
       })}

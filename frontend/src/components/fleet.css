@@ -1,0 +1,129 @@
+/* The fleet overview: a line of facts under each server's meters, and the busiest
+   containers. Flat and solid like the rest, built from the shared tokens. */
+
+.ov-host-facts {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+  gap: 2px 12px;
+  font-size: var(--fs-sm);
+  color: var(--text-faint);
+}
+
+.ov-host-facts .ov-fact--warn {
+  color: var(--warning);
+}
+
+.ov-host-facts .ov-fact--bad {
+  color: var(--offline);
+}
+
+/* The column's last panel takes what is left; the servers give way, scrolling,
+   when the window is short. */
+.ovb .ovw-col > .ov-panel.hv-busiest {
+  flex: 1 1 0;
+  min-height: 90px;
+}
+
+.ovb .ov-hosts-panel .overview-card-body {
+  overflow-y: auto;
+}
+
+.hv-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(40px, 1fr) 56px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: var(--fs-md);
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.hv-row:hover {
+  background: var(--bg-subtle);
+}
+
+.hv-name {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.hv-name-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hv-host {
+  flex: none;
+  font-size: var(--fs-sm);
+  text-transform: capitalize;
+}
+
+.hv-bar {
+  height: 5px;
+  overflow: hidden;
+  background: var(--bg-raised);
+  border-radius: 3px;
+}
+
+.hv-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--page-accent, var(--accent));
+  border-radius: 3px;
+}
+
+/* Side by side, a column knows how tall it is. With too little room the busiest
+   containers would be a sliver, so they step aside and the servers keep the height. */
+@media (min-width: 901px) {
+  .ovb:not(.net-home) .ovw-col {
+    container: ovcol / size;
+  }
+}
+
+@container ovcol (max-height: 520px) {
+  .ovb .ovw-col > .ov-panel.hv-busiest {
+    display: none;
+  }
+}
+
+.hv-val {
+  font: 500 var(--fs-sm) var(--mono);
+  color: var(--text-muted);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Phones: the panels stack at their own height and the pane scrolls, instead of
+   squeezing into the window and overlapping. */
+@media (max-width: 900px) {
+  .hosts-tab.fit-page > .hosts-pane--board {
+    overflow-y: auto;
+  }
+
+  .hosts-tab .ovb,
+  .hosts-tab .ovb-grid {
+    flex: none;
+  }
+
+  .hosts-tab .ovb .ovw-col > .ov-panel,
+  .hosts-tab .ovb .ovw-col > .ov-panel.hv-busiest {
+    flex: none;
+  }
+
+  .hosts-tab .ovb .ov-panel .overview-card-body {
+    max-height: 340px;
+  }
+}

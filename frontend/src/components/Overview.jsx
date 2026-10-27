@@ -5,6 +5,7 @@ import HostSummary from "./HostSummary";
 import AddNode from "./AddNode";
 import Timeline from "./Timeline";
 import QuickActions from "./QuickActions";
+import BusiestPanel from "./BusiestPanel";
 import Panel from "./Panel";
 import ServiceList from "./ServiceList";
 import { useSettings } from "./settings";
@@ -131,6 +132,7 @@ function Overview({
               <HostSummary machines={machines} containers={containers} ready={ready} onOpen={onOpenHost} />
             </Panel>
           )}
+          {homeCards.hosts && <BusiestPanel containers={containers} onOpen={(name) => onNavigate("containers", { container: name })} />}
           {homeCards.hosts && <AddNode />}
         </div>
         <div className="ovw-col">

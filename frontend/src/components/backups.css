@@ -1,0 +1,259 @@
+/* The Backups tab: the jobs on the left, what each host would lose if it died on
+   the right. Flat and solid like the rest, built from the shared tokens. */
+
+.backups-tab.fit-page > .bk-board {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(300px, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  gap: 12px;
+  overflow: hidden;
+}
+
+.bk-board > .ov-panel {
+  min-height: 0;
+}
+
+.bk-board .ov-panel .overview-card-body {
+  max-height: none;
+}
+
+/* ----- The jobs ----- */
+
+/* The table is the panel's body: no card inside the card. */
+.bk-board .bk-jobs .overview-card-body {
+  padding: 0;
+}
+
+.bk-jobs .backups-table {
+  background: none;
+  border: 0;
+  border-radius: 0;
+}
+
+.bk-jobs .backup-head-row {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg-card);
+}
+
+.bk-jobs .overview-card-body > .backup--editing,
+.bk-jobs .overview-card-body > .empty-state,
+.bk-jobs .overview-card-body > .form-error {
+  margin: 10px;
+}
+
+/* Side by side the table is as wide as its panel, not the window, so the columns go
+   by the panel's width: the details come off first; the name, the age, the state and
+   the buttons stay. (The panel's body is the container. Narrower windows stack the
+   panels and the table's own rules for the window apply.) */
+@media (min-width: 1101px) {
+  @container (max-width: 1000px) {
+    .bk-jobs .backups-table {
+      --backup-cols: minmax(120px, 1.2fr) minmax(170px, 1.3fr) minmax(80px, 0.8fr) minmax(90px, 0.8fr) 128px 164px;
+    }
+
+    .bk-jobs .backup-head-row > :nth-child(5),
+    .bk-jobs .backup-head-row > :nth-child(6),
+    .bk-jobs .backup-line > :nth-child(5),
+    .bk-jobs .backup-line > :nth-child(6) {
+      display: none;
+    }
+  }
+
+  @container (max-width: 800px) {
+    .bk-jobs .backups-table {
+      --backup-cols: minmax(120px, 1.2fr) minmax(170px, 1.3fr) minmax(80px, 0.8fr) 128px 164px;
+    }
+
+    .bk-jobs .backup-head-row > :nth-child(4),
+    .bk-jobs .backup-line > :nth-child(4) {
+      display: none;
+    }
+  }
+
+  @container (max-width: 640px) {
+    .bk-jobs .backups-table {
+      --backup-cols: minmax(0, 1.4fr) minmax(80px, 0.9fr) 118px 150px;
+    }
+
+    .bk-jobs .backup-head-row > :nth-child(2),
+    .bk-jobs .backup-line > :nth-child(2) {
+      display: none;
+    }
+  }
+}
+
+/* ----- If a host died ----- */
+
+.bk-host {
+  padding: 10px 6px 12px;
+  border-top: 1px solid var(--border);
+}
+
+.bk-host:first-child {
+  padding-top: 4px;
+  border-top: 0;
+}
+
+.bk-host-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 26px;
+}
+
+.bk-host-head strong {
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.bk-verdict {
+  font: 600 var(--fs-sm) var(--mono);
+  color: var(--text-muted);
+}
+
+.bk-verdict--bad {
+  color: var(--offline);
+}
+
+.bk-verdict--warn {
+  color: var(--warning);
+}
+
+.bk-verdict--ok {
+  color: var(--online);
+}
+
+.bk-link {
+  margin-left: auto;
+  padding: 0;
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-muted);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.bk-link:hover {
+  color: var(--text);
+}
+
+.bk-lines {
+  margin: 4px 0 0;
+  padding-left: 16px;
+}
+
+.bk-line {
+  display: grid;
+  grid-template-columns: 98px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: var(--fs-md);
+}
+
+.bk-line dt {
+  font-size: var(--fs-sm);
+  color: var(--text-faint);
+}
+
+.bk-line dd {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bk-line dd small {
+  margin-left: 6px;
+  font-size: var(--fs-sm);
+  color: var(--text-faint);
+}
+
+.bk-tone--bad {
+  color: var(--offline);
+}
+
+.bk-tone--warn {
+  color: var(--warning);
+}
+
+.bk-tone--none {
+  color: var(--text-muted);
+}
+
+.bk-stacks {
+  margin: 4px 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.bk-stack {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 24px;
+  padding: 0 4px;
+  font: inherit;
+  font-size: var(--fs-md);
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.bk-stack:hover {
+  background: var(--bg-subtle);
+}
+
+.bk-stack .grow {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bk-stack .num {
+  flex: none;
+  font: 500 var(--fs-sm) var(--mono);
+  color: var(--offline);
+}
+
+.bk-more {
+  padding: 2px 4px;
+  font-size: var(--fs-sm);
+  color: var(--text-faint);
+}
+
+.bk-quiet {
+  margin: 0;
+  padding: 6px 4px;
+  color: var(--text-muted);
+}
+
+/* ----- Narrow windows: one column, the pane scrolls ----- */
+
+@media (max-width: 900px) {
+  .backups-tab.fit-page > .bk-board {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+    overflow-y: auto;
+  }
+
+  .bk-board > .ov-panel {
+    min-height: auto;
+  }
+
+  .bk-board .ov-panel .overview-card-body {
+    max-height: 420px;
+  }
+}

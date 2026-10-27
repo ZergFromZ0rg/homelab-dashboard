@@ -4,6 +4,7 @@ import {
   demoBackupArchives,
   demoBackupDestinations,
   demoBackupTargets,
+  demoHostRecovery,
 } from "../demoData";
 import { jsonOrThrow } from "./apiAuth";
 
@@ -37,6 +38,14 @@ export function fetchBackupDestinations() {
   if (DEMO) return Promise.resolve(demoBackupDestinations());
   return fetch("/api/backups/destinations", {})
     .then(jsonOrThrow);
+}
+
+// What you would have if this host died tonight: its compose-file backup, which of
+// its stacks a job covers, and the data nothing does. The agent measures the sizes
+// (and caches them for five minutes), so ask no more often than that.
+export function fetchRecovery(host) {
+  if (DEMO) return Promise.resolve(demoHostRecovery(host));
+  return fetch(`/api/hosts/${encodeURIComponent(host)}/recovery`).then(jsonOrThrow);
 }
 
 export function fetchBackupTargets(host) {

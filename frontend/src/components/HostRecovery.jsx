@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
-import { DEMO, demoHostRecovery } from "../demoData";
-import { jsonOrThrow } from "./apiAuth";
 import {
   backupProjects,
   fetchBackupDestinations,
+  fetchRecovery,
   ignoreNames,
   unignore,
 } from "./backupsApi";
@@ -22,12 +21,6 @@ import Icon from "./Icon";
 // The third is the point. A host nobody has configured lists every project
 // as unprotected, rather than looking clean because there is nothing to
 // compare against.
-
-function fetchRecovery(host) {
-  if (DEMO) return Promise.resolve(demoHostRecovery(host));
-  return fetch(`/api/hosts/${encodeURIComponent(host)}/recovery`, {
-  }).then(jsonOrThrow);
-}
 
 const CONFIG_WORDS = {
   ok: "Backed up",
