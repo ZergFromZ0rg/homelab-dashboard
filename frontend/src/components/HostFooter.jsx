@@ -78,18 +78,16 @@ function versionChip(version) {
   }
 }
 
-// Server-level facts that aren't host metrics: what runs on it, plus a chip
-// for anything about its agent, backup or version that isn't fine. Healthy
-// states say nothing — the chip row is for things worth reading.
+// Server-level facts that aren't host metrics: a chip for anything about its OS,
+// agent, backup or version that needs a look. Healthy states say nothing, and
+// what runs on it and what failed are the band above the vitals. With nothing to
+// say the footer isn't drawn.
 function HostFooter({ machine, containers }) {
   const list = containers || [];
   const backup = backupChip(machine.backup);
   const version = versionChip(machine.agent_version);
-  const running = list.filter((c) => c.status === "running").length;
-  const unhealthy = list.filter((c) => c.health === "unhealthy").length;
   const outdated = list.filter((c) => c.update?.state === "available");
   const facts = machine.host_facts;
-  const failedUnits = facts?.failed_units || [];
 
   let agent = { label: "agent connected", tone: "ok" };
   if (machine.agent_reachable === false) {
@@ -100,51 +98,44 @@ function HostFooter({ machine, containers }) {
     agent = { label: "no agent", tone: "none" };
   }
 
-  return (
-    <div className="host-foot">
-      <span className="chip">
-        {running}/{list.length} running
+  const chips = [
+    facts?.upgrading && <span key="upgrading" className="chip chip--warn">upgrading OS…</span>,
+    facts?.reboot_required && (
+      <span key="reboot" className="chip chip--warn" title="Installed updates finish on the next reboot — System → Power">
+        reboot needed
       </span>
-      {unhealthy > 0 && <span className="chip chip--bad">{unhealthy} unhealthy</span>}
-      {failedUnits.length > 0 && (
-        <span className="chip chip--bad" title={failedUnits.join(", ")}>
-          {failedUnits.length} failed service{failedUnits.length === 1 ? "" : "s"}
-        </span>
-      )}
-      {facts?.upgrading && <span className="chip chip--warn">upgrading OS…</span>}
-      {facts?.reboot_required && (
-        <span className="chip chip--warn" title="Installed updates finish on the next reboot — System → Power">
-          reboot needed
-        </span>
-      )}
-      {facts?.os_updates > 0 && (
-        <span
-          className={`chip ${facts.security_updates ? "chip--warn" : ""}`}
-          title={`${facts.security_updates || 0} of them security fixes — System → OS updates`}
-        >
-          {facts.os_updates} OS update{facts.os_updates === 1 ? "" : "s"}
-        </span>
-      )}
-      {outdated.length > 0 && (
-        <span className="chip" title={`Newer images: ${outdated.map((c) => c.name).join(", ")}`}>
-          {outdated.length} update{outdated.length === 1 ? "" : "s"}
-        </span>
-      )}
-      {agent.tone !== "ok" && (
-        <span className={`chip chip--${agent.tone}`}>{agent.label}</span>
-      )}
-      {backup && backup.tone !== "ok" && (
-        <span className={`chip chip--${backup.tone}`} title={backup.title || undefined}>
-          {backup.label}
-        </span>
-      )}
-      {version && version.tone !== "ok" && (
-        <span className={`chip chip--${version.tone}`} title={version.title}>
-          {version.label}
-        </span>
-      )}
-    </div>
-  );
+    ),
+    facts?.os_updates > 0 && (
+      <span
+        key="os"
+        className={`chip ${facts.security_updates ? "chip--warn" : ""}`}
+        title={`${facts.security_updates || 0} of them security fixes — System → OS updates`}
+      >
+        {facts.os_updates} OS update{facts.os_updates === 1 ? "" : "s"}
+      </span>
+    ),
+    outdated.length > 0 && (
+      <span key="images" className="chip" title={`Newer images: ${outdated.map((c) => c.name).join(", ")}`}>
+        {outdated.length} update{outdated.length === 1 ? "" : "s"}
+      </span>
+    ),
+    agent.tone !== "ok" && (
+      <span key="agent" className={`chip chip--${agent.tone}`}>{agent.label}</span>
+    ),
+    backup && backup.tone !== "ok" && (
+      <span key="backup" className={`chip chip--${backup.tone}`} title={backup.title || undefined}>
+        {backup.label}
+      </span>
+    ),
+    version && version.tone !== "ok" && (
+      <span key="version" className={`chip chip--${version.tone}`} title={version.title}>
+        {version.label}
+      </span>
+    ),
+  ].filter(Boolean);
+
+  if (chips.length === 0) return null;
+  return <div className="host-foot">{chips}</div>;
 }
 
 export default HostFooter;

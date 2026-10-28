@@ -76,7 +76,9 @@ one to work in.
   more than a look opens it in God.
 - **God** — four tabs, and never more than one row of pages under them:
   - **Hosts** — pick the server once (or **Overview** for the whole fleet)
-    and everything about it is a page in one row: **Summary** (the full
+    and everything about it is a page in one row: **Summary** (a first
+    line with the host's containers, a dot each and the unhealthy or
+    restart-looping ones named, and its failed services, then the full
     vitals: CPU, memory, storage, network, thermals and GPU), **History**
     (hours to months), **Storage** (the file browser, every disk with its fill
     forecast, the drives' own health), **Services** (systemd, and the

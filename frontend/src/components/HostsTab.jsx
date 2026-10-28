@@ -124,6 +124,8 @@ function HostsTab({ sub, onSub, machines, containers, history, mainHost, connect
               containers={containers[host]}
               main={host === mainHost}
               onOpenFolder={(path) => fleet.onNavigate("files", { host, path })}
+              onOpenContainers={(container) => fleet.onNavigate("containers", container ? { container } : {})}
+              onOpenServices={() => onSub(hostsSub(host, "services"))}
             />
           </div>
         </div>

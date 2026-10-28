@@ -127,3 +127,124 @@
     max-height: 340px;
   }
 }
+
+/* A host's Health page, first line: its containers (a dot each) and its failed
+   services. Flat cells with the same hairline as the five columns below. */
+.hh-band {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  margin: 0 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.hh-band--one {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.hh-cell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  min-width: 0;
+  min-height: 38px;
+  padding: 6px 14px;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.hh-cell + .hh-cell {
+  border-left: 1px solid var(--border);
+}
+
+.hh-cell h3 {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--host-color, var(--text-muted));
+}
+
+.hh-cell strong {
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.hh-cell strong.hh-tone--bad {
+  color: var(--offline);
+}
+
+.hh-quiet {
+  color: var(--text-faint);
+}
+
+.hh-dots {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  max-width: 100%;
+}
+
+.hh-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--online);
+}
+
+.hh-dot--bad {
+  background: var(--offline);
+}
+
+.hh-dot--off {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--text-faint);
+}
+
+.hh-name {
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.hh-name em {
+  font-style: normal;
+  color: var(--offline);
+}
+
+.hh-name:hover {
+  text-decoration: underline;
+}
+
+.hh-open {
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+
+.hh-open:hover {
+  color: var(--text);
+}
+
+@media (max-width: 900px) {
+  .hh-band {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hh-cell + .hh-cell {
+    border-top: 1px solid var(--border);
+    border-left: 0;
+  }
+}

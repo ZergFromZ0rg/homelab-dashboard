@@ -843,6 +843,7 @@ function fullSnapshot() {
     // an idle GPU unless something says otherwise, which is the point of
     // the hint.
     "nuc-media": machine({
+      hostFacts: { package_manager: "apt", os_updates: 4, security_updates: 0, reboot_required: false, failed_units: ["smartd.service", "nfs-mountd.service"] },
       gpu: {
         available: true,
         count: 1,
